@@ -1,0 +1,299 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Valida db/migrate sin arrancar Rails ni tocar la base de datos, y genera el DDL
+# que producirian las migraciones (tmp/schema_preview.sql) para poder ejecutarlo
+# contra un MySQL vacio antes de confiar en el.
+#
+# Existe porque en la v1 una migracion declaraba dos veces la misma columna, y
+# eso hacia imposible reconstruir la base desde cero sin que nadie lo notara
+# durante dos anios.
+#
+#   bin/schema_check            valida y escribe tmp/schema_preview.sql
+#   bin/schema_check --quiet    solo devuelve el codigo de salida (para el hook de git)
+
+require "fileutils"
+
+QUIET = ARGV.include?("--quiet")
+ROOT  = File.expand_path("..", __dir__)
+
+TYPES = {
+  string: "varchar(255)", text: "text", integer: "int", bigint: "bigint",
+  boolean: "tinyint(1)", datetime: "datetime(6)", date: "date", time: "time",
+  float: "double", json: "json", binary: "blob"
+}.freeze
+
+Table  = Struct.new(:name, :columns, :comment)
+Column = Struct.new(:name, :type, :options)
+Index  = Struct.new(:table, :columns, :unique, :name)
+ForeignKey = Struct.new(:table, :to_table, :column)
+
+class Schema
+  attr_reader :tables, :indexes, :foreign_keys, :errors, :warnings
+
+  def initialize
+    @tables = {}
+    @indexes = []
+    @foreign_keys = []
+    @errors = []
+    @warnings = []
+  end
+
+  def error(msg)   = @errors << msg
+  def warning(msg) = @warnings << msg
+end
+
+SCHEMA = Schema.new
+
+# Definicion de tabla: recoge las columnas declaradas dentro del bloque.
+class TableDefinition
+  attr_reader :table
+
+  def initialize(name)
+    @table = Table.new(name, [], nil)
+  end
+
+  TYPES.each_key do |type|
+    define_method(type) do |*names, **options|
+      names.each { |n| add(n.to_s, type, options) }
+    end
+  end
+
+  def decimal(*names, **options)
+    names.each { |n| add(n.to_s, :decimal, options) }
+  end
+
+  def references(*names, **options)
+    names.each do |n|
+      add("#{n}_id", :bigint, options.merge(reference: true))
+      add("#{n}_type", :string, options.merge(reference: true)) if options[:polymorphic]
+
+      unless options[:index] == false
+        SCHEMA.indexes << Index.new(@table.name, ["#{n}_id"], false, nil)
+      end
+      next if options[:foreign_key].nil? || options[:foreign_key] == false
+
+      to = options[:foreign_key].is_a?(Hash) ? options[:foreign_key][:to_table] : nil
+      SCHEMA.foreign_keys << ForeignKey.new(@table.name, (to || pluralize(n.to_s)).to_s, "#{n}_id")
+    end
+  end
+  alias belongs_to references
+
+  def timestamps(**_options)
+    add("created_at", :datetime, null: false)
+    add("updated_at", :datetime, null: false)
+  end
+
+  def index(columns, **options)
+    SCHEMA.indexes << Index.new(@table.name, Array(columns).map(&:to_s), options[:unique], options[:name])
+  end
+
+  private
+
+  def add(name, type, options)
+    if @table.columns.any? { |c| c.name == name }
+      SCHEMA.error("#{@table.name}: la columna '#{name}' se declara dos veces")
+      return
+    end
+    @table.columns << Column.new(name, type, options)
+  end
+
+  def pluralize(word)
+    case word
+    when /y$/  then "#{word[0..-2]}ies"
+    when /s$/  then "#{word}es"
+    when /person$/ then word.sub(/person$/, "people")
+    else "#{word}s"
+    end
+  end
+end
+
+# Sustituto de ActiveRecord::Migration: solo lo necesario para leer las migraciones.
+module ActiveRecord
+  class Migration
+    def self.[](_version) = self
+
+    def create_table(name, **options)
+      name = name.to_s
+      SCHEMA.error("la tabla '#{name}' se crea dos veces") if SCHEMA.tables.key?(name)
+      definition = TableDefinition.new(name)
+      definition.timestamps if false
+      yield definition if block_given?
+      table = definition.table
+      table.columns.unshift(Column.new("id", :bigint, primary_key: true)) unless options[:id] == false
+      table.comment = options[:comment]
+      SCHEMA.tables[name] = table
+    end
+
+    def add_index(table, columns, **options)
+      SCHEMA.indexes << Index.new(table.to_s, Array(columns).map(&:to_s), options[:unique], options[:name])
+    end
+
+    def add_column(table, name, type, **options)
+      t = SCHEMA.tables[table.to_s]
+      return SCHEMA.error("add_column sobre la tabla inexistente '#{table}'") unless t
+      if t.columns.any? { |c| c.name == name.to_s }
+        return SCHEMA.error("#{table}: add_column '#{name}' ya existe")
+      end
+
+      t.columns << Column.new(name.to_s, type, options)
+    end
+
+    def add_reference(table, name, **options)
+      add_column(table, "#{name}_id", :bigint, **options)
+      SCHEMA.indexes << Index.new(table.to_s, ["#{name}_id"], false, nil)
+    end
+
+    def add_foreign_key(table, to_table, **options)
+      SCHEMA.foreign_keys << ForeignKey.new(table.to_s, to_table.to_s, (options[:column] || "#{singular(to_table.to_s)}_id").to_s)
+    end
+
+    def execute(sql) = SCHEMA.warning("execute() en bruto, no validado: #{sql.to_s[0, 60]}...")
+    def reversible(&_block) = nil
+
+    private
+
+    def singular(word)
+      return "person" if word == "people"
+
+      word.sub(/ies$/, "y").sub(/s$/, "")
+    end
+  end
+end
+
+# --- carga de las migraciones en orden ---
+files = Dir[File.join(ROOT, "db/migrate/*.rb")].sort
+abort("No hay migraciones en db/migrate") if files.empty?
+
+files.each do |file|
+  source = File.read(file)
+  class_name = source[/class\s+(\w+)\s*</, 1]
+  unless class_name
+    SCHEMA.error("#{File.basename(file)}: no se encontro la clase de la migracion")
+    next
+  end
+  expected = File.basename(file, ".rb").sub(/\A\d+_/, "").split("_").map(&:capitalize).join
+  if class_name != expected
+    SCHEMA.error("#{File.basename(file)}: la clase es #{class_name} y el archivo pide #{expected}")
+  end
+
+  begin
+    eval(source, TOPLEVEL_BINDING, file) # rubocop:disable Security/Eval
+    Object.const_get(class_name).new.change
+  rescue StandardError => e
+    SCHEMA.error("#{File.basename(file)}: #{e.class}: #{e.message}")
+  end
+end
+
+# --- validaciones ---
+SCHEMA.foreign_keys.each do |fk|
+  SCHEMA.error("clave foranea desde '#{fk.table}' hacia la tabla inexistente '#{fk.to_table}'") unless SCHEMA.tables.key?(fk.to_table)
+  table = SCHEMA.tables[fk.table]
+  next unless table
+  next if table.columns.any? { |c| c.name == fk.column }
+
+  SCHEMA.error("clave foranea sobre la columna inexistente '#{fk.table}.#{fk.column}'")
+end
+
+SCHEMA.indexes.each do |idx|
+  table = SCHEMA.tables[idx.table]
+  next SCHEMA.error("indice sobre la tabla inexistente '#{idx.table}'") unless table
+
+  idx.columns.each do |col|
+    next if table.columns.any? { |c| c.name == col }
+
+    SCHEMA.error("indice sobre la columna inexistente '#{idx.table}.#{col}'")
+  end
+end
+
+SCHEMA.tables.each_value do |table|
+  table.columns.each do |col|
+    next unless col.type == :boolean
+    next if col.options.key?(:default) || col.options[:reference]
+
+    SCHEMA.warning("#{table.name}.#{col.name}: booleano sin valor por defecto")
+  end
+
+  next if table.columns.none? { |c| c.name == "discarded_at" }
+  next if SCHEMA.indexes.any? { |i| i.table == table.name && i.columns == ["discarded_at"] }
+
+  SCHEMA.warning("#{table.name}: tiene discarded_at pero no esta indexado")
+end
+
+# nombres de indice demasiado largos para MySQL (64 caracteres)
+SCHEMA.indexes.each do |idx|
+  name = idx.name || "index_#{idx.table}_on_#{idx.columns.join('_and_')}"
+  next if name.length <= 64
+
+  SCHEMA.error("nombre de indice de #{name.length} caracteres (MySQL admite 64): #{name}")
+end
+
+# --- DDL de previsualizacion ---
+def sql_type(col)
+  return "bigint" if col.options[:reference]
+  return "varchar(#{col.options[:limit]})" if col.type == :string && col.options[:limit]
+
+  if col.type == :decimal
+    p = col.options[:precision] || 10
+    s = col.options[:scale] || 0
+    return "decimal(#{p},#{s})"
+  end
+  TYPES[col.type] || "varchar(255)"
+end
+
+def quote_default(col)
+  d = col.options[:default]
+  return "" if d.nil?
+  return " DEFAULT #{d ? 1 : 0}" if [true, false].include?(d)
+  return " DEFAULT #{d}" if d.is_a?(Numeric)
+
+  " DEFAULT '#{d}'"
+end
+
+lines = ["SET FOREIGN_KEY_CHECKS = 0;"]
+SCHEMA.tables.each_value do |table|
+  cols = table.columns.map do |col|
+    if col.options[:primary_key]
+      "  `id` bigint NOT NULL AUTO_INCREMENT"
+    else
+      null = col.options[:null] == false ? " NOT NULL" : " NULL"
+      "  `#{col.name}` #{sql_type(col)}#{null}#{quote_default(col)}"
+    end
+  end
+  cols << "  PRIMARY KEY (`id`)" if table.columns.any? { |c| c.options[:primary_key] }
+  lines << "CREATE TABLE `#{table.name}` (\n#{cols.join(",\n")}\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;"
+end
+
+SCHEMA.indexes.each_with_index do |idx, i|
+  name = idx.name || "index_#{idx.table}_on_#{idx.columns.join('_and_')}_#{i}"
+  unique = idx.unique ? "UNIQUE " : ""
+  cols = idx.columns.map { |c| "`#{c}`" }.join(", ")
+  lines << "CREATE #{unique}INDEX `#{name[0, 60]}_#{i}` ON `#{idx.table}` (#{cols});"
+end
+
+SCHEMA.foreign_keys.each_with_index do |fk, i|
+  lines << "ALTER TABLE `#{fk.table}` ADD CONSTRAINT `fk_#{i}` " \
+           "FOREIGN KEY (`#{fk.column}`) REFERENCES `#{fk.to_table}` (`id`);"
+end
+lines << "SET FOREIGN_KEY_CHECKS = 1;"
+
+FileUtils.mkdir_p(File.join(ROOT, "tmp"))
+File.write(File.join(ROOT, "tmp/schema_preview.sql"), "#{lines.join("\n")}\n")
+
+# --- informe ---
+unless QUIET
+  puts "Migraciones leidas: #{files.size}"
+  puts "Tablas: #{SCHEMA.tables.size} · Columnas: #{SCHEMA.tables.values.sum { |t| t.columns.size }} · " \
+       "Indices: #{SCHEMA.indexes.size} · Claves foraneas: #{SCHEMA.foreign_keys.size}"
+  puts "DDL escrito en tmp/schema_preview.sql"
+  SCHEMA.warnings.each { |w| puts "  aviso: #{w}" }
+end
+
+if SCHEMA.errors.any?
+  puts "\nERRORES (#{SCHEMA.errors.size}):"
+  SCHEMA.errors.each { |e| puts "  - #{e}" }
+  exit 1
+end
+
+puts "\nSin errores." unless QUIET
+exit 0

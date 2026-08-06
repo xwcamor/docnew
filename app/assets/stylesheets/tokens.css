@@ -1,0 +1,89 @@
+/*
+ * Tokens del sistema de diseno. Portados de TRAFODEX (resources/css/app.css),
+ * que imita la paleta SAP Fiori Quartz con CSS propio: no hay SAPUI5 de por medio
+ * ni aqui ni alli.
+ *
+ * El esquema se elige por pais en settings.theme_scheme y el layout lo emite
+ * como <html data-scheme="...">.
+ */
+
+:root {
+  /* Marca */
+  --color-primary: #0A6ED1;
+  --color-primary-accent: #4db6e8;
+  --color-shell-bar: #354A5F;
+  --color-sidebar-bg: color-mix(in srgb, var(--color-shell-bar) 85%, #ffffff);
+
+  /* Estado */
+  --color-danger: #BB0000;
+  --color-danger-bright: #C8281D;
+  --color-warning: #f59e0b;
+  --color-success: #1D7044;
+  --color-input-error: #ff4d4f;
+
+  /* Texto */
+  --color-text: #32363A;
+  --color-text-muted: #6A6D70;
+  --color-text-strong: #334155;
+  --color-text-dim: #9aa0a6;
+
+  /* Superficies */
+  --color-surface: #ffffff;
+  --color-surface-alt: #F8FAFC;
+  --color-surface-hover: #F5F9FE;
+  --color-surface-selected: #E6F1FB;
+  --color-page-bg: #e9edf2;
+
+  /* Bordes */
+  --color-border: #e5e7eb;
+  --color-border-soft: #f0f0f0;
+  --color-border-selected: #B5D7F4;
+
+  /* Tipografia y forma */
+  --font-sans: Inter, "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius-card: 10px;
+  --radius-console: 16px;
+  --shadow-card: 0 1px 3px rgba(16, 24, 40, .05);
+  --shadow-bar: 0 -1px 3px rgba(16, 24, 40, .08);
+
+  /* Escala de riesgo, compartida por la matriz AST y los indicadores */
+  --risk-very-low: #1D7044;
+  --risk-low: #5AA82E;
+  --risk-medium: #E9A23B;
+  --risk-high: #E2661E;
+  --risk-very-high: #C8281D;
+}
+
+html[data-scheme="slate"]    { --color-primary: #475569; --color-shell-bar: #334155; }
+html[data-scheme="emerald"]  { --color-primary: #059669; --color-shell-bar: #065f46; }
+html[data-scheme="indigo"]   { --color-primary: #4f46e5; --color-shell-bar: #3730a3; }
+html[data-scheme="red"]      { --color-primary: #B23A48; --color-shell-bar: #7f1d2b; }
+html[data-scheme="amber"]    { --color-primary: #B45309; --color-shell-bar: #78350f; }
+html[data-scheme="teal"]     { --color-primary: #0E7490; --color-shell-bar: #155e75; }
+html[data-scheme="contrast"] { --color-primary: #1d4ed8; --color-shell-bar: #1e293b; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-text: #e5e7eb;
+    --color-text-muted: #9ca3af;
+    --color-surface: #1c2228;
+    --color-surface-alt: #232a31;
+    --color-surface-hover: #262e36;
+    --color-surface-selected: #1e3a5f;
+    --color-page-bg: #12161b;
+    --color-border: #2f3740;
+    --color-border-soft: #262d34;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-text: #e5e7eb;
+  --color-text-muted: #9ca3af;
+  --color-surface: #1c2228;
+  --color-surface-alt: #232a31;
+  --color-surface-hover: #262e36;
+  --color-surface-selected: #1e3a5f;
+  --color-page-bg: #12161b;
+  --color-border: #2f3740;
+  --color-border-soft: #262d34;
+}
