@@ -40,3 +40,7 @@ Thumbs.db
 # la primera vez que se renderiza un PDF. No commitearlas.
 /storage/fonts
 __pycache__/
+
+# Datos migrados del sistema anterior: contienen nombres y documentos reales.
+# Se entregan aparte y nunca se versionan en un repositorio publico.
+/database/seeders/data/legacy-docufiz.json
