@@ -66,9 +66,18 @@ class SignatureService
             default      => SignatureEvent::TIMEOUT_CAPTURE,
         };
 
-        // Sin reconocimiento hace falta la foto: es la unica evidencia que queda.
-        if ($metodo !== SignatureEvent::FACE_RECOGNITION && blank($foto) && ! $manual) {
-            throw new \InvalidArgumentException('Sin coincidencia facial se requiere la captura de la camara.');
+        // La foto se guarda SIEMPRE, reconozca o no.
+        //
+        // En un documento de seguridad la prueba util a los dos anios es la cara
+        // de quien firmo, no la distancia que midio el servidor. El sistema
+        // anterior lo intentaba pero no lo cumplia: de 9 012 fotos, 7 508 eran la
+        // cadena "detected_by_IA" y el archivo no existia.
+        //
+        // Se puede desactivar por workspace, pero por defecto se guarda.
+        $exigirFoto = (bool) (Setting::get('docufiz.always_store_photo') ?? true);
+
+        if (blank($foto) && ! $manual && ($exigirFoto || $metodo !== SignatureEvent::FACE_RECOGNITION)) {
+            throw new \InvalidArgumentException('Se requiere la captura de la camara para firmar.');
         }
 
         return DB::transaction(function () use (

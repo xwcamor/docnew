@@ -2,6 +2,31 @@
 
 Portado de **tenkofiz**, el sistema de marcación de asistencia, adaptado a firmar documentos.
 
+## Las tres cosas que se guardan, y cuando
+
+| Que | Cuando | Cuantas veces |
+| --- | --- | --- |
+| **128 numeros** (descriptor) | al enrolar | **una vez** en la vida del trabajador |
+| **Firma manuscrita** | al enrolar o cuando cambie | una vez, versionada |
+| **Foto real** | **cada vez que firma** | una por firma |
+
+Cada una responde a algo distinto: el descriptor es para que **la maquina compare**, la firma
+manuscrita es lo que **se imprime en el documento**, y la foto es **la prueba de quien estuvo ahi**.
+
+### Por que la foto se guarda siempre
+
+Se guarda tanto si el reconocimiento acierta como si no. En un documento de seguridad, la prueba
+que sirve dentro de dos anios es la cara de quien firmo, no la distancia que midio el servidor.
+
+El sistema anterior lo intentaba y no lo cumplia: de 9 012 fotos de trabajadores, **7 508 eran la
+cadena `detected_by_IA`** y el archivo nunca existio. La intencion era correcta; el codigo no la
+respetaba.
+
+El coste es asumible: con el ritmo del sistema anterior —9 186 firmas al ano— son unos **500 MB
+anuales**, y las imagenes se deduplican por hash.
+
+Se puede desactivar por workspace con `docufiz.always_store_photo`, pero por defecto se guarda.
+
 ## Lo que se guarda
 
 De la cara **no se guarda una imagen**: se guarda el **descriptor**, una lista de 128 números que
