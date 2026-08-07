@@ -83,6 +83,20 @@ return [
             ]) : [],
         ],
 
+        // Base del sistema anterior (Rails + MySQL). Solo lectura: los comandos
+        // de migracion leen de aqui y nunca escriben.
+        'legacy' => [
+            'driver'    => 'mysql',
+            'host'      => env('LEGACY_DB_HOST', '127.0.0.1'),
+            'port'      => env('LEGACY_DB_PORT', '3306'),
+            'database'  => env('LEGACY_DB_DATABASE', 'doc_app_development'),
+            'username'  => env('LEGACY_DB_USERNAME', 'root'),
+            'password'  => env('LEGACY_DB_PASSWORD', ''),
+            'charset'   => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'strict'    => false,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DB_URL'),

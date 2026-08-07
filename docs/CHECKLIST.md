@@ -45,6 +45,8 @@
 | [x] | Tipos de campo compuestos declarados con su configuración obligatoria | probado: un `select` sin opciones no se acepta |
 | [x] | Validación del valor según el tipo | probado: una matriz de riesgo mal formada se rechaza |
 | [x] | Un formato publicado no se edita: se saca versión nueva | probado: la entrega firmada conserva su versión |
+| [x] | **Los cuatro formatos históricos, con los catálogos reales** (`docufiz:migrate-formats`) | leídos de la base anterior: AST con **127 actividades, 83 peligros, 51 controles** y matriz 5×5; PTF con 17 preguntas; EPP con 25 ítems; IHM con 16 herramientas y 10 puntos |
+| [x] | Conexión de solo lectura a la base del sistema anterior | `config/database.php` → `legacy`, alimentada por `LEGACY_DB_*` |
 | [x] | Modelos de face-api.js en el repositorio (6,8 MB) | no se descargan en tiempo de ejecución |
 | [x] | Verificación facial en el navegador con los dos relojes | portada a `useFaceVerify` |
 | [ ] | Reto de vida (gesto de cabeza) y enrolamiento desde la app | pendiente |
