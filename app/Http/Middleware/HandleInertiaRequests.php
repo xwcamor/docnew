@@ -273,7 +273,7 @@ class HandleInertiaRequests extends Middleware
 
     protected function loadTranslations(): array
     {
-        $namespaces = ['global', 'regions', 'languages', 'countries', 'locales', 'tenants', 'system_modules', 'settings', 'users', 'roles', 'customers', 'transformers', 'oil_types', 'transformer_types', 'tap_changer_types', 'laboratories', 'tap_changer_brands', 'tap_changer_models', 'tap_changer_technologies', 'brands', 'cromas', 'furanos', 'fiquis', 'fpot', 'diagnostics', 'bitacora', 'audit_logs', 'sidebar', 'imports', 'notifications', 'auth', 'profile', 'subscriptions', 'plans', 'automations', 'dashboard', 'messages', 'sharing', 'diagnostic_rules', 'comments', 'search', 'approvals', 'comparison', 'tools', 'locks'];
+        $namespaces = ['global', 'regions', 'languages', 'countries', 'locales', 'tenants', 'system_modules', 'settings', 'users', 'roles', 'customers', 'bitacora', 'audit_logs', 'sidebar', 'imports', 'notifications', 'auth', 'profile', 'subscriptions', 'plans', 'automations', 'dashboard', 'messages', 'comments', 'search', 'approvals', 'tools', 'locks'];
         $out = [];
         foreach ($namespaces as $ns) {
             $messages = trans($ns);

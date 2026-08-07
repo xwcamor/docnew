@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Schema;
  * Aditivo.
  */
 return new class extends Migration {
-    private array $tables = ['customers', 'transformers'];
+    private array $tables = ['customers'];
 
     public function up(): void
     {

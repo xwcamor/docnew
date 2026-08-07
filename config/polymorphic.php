@@ -23,10 +23,6 @@
 */
 return [
     'modules' => [
-        'transformer_types' => [
-            'model'      => \App\Models\TransformerType::class,
-            'show_route' => 'business_management.transformer_types.show',
-        ],
         'regions' => [
             'model'      => \App\Models\Region::class,
             'show_route' => 'system_management.regions.show',
@@ -66,38 +62,6 @@ return [
         'automations' => [
             'model'      => \App\Models\Automation::class,
             'show_route' => 'automation_management.automations.show',
-        ],
-        'oil_types' => [
-            'model'      => \App\Models\OilType::class,
-            'show_route' => 'business_management.oil_types.show',
-        ],
-        'transformers' => [
-            'model'      => \App\Models\Transformer::class,
-            'show_route' => 'business_management.transformers.show',
-        ],
-        'brands' => [
-            'model'      => \App\Models\Brand::class,
-            'show_route' => 'business_management.brands.show',
-        ],
-        'tap_changer_types' => [
-            'model'      => \App\Models\TapChangerType::class,
-            'show_route' => 'business_management.tap_changer_types.show',
-        ],
-        'laboratories' => [
-            'model'      => \App\Models\Laboratory::class,
-            'show_route' => 'business_management.laboratories.show',
-        ],
-        'tap_changer_brands' => [
-            'model'      => \App\Models\TapChangerBrand::class,
-            'show_route' => 'business_management.tap_changer_brands.show',
-        ],
-        'tap_changer_models' => [
-            'model'      => \App\Models\TapChangerModel::class,
-            'show_route' => 'business_management.tap_changer_models.show',
-        ],
-        'tap_changer_technologies' => [
-            'model'      => \App\Models\TapChangerTechnology::class,
-            'show_route' => 'business_management.tap_changer_technologies.show',
         ],
         // Agrega modulos nuevos aqui cuando crees patients, doctors, etc.
     ],

@@ -3,12 +3,7 @@
 namespace App\Http\Controllers\BusinessManagement;
 
 use App\Http\Controllers\Controller;
-use App\Models\Chromatographical;
 use App\Models\Comment;
-use App\Models\Fiqui;
-use App\Models\Fpot;
-use App\Models\Furano;
-use App\Models\Transformer;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -27,11 +22,6 @@ class CommentController extends Controller
 {
     /** slug seguro → modelo comentable. */
     private const TYPES = [
-        'transformer'       => Transformer::class,
-        'chromatographical' => Chromatographical::class,
-        'furano'            => Furano::class,
-        'fiqui'             => Fiqui::class,
-        'fpot'              => Fpot::class,
     ];
 
     public function index(Request $request)

@@ -1,71 +1,52 @@
-# Checklist del proyecto
+# Checklist
 
-Se actualiza en cada entrega. `[x]` es algo hecho **y verificado**; si algo está hecho pero sin
-verificar, se dice explícitamente.
+`[x]` = hecho **y verificado**, con la prueba anotada. Si algo está hecho pero sin verificar, se dice.
 
-## Sistema viejo (`app_documentation`) — saneamiento
-
-| | Tarea | Verificación |
-| --- | --- | --- |
-| [x] | Migración `create_settings` arreglada: declaraba `sidebar_color_text` dos veces y nunca creaba `header_color_text`, así que `db:migrate` fallaba desde cero | validador propio + revisión de las 22 migraciones |
-| [x] | `db/schema.rb` alineado con las migraciones y con producción (`is_hidden`, columnas de `settings`, fuera `photo_evidences` y `signature_events`) | comparación tabla a tabla contra el volcado: 64 = 64 |
-| [x] | `db/seeds.rb` usaba `is_visible`, columna inexistente (7 usos) | `ruby -c` + revisión |
-| [x] | Cache de i18n: la clave ignoraba las opciones y servía traducciones interpoladas de otra llamada durante 12 h | revisión del initializer |
-| [x] | `default_locale = :es` + fallbacks (estaba comentado; caía a inglés) | — |
-| [x] | `resource.language&.locale` en 3 controladores (tumbaba el login) | — |
-| [x] | `ability.rb`: fuera el `can :read, :all` por defecto | — |
-| [x] | Borrado el código muerto: formato F5 completo (controlador + 18 vistas + rutas), migración huérfana, `PhotoEvidence`, generador de SQL sin sanitizar, rake rota | `grep` de referencias antes de borrar |
-| [x] | Los 26 usuarios que faltaban en el volcado, reconstruidos | **carga real en MySQL: 26 usuarios, 3 722 planes, 0 huérfanos** |
-| [ ] | Índices únicos que faltan (`workers`, 5 tablas puente) | pendiente: hay que resolver antes el duplicado `47019239` |
-| [ ] | Suite de tests real (la actual prueba modelos de otro proyecto) | pendiente |
-| [ ] | Auditoría de `public/images_uploads` contra las 4 189 referencias | pendiente |
-
-## Sistema nuevo (`docnew`)
-
-### Base
+## Base heredada de TRAFODEX
 
 | | Tarea | Verificación |
 | --- | --- | --- |
-| [x] | TRAFODEX copiado como base SaaS (1 826 archivos) | — |
-| [x] | Identidad cambiada a DOC APP (`.env.example`, `composer.json`, README) | — |
-| [ ] | Quitar el dominio de transformadores (modelos, migraciones, páginas, rutas, seeders) | pendiente, módulo por módulo |
-| [ ] | `composer install` + `npm install` + `php artisan migrate` en limpio | **pendiente: no ejecutado todavía** |
-| [ ] | Seeders propios (país, idiomas, ajustes, roles, permisos) | pendiente |
+| [x] | Código de TRAFODEX copiado como base SaaS | 1 826 archivos |
+| [x] | Dominio de transformadores purgado | 331 archivos y carpetas eliminados |
+| [x] | Referencias cruzadas reparadas (rutas, seeders, config, Inertia, comentarios, automatizaciones) | `php -l` sobre 1 156 archivos PHP: **0 errores** |
+| [x] | Migraciones huérfanas que apuntaban a tablas borradas, eliminadas | 3 encontradas al ejecutar |
+| [x] | Renombrado a DOCUFIZ (`.env`, `composer.json`, `package.json`, README) | — |
+| [x] | `composer install` | Laravel 13.9.0 arranca |
+| [x] | **`php artisan migrate:fresh` contra PostgreSQL 16** | **69 tablas creadas, 0 errores** |
+| [x] | **`php artisan db:seed`** | tenants, suscripciones y 175 clientes sembrados |
 
-### Dominio
+## Dominio DOCUFIZ
 
 | | Tarea | Verificación |
 | --- | --- | --- |
-| [x] | 5 migraciones del dominio: organización, personas, planes, motor de formatos, evidencias | `php -l` sin errores |
+| [x] | 5 migraciones: organización, personas, planes, motor de formatos, evidencias | ejecutadas en PostgreSQL |
+| [x] | `companies`, `work_locations`, `workstations`, `work_areas`, `work_types`, `positions`, `nationalities` | en base |
+| [x] | `people` + `person_company_links` + `person_roles` + `person_biometrics` + `person_signatures` | en base |
+| [x] | `work_plans`, `work_plan_people`, `approval_rules`, `work_plan_approvals` | en base |
+| [x] | `form_templates` … `form_attachments` (motor de formatos) | en base |
+| [x] | `signature_events` + `evidence_files` | en base |
+| [x] | Índice único real de identidad `(tenant, país, tipo doc, documento)` | índice parcial de PostgreSQL creado |
 | [ ] | Modelos Eloquent con sus traits | pendiente |
-| [ ] | Módulos de catálogo con `make:module` | pendiente |
-| [ ] | Módulo de personas | pendiente |
-| [ ] | Módulo de planes de trabajo | pendiente |
-| [ ] | Motor de formatos | pendiente |
-| [ ] | Firma con verificación en servidor y captura por tiempo de espera | pendiente |
+| [ ] | Módulos con `make:module` (catálogos → personas → planes → formatos) | pendiente |
+| [ ] | Motor de formatos: editor y tipos de campo | pendiente |
+| [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
+| [ ] | Seeders propios (país, roles, perfiles, permisos de DOCUFIZ) | pendiente |
+| [ ] | `npm install` y compilación del front | **no ejecutado** |
 
-### Documentación
+## Documentación
 
-| | Tarea |
+| | Archivo |
 | --- | --- |
-| [x] | `docs/PLAN.md` — plan por fases |
-| [x] | `docs/MIGRACION.md` — pasos, control y checklist de corte |
-| [x] | `docs/DOMINIO.md` — qué es cada cosa |
-| [x] | `docs/CHECKLIST.md` — este archivo |
-| [ ] | `CLAUDE.md` adaptado (hoy es todavía el de TRAFODEX) |
+| [x] | `docs/PLAN.md` · `docs/DOMINIO.md` · `docs/MIGRACION.md` · `docs/BIOMETRIA.md` · `docs/PURGA.md` |
+| [x] | `docs/CHECKLIST.md` (este) · `docs/PENDIENTES.md` |
+| [ ] | `CLAUDE.md` sigue siendo el de TRAFODEX: hay que adaptarlo |
 
-## Decisiones tomadas
+## Sistema viejo (`app_documentation`)
 
-| Fecha | Decisión |
-| --- | --- |
-| 06-08 | Sistema nuevo en PHP/Laravel sobre TRAFODEX, no refactor del Rails |
-| 06-08 | El motor de formatos se usa para los formatos nuevos; AST y PTF se evalúan al final |
-| 06-08 | Biometría con captura por tiempo de espera (30 s), umbral 0.5 hasta tener datos reales |
-| 06-08 | Trabajo en campo sigue en navegador (tablets Android); sin app nativa ni API por ahora |
-| 06-08 | Multi-país se mantiene, sin invertir más en él |
-
-## Sin resolver
-
-- Qué se hace con `Brand` y `Customer`, las plantillas de `make:module`: se quedan como referencia
-  o se convierten en módulos propios.
-- Nombre definitivo del producto y del tenant inicial.
+| | Tarea | Verificación |
+| --- | --- | --- |
+| [x] | Migración rota arreglada (columna declarada dos veces: `db:migrate` fallaba desde cero) | validador propio |
+| [x] | `schema.rb` y `seeds.rb` alineados con producción | comparación tabla a tabla: 64 = 64 |
+| [x] | Cache de i18n, locale por defecto, login nil-safe, permisos por defecto cerrados | — |
+| [x] | Código muerto eliminado (formato F5, migración huérfana, SQL sin sanitizar) | `grep` previo de referencias |
+| [x] | Los 26 usuarios que faltaban en el volcado | **carga real en MySQL: 26 usuarios, 3 722 planes, 0 huérfanos** |

@@ -77,24 +77,12 @@ class DatabaseSeeder extends Seeder
             ExampleSubscriptionsSeeder::class,
 
             // ── TR APP — catálogo inicial de marcas/fabricantes (editable). ─
-            BrandsSeeder::class,
-            TapChangerTypesSeeder::class,
             // Catálogos per-tenant nuevos (seeders vacíos a propósito: cada
             // workspace carga los suyos; el super crea los globales desde la UI).
             // Se registran igual por consistencia/futuro. La registración de los
             // módulos en system_modules + permisos ya la hace SystemModulesSeeder.
-            LaboratoriesSeeder::class,
-            TapChangerBrandsSeeder::class,
-            TapChangerModelsSeeder::class,
-            TapChangerTechnologiesSeeder::class,
-            ConnectionTypesSeeder::class,
-            TransformerPreservationsSeeder::class,
-            DiagnosticCatalogSeeder::class,
-            CromasRulesSeeder::class,
             // Reglas de fisicoquímico en tablas relacionales (desde el JSON de fábrica).
-            FiquiRulesSeeder::class,
             // Datos editables (ieee) a BD para editarse desde la UI.
-            DiagnosticDatasetsSeeder::class,
 
             // ── Clientes reales (los activos del sistema viejo) en Empresa 1. ─
             CustomersSeeder::class,
@@ -102,21 +90,15 @@ class DatabaseSeeder extends Seeder
             // ── Transformadores REALES del sistema viejo. ─
             // Lee database/seeders/data/transformers_legacy.sql; se omite si falta.
             // (Los trafos demo de prueba se quitaron a propósito: solo data real.)
-            LegacyTransformersSeeder::class,
 
             // ── Muestras REALES de ensayos del sistema viejo (cuelgan de los trafos). ─
             // Lee database/seeders/data/*_legacy.sql; cada uno se omite si falta.
-            LegacyChromatographicalsSeeder::class,
-            LegacyPhysicalsSeeder::class,
-            LegacyFuranosSeeder::class,
 
             // ── Limpieza + diagnóstico real de lo importado. ─
             // El dump viejo trae muestras duplicadas (mismo trafo+fecha por
             // zona horaria/recargas); se conserva una por fecha.
-            DeduplicateLegacySamplesSeeder::class,
             // Recalcula el Índice de Salud con el motor NUEVO desde las muestras
             // (reemplaza el snapshot cacheado del viejo en health_index/state).
-            RecalculateTransformerHealthSeeder::class,
         ]);
 
         // Los dumps legacy se insertan con IDs explícitos (SQL crudo), lo que NO

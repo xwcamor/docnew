@@ -95,42 +95,6 @@ return [
             'model' => \App\Models\Setting::class,
             'days'  => 365,
         ],
-        'oil_types' => [
-            'model' => \App\Models\OilType::class,
-            'days'  => 90,
-        ],
-        'transformers' => [
-            'model' => \App\Models\Transformer::class,
-            'days'  => 90,
-        ],
-        'transformer_types' => [
-            'model' => \App\Models\TransformerType::class,
-            'days'  => 90,
-        ],
-        'brands' => [
-            'model' => \App\Models\Brand::class,
-            'days'  => 90,
-        ],
-        'tap_changer_types' => [
-            'model' => \App\Models\TapChangerType::class,
-            'days'  => 90,
-        ],
-        'laboratories' => [
-            'model' => \App\Models\Laboratory::class,
-            'days'  => 90,
-        ],
-        'tap_changer_brands' => [
-            'model' => \App\Models\TapChangerBrand::class,
-            'days'  => 90,
-        ],
-        'tap_changer_models' => [
-            'model' => \App\Models\TapChangerModel::class,
-            'days'  => 90,
-        ],
-        'tap_changer_technologies' => [
-            'model' => \App\Models\TapChangerTechnology::class,
-            'days'  => 90,
-        ],
         // Suma modulos nuevos aqui:
         // 'patients' => [...],
         // 'doctors'  => [...],

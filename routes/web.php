@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Hash;
 use Mcamara\LaravelLocalization\Facades\LaravelLocalization;
 
 use App\Http\Controllers\AuthManagement\UserController;
-use App\Http\Controllers\PublicShareController;
 
 Route::group(
     [
@@ -38,8 +37,7 @@ Route::group(
             require __DIR__.'/communication.php';
             require __DIR__.'/notifications.php';
             require __DIR__.'/saved_views.php';
-            require __DIR__.'/approvals.php';
-            require __DIR__.'/user_preferences.php';
+                        require __DIR__.'/user_preferences.php';
             require __DIR__.'/tools.php';
 
             // ── Mi Perfil ──
@@ -79,20 +77,8 @@ Route::group(
 
 // ── Portal público de reportes compartidos (sin auth, sin prefijo de idioma) ──
 // El idioma lo fija el propio share. Acceso por token + OTP. Ver docs/COMPARTIR-REPORTES.md.
-Route::controller(PublicShareController::class)->prefix('r/{token}')->name('share.')->group(function () {
-    Route::get('/', 'gate')->name('gate');
-    Route::post('/code', 'sendCode')->name('code')->middleware('throttle:share-otp');
-    Route::post('/verify', 'verify')->name('verify')->middleware('throttle:10,1');
-    Route::get('/view', 'view')->name('view');
-    Route::get('/t/{transformer}', 'transformer')->name('transformer'); // detalle de un trafo de la flota
-    Route::get('/pdf/{transformer}', 'pdf')->name('pdf');
-});
-
 // ── Verificación pública de informes (destino del QR de la carátula) ──
 // Confirma autenticidad contra el audit log report_generated. Sin auth.
-Route::get('verify/{code?}', \App\Http\Controllers\ReportVerifyController::class)
-    ->name('report.verify')->middleware('throttle:20,1');
-
 // ── Manual de uso (HTML autocontenido) ──
 // Mismo archivo dentro (menú del avatar) y fuera (login). Público, sin prefijo
 // de idioma. Fuente única: docs/manual-usuario.html (no se duplica en public/).

@@ -74,7 +74,6 @@ class WorkspaceBrandingController extends Controller
             ],
             'signers.*.name'    => ['nullable', 'string', 'max:120', 'required_without:signers.*.user_id'],
             'signers.*.title'   => ['required', 'string', 'max:120'],
-            'signers.*.relation'=> ['nullable', \Illuminate\Validation\Rule::in(\App\Models\ReportSigner::RELATIONS)],
         ]);
 
         $tenant->update(\Illuminate\Support\Arr::only($data, ['address', 'report_disclaimer']) + [
