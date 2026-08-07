@@ -20,6 +20,7 @@ import { useI18n } from '@/Plugins/i18n';
 const { t } = useI18n();
 import {
     DashboardOutlined,
+    SafetyOutlined,
     GlobalOutlined,
     UserOutlined,
     SettingOutlined,
@@ -630,6 +631,11 @@ const menuStructure = computed(() => [
                 key: 'work_plans', label: t('sidebar.work_plans'), icon: FileDoneOutlined,
                 href: route('business_management.work_plans.index'), inertia: true,
                 visible: () => can('work_plans.view'),
+            },
+            {
+                key: 'signature_events', label: t('sidebar.signature_events'), icon: SafetyOutlined,
+                href: route('field_work.signatures.review'), inertia: true,
+                visible: () => can('signature_events.review'),
             },
         ],
     },

@@ -40,8 +40,11 @@
 | [x] | Revisión de firmas pendientes | probado: rechazar revierte la aprobación |
 | [x] | **Servicio de llenado de formatos** | probado: HOJA X no cierra sin la foto del papel; AST no cierra sin sus campos obligatorios; la matriz de riesgo se guarda como JSON |
 | [x] | Controladores y rutas de trabajo en obra | **11 rutas registradas**, cada una tras su permiso |
-| [ ] | Pantallas Vue de llenado, firma y bandeja de revisión | pendiente |
-| [ ] | Kiosco de cámara portado de tenkofiz (face-api.js) | pendiente |
+| [x] | Pantallas Vue: lista de formatos, llenado, firma con cámara y bandeja de revisión | el front compila con face-api incluido |
+| [x] | Modelos de face-api.js en el repositorio (6,8 MB) | no se descargan en tiempo de ejecución |
+| [x] | Verificación facial en el navegador con los dos relojes | portada a `useFaceVerify` |
+| [ ] | Reto de vida (gesto de cabeza) y enrolamiento desde la app | pendiente |
+| [ ] | Probar la cámara en una tablet real | **no verificable desde aquí** |
 | [ ] | Motor de formatos: editor y tipos de campo | pendiente |
 | [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |
