@@ -30,6 +30,8 @@ Route::group(
             });
             
             require __DIR__.'/system_management.php';
+            
+            require __DIR__.'/field_work.php';
             require __DIR__.'/user_management.php';
             require __DIR__.'/business_management.php';
             require __DIR__.'/dashboard_management.php';

@@ -39,7 +39,8 @@
 | [x] | Deduplicación de evidencias por hash | probado: 4 referencias, 3 archivos en disco |
 | [x] | Revisión de firmas pendientes | probado: rechazar revierte la aprobación |
 | [x] | **Servicio de llenado de formatos** | probado: HOJA X no cierra sin la foto del papel; AST no cierra sin sus campos obligatorios; la matriz de riesgo se guarda como JSON |
-| [ ] | Controladores, rutas y pantallas Vue de firma y llenado | pendiente: la lógica está, falta exponerla |
+| [x] | Controladores y rutas de trabajo en obra | **11 rutas registradas**, cada una tras su permiso |
+| [ ] | Pantallas Vue de llenado, firma y bandeja de revisión | pendiente |
 | [ ] | Kiosco de cámara portado de tenkofiz (face-api.js) | pendiente |
 | [ ] | Motor de formatos: editor y tipos de campo | pendiente |
 | [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |

@@ -27,6 +27,12 @@ class WorkType extends Model
         return $this->belongsTo(Country::class);
     }
 
+    public function formTemplates()
+    {
+        return $this->belongsToMany(FormTemplate::class, 'work_type_form_templates')
+            ->withPivot('is_required');
+    }
+
     public function scopeActive($q)
     {
         return $q->where('is_active', true);

@@ -31,6 +31,7 @@ npm run dev
 | Archivo | Contenido |
 | --- | --- |
 | `docs/PLAN.md` | Plan por fases |
+| `docs/FLUJO.md` | **Cómo se usa el sistema, de punta a punta** |
 | `docs/DOMINIO.md` | Qué es un plan, un formato, una firma |
 | `docs/BIOMETRIA.md` | Cómo se firma con reconocimiento facial |
 | `docs/MIGRACION.md` | Cómo se traen y se controlan los datos del sistema viejo |
