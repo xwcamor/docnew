@@ -1,0 +1,252 @@
+id,name,code,deleted
+1,ABB,abb,0
+2,ACEC,acec,0
+3,ADOR CORONA,ador_corona,0
+4,AEG,aeg,0
+5,AEI,aei,0
+6,AEI INGENIEROS,aei_ingenieros,0
+7,ALLIS CHALMER,allis_chalmer,0
+8,ALSTHOM,alsthom,0
+9,ALSTOM,alstom,0
+10,ALTECSA,altecsa,0
+11,ANSALDO,ansaldo,0
+12,Artrans,artrans,0
+13,ASA TRATOBAU,asa_tratobau,0
+14,ASGEN,asgen,0
+15,AVJ,avj,0
+16,BBC,bbc,0
+17,BBICT,bbict,0
+18,BEST,best,0
+19,BREDA,breda,0
+20,BRUCE P.,bruce_p,0
+21,BRUSH ELECTRICAL,brush_electrical,0
+22,Brush Transformer,brush_transformer,0
+23,CANEPA TABINI,canepa_tabini,0
+24,CARTE,carte,0
+25,CEA,cea,0
+26,CEI Ingenieros,cei_ingenieros,0
+27,CEM,cem,0
+28,CEMEC,cemec,0
+29,CGE,cge,0
+30,CHINT,chint,0
+31,COMTRAFO,comtrafo,0
+32,CONTINENTAL,continental,0
+33,CONTRAFO,contrafo,0
+34,COOPER,cooper,0
+35,Cooper Power System,cooper_power_system,1
+36,Cooper Power Systems,cooper_power_systems,0
+37,Crompton Greaves,crompton_greaves,0
+38,CUTLER HAMMER,cutler_hammer,0
+39,Delcrosa,delcrosa,0
+40,DELCROSA-TAMINI,delcrosa_tamini,0
+41,DIMATIC,dimatic,0
+42,E.HE DI LEGNANO,e_he_di_legnano,0
+43,EB NITRAN,eb_nitran,0
+44,EBG,ebg,0
+45,EECOL,eecol,0
+46,EFACEC,efacec,0
+47,EISLER ENGINEERING,eisler_engineering,0
+48,ELCO,elco,0
+49,ELECSUR,elecsur,0
+50,ELECTRIC POWER,electric_power,0
+51,ELECTRICA,electrica,0
+52,ELECTRICA OPTIMIZACION,electrica_optimizacion,0
+53,Electrotecnia,electrotecnia,0
+54,ELECTROVOLT PERU,electrovolt_peru,0
+55,ELECVOLT,elecvolt,0
+56,ELKO,elko,0
+57,ELKO PERUANA,elko_peruana,0
+58,ENERGOTECNIA,energotecnia,0
+59,EO,eo,0
+60,EPLI,epli,0
+61,Ercole Marelli,ercole_marelli,0
+62,F.C.T,f_c_t,0
+63,FABEM,fabem,0
+64,FABEN,faben,0
+65,FARADAY,faraday,0
+66,FARELSA,farelsa,0
+67,FASEEL,faseel,0
+68,FASETRON,fasetron,0
+69,FCT,fct,0
+70,Federal Pacific,federal_pacific,0
+71,FERRANTI,ferranti,0
+72,FIME,fime,0
+73,FOHAMA,fohama,0
+74,FORTUNE,fortune,0
+75,FORTUNE ELECTRIC,fortune_electric,0
+76,France Transfo,france_transfo,0
+77,Frances,frances,0
+78,FRESA,fresa,0
+79,FRIEM,friem,0
+80,FUJI,fuji,0
+81,FUJI ELECTRIC,fuji_electric,0
+82,GE,ge,0
+83,GE - Prolec,ge_prolec,0
+84,GE industrial system,ge_industrial_system,0
+85,GEC,gec,0
+86,GEL POWER,gel_power,0
+87,General Electric,general_electric,0
+88,GETRA,getra,0
+89,Goodall,goodall,0
+90,H&H TRANSFORMERS,h_h_transformers,0
+91,H&P INDUSTRIAL,h_p_industrial,0
+92,HH,hh,0
+93,HITACHI,hitachi,0
+94,HITRAN,hitran,0
+95,Hohagen,hohagen,0
+96,HOWARD,howard,0
+97,Howard Industries,howard_industries,0
+98,HOWE-BAKER,howe_baker,0
+99,HP Infdustrial,hp_infdustrial,0
+100,HPS,hps,0
+101,HYOSUNG,hyosung,0
+102,HYUNDAI,hyundai,0
+103,I&T ELECTRIC,i_t_electric,0
+104,ICT,ict,0
+105,IMEFY,imefy,0
+106,INCOESA TRAFODIS,incoesa_trafodis,0
+107,Industrie Elettriche Di Legnano,industrie_elettriche_di_legnano,0
+108,Internacional Electronics,internacional_electronics,0
+109,ISOELECTRIC,isoelectric,0
+110,IT ELECTRIC,it_electric,0
+111,ITALTRAFO,italtrafo,0
+112,ITE CIRCUIT BREAKER,ite_circuit_breaker,0
+113,Jiangsu Huapeng,jiangsu_huapeng,0
+114,JSHP,jshp,0
+115,KLRU 73 NA 14,klru_73_na_14,0
+116,KLRU 73 NA 23,klru_73_na_23,0
+117,KONCAR,koncar,1
+118,KONCAR D&ST,koncar_d_st,0
+119,KRAFT,kraft,0
+120,KTAK 36 NC 12710,ktak_36_nc_12710,0
+121,LECTROMELT,lectromelt,0
+122,LEGNANO,legnano,0
+123,M&P,m_p,0
+124,MACHINE ELECTRIC,machine_electric,0
+125,MARCUS,marcus,0
+126,MCGRAW EDISON,mcgraw_edison,0
+127,MEGA,mega,0
+128,MEIDEN,meiden,0
+129,MENAUT ELECTRIC,menaut_electric,0
+130,MENAUTT ELECTRIC,menautt_electric,0
+131,MEW,mew,0
+132,MF Transformatori,mf_transformatori,0
+133,MGM,mgm,0
+134,MIRON,miron,0
+135,MITSUBISHI,mitsubishi,0
+136,NATIONAL ELECTRIC,national_electric,0
+137,NIAGARA,niagara,0
+138,NORTH AMERICAN,north_american,0
+139,NORTHERN TRANSFORMER,northern_transformer,0
+140,NT & TV,nt_tv,0
+141,NT&TV,nt_tv_1,0
+142,NWL TRANSFORMERS,nwl_transformers,0
+143,OASA,oasa,0
+144,Oasa-Savoisienne Espa?ola,oasa_savoisienne_espa_ola,0
+145,OCREV,ocrev,0
+146,OERLIKON,oerlikon,0
+147,OLSUN,olsun,0
+148,PACIFIC CREST,pacific_crest,0
+149,PAUWELS,pauwels,1
+150,PAUWELS TRAFO BELGIUM,pauwels_trafo_belgium,1
+151,PEMCO,pemco,0
+152,PENNSYLVANIA,pennsylvania,0
+153,Pensylvania,pensylvania,1
+154,PRELMID,prelmid,0
+155,PROLEC,prolec,0
+156,PROMELSA,promelsa,0
+157,Rathgeber & CO Kitzingen,rathgeber_co_kitzingen,0
+158,RESELEC,reselec,0
+159,REX,rex,0
+160,RHONA,rhona,0
+161,RITZ,ritz,0
+162,SANBIAN SCI TECH,sanbian_sci_tech,0
+163,SANBIAN SCI-TECH,sanbian_sci_tech_1,1
+164,SAVOISIENNE,savoisienne,0
+165,SCHAFFNER,schaffner,0
+166,SCHORCH,schorch,0
+167,SECHERON,secheron,0
+168,SEFREL,sefrel,0
+169,SEFREL INGENIEROS,sefrel_ingenieros,0
+170,SELECTRON,selectron,0
+171,SIEMENS,siemens,0
+172,SIEMENS AG,siemens_ag,0
+173,SOLOMON,solomon,0
+174,SPECIAL TRANSFO,special_transfo,1
+175,SPECIALTRAFO,specialtrafo,0
+176,Specialtrasfo,specialtrasfo,1
+177,SPECTRUM,spectrum,0
+178,SQUARE D,square_d,0
+179,STEM TRENTO,stem_trento,0
+180,STROMBERG,stromberg,0
+181,SUMBELT,sumbelt,1
+182,SUNBELT,sunbelt,0
+183,TAA,taa,0
+184,TADEO,tadeo,0
+185,TAIKAI,taikai,0
+186,TAMINI,tamini,0
+187,TBA,tba,0
+188,TBEA,tbea,0
+189,TESAR AREZZO,tesar_arezzo,0
+190,TIANWEI SHUNDA,tianwei_shunda,0
+191,TMC ESPA?A,tmc_espa_a,0
+192,TOABONG SHUNDA TIANWEI,toabong_shunda_tianwei,0
+193,TOSHIBA,toshiba,0
+194,TRAFO,trafo,0
+195,TRANSFIX,transfix,0
+196,Transformador,transformador,1
+197,Transformer,transformer,0
+198,TRANSUNEL,transunel,0
+199,TTE,tte,0
+200,Tubos Trans Electric,tubos_trans_electric,0
+201,TUC IS,tuc_is,0
+202,UNIAO,uniao,0
+203,UNINDO,unindo,0
+204,Union,union,0
+205,VANTRAN ELECTRIC,vantran_electric,0
+206,VERBANO,verbano,0
+207,VIRGINIA,virginia,0
+208,VOLTA WERKE,volta_werke,0
+209,WEAVER ELECTRIC,weaver_electric,0
+210,WEG,weg,0
+211,WESTINGHOUSE,westinghouse,0
+212,ZAPOROZH,zaporozh,0
+213,Otros,otros,0
+214,ASEA,asea,0
+215,BROWN BOVERI,brown_boveri,0
+216,SUNTEC.,suntec,0
+217,SHEN CHANG ELECTRIC,shen_chang_electric,0
+218,GEDELSA,gedelsa,0
+219,"LINCOLM, ENGLAND",lincolm_england,0
+220,-,,0
+221,VTC WEST SA DE CV.,vtc_west_sa_de_cv,0
+222,ERIEZ,eriez,0
+223,ssss,ssss,1
+224,HP & T ELECTRIC,hp_t_electric,0
+225,RITONA,ritona,0
+226,MR,mr,0
+227,ELECTROSERVICE,electroservice,0
+228,FLUID ELECTRIC,fluid_electric,1
+229,IEM,iem,0
+230,TUSA TRANSFORMADORES,tusa_transformadores,0
+231,DIESTRE CONSTRUCCIONES,diestre_construcciones,0
+232,PAULWEKLS TRAFO,paulwekls_trafo,1
+233,PAUWELS TRAFO,pauwels_trafo,0
+234,DIESSA,diessa,0
+235,REINHOUSEN MANUFACTURING,reinhousen_manufacturing,0
+236,TRANSOL-GEP,transol_gep,0
+237,CELDUC,celduc,0
+238,OEL,oel,0
+239,RAYCHEM,raychem,0
+240,BALTEAU,balteau,0
+241,TAMINI-ABB,tamini_abb,0
+242,SHENDA,shenda,0
+243,EQUIPAMIENTOS ELECTRICOS,equipamientos_electricos,0
+244,FREWALT,frewalt,0
+245,SCHNEIDER,schneider,0
+246,SHANGHAI,shanghai,0
+247,MR REINHAUSEN RMV-II,mr_reinhausen_rmv_ii,0
+248,REINHAUSEN MFG-MR,reinhausen_mfg_mr,1
+249,SBG,sbg,0
+250,IMMELS,immels,0
+251,AVR,avr,0

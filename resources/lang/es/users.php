@@ -1,0 +1,131 @@
+<?php
+
+return [
+    // Titles
+    'singular'      => 'Usuario',
+    'plural'        => 'Usuarios',
+    'record'        => 'usuario',
+    'records'       => 'usuarios',
+    'new'           => 'Crear usuario',
+
+    // Page titles
+    'index_title'   => 'Usuarios',
+    'index_subtitle'=> 'Gestiona los usuarios del workspace.',
+    'create_title'  => 'Crear usuario',
+    'create_subtitle'=> 'Completa los datos para crear un nuevo usuario.',
+    'welcome_title'  => 'Bienvenido a :app',
+    'welcome_body'   => 'Por tu seguridad, cambia tu contraseña inicial: abre el menú del avatar (arriba a la derecha) → Mi perfil → pestaña Seguridad → Cambiar contraseña.',
+    'show_title'    => 'Información del usuario',
+    'edit_title'    => 'Editar usuario',
+    'edit_subtitle' => 'Modifica los datos del usuario.',
+    'delete_title'  => 'Eliminar usuario',
+    'delete_subtitle'=> 'Esta acción mueve el usuario a la papelera.',
+    'trash_title'   => 'Papelera de usuarios',
+    'trash_subtitle'=> 'Usuarios eliminados (solo super puede gestionar).',
+
+    // Columns
+    'id'            => 'N°',
+    'name'          => 'Nombre',
+    'name_help'     => 'Nombre completo del usuario tal como aparecerá en el sistema y en los listados.',
+    'name_placeholder' => 'Ej: Juan Pérez',
+    'email'         => 'Correo',
+    'country'       => 'País',
+    'email_help'    => 'Correo electrónico que el usuario usará para iniciar sesión. Debe ser único en el sistema.',
+    'password'      => 'Contraseña',
+    'password_help' => 'Contraseña inicial del usuario. Mínimo 6 caracteres. El usuario podrá cambiarla luego desde su perfil.',
+    'password_confirmation' => 'Confirmar contraseña',
+    'photo'         => 'Foto',
+    'is_active'     => 'Estado',
+    'is_active_help' => 'Si está inactivo, el usuario no podrá iniciar sesión hasta que se reactive su cuenta.',
+    'section_photo'     => 'Foto',
+    'section_account'   => 'Datos de la cuenta',
+    'section_access'    => 'Acceso y permisos',
+    'section_customer_scope' => 'Restricción de clientes',
+    'section_region'    => 'Regionalización',
+    'generate_password' => 'Generar',
+    'generate_password_hint' => 'Genera una contraseña segura y la muestra para copiarla.',
+    'role'          => 'Perfil',
+    'role_help'     => 'Perfil que define qué puede hacer este usuario en el workspace (módulos visibles y acciones permitidas).',
+    'tenant'        => 'Workspace',
+    'tenant_help'   => 'Workspace al que pertenece el usuario. Solo verá registros y configuraciones de ese workspace.',
+    'assigned_customers'             => 'Clientes visibles (restricción)',
+    'assigned_customers_help'        => 'Si seleccionas clientes, el usuario SOLO verá los transformadores y datos de esos clientes. Vacío = ve todo el workspace.',
+    'assigned_customers_placeholder' => 'Todos (sin restricción)',
+    'country_help'  => 'País del usuario. Se usa para determinar su zona horaria por defecto y formatos regionales.',
+    'locale_help'   => 'Locale del usuario. Define el idioma y los formatos de fecha y número que verá en la interfaz.',
+    'slug'          => 'Slug',
+    'deleted_at'    => 'Eliminado el',
+    'deleted_by'    => 'Eliminado por',
+    'reason'        => 'Motivo',
+
+    // Tabs / sections
+    'tab_general'   => 'Información general',
+    'tab_audit'     => 'Historial',
+    'general_info'  => 'Información general',
+
+    // Filters
+    'filter_name'      => 'Nombre',
+    'filter_email'     => 'Correo',
+    'filter_status'    => 'Estado',
+    'filter_workspace' => 'Workspace',
+    'search_placeholder' => 'Buscar por nombre…',
+
+    // Actions
+    'view'             => 'Ver',
+    'edit'             => 'Editar',
+    'delete'           => 'Eliminar',
+    'view_hint'        => 'Ver detalles del usuario',
+    'edit_hint'        => 'Modificar el usuario',
+    'delete_hint'      => 'Eliminar (queda en papelera)',
+    'create_first'     => 'Crear primer usuario',
+    'detail_drawer'    => 'Detalle del usuario',
+    'no_users'         => 'No hay usuarios todavía.',
+    'no_users_with_filters' => 'No se encontraron usuarios con esos filtros.',
+
+    // Mensajes flash
+    'created'       => 'Usuario creado.',
+    'saved'         => 'Usuario actualizado.',
+    'deleted'       => 'Usuario eliminado.',
+    'restored'      => 'Usuario restaurado.',
+
+    // Export / Import
+    'export_filename'           => 'exportacion_usuarios',
+    'import_template_filename'  => 'plantilla-usuarios.xlsx',
+    'export_title'              => 'Reporte de Usuarios',
+    'export_limit_exceeded'     => 'El export en :format excede el límite (:count filas vs :limit máximo). Usa CSV para datasets grandes (sin límite).',
+
+    // Validación delete
+    'deleted_description_required' => 'Indica el motivo del borrado.',
+    'deleted_description_min'      => 'El motivo debe tener al menos 3 caracteres.',
+    'deleted_description_max'      => 'El motivo no puede superar los 1000 caracteres.',
+
+    // Confirms
+    'delete_about'         => 'Va a eliminar el usuario ":name". Quedará en papelera.',
+    'delete_self_blocked'  => 'No puedes eliminar tu propia cuenta.',
+    'edit_all_title'      => 'Usuario - Editar Todo',
+    'edit_all_subtitle'   => 'Edita nombre y estado de muchos usuarios a la vez. El email se cambia uno por uno desde el formulario.',
+    'edit_all_changes'    => '{0} Sin cambios|{1} 1 cambio pendiente|[2,*] :count cambios pendientes',
+    'edit_all_save_all'   => 'Guardar todo',
+    'edit_all_discard'    => 'Descartar cambios',
+    'edit_all_no_results' => 'No hay usuarios que coincidan con el filtro.',
+    'table_headers'       => [
+        'editable_name'   => 'Nombre (editable)',
+        'editable_status' => 'Estado (editable)',
+    ],
+    'tour' => [
+        'step2_title' => 'Filtros',
+        'step2_body'  => 'Busca y filtra usuarios por nombre, email, estado, rol y fechas. Los filtros activos aparecen como chips.',
+        'step3_title' => 'Vistas guardadas',
+        'step3_body'  => 'Guarda tu combinacion favorita de filtros + columnas + orden y aplicala despues con un clic.',
+        'step4_title' => 'Columnas',
+        'step4_body'  => 'Muestra/oculta columnas y se recuerda tu eleccion. Las obligatorias no se pueden ocultar.',
+        'step5_title' => 'Exportar e Importar',
+        'step5_body'  => 'Exporta el listado a CSV. Importa usuarios desde un archivo (requiere plan con operaciones masivas).',
+        'step6_title' => 'Editar todo',
+        'step6_body'  => 'Edita nombre y estado de varios usuarios en una sola pantalla y guarda todo junto.',
+        'step8_title' => 'Operaciones masivas',
+        'step8_body'  => 'Selecciona filas con los checkboxes para activar, desactivar o eliminar varios usuarios a la vez.',
+        'step_audit_title' => 'Logs del sistema',
+        'step_audit_body'  => 'Historial de cambios de usuarios: quien, que y cuando. Util para auditorias.',
+    ],
+];

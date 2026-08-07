@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TR APP · Centro de Mando (Mockup 1)</title>
+<style>
+  :root{
+    --bg:#0a0e17; --panel:#111726; --panel2:#0e1421; --line:#1c2433;
+    --txt:#e6edf7; --muted:#8b98ad; --accent:#3ddc97;
+    --vb:#16d39a; --b:#7ed957; --med:#f5b301; --mal:#ff8c42; --vmal:#ff4d5e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 80% -10%,#15203a 0%,var(--bg) 55%);color:var(--txt);
+       font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1280px;margin:0 auto;padding:22px 26px 60px}
+
+  /* Top bar */
+  .top{display:flex;align-items:center;gap:18px;margin-bottom:22px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.3px}
+  .brand .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent)}
+  .search{flex:1;max-width:460px;position:relative}
+  .search input{width:100%;background:#0c1220;border:1px solid var(--line);color:var(--txt);
+       border-radius:12px;padding:11px 14px 11px 38px;font-size:14px;outline:none}
+  .search input::placeholder{color:#5d6b82}
+  .search svg{position:absolute;left:12px;top:11px;opacity:.6}
+  .tag{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:4px 9px;border-radius:999px}
+
+  /* KPI strip */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+  .kpi{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);
+       border-radius:16px;padding:16px 18px;position:relative;overflow:hidden}
+  .kpi h4{margin:0;font-size:12px;font-weight:500;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+  .kpi .v{font-size:30px;font-weight:700;margin-top:6px;line-height:1}
+  .kpi .s{font-size:12px;color:var(--muted);margin-top:6px}
+  .kpi .spark{position:absolute;right:14px;bottom:12px;opacity:.85}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600}
+
+  /* Section title */
+  .sec{display:flex;align-items:center;justify-content:space-between;margin:6px 2px 14px}
+  .sec h3{margin:0;font-size:15px;font-weight:600}
+  .legend{display:flex;gap:14px;font-size:11px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:9px;height:9px;border-radius:3px;display:inline-block}
+
+  /* Cards grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+  .card{background:linear-gradient(180deg,#121a2b,#0d1322);border:1px solid var(--line);border-radius:18px;
+        padding:18px;position:relative;transition:.18s transform,.18s box-shadow,.18s border-color;cursor:pointer}
+  .card:hover{transform:translateY(-4px);box-shadow:0 18px 40px -20px #000;border-color:#2b3a55}
+  .card .head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .serie{font-weight:700;font-size:16px;letter-spacing:.3px}
+  .cli{font-size:12px;color:var(--muted);margin-top:3px}
+  .glow{position:absolute;inset:0;border-radius:18px;pointer-events:none;opacity:.0;transition:.2s}
+  .card:hover .glow{opacity:.18}
+
+  .gaugewrap{display:flex;align-items:center;gap:16px;margin-top:14px}
+  .gauge{width:96px;height:96px;flex:none}
+  .gauge .track{fill:none;stroke:#1b2436;stroke-width:9}
+  .gauge .fill{fill:none;stroke-width:9;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center}
+  .gctr{position:relative}
+  .gnum{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .gnum b{font-size:24px;line-height:1}
+  .gnum small{font-size:10px;color:var(--muted);letter-spacing:.5px}
+
+  .meta{flex:1;display:flex;flex-direction:column;gap:8px;font-size:12.5px}
+  .row{display:flex;justify-content:space-between;gap:8px}
+  .row .k{color:var(--muted)}
+  .chip{font-size:11px;font-weight:600;padding:3px 9px;border-radius:8px;border:1px solid transparent}
+  .foot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px dashed #1d2840}
+  .trend{display:flex;align-items:center;gap:6px;font-size:12px}
+  .arrow-up{color:var(--vmal)} .arrow-dn{color:var(--vb)} .arrow-flat{color:var(--muted)}
+  .kv{font-size:12px;color:var(--muted)}
+  .badge-cond{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand"><span class="dot"></span> TR&nbsp;APP · Flota</div>
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b98ad" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input placeholder="Buscar serie, TAG, cliente, marca…">
+    </div>
+    <span class="tag">Centro de Mando</span>
+    <span class="tag">8 trafos</span>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi">
+      <h4>Índice de salud</h4>
+      <div class="v">62<span style="font-size:15px;color:var(--muted)"> /100</span></div>
+      <div class="s">promedio de flota</div>
+      <svg class="spark" width="70" height="28" viewBox="0 0 70 28"><polyline points="0,20 12,18 24,21 36,15 48,16 60,11 70,12" fill="none" stroke="#3ddc97" stroke-width="2"/></svg>
+    </div>
+    <div class="kpi">
+      <h4>En riesgo</h4>
+      <div class="v" style="color:var(--vmal)">3</div>
+      <div class="s"><span class="pill" style="background:#3a1620;color:#ff8190">37% de la flota</span></div>
+    </div>
+    <div class="kpi">
+      <h4>Generando gas</h4>
+      <div class="v" style="color:var(--med)">4</div>
+      <div class="s">tendencia al alza (TDCG)</div>
+      <svg class="spark" width="70" height="28" viewBox="0 0 70 28"><polyline points="0,24 14,22 28,18 42,14 56,9 70,4" fill="none" stroke="#f5b301" stroke-width="2"/></svg>
+    </div>
+    <div class="kpi">
+      <h4>Vida del papel</h4>
+      <div class="v">11<span style="font-size:15px;color:var(--muted)"> años</span></div>
+      <div class="s">mínimo estimado (DP&lt;200)</div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h3>Trafos · vitales en vivo</h3>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--vb)"></i>Muy Bueno</span>
+      <span><i class="sw" style="background:var(--b)"></i>Bueno</span>
+      <span><i class="sw" style="background:var(--med)"></i>Medio</span>
+      <span><i class="sw" style="background:var(--mal)"></i>Malo</span>
+      <span><i class="sw" style="background:var(--vmal)"></i>Muy Malo</span>
+    </div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<script>
+  const C={vb:'#16d39a',b:'#7ed957',med:'#f5b301',mal:'#ff8c42',vmal:'#ff4d5e'};
+  function cond(hi){ if(hi>85)return['Muy Bueno',C.vb]; if(hi>70)return['Bueno',C.b]; if(hi>50)return['Medio',C.med]; if(hi>30)return['Malo',C.mal]; return['Muy Malo',C.vmal]; }
+  const data=[
+    {serie:'TR-0801',tag:'ATU-1',cli:'PLUZ Energía',marca:'ABB',tipo:'Potencia',kv:'220 kV',hi:34,fault:'T2 · térmica alta',trend:'up'},
+    {serie:'TR-2207',tag:'HORNO-A',cli:'Aceros Arequipa',marca:'WEG',tipo:'Horno',kv:'33 kV',hi:22,fault:'D2 · arco',trend:'up'},
+    {serie:'TR-0335',tag:'ATR-3',cli:'Statkraft',marca:'Hyundai',tipo:'Potencia',kv:'138 kV',hi:91,fault:'Normal',trend:'flat'},
+    {serie:'TR-1890',tag:'T-7',cli:'Luz del Sur',marca:'Mitsubishi',tipo:'Distribución',kv:'22.9 kV',hi:64,fault:'T1 · térmica baja',trend:'up'},
+    {serie:'TR-0712',tag:'AT-1',cli:'Engie',marca:'ABB',tipo:'Potencia',kv:'500 kV',hi:88,fault:'Normal',trend:'flat'},
+    {serie:'TR-1555',tag:'T-4',cli:'Hidrandina',marca:'Schneider',tipo:'Distribución',kv:'60 kV',hi:49,fault:'DT · mixta',trend:'up'},
+    {serie:'TR-1042',tag:'T-2',cli:'Enel Distribución',marca:'Siemens',tipo:'Distribución',kv:'60 kV',hi:78,fault:'PD · descargas',trend:'flat'},
+    {serie:'TR-2901',tag:'HORNO-C',cli:'Sider Perú',marca:'WEG',tipo:'Horno',kv:'33 kV',hi:71,fault:'Normal',trend:'down'},
+  ];
+  const circ=2*Math.PI*42;
+  const grid=document.getElementById('grid');
+  data.forEach(d=>{
+    const [cname,col]=cond(d.hi);
+    const dash=(d.hi/100*circ).toFixed(1);
+    const tr = d.trend==='up'?{c:'arrow-up',s:'▲',t:'+12% gas/mes'}: d.trend==='down'?{c:'arrow-dn',s:'▼',t:'-8% gas/mes'}:{c:'arrow-flat',s:'▬',t:'estable'};
+    grid.insertAdjacentHTML('beforeend',`
+      <div class="card">
+        <div class="glow" style="background:radial-gradient(120px 120px at 80% 0%,${col},transparent)"></div>
+        <div class="head">
+          <div>
+            <div class="serie">${d.serie}</div>
+            <div class="cli">${d.cli} · ${d.tag}</div>
+          </div>
+          <span class="badge-cond" style="background:${col}22;color:${col};border:1px solid ${col}55">${cname}</span>
+        </div>
+        <div class="gaugewrap">
+          <div class="gctr">
+            <svg class="gauge" viewBox="0 0 100 100">
+              <circle class="track" cx="50" cy="50" r="42"/>
+              <circle class="fill" cx="50" cy="50" r="42" stroke="${col}" stroke-dasharray="${dash} ${circ}"/>
+            </svg>
+            <div class="gnum"><b style="color:${col}">${d.hi}</b><small>HI</small></div>
+          </div>
+          <div class="meta">
+            <div class="row"><span class="k">Marca</span><span>${d.marca}</span></div>
+            <div class="row"><span class="k">Tipo</span><span>${d.tipo}</span></div>
+            <div class="row"><span class="k">Falla</span><span class="chip" style="background:${col}1a;color:${col};border-color:${col}44">${d.fault}</span></div>
+          </div>
+        </div>
+        <div class="foot">
+          <span class="kv">${d.kv}</span>
+          <span class="trend ${tr.c}">${tr.s} ${tr.t}</span>
+        </div>
+      </div>`);
+  });
+</script>
+</body>
+</html>

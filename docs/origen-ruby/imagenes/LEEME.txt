@@ -1,0 +1,1 @@
+Aqui van las imagenes de referencia (tablas IEC 60599 A.2/A.4, capturas del sistema viejo, etc.). Ver README del nivel superior.

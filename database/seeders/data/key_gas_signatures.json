@@ -1,0 +1,10 @@
+{
+  "_doc": "Método del Gas Clave (IEEE C57.104). Firmas de % de gas por tipo de falla (paper Sarria/Guerrero/Rivas 2014, Tabla 3 — perfiles clásicos de Key Gas). El código (KeyGasService) normaliza los gases medidos a % del total de estos 6 gases y elige la firma más cercana (distancia L1). EDITABLE. Gas clave = el gas dominante de cada falla. Calibrado para aceite mineral (y silicona); en otros casos es referencial.",
+  "gases": ["co", "h2", "ch4", "c2h6", "c2h4", "c2h2"],
+  "faults": [
+    { "code": "arco",           "key": "c2h2", "sig": { "co": 0.1,  "h2": 60,  "ch4": 5,    "c2h6": 1.6,  "c2h4": 3.3,  "c2h2": 30 } },
+    { "code": "corona",         "key": "h2",   "sig": { "co": 0.2,  "h2": 86,  "ch4": 13,   "c2h6": 0.5,  "c2h4": 0.2,  "c2h2": 0.1 } },
+    { "code": "sobre_aceite",   "key": "c2h4", "sig": { "co": 0.01, "h2": 2,   "ch4": 16,   "c2h6": 17,   "c2h4": 63,   "c2h2": 2 } },
+    { "code": "sobre_celulosa", "key": "co",   "sig": { "co": 92,   "h2": 6.7, "ch4": 1.2,  "c2h6": 0.01, "c2h4": 0.01, "c2h2": 0.01 } }
+  ]
+}

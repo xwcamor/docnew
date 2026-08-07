@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opción D — Mezcla · Rail lateral + Resumen tablero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--primary:#0A6ED1;--surface:#fff;--surface-alt:#f5f6f7;--bg:#eef1f4;--border:#e5e5e5;--text:#32363A;--muted:#6A6D70;--g-green:#2E7D32;--g-lime:#7CB342;--g-yellow:#F9A825;--g-orange:#EF6C00;--g-red:#C62828;}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+.flag{background:#1b2733;color:#fff;text-align:center;font-size:.8rem;padding:8px;font-weight:600;}
+.flag b{color:#7fc4ff}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 80px;}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.82rem;font-weight:600;padding:7px 13px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn--p{background:var(--primary);color:#fff;border-color:var(--primary);}
+.btn--d{color:var(--g-red);border-color:#f1c4c0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.crumb{display:flex;align-items:center;gap:10px;color:var(--muted);}
+.crumb .ic{width:30px;height:30px;border-radius:7px;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700;}
+.crumb b{color:var(--text);font-size:1.05rem;font-weight:700;}
+.acts{display:flex;gap:8px;flex-wrap:wrap;}
+.hero{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:28px;padding:20px 24px;margin-bottom:14px;border-radius:8px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--hi);box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.hero__art{width:104px;height:104px;display:grid;place-items:center;background:var(--surface-alt);border-radius:12px;color:var(--hi);}
+.hero__serial{font-size:1.6rem;font-weight:800;line-height:1.1;}
+.hero__meta{margin-top:4px;color:var(--muted);font-size:.9rem;}
+.hero__chips{margin-top:14px;display:flex;flex-wrap:wrap;gap:9px;}
+.kpi{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:6px;background:var(--surface-alt);border:1px solid var(--border);font-size:.9rem;font-weight:600;}
+.kpi i{font-style:normal;font-weight:400;color:var(--muted);font-size:.8rem;}
+.hero__loc{margin-top:11px;font-size:.85rem;color:var(--muted);}
+.hero__gauge{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.gauge{width:104px;height:104px;transform:rotate(-90deg);}
+.gauge__track{fill:none;stroke:#e9ebee;stroke-width:8;}.gauge__val{fill:none;stroke-width:8;stroke-linecap:round;stroke:var(--hi);}
+.gauge__num{transform:rotate(90deg);transform-origin:50px 50px;text-anchor:middle;fill:var(--text);font-size:1.9rem;font-weight:800;}
+.gauge__pct{transform:rotate(90deg);transform-origin:50px 50px;text-anchor:middle;fill:var(--muted);font-size:.8rem;}
+.gauge-label{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:.92rem;}
+.gauge-cap{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;}
+.gdot{width:10px;height:10px;border-radius:50%;background:var(--hi);}
+.approvalbar{display:flex;justify-content:flex-end;margin:0 0 16px;}
+.objpage{display:grid;grid-template-columns:252px 1fr;gap:16px;align-items:start;}
+.rail{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;position:sticky;top:14px;}
+.rail__group{font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 12px 6px;}
+.rail__item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:500;position:relative;}
+.rail__item:hover{background:var(--surface-alt);}
+.rail__item.on{background:#eaf3fc;color:var(--primary);font-weight:700;}
+.rail__item.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--primary);}
+.rail__ic{width:18px;text-align:center;opacity:.85;}
+.rail__lbl{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rail__n{font-size:.7rem;color:var(--muted);background:var(--surface-alt);border-radius:999px;padding:1px 7px;font-weight:600;}
+.sdot{width:9px;height:9px;border-radius:50%;flex-shrink:0;display:inline-block;}
+.s-green{background:var(--g-green)}.s-lime{background:var(--g-lime)}.s-yellow{background:var(--g-yellow)}.s-orange{background:var(--g-orange)}.s-red{background:var(--g-red)}.s-none{background:#c8cdd2}
+.content{min-width:0;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px;}
+.section-title{margin:2px 0 4px;font-size:1.1rem;font-weight:700;}
+.sub{color:var(--muted);font-size:.85rem;margin:0 0 14px;}
+/* HUB (resumen como tablero clickeable) */
+.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:14px;margin-bottom:18px;}
+.hub{position:relative;background:#fff;border:1px solid var(--border);border-radius:14px;padding:15px 16px;overflow:hidden;cursor:pointer;transition:.16s;}
+.hub::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--c,#e5e7eb);}
+.hub:hover{box-shadow:0 10px 24px rgba(17,24,39,.11);transform:translateY(-2px);border-color:var(--c,#e5e7eb);}
+.hub__top{display:flex;align-items:center;gap:9px;}
+.hub__ic{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--c,#888) 14%,#fff);color:var(--c,#555);font-size:1.05rem;flex-shrink:0;}
+.hub__name{font-weight:700;font-size:.92rem;}
+.hub__pill{margin-left:auto;font-size:.7rem;font-weight:700;color:#fff;background:var(--c,#9aa0a6);padding:2px 9px;border-radius:999px;white-space:nowrap;}
+.hub__rating{display:flex;align-items:center;gap:9px;margin-top:13px;}
+.hub__bar{flex:1;height:6px;border-radius:5px;background:#eef1f4;overflow:hidden;}
+.hub__bar i{display:block;height:100%;border-radius:5px;background:var(--c,#9aa0a6);}
+.hub__score{font-size:.95rem;font-weight:800;color:var(--c,#1f2937);}
+.hub__score i{font-style:normal;font-size:.7rem;font-weight:500;color:#9aa0a6;}
+.hub__foot{display:flex;justify-content:space-between;align-items:center;margin-top:11px;font-size:.75rem;color:var(--muted);}
+.hub__go{color:var(--primary);font-weight:700;}
+.hub--empty{opacity:.72;border-style:dashed;}
+.hub--empty .hub__foot .hub__go{color:var(--muted);}
+/* detail */
+.detailhdr{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.backbtn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:7px 12px;font:inherit;font-weight:600;font-size:.84rem;cursor:pointer;}
+.spec-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.spec{display:flex;flex-direction:column;gap:3px;padding:11px 13px;border-radius:10px;background:var(--surface-alt);}
+.spec dt{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:#8a9099;font-weight:600;margin:0;}
+.spec dd{margin:0;font-size:.92rem;font-weight:600;}
+.dt{width:100%;border-collapse:collapse;font-size:.85rem;}
+.dt th,.dt td{border:1px solid var(--border);padding:8px 11px;text-align:center;}
+.dt th{background:var(--surface-alt);font-weight:700;}
+.dt td.lbl{text-align:left;font-weight:600;background:#fbfcfd;}
+.dt td.bad{background:rgba(198,40,40,.12);color:var(--g-red);font-weight:700;}
+.dt td.warn{background:rgba(249,168,37,.16);color:#a26a00;font-weight:700;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:.78rem;color:var(--muted);}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.badge{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:.85rem;padding:5px 12px;border-radius:999px;color:#fff;}
+.twocol{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;align-items:start;}
+.sparkwrap{border:1px solid var(--border);border-radius:10px;padding:14px;}
+.sparkwrap h4{margin:0 0 8px;font-size:.85rem;}
+.empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:42px 16px;color:#9aa0a6;text-align:center;}.empty .big{font-size:2rem;}
+.tl{list-style:none;margin:0;padding:0;}.tl li{display:flex;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);}
+.tl .tl-dot{width:9px;height:9px;border-radius:50%;background:var(--primary);margin-top:5px;flex-shrink:0;}.tl .tl-meta{color:var(--muted);font-size:.78rem;}
+@media(max-width:880px){.objpage{grid-template-columns:1fr;}.rail{position:static;}.twocol{grid-template-columns:1fr;}.hero{grid-template-columns:1fr;text-align:center;justify-items:center;}.spec-grid{grid-template-columns:1fr 1fr;}}
+</style>
+</head>
+<body>
+<div class="flag">MOCKUP — Opción D · <b>Mezcla: rail lateral (A) + Resumen como tablero clickeable (C)</b>. Clic en una tarjeta del resumen O en el rail.</div>
+<div class="wrap">
+  <div class="topbar">
+    <div class="crumb"><span class="ic">←</span><div><b>abc</b><div style="font-size:.82rem">Abengoa Peru SA</div></div></div>
+    <div class="acts"><button class="btn">⤴ Compartir</button><button class="btn">🗎 Logs del sistema</button><button class="btn btn--p">✎ Editar</button><button class="btn btn--d">🗑 Eliminar</button></div>
+  </div>
+  <div class="hero" style="--hi:var(--g-lime)">
+    <div class="hero__art"><svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 8h10v9H7z"/><path d="M9 8V5M15 8V5M9 17v2M15 17v2"/><path d="M12 10l-1.5 2.5h3L12 15"/></svg></div>
+    <div><div class="hero__serial">abc</div><div class="hero__meta">TAG 123 · Potencia · Mineral</div>
+      <div class="hero__chips"><span class="kpi">⚡ 21.00 <i>kV</i></span><span class="kpi">⊙ 34.00 <i>MVA</i></span><span class="kpi">▦ 1900 <i>· 126 años</i></span><span class="kpi">⑂ Trifásico</span><span class="kpi">◈ ABB</span><span class="kpi">▤ OLTC</span><span class="kpi">⬡ Dyn5</span></div>
+      <div class="hero__loc">⌖ Abengoa Peru SA · ABENGOA PERU S.A. - SE CHILCA › Transformers › Transformers</div></div>
+    <div class="hero__gauge"><svg viewBox="0 0 100 100" class="gauge"><circle class="gauge__track" cx="50" cy="50" r="42"/><circle class="gauge__val" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="73.9"/><text x="50" y="47" class="gauge__num">72</text><text x="50" y="62" class="gauge__pct">%</text></svg><div class="gauge-label"><span class="gdot"></span> Bueno</div><div class="gauge-cap">Índice de salud</div></div>
+  </div>
+  <div class="approvalbar"><button class="btn btn--p">⚖ Enviar a aprobación</button></div>
+
+  <div class="objpage">
+    <aside class="rail" id="rail">
+      <div class="rail__group">Diagnóstico</div>
+      <div class="rail__item on" data-sec="resumen"><span class="rail__ic">▥</span><span class="rail__lbl">Resumen</span></div>
+      <div class="rail__item" data-sec="cromas"><span class="rail__ic">⚗</span><span class="rail__lbl">Cromatografía (DGA)</span><span class="sdot s-yellow"></span></div>
+      <div class="rail__item" data-sec="fiquis"><span class="rail__ic">◑</span><span class="rail__lbl">Fisicoquímico</span><span class="sdot s-lime"></span></div>
+      <div class="rail__item" data-sec="furanos"><span class="rail__ic">⬡</span><span class="rail__lbl">Furanos</span><span class="sdot s-orange"></span></div>
+      <div class="rail__item" data-sec="fpot"><span class="rail__ic">⊙</span><span class="rail__lbl">Factor de Potencia</span><span class="sdot s-green"></span></div>
+      <div class="rail__item" data-sec="duval"><span class="rail__ic">△</span><span class="rail__lbl">Duval / Rogers</span><span class="sdot s-yellow"></span></div>
+      <div class="rail__item" data-sec="tand"><span class="rail__ic">≈</span><span class="rail__lbl">Tangente delta</span><span class="sdot s-none"></span></div>
+      <div class="rail__item" data-sec="ttr"><span class="rail__ic">↻</span><span class="rail__lbl">Relación TTR</span><span class="sdot s-none"></span></div>
+      <div class="rail__item" data-sec="rais"><span class="rail__ic">▦</span><span class="rail__lbl">Resistencia aislamiento</span><span class="sdot s-none"></span></div>
+      <div class="rail__item" data-sec="termo"><span class="rail__ic">🌡</span><span class="rail__lbl">Termografía</span><span class="sdot s-none"></span></div>
+      <div class="rail__group">Registro</div>
+      <div class="rail__item" data-sec="bitacora"><span class="rail__ic">▤</span><span class="rail__lbl">Bitácora</span><span class="rail__n">4</span></div>
+      <div class="rail__item" data-sec="cambios"><span class="rail__ic">⟲</span><span class="rail__lbl">Cambios / Auditoría</span></div>
+    </aside>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+<script>
+const spark=(pts,color)=>{const w=260,h=64,max=Math.max(...pts),min=Math.min(...pts),rng=(max-min)||1;const d=pts.map((p,i)=>`${i?'L':'M'}${(i/(pts.length-1)*w).toFixed(1)},${(h-((p-min)/rng)*(h-10)-5).toFixed(1)}`).join(' ');return `<svg width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="display:block"><path d="${d}" fill="none" stroke="${color}" stroke-width="2.5"/></svg>`;};
+// Resumen = tablero clickeable. Cada tarjeta navega a su prueba (y sincroniza el rail).
+const HUB=[
+  ['cromas','⚗','Cromatografía (DGA)','Medio',2,'var(--g-yellow)','54% del índice','2025-11-02'],
+  ['fiquis','◑','Fisicoquímico','Bueno',3,'var(--g-lime)','22% del índice','2025-10-20'],
+  ['furanos','⬡','Furanos','Malo',1,'var(--g-orange)','15% del índice','2025-09-15'],
+  ['fpot','⊙','Factor de Potencia','Muy Bueno',4,'var(--g-green)','9% del índice','2025-08-01'],
+  ['duval','△','Duval / Rogers','Medio',2,'var(--g-yellow)','—','derivado DGA'],
+];
+const HUB_EMPTY=[['tand','≈','Tangente delta'],['termo','🌡','Termografía']];
+const resumen=()=>`
+  <h3 class="section-title">Resumen de diagnóstico</h3>
+  <p class="sub">Cada tarjeta abre la prueba. El color y el puntaje resumen su condición.</p>
+  <div class="hubgrid">
+    ${HUB.map(([sec,ic,n,c,r,col,s,d])=>`<div class="hub" data-go="${sec}" style="--c:${col}">
+      <div class="hub__top"><div class="hub__ic">${ic}</div><span class="hub__name">${n}</span><span class="hub__pill">${c}</span></div>
+      <div class="hub__rating"><div class="hub__bar"><i style="width:${r/4*100}%"></i></div><span class="hub__score">${r}<i>/4</i></span></div>
+      <div class="hub__foot"><span>${s}</span><span class="hub__go">Abrir →</span></div></div>`).join('')}
+    ${HUB_EMPTY.map(([sec,ic,n])=>`<div class="hub hub--empty" data-go="${sec}" style="--c:#c8cdd2">
+      <div class="hub__top"><div class="hub__ic">${ic}</div><span class="hub__name">${n}</span></div>
+      <div class="hub__foot"><span>Sin registro</span><span class="hub__go">Abrir →</span></div></div>`).join('')}
+  </div>
+  <div class="card"><h3 class="section-title" style="font-size:1.02rem">Datos del transformador</h3>
+    <dl class="spec-grid">${[['N° de serie','abc'],['TAG','123'],['Cliente','Abengoa Peru SA'],['Tipo','Potencia'],['Aceite','Mineral'],['Tensión (kV)','21.00'],['Potencia (MVA)','34.00'],['Marca','ABB'],['Conexión','Dyn5']].map(([k,v])=>`<div class="spec"><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+  </div>`;
+const back=`<div class="detailhdr"><button class="backbtn" data-go="resumen">← Resumen</button></div>`;
+const SEC={};
+SEC.cromas=back+`<div class="card"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px"><h3 class="section-title" style="margin:0">Análisis Cromatográfico (DGA)</h3><span class="badge" style="background:var(--g-yellow)">● DGAF 1.74 · Medio</span><span style="margin-left:auto;color:var(--muted);font-size:.82rem">IEEE C57.104 · Mineral · Potencia</span></div><div class="twocol"><div style="overflow-x:auto"><table class="dt"><thead><tr><th>Gas</th><th>2024-06</th><th>2025-02</th><th>2025-11</th><th>Límite</th></tr></thead><tbody><tr><td class="lbl">H₂</td><td>34</td><td>58</td><td class="warn">96</td><td>100</td></tr><tr><td class="lbl">CH₄</td><td>21</td><td>40</td><td class="bad">128</td><td>120</td></tr><tr><td class="lbl">C₂H₄</td><td>12</td><td>33</td><td class="bad">94</td><td>50</td></tr><tr><td class="lbl">C₂H₂</td><td>0</td><td>1</td><td>3</td><td>35</td></tr><tr><td class="lbl">CO</td><td>180</td><td>240</td><td>320</td><td>350</td></tr></tbody></table><div class="legend"><span><span class="sdot s-green"></span>Muy Bueno</span><span><span class="sdot s-lime"></span>Bueno</span><span><span class="sdot s-yellow"></span>Medio</span><span><span class="sdot s-orange"></span>Malo</span><span><span class="sdot s-red"></span>Muy Malo</span></div></div><div class="sparkwrap"><h4>C₂H₄ (ppm)</h4>${spark([12,33,94],'#0A6ED1')}<h4 style="margin-top:14px">Triángulo Duval 1</h4><svg viewBox="0 0 120 104" width="100%" style="max-width:190px;display:block;margin:auto"><polygon points="60,6 114,98 6,98" fill="none" stroke="#cbd5e1" stroke-width="1.5"/><polygon points="60,6 84,52 36,52" fill="rgba(249,168,37,.25)" stroke="#F9A825"/><circle cx="64" cy="60" r="4" fill="#C62828"/></svg></div></div></div>`;
+SEC.fiquis=back+`<div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><h3 class="section-title" style="margin:0">Fisicoquímico</h3><span class="badge" style="background:var(--g-lime)">● Bueno</span></div><table class="dt"><thead><tr><th>Parámetro</th><th>2025-02</th><th>2025-10</th><th>Límite</th></tr></thead><tbody><tr><td class="lbl">Rigidez D1816 (kV)</td><td>52</td><td>49</td><td>≥45</td></tr><tr><td class="lbl">Tensión interfacial</td><td>32</td><td>30</td><td>≥25</td></tr><tr><td class="lbl">Acidez</td><td>0.04</td><td class="warn">0.09</td><td>≤0.10</td></tr></tbody></table></div>`;
+SEC.furanos=back+`<div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><h3 class="section-title" style="margin:0">Furanos</h3><span class="badge" style="background:var(--g-orange)">● Malo</span></div><div class="twocol"><div><table class="dt"><thead><tr><th>Fecha</th><th>2-FAL</th><th>DP</th></tr></thead><tbody><tr><td>2024-03</td><td>1.2</td><td>620</td></tr><tr><td>2024-11</td><td>2.8</td><td>510</td></tr><tr><td>2025-09</td><td class="bad">5.6</td><td class="bad">410</td></tr></tbody></table></div><div class="sparkwrap"><h4>DP</h4>${spark([620,510,410],'#EF6C00')}</div></div></div>`;
+SEC.fpot=back+`<div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><h3 class="section-title" style="margin:0">Factor de Potencia</h3><span class="badge" style="background:var(--g-green)">● Muy Bueno</span></div><table class="dt"><thead><tr><th>Fecha</th><th>FP 25°C (%)</th></tr></thead><tbody><tr><td>2024-08</td><td>0.21</td></tr><tr><td>2025-08</td><td>0.24</td></tr></tbody></table></div>`;
+SEC.duval=back+`<div class="card"><div style="display:flex;align-items:center;gap:12px;margin-bottom:6px"><h3 class="section-title" style="margin:0">Duval / Rogers</h3><span class="badge" style="background:var(--g-yellow)">● Medio</span></div><div class="sparkwrap" style="max-width:280px"><svg viewBox="0 0 160 140" width="100%"><polygon points="80,8 152,132 8,132" fill="none" stroke="#cbd5e1" stroke-width="1.5"/><polygon points="80,8 110,60 50,60" fill="rgba(249,168,37,.25)" stroke="#F9A825"/><circle cx="86" cy="72" r="5" fill="#C62828"/></svg><p class="sub">Zona T2 — falla térmica</p></div></div>`;
+const emptyTest=(t)=>back+`<div class="card"><h3 class="section-title">${t}</h3><div class="empty"><div class="big">⬚</div><div><b>Sin registro</b></div><div>Esta prueba aún no tiene muestras.</div><button class="btn btn--p" style="margin-top:6px">+ Agregar muestra</button></div></div>`;
+SEC.tand=emptyTest('Tangente delta');SEC.ttr=emptyTest('Relación TTR');SEC.rais=emptyTest('Resistencia de aislamiento');SEC.termo=emptyTest('Termografía');
+SEC.bitacora=back+`<div class="card"><h3 class="section-title">Bitácora</h3><ul class="tl"><li><span class="tl-dot"></span><div><b>Cambio de aceite</b><div class="tl-meta">2025-09-20 · J. Pérez</div></div></li><li><span class="tl-dot"></span><div><b>Mantenimiento OLTC</b><div class="tl-meta">2025-06-11</div></div></li><li><span class="tl-dot"></span><div><b>Puesta en servicio</b><div class="tl-meta">2019-01-15</div></div></li></ul></div>`;
+SEC.cambios=back+`<div class="card"><h3 class="section-title">Cambios / Auditoría</h3><table class="dt"><thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th></tr></thead><tbody><tr><td>2025-11-02</td><td>Hector G</td><td>Editó tensión</td></tr><tr><td>2019-01-15</td><td>admin</td><td>Creó el transformador</td></tr></tbody></table></div>`;
+const content=document.getElementById('content');
+function go(sec){
+  document.querySelectorAll('#rail .rail__item').forEach(x=>x.classList.toggle('on',x.dataset.sec===sec));
+  content.innerHTML = sec==='resumen' ? resumen() : (SEC[sec]||emptyTest(sec));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('rail').addEventListener('click',e=>{const it=e.target.closest('.rail__item');if(it)go(it.dataset.sec);});
+content.addEventListener('click',e=>{const el=e.target.closest('[data-go]');if(el)go(el.dataset.go);});
+go('resumen');
+</script>
+</body>
+</html>

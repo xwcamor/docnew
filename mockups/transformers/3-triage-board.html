@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TR APP · Tablero de Triaje (Mockup 3)</title>
+<style>
+  :root{
+    --bg:#0f1115; --col:#171a21; --card:#1d212b; --ink:#eef2f8; --muted:#8a93a6; --line:#262b36;
+    --vb:#22c55e; --b:#84cc16; --med:#eab308; --mal:#f97316; --vmal:#ef4444;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;-webkit-font-smoothing:antialiased}
+  .wrap{padding:20px 24px 50px}
+  .top{display:flex;align-items:center;gap:16px;margin-bottom:18px;max-width:1500px}
+  .brand{font-weight:800;font-size:17px}
+  .brand small{color:var(--muted);font-weight:600;font-size:12px;margin-left:6px}
+  .search{flex:1;max-width:430px;position:relative}
+  .search input{width:100%;background:#12151c;border:1px solid var(--line);color:var(--ink);border-radius:11px;
+       padding:10px 14px 10px 36px;font-size:14px;outline:none}
+  .search input::placeholder{color:#5b6577}
+  .search svg{position:absolute;left:11px;top:10px}
+  .filters{display:flex;gap:8px}
+  .fchip{font-size:12px;color:var(--muted);border:1px solid var(--line);background:#12151c;padding:7px 12px;border-radius:999px;cursor:pointer}
+  .fchip.on{color:var(--ink);border-color:#3a4250;background:#202632}
+
+  .board{display:grid;grid-template-columns:repeat(5,minmax(220px,1fr));gap:14px;overflow-x:auto;padding-bottom:8px}
+  .lane{background:var(--col);border:1px solid var(--line);border-radius:16px;padding:12px;min-width:220px}
+  .lane.crit{box-shadow:inset 0 2px 0 var(--vmal)}
+  .lhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding:2px 4px}
+  .lhead .name{display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px}
+  .ldot{width:9px;height:9px;border-radius:50%}
+  .count{font-size:12px;color:var(--muted);background:#0f1218;border:1px solid var(--line);padding:2px 9px;border-radius:999px}
+
+  .tcard{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:13px;margin-bottom:10px;cursor:grab;
+         transition:.15s transform,.15s border-color}
+  .tcard:hover{transform:translateY(-3px);border-color:#39414f}
+  .tcard .r1{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .tserie{font-weight:700;font-size:14px;letter-spacing:.2px}
+  .tcli{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .hibadge{font-size:12px;font-weight:800;padding:4px 9px;border-radius:9px;color:#0c0f14}
+  .r2{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .mini{font-size:10.5px;color:var(--muted);background:#12151c;border:1px solid var(--line);padding:3px 8px;border-radius:7px}
+  .r3{display:flex;align-items:center;justify-content:space-between;margin-top:11px;padding-top:10px;border-top:1px dashed #2a3140}
+  .fault{font-size:11px;font-weight:700}
+  .trend{font-size:11px}
+  .up{color:var(--vmal)} .down{color:var(--vb)} .flat{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">TR APP <small>Tablero de Triaje · severidad</small></div>
+    <div class="search">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8a93a6" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+      <input placeholder="Buscar serie, TAG, cliente, marca…">
+    </div>
+    <div class="filters">
+      <span class="fchip on">Todos</span>
+      <span class="fchip">Potencia</span>
+      <span class="fchip">Distribución</span>
+      <span class="fchip">Horno</span>
+    </div>
+  </div>
+
+  <div class="board" id="board"></div>
+</div>
+
+<script>
+  const C={vb:'#22c55e',b:'#84cc16',med:'#eab308',mal:'#f97316',vmal:'#ef4444'};
+  const lanes=[
+    {key:'vmal',name:'Muy Malo',col:C.vmal,crit:true},
+    {key:'mal',name:'Malo',col:C.mal,crit:true},
+    {key:'med',name:'Medio',col:C.med},
+    {key:'b',name:'Bueno',col:C.b},
+    {key:'vb',name:'Muy Bueno',col:C.vb},
+  ];
+  function bucket(hi){ if(hi>85)return'vb'; if(hi>70)return'b'; if(hi>50)return'med'; if(hi>30)return'mal'; return'vmal'; }
+  const data=[
+    {serie:'TR-0801',tag:'ATU-1',cli:'PLUZ Energía',marca:'ABB',tipo:'Potencia',kv:'220 kV',hi:34,fault:'T2 · térmica alta',trend:'up'},
+    {serie:'TR-2207',tag:'HORNO-A',cli:'Aceros Arequipa',marca:'WEG',tipo:'Horno',kv:'33 kV',hi:22,fault:'D2 · arco',trend:'up'},
+    {serie:'TR-1555',tag:'T-4',cli:'Hidrandina',marca:'Schneider',tipo:'Distribución',kv:'60 kV',hi:49,fault:'DT · mixta',trend:'up'},
+    {serie:'TR-1890',tag:'T-7',cli:'Luz del Sur',marca:'Mitsubishi',tipo:'Distribución',kv:'22.9 kV',hi:64,fault:'T1 · térmica baja',trend:'up'},
+    {serie:'TR-1042',tag:'T-2',cli:'Enel Distribución',marca:'Siemens',tipo:'Distribución',kv:'60 kV',hi:78,fault:'PD · descargas',trend:'flat'},
+    {serie:'TR-2901',tag:'HORNO-C',cli:'Sider Perú',marca:'WEG',tipo:'Horno',kv:'33 kV',hi:71,fault:'Normal',trend:'down'},
+    {serie:'TR-0712',tag:'AT-1',cli:'Engie',marca:'ABB',tipo:'Potencia',kv:'500 kV',hi:88,fault:'Normal',trend:'flat'},
+    {serie:'TR-0335',tag:'ATR-3',cli:'Statkraft',marca:'Hyundai',tipo:'Potencia',kv:'138 kV',hi:91,fault:'Normal',trend:'flat'},
+  ];
+  const board=document.getElementById('board');
+  lanes.forEach(l=>{
+    const items=data.filter(d=>bucket(d.hi)===l.key);
+    let cards=items.map(d=>{
+      const tr=d.trend==='up'?{c:'up',t:'▲ gas subiendo'}:d.trend==='down'?{c:'down',t:'▼ mejorando'}:{c:'flat',t:'▬ estable'};
+      return `
+      <div class="tcard">
+        <div class="r1">
+          <div><div class="tserie">${d.serie}</div><div class="tcli">${d.cli} · ${d.tag}</div></div>
+          <span class="hibadge" style="background:${l.col}">${d.hi}</span>
+        </div>
+        <div class="r2">
+          <span class="mini">${d.marca}</span>
+          <span class="mini">${d.tipo}</span>
+          <span class="mini">${d.kv}</span>
+        </div>
+        <div class="r3">
+          <span class="fault" style="color:${l.col}">${d.fault}</span>
+          <span class="trend ${tr.c}">${tr.t}</span>
+        </div>
+      </div>`;
+    }).join('') || `<div style="font-size:12px;color:var(--muted);text-align:center;padding:18px 0">— sin trafos —</div>`;
+    board.insertAdjacentHTML('beforeend',`
+      <div class="lane ${l.crit?'crit':''}">
+        <div class="lhead">
+          <span class="name"><i class="ldot" style="background:${l.col}"></i>${l.name}</span>
+          <span class="count">${items.length}</span>
+        </div>
+        ${cards}
+      </div>`);
+  });
+</script>
+</body>
+</html>

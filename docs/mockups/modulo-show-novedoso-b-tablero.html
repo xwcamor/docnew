@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Módulo Show — Novedoso B · Tablero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{--primary:#0A6ED1;--primary-2:#3b8fe0;--surface:#fff;--surface-alt:#f5f6f7;--bg:#eef1f4;--border:#e6e8eb;--text:#32363A;--muted:#6A6D70;--ok:#2E7D32;}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;}
+.flag{background:#1b2733;color:#fff;text-align:center;font-size:.8rem;padding:8px;font-weight:600;}
+.flag b{color:#7fc4ff}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 80px;}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.82rem;font-weight:600;padding:8px 13px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn--p{background:var(--primary);color:#fff;border-color:var(--primary);}
+.btn--d{color:#C62828;border-color:#f1c4c0;}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px;}
+.topback{display:flex;align-items:center;gap:10px;color:var(--muted);}
+.topback .ar{width:32px;height:32px;border-radius:8px;border:1px solid var(--border);background:#fff;display:grid;place-items:center;cursor:pointer;}
+.acts{display:flex;gap:8px;flex-wrap:wrap;}
+/* hero card with stat strip */
+.heroc{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.heroc__top{display:flex;align-items:center;gap:18px;padding:22px 24px;background:linear-gradient(120deg,rgba(10,110,209,.06),rgba(59,143,224,.02));border-bottom:1px solid var(--border);}
+.heroc__icon{width:72px;height:72px;border-radius:18px;display:grid;place-items:center;color:#fff;font-size:1.8rem;background:linear-gradient(140deg,var(--primary),var(--primary-2));box-shadow:0 8px 18px rgba(10,110,209,.30);flex-shrink:0;}
+.heroc__name{font-size:1.55rem;font-weight:800;line-height:1.1;}
+.heroc__sub{margin-top:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;padding:4px 11px;border-radius:999px;background:var(--surface-alt);border:1px solid var(--border);color:var(--muted);}
+.pill--ok{background:rgba(46,125,50,.10);border-color:rgba(46,125,50,.2);color:var(--ok);}
+.pill code{font-family:ui-monospace,Menlo,monospace;font-size:.78rem;}
+.strip{display:grid;grid-template-columns:repeat(5,1fr);}
+.strip .s{padding:15px 18px;border-right:1px solid var(--border);}
+.strip .s:last-child{border-right:0;}
+.strip .k{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:#8a9099;font-weight:700;}
+.strip .v{margin-top:5px;font-size:1.02rem;font-weight:700;}
+.strip .v code{font-family:ui-monospace,Menlo,monospace;font-size:.84rem;background:var(--surface-alt);border:1px solid var(--border);border-radius:6px;padding:1px 6px;}
+.strip .v.small{font-size:.86rem;font-weight:600;color:var(--muted);}
+/* grid */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;}
+.card__h{display:flex;align-items:center;gap:9px;margin:0 0 16px;font-size:1rem;font-weight:700;}
+.card__h .ic{color:var(--primary);}
+.card__h .right{margin-left:auto;font-size:.78rem;font-weight:500;color:var(--muted);}
+/* bars */
+.bar{margin-bottom:15px;}
+.bar__top{display:flex;justify-content:space-between;font-size:.85rem;font-weight:600;margin-bottom:6px;}
+.bar__top .n{color:var(--primary);font-weight:800;}
+.bar__track{height:10px;border-radius:6px;background:var(--surface-alt);overflow:hidden;}
+.bar__fill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--primary),var(--primary-2));}
+.linkrow{display:flex;justify-content:flex-end;margin-top:-6px}
+.linkrow a{font-size:.76rem;color:var(--primary);font-weight:700;cursor:pointer}
+/* activity */
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.chip{font-size:.78rem;font-weight:600;padding:5px 12px;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--muted);cursor:pointer;display:inline-flex;gap:6px;align-items:center;}
+.chip.on{background:var(--primary);border-color:var(--primary);color:#fff;}
+.chip .c{background:rgba(0,0,0,.08);border-radius:999px;padding:0 7px;font-size:.72rem;}
+.chip.on .c{background:rgba(255,255,255,.25);}
+.empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:30px 16px;color:#9aa0a6;text-align:center;}
+.empty svg{opacity:.5}
+@media(max-width:880px){.strip{grid-template-columns:1fr 1fr;}.strip .s{border-right:0;border-bottom:1px solid var(--border);}.grid{grid-template-columns:1fr;}.heroc__top{flex-direction:column;text-align:center;}.heroc__sub{justify-content:center;}}
+</style>
+</head>
+<body>
+<div class="flag">MOCKUP — Vista genérica de módulo · Novedoso <b>B · Tablero</b> (tarjeta con tira de stats + uso con barras).</div>
+<div class="wrap">
+  <div class="topbar">
+    <div class="topback"><span class="ar">←</span><span>Equipamientos eléctricos</span></div>
+    <div class="acts"><button class="btn">🗎 Logs del sistema</button><button class="btn btn--p">✎ Editar</button><button class="btn btn--d">🗑 Eliminar</button></div>
+  </div>
+
+  <div class="heroc">
+    <div class="heroc__top">
+      <div class="heroc__icon">⚙</div>
+      <div>
+        <div class="heroc__name">EQUIPAMIENTOS ELECTRICOS</div>
+        <div class="heroc__sub"><span class="pill pill--ok">● Activo</span><span class="pill">ID #243</span><span class="pill"><code>equipamientos_electricos</code></span></div>
+      </div>
+    </div>
+    <div class="strip">
+      <div class="s"><div class="k">ID</div><div class="v">243</div></div>
+      <div class="s"><div class="k">Código</div><div class="v"><code>equipamientos_electricos</code></div></div>
+      <div class="s"><div class="k">Estado</div><div class="v"><span class="pill pill--ok" style="font-size:.78rem">● Activo</span></div></div>
+      <div class="s"><div class="k">Creado</div><div class="v small">16-06-2026 · hace 1 día</div></div>
+      <div class="s"><div class="k">Actualizado</div><div class="v small">16-06-2026 · hace 1 día</div></div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3 class="card__h"><span class="ic">⌗</span> Uso / Relaciones <span class="right">Dónde se usa</span></h3>
+      <div class="bar"><div class="bar__top"><span>Transformadores</span><span class="n">128</span></div><div class="bar__track"><div class="bar__fill" style="width:100%"></div></div></div>
+      <div class="bar"><div class="bar__top"><span>Clientes</span><span class="n">14</span></div><div class="bar__track"><div class="bar__fill" style="width:32%"></div></div></div>
+      <div class="bar"><div class="bar__top"><span>Subestaciones</span><span class="n">9</span></div><div class="bar__track"><div class="bar__fill" style="width:20%"></div></div></div>
+      <div class="linkrow"><a>Ver transformadores de esta categoría →</a></div>
+      <p style="margin:12px 0 0;font-size:.8rem;color:var(--muted)">El valor real del registro: qué depende de él. También sustenta el bloqueo de borrado cuando tiene dependientes.</p>
+    </div>
+
+    <div class="card">
+      <h3 class="card__h"><span class="ic">⟲</span> Actividad reciente</h3>
+      <div class="chips">
+        <span class="chip on">Todos <span class="c">0</span></span>
+        <span class="chip">Creación <span class="c">0</span></span>
+        <span class="chip">Ediciones <span class="c">0</span></span>
+        <span class="chip">Eliminaciones <span class="c">0</span></span>
+      </div>
+      <div class="empty">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" stroke-width="1.4"><path d="M4 6h16v12H4z"/><path d="M4 10h16M9 14h6"/></svg>
+        <div>Sin actividad registrada</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

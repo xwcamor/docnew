@@ -1,0 +1,80 @@
+<?php
+
+return [
+    'singular' => 'Subscription',
+    'plural'   => 'Subscriptions',
+    'tab_title' => 'Subscription',
+
+    'current_title'      => 'Current subscription',
+    'no_active'          => 'No active subscription',
+    'no_active_hint'     => 'This workspace has no active plan. Create one or start a trial.',
+    'plan'               => 'Plan',
+    'status'             => 'Status',
+    'starts_at'          => 'Start',
+    'ends_at'            => 'End',
+    'trial_ends_at'      => 'Trial end',
+    'days_remaining'     => 'Days remaining',
+    'days_remaining_n'   => '{1} :count day remaining|[2,*] :count days remaining',
+    'amount_paid'        => 'Amount paid',
+    'payment_method'     => 'Payment method',
+    'notes'              => 'Notes',
+    'created_by'         => 'Created by',
+
+    'status_trial'     => 'Trial',
+    'status_active'    => 'Active',
+    'status_expired'   => 'Expired',
+    'status_suspended' => 'Suspended',
+    'status_cancelled' => 'Cancelled',
+
+    'create'             => 'New subscription',
+    'create_hint'        => 'Record a manual payment or start a trial period',
+    'renew'              => 'Renew',
+    'renew_hint'         => 'Close current subscription and create a new one (history preserved)',
+    'cancel'             => 'Cancel',
+    'cancel_hint'        => 'Cancel but allow use until period end',
+    'suspend'            => 'Suspend',
+    'suspend_hint'       => 'Cut access immediately (failed payment, fraud, etc.)',
+
+    'kind'               => 'Type',
+    'kind_paid'          => 'Manual payment',
+    'kind_trial'         => 'Trial period',
+    'kind_paid_hint'     => 'Customer paid for a fixed period (e.g. 1 year, 3 months).',
+    'kind_trial_hint'    => 'N free days. When it expires, the tenant has no plan until they pay.',
+    'trial_days'         => 'Trial duration (days)',
+    'currency'           => 'Currency',
+    'payment_method_options' => [
+        'manual'        => 'Manual',
+        'bank_transfer' => 'Bank transfer',
+        'stripe'        => 'Stripe',
+        'paddle'        => 'Paddle',
+        'cash'          => 'Cash',
+        'other'         => 'Other',
+    ],
+
+    'cancel_mode'        => 'Mode',
+    'cancel_mode_cancel' => 'Cancel (allow use until period ends)',
+    'cancel_mode_suspend'=> 'Suspend (cut access immediately)',
+    'cancel_reason'      => 'Reason',
+    'cancel_reason_placeholder' => 'Why is this being cancelled/suspended. Will be recorded in audit.',
+
+    'history_title'   => 'Subscription history',
+    'history_empty'   => 'No subscriptions recorded yet.',
+    'history_count'   => '{0} No records|{1} 1 record|[2,*] :count records',
+
+    'created'         => 'Subscription created.',
+    'created_trial'   => 'Trial period started.',
+    'renewed'         => 'Subscription renewed.',
+    'cancelled'       => 'Subscription cancelled.',
+    'suspended'       => 'Subscription suspended.',
+
+    'expires_in_warning' => 'Your plan expires in :days days. Renew to avoid disruption.',
+    'expired_warning'    => 'Your subscription expired. Features restricted until renewal.',
+
+    // Email — subscription expiring soon (cron daily)
+    'email_subject'      => 'Your subscription expires in :days days',
+    'email_title'        => 'Your plan expires in :days days',
+    'email_greeting'     => 'Hi :name,',
+    'email_body'         => 'Heads up: the subscription for workspace ":workspace" expires in :days days. We recommend renewing in advance to avoid service interruptions.',
+    'email_cta'          => 'Contact us to renew and keep your access active.',
+    'email_support_hint' => 'If you need help, write to',
+];

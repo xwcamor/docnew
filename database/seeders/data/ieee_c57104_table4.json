@@ -1,0 +1,18 @@
+{
+  "_doc": "IEEE C57.104-2019 — Tabla 4: tasas de generación de gas (percentil 95) a partir de un análisis multi-punto (3 a 6 muestras), expresadas en µL/L por AÑO (ppm/año). La tasa de cada gas es la PENDIENTE del ajuste lineal (mínimos cuadrados) de la concentración vs. tiempo, × 365. Se compara contra el límite elegido por: ratio O2/N2 (≤0.2 vs >0.2) y período entre la primera y última muestra del set (4-9 vs 10-24 meses). Si la tasa de algún gas supera su límite → 'tasa fuera de norma'. Acetileno (c2h2): CUALQUIER tasa creciente (>0) es alarma. Solo aplica si el período está entre 4 y 24 meses y hay 3 a 6 muestras. FUENTE: docs/origen-ruby/fuentes-originales/tabla_4_ieee.pdf. EDITABLE.",
+  "o2n2_threshold": 0.2,
+  "period_months": { "min": 4, "max": 24 },
+  "samples": { "min": 3, "max": 6 },
+  "c2h2_any_increase": true,
+  "gases": ["h2", "ch4", "c2h6", "c2h4", "co", "co2"],
+  "limits": {
+    "le02": {
+      "p4_9":   { "h2": 50, "ch4": 15, "c2h6": 15, "c2h4": 10, "co": 200, "co2": 1750 },
+      "p10_24": { "h2": 20, "ch4": 10, "c2h6": 9,  "c2h4": 7,  "co": 100, "co2": 1000 }
+    },
+    "gt02": {
+      "p4_9":   { "h2": 25, "ch4": 4,  "c2h6": 3,  "c2h4": 7,  "co": 100, "co2": 1000 },
+      "p10_24": { "h2": 10, "ch4": 3,  "c2h6": 2,  "c2h4": 5,  "co": 80,  "co2": 800 }
+    }
+  }
+}

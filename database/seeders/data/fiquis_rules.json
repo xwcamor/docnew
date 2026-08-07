@@ -1,0 +1,44 @@
+{
+  "_doc": "Reglas de diagnóstico fisicoquímico (fiquis) portadas de physical.rb (Ruby viejo, norma IEEE C57.106). EDITABLE. Cada parámetro lleva su norma (astm), unidad, dirección y MODO: 'scored' = 4 bandas [t1,t2,t3] que entran al DGAF ponderado Σ(score×peso)/Σ(peso) (score 1=mejor..4=peor); 'limit' = umbral único + tolerancia (tol) que SOLO colorea la celda (verde/amarillo/rojo) y NO puntúa — igual que num_pot2/num_rig2 en el viejo. Clases de tensión: low ≤69kV, mid 69–230kV, high ≥230kV. Silicona no segmenta por tensión ni mide tensión interfacial. Para agregar un campo nuevo: añadirlo en params + tables (+ una migración para la columna); el motor y la tabla lo toman solos.",
+  "params": {
+    "rig":    { "weight": 3, "dir": "higher",       "unit": "kV",       "astm": "D1816",      "mode": "scored" },
+    "ten":    { "weight": 2, "dir": "higher",       "unit": "mN/m",     "astm": "D971",       "mode": "scored" },
+    "acid":   { "weight": 1, "dir": "lower_strict", "unit": "mg KOH/g", "astm": "D974",       "mode": "scored" },
+    "wat":    { "weight": 4, "dir": "lower",        "unit": "ppm",      "astm": "D1533",      "mode": "scored" },
+    "pot":    { "weight": 3, "dir": "lower",        "unit": "%",        "astm": "D924 25°C",  "mode": "scored" },
+    "rig877": {              "dir": "higher",       "unit": "kV",       "astm": "D877",       "mode": "limit", "tol": 0.1 },
+    "pot100": {              "dir": "lower",        "unit": "%",        "astm": "D924 100°C", "mode": "limit", "tol": 0.1 }
+  },
+  "param_order": ["rig", "ten", "acid", "wat", "pot"],
+  "display": ["acid", "pot", "pot100", "rig", "rig877", "ten", "wat"],
+  "_doc_substitutions": "Pares de métodos que miden la MISMA propiedad: rigidez dieléctrica por D1816 (rig) o por D877 (rig877); factor de potencia a 25 °C (pot) o a 100 °C (pot100). El principal es el que puntúa. Si el laboratorio NO reportó el principal pero sí el alterno, el alterno OCUPA SU LUGAR en el DGAF (sustituye, no suma: una propiedad = un solo lugar en el índice) y se puntúa contra SU propia norma. Si el alterno tiene [t1,t2,t3] en tables, se usan esos; si solo tiene el límite único, las bandas se derivan escalando las del principal para que el borde de fuera-de-norma caiga justo en el límite del alterno.",
+  "substitutions": { "rig": "rig877", "pot": "pot100" },
+  "voltage_classes": { "low_max": 69, "mid_max": 230 },
+  "tables": {
+    "mineral": {
+      "low":  { "rig": [40, 35, 30], "ten": [25, 20, 15], "acid": [0.05, 0.10, 0.20], "wat": [20, 30, 40], "pot": [0.1, 0.5, 1], "rig877": [25], "pot100": [5] },
+      "mid":  { "rig": [47, 40, 35], "ten": [30, 23, 18], "acid": [0.04, 0.10, 0.15], "wat": [20, 30, 40], "pot": [0.1, 0.5, 1], "rig877": [25], "pot100": [5] },
+      "high": { "rig": [50, 45, 40], "ten": [32, 25, 20], "acid": [0.03, 0.07, 0.10], "wat": [20, 30, 40], "pot": [0.1, 0.5, 1], "rig877": [25], "pot100": [5] }
+    },
+    "silicona": {
+      "all":  { "rig": [25, 22, 20], "acid": [0.2, 0.4, 0.8], "wat": [100, 150, 200], "pot": [0.2, 0.4, 0.8], "rig877": [25], "pot100": [0.2] }
+    },
+    "vegetal_soya": {
+      "low":  { "rig": [40, 35, 30], "ten": [10, 8, 6],  "acid": [0.5, 1, 1.5], "wat": [450, 500, 550], "pot": [3, 3.5, 4], "rig877": [40], "pot100": [3] },
+      "mid":  { "rig": [47, 40, 35], "ten": [12, 8, 6],  "acid": [0.3, 1, 1.5], "wat": [350, 400, 450], "pot": [3, 3.5, 4], "rig877": [47], "pot100": [3] },
+      "high": { "rig": [50, 45, 40], "ten": [14, 8, 6],  "acid": [0.3, 1, 1.5], "wat": [200, 300, 400], "pot": [3, 3.5, 4], "rig877": [50], "pot100": [3] }
+    },
+    "vegetal_girasol": {
+      "low":  { "rig": [40, 35, 30], "ten": [10, 8, 6],  "acid": [0.5, 1, 1.5], "wat": [450, 500, 550], "pot": [3, 3.5, 4], "rig877": [40], "pot100": [3] },
+      "mid":  { "rig": [47, 40, 35], "ten": [12, 8, 6],  "acid": [0.3, 1, 1.5], "wat": [350, 400, 450], "pot": [3, 3.5, 4], "rig877": [47], "pot100": [3] },
+      "high": { "rig": [50, 45, 40], "ten": [14, 8, 6],  "acid": [0.3, 1, 1.5], "wat": [200, 300, 400], "pot": [3, 3.5, 4], "rig877": [50], "pot100": [3] }
+    }
+  },
+  "semaphore": [
+    { "max": 1.2, "condition": "Muy Bueno", "color": "green",  "rating": 4 },
+    { "max": 1.5, "condition": "Bueno",     "color": "lime",   "rating": 3 },
+    { "max": 2.0, "condition": "Medio",     "color": "yellow", "rating": 2 },
+    { "max": 3.0, "condition": "Malo",      "color": "orange", "rating": 1 },
+    { "max": null, "condition": "Muy Malo", "color": "red",    "rating": 0 }
+  ]
+}

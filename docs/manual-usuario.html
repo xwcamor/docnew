@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- ╔════════ CONFIGURACIÓN ════════╗  Edite estos valores: se aplican en TODO el manual. -->
+<script>
+window.MANUAL = {
+  app:     "TR Health",            // nombre del producto
+  domain:  "trhealth.app",         // su dominio (sin https://)
+  verify:  "trhealth.app/verify",  // URL del portal de verificación pública
+  version: "v1.0 · Junio 2026"     // versión del manual (portada y pie)
+};
+</script>
+
+<title>{{app}} — Manual de uso del sistema</title>
+<style>
+:root{
+  --ink:#1f2937; --muted:#6A6D70; --line:#e5e7eb; --bg:#f6f8fa;
+  --navy:#354A5F; --blue:#0A6ED1; --red:#C8281D;
+  --green:#1D7044; --lime:#5AA82E; --amber:#E9A23B; --orange:#E2661E;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.6}
+a{color:var(--blue);text-decoration:none} a:hover{text-decoration:underline}
+kbd{border:1px solid #cbd5e1;border-bottom-width:2px;border-radius:5px;padding:0 6px;font-size:.85em;background:#fff}
+code{background:#eef2f6;border-radius:5px;padding:1px 6px;font-size:.9em}
+
+/* ── Hero ── */
+.hero{background:var(--navy);color:#fff;padding:54px 24px 60px;text-align:center}
+.hero h1{margin:0;font-size:2.1rem;letter-spacing:.02em}
+.hero p{margin:10px auto 0;max-width:640px;color:#cdd6df}
+.hero .v{display:inline-block;margin-top:16px;border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:4px 14px;font-size:.8rem;color:#cdd6df}
+
+/* ── Layout ── */
+.wrap{max-width:none;margin:0;padding:0 28px}
+.layout{display:grid;grid-template-columns:264px 1fr;gap:38px;align-items:start;margin-top:-26px}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+
+/* ── TOC ── */
+.toc{position:sticky;top:16px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 14px;font-size:.86rem;max-height:calc(100vh - 32px);overflow:auto}
+.toc b{display:block;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:10px 4px 4px}
+.toc a{display:block;padding:4px 8px;border-radius:7px;color:var(--ink);border-left:3px solid transparent}
+.toc a:hover{background:#eef4fb;text-decoration:none}
+.toc a.active{background:#eef4fb;color:var(--blue);font-weight:600;border-left-color:var(--blue)}
+
+/* ── Content ── */
+.content{min-width:0}
+section{background:#fff;border:1px solid var(--line);border-radius:16px;padding:26px 28px;margin-bottom:22px;scroll-margin-top:16px;transition:border-color .3s ease,box-shadow .3s ease}
+section.is-current{border-color:#cfe2f7;box-shadow:0 10px 34px rgba(10,110,209,.10)}
+section.is-current h2{color:var(--blue)}
+@keyframes tflash{0%{box-shadow:0 0 0 3px rgba(10,110,209,.40),0 10px 34px rgba(10,110,209,.12)}100%{box-shadow:0 0 0 0 rgba(10,110,209,0)}}
+section:target{animation:tflash 1.1s ease}
+h2{margin:0 0 4px;font-size:1.35rem;color:var(--navy)}
+h3{margin:22px 0 8px;font-size:1.02rem;color:var(--ink)}
+.lead{color:var(--muted);margin:0 0 14px}
+ol,ul{padding-left:22px;margin:8px 0}
+li{margin:4px 0}
+.tag{display:inline-block;background:#eef4fb;color:var(--blue);font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:999px;padding:2px 10px;margin-bottom:8px}
+.tag.admin{background:#fdf3e6;color:#a16207}
+
+/* ── Cards grid (estilo referencia) ── */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(225px,1fr));gap:14px;margin:14px 0}
+.card{border:1px solid var(--line);border-left:4px solid var(--blue);border-radius:12px;padding:14px 16px;background:#fff}
+.card .ico{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;background:#eef4fb;margin-bottom:8px}
+.card b{display:block;font-size:.92rem;margin-bottom:4px}
+.card p{margin:0;font-size:.82rem;color:var(--muted);line-height:1.5}
+.card.g{border-left-color:var(--green)} .card.g .ico{background:#e9f7ef}
+.card.a{border-left-color:var(--amber)} .card.a .ico{background:#fdf6e7}
+.card.r{border-left-color:var(--red)} .card.r .ico{background:#fdeceb}
+.card.p{border-left-color:#7E57C2} .card.p .ico{background:#f1ecf9}
+
+/* ── Steps (stepper con línea conectora + efectos) ── */
+.steps{counter-reset:p;margin:14px 0;position:relative}
+.step{position:relative;display:flex;gap:14px;padding:11px 12px;border-radius:12px;transition:background .18s ease,transform .18s ease}
+.step:hover{background:#f5f9fe;transform:translateX(2px)}
+.step::before{counter-increment:p;content:counter(p);flex:0 0 30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-size:.85rem;font-weight:700;display:flex;align-items:center;justify-content:center;z-index:1;transition:transform .18s ease,background .18s ease}
+.step:hover::before{background:var(--blue);transform:scale(1.08)}
+.step::after{content:"";position:absolute;left:26px;top:44px;bottom:-3px;width:2px;background:var(--line)}
+.step:last-child::after{display:none}
+.step div{min-width:0;padding-top:3px}
+.step b{font-size:.94rem}
+.step p{margin:2px 0 0;font-size:.85rem;color:var(--muted)}
+
+/* ── Mockup browser frame (maquetas ilustrativas) ── */
+.shot{border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:16px 0;box-shadow:0 8px 24px rgba(17,24,39,.07)}
+.shot__bar{background:#27313a;display:flex;align-items:center;gap:7px;padding:9px 12px}
+.shot__bar i{width:10px;height:10px;border-radius:50%;display:block}
+.shot__bar i:nth-child(1){background:#ff5f57}.shot__bar i:nth-child(2){background:#febc2e}.shot__bar i:nth-child(3){background:#28c840}
+.shot__url{margin-left:8px;background:#39434d;color:#aeb8c2;font-size:.72rem;border-radius:6px;padding:2px 12px;font-family:monospace}
+.shot__body{background:#fff;padding:16px 18px}
+.shot__cap{font-size:.78rem;color:var(--muted);text-align:center;padding:8px 12px;background:#fafbfc;border-top:1px solid var(--line)}
+
+/* elementos de maqueta */
+.m-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid #f0f2f4;font-size:.84rem}
+.m-row:last-child{border-bottom:none}
+.m-pill{display:inline-block;color:#fff;border-radius:999px;font-size:.7rem;font-weight:700;padding:1px 10px}
+.m-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px}
+.m-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.m-kpi{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center}
+.m-kpi b{display:block;font-size:1.25rem}
+.m-kpi span{font-size:.66rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.m-input{border:1px solid var(--line);border-radius:8px;padding:6px 12px;color:#9aa0a6;font-size:.82rem;background:#fff;flex:1}
+.m-btn{background:var(--blue);color:#fff;border-radius:8px;padding:6px 14px;font-size:.8rem;font-weight:600;white-space:nowrap}
+.m-btn.ghost{background:#fff;color:var(--blue);border:1px solid var(--blue)}
+.m-bar{height:8px;border-radius:5px;background:#eef1f4;overflow:hidden;flex:1}
+.m-bar i{display:block;height:100%}
+.m-gauge{width:84px;height:84px;border-radius:50%;background:conic-gradient(var(--green) 0 78%, #e8ecef 78% 100%);display:flex;align-items:center;justify-content:center;margin:0 auto}
+.m-gauge b{background:#fff;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem}
+.m-sign{display:grid;grid-template-columns:1fr 1fr;gap:24px;padding:10px 6px}
+.m-sign div{border-top:1.5px solid var(--ink);text-align:center;padding-top:5px;font-size:.78rem}
+.m-sign small{display:block;color:var(--muted)}
+.m-menu{border:1px solid var(--line);border-radius:10px;max-width:280px;overflow:hidden}
+.m-menu .mi{padding:8px 12px;font-size:.84rem;border-bottom:1px solid #f0f2f4;display:flex;align-items:center;gap:8px}
+.m-menu .mi:last-child{border-bottom:none}
+.note{background:#FFFBEB;border-left:4px solid var(--amber);border-radius:8px;padding:10px 14px;font-size:.86rem;margin:12px 0}
+.note.ok{background:#e9f7ef;border-left-color:var(--green)}
+.note.danger{background:#fdeceb;border-left-color:var(--red)}
+table.t{width:100%;border-collapse:collapse;font-size:.86rem;margin:10px 0}
+table.t th{background:var(--navy);color:#fff;text-align:left;padding:7px 10px;font-size:.78rem}
+table.t td{border:1px solid var(--line);padding:7px 10px}
+
+/* ── Tabla comparativa de planes ── */
+table.cmp{width:100%;border-collapse:collapse;font-size:.83rem;margin:12px 0}
+table.cmp th,table.cmp td{border:1px solid var(--line);padding:6px 10px;text-align:center}
+table.cmp th{background:var(--navy);color:#fff;font-size:.78rem}
+table.cmp th:nth-child(5){background:#1D7044}
+table.cmp td:first-child,table.cmp th:first-child{text-align:left}
+table.cmp tr.grp td{background:#f3f6f9;font-weight:700;color:var(--navy);text-align:left}
+table.cmp td.yes{color:var(--green);font-weight:700}
+table.cmp td.no{color:#c7ccd1}
+table.cmp tbody td:nth-child(5),table.cmp tr td:nth-child(5){background:#f6fbf8}
+table.cmp tr.grp td:nth-child(5){background:#f3f6f9}
+.foot{text-align:center;color:var(--muted);font-size:.8rem;padding:30px 0 40px}
+
+/* ── Aparición suave al hacer scroll (solo si hay JS) ── */
+.js .reveal{opacity:0;transform:translateY(14px);transition:opacity .55s ease,transform .55s ease}
+.js .reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.js .reveal{opacity:1!important;transform:none!important;transition:none}}
+
+/* ── Figuras / diagramas SVG ── */
+.fig{margin:18px 0;text-align:center}
+.fig svg{max-width:100%;height:auto}
+.fig figcaption{font-size:.78rem;color:var(--muted);margin-top:6px}
+
+/* ── Wizard horizontal (pasos de formulario) ── */
+.wizbox{border:1px solid var(--line);border-radius:12px;padding:18px 18px 12px;margin:14px 0;background:#fff}
+.wizard{display:flex;align-items:flex-start;margin:0}
+.wizard .wz{flex:1;text-align:center;position:relative;font-size:.82rem}
+.wizard .wz .n{width:34px;height:34px;border-radius:50%;background:#eef1f4;color:var(--muted);font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 6px;border:2px solid var(--line);position:relative;z-index:1}
+.wizard .wz.done .n{background:var(--green);color:#fff;border-color:var(--green)}
+.wizard .wz.active .n{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 0 0 4px #dcebfa}
+.wizard .wz::before{content:"";position:absolute;top:17px;left:-50%;width:100%;height:2px;background:var(--line);z-index:0}
+.wizard .wz:first-child::before{display:none}
+.wizard .wz.done::before,.wizard .wz.active::before{background:var(--green)}
+.wizard .wz b{display:block;color:var(--ink);font-weight:600}
+.wizard .wz em{color:var(--muted);font-size:.72rem;font-style:normal}
+
+/* ── Pasos horizontales con mini-vista de la pantalla ── */
+.hsteps{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:16px;margin:16px 0}
+.hstep{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;display:flex;flex-direction:column;box-shadow:0 6px 18px rgba(17,24,39,.05)}
+.hstep__h{display:flex;align-items:center;gap:9px;padding:10px 14px}
+.hstep__n{width:25px;height:25px;border-radius:50%;background:var(--navy);color:#fff;font-size:.78rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 25px}
+.hstep__h b{font-size:.9rem}
+.hstep__shot{background:#f6f8fa;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px;min-height:130px;display:flex;flex-direction:column;justify-content:center;gap:7px}
+.hstep__cap{padding:9px 14px 11px;font-size:.82rem;color:var(--muted)}
+.mini-field{background:#fff;border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-size:.74rem;color:#9aa0a6}
+.mini-btn{background:var(--blue);color:#fff;border-radius:7px;padding:6px 10px;font-size:.74rem;font-weight:600;text-align:center}
+.mini-btn.g{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.mini-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.mini-tab{font-size:.7rem;padding:4px 8px;border-radius:6px;background:#fff;border:1px solid var(--line);color:var(--muted)}
+.mini-tab.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.mini-ck{font-size:.74rem;color:var(--ink)}
+.mini-ok{font-size:.74rem;color:var(--green);font-weight:600}
+
+@media print{.toc{display:none}.layout{grid-template-columns:1fr}.hero{padding:26px}section{break-inside:avoid-page;border:none;box-shadow:none}.js .reveal{opacity:1!important;transform:none!important}}
+</style>
+<script>document.documentElement.classList.add('js')</script>
+</head>
+<body>
+
+<div class="hero">
+  <h1>⚡ {{app}}</h1>
+  <p>Manual de uso — Sistema de gestión y diagnóstico de transformadores eléctricos. Multi-workspace, multi-idioma, con informes verificables y portal para clientes.</p>
+  <span class="v">Manual {{version}}</span>
+</div>
+
+<div class="wrap"><div class="layout">
+
+<!-- ════════ ÍNDICE ════════ -->
+<nav class="toc">
+  <b>Empezar</b>
+  <a href="#intro">¿Qué es {{app}}?</a>
+  <a href="#acceso">Acceso y primera sesión</a>
+  <a href="#interfaz">La interfaz</a>
+  <a href="#dashboard">El tablero (dashboard)</a>
+  <a href="#buscador">El buscador principal</a>
+  <a href="#perfil">Mi perfil, firma y contraseña</a>
+  <b>Administración</b>
+  <a href="#usuarios">Usuarios y perfiles (roles)</a>
+  <a href="#workspace">Mi workspace y firmantes</a>
+  <a href="#planes">Planes y suscripciones</a>
+  <b>Operación</b>
+  <a href="#clientes">Clientes y jerarquía</a>
+  <a href="#trafos">Transformadores y marcas</a>
+  <a href="#diagnostico">Cómo diagnosticar</a>
+  <a href="#bitacora">Bitácora del transformador</a>
+  <b>Informes</b>
+  <a href="#informe">El informe PDF</a>
+  <a href="#verificar">Verificar validez (QR)</a>
+  <a href="#compartir">Compartir trafo y flota</a>
+  <b>Productividad</b>
+  <a href="#filtros">Filtros avanzados</a>
+  <a href="#vistas">Vistas guardadas y columnas</a>
+  <a href="#exports">Exportar e importar</a>
+  <a href="#mensajes">Mensajes y notificaciones</a>
+  <a href="#automatizaciones">Automatizaciones</a>
+  <b>Sistema</b>
+  <a href="#idioma">Idioma y tema</a>
+  <a href="#seguridad">Seguridad y privacidad</a>
+</nav>
+
+<div class="content">
+
+<!-- ════════ INTRO ════════ -->
+<section id="intro">
+  <h2>¿Qué es {{app}}?</h2>
+  <p class="lead">Una plataforma para laboratorios y empresas de mantenimiento que diagnostican transformadores: se cargan los ensayos de aceite, el sistema aplica las normas y entrega el estado de salud de cada equipo, informes PDF firmados y verificables, y un portal para que sus clientes vean su flota.</p>
+  <div class="cards">
+    <div class="card g"><div class="ico">🔬</div><b>4 pruebas de laboratorio</b><p>Cromatografía de gases (DGA), fisicoquímico, furanos y factor de potencia, evaluadas contra normas IEC/IEEE.</p></div>
+    <div class="card"><div class="ico">❤️</div><b>Índice de salud</b><p>Combina las pruebas en un solo número 0–100 con semáforo de 5 niveles y peso dinámico (lo que falta no penaliza).</p></div>
+    <div class="card p"><div class="ico">📄</div><b>Informes verificables</b><p>PDF profesional con firmas, código de verificación y QR que cualquiera puede validar en línea.</p></div>
+    <div class="card a"><div class="ico">🔗</div><b>Portal para clientes</b><p>Comparta un trafo o la flota completa con un enlace seguro (código por correo). Sin crearle usuarios al cliente.</p></div>
+    <div class="card"><div class="ico">🏢</div><b>Multi-workspace</b><p>Cada empresa ve solo sus datos: clientes, trafos, usuarios y configuración independientes.</p></div>
+    <div class="card r"><div class="ico">🛡️</div><b>Auditoría total</b><p>Cada acción importante queda registrada: quién, cuándo, desde qué IP. Cumplimiento LPDP incluido.</p></div>
+  </div>
+  <div class="note ok"><b>Filosofía del sistema:</b> las reglas de diagnóstico (umbrales, pesos, normas, semáforos) <b>viven en datos editables</b>, no en el código. Un ingeniero puede ajustar una norma sin tocar una línea de programación.</div>
+</section>
+
+<!-- ════════ ACCESO ════════ -->
+<section id="acceso">
+  <h2>Acceso y primera sesión</h2>
+  <p class="lead">Los usuarios los crea el administrador del workspace — no hay auto-registro. En el primer ingreso se aceptan los Términos y la Política de Privacidad (queda registrado con fecha y versión).</p>
+  <div class="hsteps">
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">1</span><b>Reciba la invitación</b></div>
+      <div class="hstep__shot">
+        <div style="font-size:.72rem;color:var(--muted)">✉️ Correo de bienvenida</div>
+        <div style="font-weight:700;font-size:.84rem">Bienvenido a {{app}}</div>
+        <div class="mini-field">su-correo@empresa.com</div>
+        <div class="mini-btn">Ingresar al sistema</div>
+      </div>
+      <div class="hstep__cap">El administrador crea su cuenta; llega un correo con los datos de acceso.</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">2</span><b>Inicie sesión</b></div>
+      <div class="hstep__shot">
+        <div class="mini-field">📧 Correo</div>
+        <div class="mini-field">🔒 Contraseña</div>
+        <div class="mini-btn">Iniciar sesión</div>
+        <div class="mini-btn g">Continuar con Google</div>
+      </div>
+      <div class="hstep__cap">Con correo y contraseña, o con su cuenta de Google si el correo coincide.</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">3</span><b>Acepte los Términos</b></div>
+      <div class="hstep__shot">
+        <div style="font-weight:700;font-size:.84rem">Términos y Privacidad</div>
+        <div class="mini-ck">☑ Acepto los Términos y la Política de Privacidad</div>
+        <div class="mini-btn">Aceptar y continuar</div>
+      </div>
+      <div class="hstep__cap">Obligatorio. Queda registrado (fecha, versión, IP) y se vuelve a pedir solo si los documentos cambian.</div>
+    </div>
+  </div>
+  <div class="note">¿Olvidó la contraseña? En el inicio de sesión, «¿Olvidó su contraseña?» envía un correo con el enlace de restablecimiento. Para cambiarla estando dentro, vea <a href="#perfil">Mi perfil</a>.</div>
+</section>
+
+<!-- ════════ INTERFAZ ════════ -->
+<section id="interfaz">
+  <h2>La interfaz</h2>
+  <p class="lead">Una barra superior con lo de uso frecuente, y un menú lateral con los módulos según sus permisos.</p>
+
+  <div class="shot">
+    <div class="shot__bar"><i></i><i></i><i></i><span class="shot__url">{{domain}} — barra superior</span></div>
+    <div class="shot__body">
+      <div style="display:flex;align-items:center;gap:12px;background:#354A5F;border-radius:10px;padding:10px 14px">
+        <span style="color:#fff;font-weight:700">⚡ {{app}}</span>
+        <span class="m-input" style="background:rgba(255,255,255,.12);border:none;color:#cdd6df">🔍 Buscar trafo, cliente, marca, estado…&nbsp;&nbsp;<kbd style="background:transparent;color:#cdd6df;border-color:#5a6b7d">/</kbd></span>
+        <span style="color:#fff">🔔</span><span style="color:#fff">✉️</span>
+        <span style="background:#0A6ED1;color:#fff;border-radius:50%;width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem">P</span>
+      </div>
+    </div>
+    <div class="shot__cap">Barra superior: buscador principal · notificaciones · mensajes · su avatar (tema, idioma, recientes, salir)</div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="ico">🔍</div><b>Buscador principal</b><p>El campo de búsqueda global de la barra superior. Encuentra trafos, clientes y módulos desde cualquier pantalla. Detalle en la <a href="#buscador">sección siguiente</a>.</p></div>
+    <div class="card a"><div class="ico">🔔</div><b>Campana</b><p>Notificaciones del sistema: exportaciones listas para descargar, alertas de automatizaciones, avisos de seguridad.</p></div>
+    <div class="card g"><div class="ico">✉️</div><b>Sobre</b><p>Mensajes internos entre usuarios del workspace. Vista previa de los últimos 5; un clic abre la bandeja.</p></div>
+    <div class="card p"><div class="ico">👤</div><b>Avatar</b><p>Mi perfil, ajustes, <b>tema</b> (claro/oscuro/automático), <b>idioma</b>, registros recientes y cerrar sesión.</p></div>
+  </div>
+</section>
+
+<!-- ════════ DASHBOARD ════════ -->
+<section id="dashboard">
+  <h2>El tablero (dashboard)</h2>
+  <p class="lead">La primera pantalla al iniciar sesión. Se adapta a su rol: muestra los indicadores que le importan y su actividad reciente.</p>
+
+  <div class="shot">
+    <div class="shot__bar"><i></i><i></i><i></i><span class="shot__url">{{domain}}/dashboard</span></div>
+    <div class="shot__body">
+      <div style="font-weight:700;margin-bottom:10px">Hola, Carlos <span style="color:var(--muted);font-weight:400;font-size:.82rem">· Panel de administrador</span></div>
+      <div class="m-kpis">
+        <div class="m-kpi"><b>14</b><span>Usuarios</span></div>
+        <div class="m-kpi"><b>5</b><span>Automatizaciones</span></div>
+        <div class="m-kpi"><b style="color:var(--red)">1</b><span>Fallas recientes</span></div>
+        <div class="m-kpi"><b style="color:var(--green)">128</b><span>Días en tu plan</span></div>
+      </div>
+    </div>
+    <div class="shot__cap">Panel de administrador: indicadores del workspace y bloque de actividad reciente</div>
+  </div>
+
+  <div class="cards">
+    <div class="card g"><div class="ico">📊</div><b>Panel de trabajo</b><p>Para el usuario operativo: bienvenida y <b>su actividad reciente</b> (lo último que creó, editó o eliminó).</p></div>
+    <div class="card a"><div class="ico">🛠️</div><b>Panel de administrador</b><p>Indicadores del workspace: usuarios, automatizaciones, fallas recientes de reglas y días restantes de su plan.</p></div>
+    <div class="card p"><div class="ico">🏢</div><b>Panel de plataforma</b><p>Para el administrador de la plataforma: workspaces activos, suscripciones activas y por vencer, ejecuciones de automatizaciones de las últimas 24 h.</p></div>
+  </div>
+  <p>Bloques adicionales según rol: <b>suscripciones por vencer</b> (para avisar a tiempo) y <b>automatizaciones recientes</b> con sus registros procesados.</p>
+</section>
+
+<!-- ════════ BUSCADOR ════════ -->
+<section id="buscador">
+  <h2>El buscador principal</h2>
+  <p class="lead">La forma más rápida de llegar a cualquier cosa. Está en la barra superior y funciona desde cualquier pantalla del sistema.</p>
+  <div class="steps">
+    <div class="step"><div><b>Ábralo con la tecla <kbd>/</kbd></b><p>Presione <kbd>/</kbd> en cualquier momento (o haga clic en el campo de la barra superior). El cursor entra directo al buscador.</p></div></div>
+    <div class="step"><div><b>Escriba lo que busca</b><p>Trafos por <b>serie</b>, <b>TAG</b>, <b>marca</b> o <b>subestación</b>; también <b>clientes</b> y <b>módulos</b> del sistema. Ignora tildes y mayúsculas.</p></div></div>
+    <div class="step"><div><b>Busque por estado</b><p>Escriba una condición —«malo», «crítico», «regular»— y lista los transformadores en ese estado, los peores primero.</p></div></div>
+    <div class="step"><div><b>Abra el resultado</b><p>Use las flechas <kbd>↑</kbd> <kbd>↓</kbd> para moverse y <kbd>Enter</kbd> para abrir, o haga clic. El resultado lo lleva directo al detalle.</p></div></div>
+  </div>
+  <div class="note">El buscador respeta sus permisos y el aislamiento por workspace: solo aparece lo que usted puede ver.</div>
+</section>
+
+<!-- ════════ PERFIL ════════ -->
+<section id="perfil">
+  <h2>Mi perfil, firma y contraseña</h2>
+  <p class="lead">Su información personal, su firma manuscrita para los informes, el cambio de contraseña y sus derechos sobre sus datos.</p>
+
+  <h3>Información y foto</h3>
+  <ul>
+    <li><b>Cambiar foto</b>: haga clic sobre su avatar (aparece un ícono de cámara) y elija la imagen.</li>
+    <li><b>Nombre y zona horaria</b>: editables; el correo es fijo (identifica su cuenta — lo cambia el administrador).</li>
+  </ul>
+
+  <h3>Cambiar la contraseña</h3>
+  <div class="steps">
+    <div class="step"><div><b>Avatar → Mi perfil → pestaña Seguridad</b><p>Abra su perfil desde el avatar de la barra superior y vaya a la pestaña de seguridad.</p></div></div>
+    <div class="step"><div><b>Contraseña actual + nueva</b><p>Escriba su contraseña actual, la nueva y su confirmación. La nueva debe cumplir los requisitos mínimos de longitud.</p></div></div>
+    <div class="step"><div><b>Guardar</b><p>El cambio queda auditado y llega un aviso de seguridad a la campana. Si olvidó la contraseña y no puede entrar, use «¿Olvidó su contraseña?» en el inicio de sesión.</p></div></div>
+  </div>
+
+  <h3>Mi firma</h3>
+  <div class="steps">
+    <div class="step"><div><b>Cargue su firma</b><p>«Dibujar firma» (con el mouse o el dedo en el celular) o «Subir firma» (imagen PNG/JPG, máx. 1 MB).</p></div></div>
+    <div class="step"><div><b>Es privada</b><p>Se guarda en disco privado, sin URL pública. Solo se estampa en informes <b>que usted genera</b> (línea «Preparado por»).</p></div></div>
+    <div class="step"><div><b>Auto-firma como aprobador (opcional)</b><p>Si usted es firmante del workspace, active el interruptor «Auto-firmar informes como aprobador»: su firma saldrá estampada en todos los informes del workspace sin aprobación individual. Es su consentimiento — queda registrado y puede revocarlo cuando quiera.</p></div></div>
+  </div>
+  <div class="note danger"><b>Regla anti-suplantación:</b> ninguna firma se estampa sin un acto de su dueño — o usted genera el informe, o usted activó la auto-firma. Nadie puede usar su firma por usted.</div>
+
+  <h3>Privacidad y datos</h3>
+  <ul>
+    <li><b>Descargar mis datos</b>: archivo con su perfil, aceptaciones legales, firma e historial de consentimientos (derecho de acceso, LPDP).</li>
+    <li><b>Solicitar eliminación de mi cuenta</b>: registra la solicitud y notifica al administrador, que la procesa. No borra la cuenta al instante (preserva la trazabilidad de los informes emitidos).</li>
+  </ul>
+</section>
+
+<!-- ════════ USUARIOS ════════ -->
+<section id="usuarios">
+  <span class="tag admin">Administrador</span>
+  <h2>Usuarios y perfiles (roles)</h2>
+  <p class="lead">El administrador del workspace gestiona su equipo: crea usuarios, define perfiles con permisos granulares y los asigna.</p>
+
+  <h3>Crear un usuario</h3>
+  <div class="steps">
+    <div class="step"><div><b>Menú lateral → Usuarios → «Crear usuario»</b><p>Nombre, correo, país, idioma y foto opcional.</p></div></div>
+    <div class="step"><div><b>Asigne un rol</b><p><code>admin</code> (gestiona el workspace) o un perfil personalizado (por ejemplo «Diagnosticador», «Solo lectura»).</p></div></div>
+    <div class="step"><div><b>Guardar</b><p>El usuario recibe el correo de bienvenida y ya puede ingresar.</p></div></div>
+  </div>
+
+  <h3>Perfiles (roles) con permisos por acción</h3>
+  <p>Menú lateral → <b>Perfiles</b>. Cada perfil define qué puede hacer su gente por módulo y por acción: <code>ver</code>, <code>crear</code>, <code>editar</code>, <code>eliminar</code>… Por ejemplo, un perfil «Laboratorista» puede cargar muestras pero no eliminar transformadores.</p>
+  <div class="note">La gestión de equipos (Usuarios + Perfiles) está disponible según su <a href="#planes">plan</a>.</div>
+</section>
+
+<!-- ════════ WORKSPACE ════════ -->
+<section id="workspace">
+  <span class="tag admin">Administrador</span>
+  <h2>Mi workspace y el flujo de firmantes</h2>
+  <p class="lead">Menú lateral → <b>Mi workspace</b>. Aquí configura el membrete que sale en TODOS los informes PDF de su empresa — sin depender de nadie.</p>
+
+  <div class="cards">
+    <div class="card"><div class="ico">🏷️</div><b>Logo</b><p>Haga clic sobre el logo/nombre del recuadro para cambiarlo. Sale en el sistema, los informes y el portal del cliente.</p></div>
+    <div class="card g"><div class="ico">📍</div><b>Dirección</b><p>El membrete del pie de página de cada informe.</p></div>
+    <div class="card a"><div class="ico">⚖️</div><b>Disclaimer legal</b><p>El texto de responsabilidad que cierra cada informe.</p></div>
+    <div class="card p"><div class="ico">✍️</div><b>Flujo de firmas</b><p>Quiénes firman los informes y con qué cargo, en orden.</p></div>
+  </div>
+
+  <h3>El flujo de firmas (escalable a varios firmantes)</h3>
+  <div class="steps">
+    <div class="step"><div><b>«Agregar firmante»</b><p>Cada fila es una línea de firma en el PDF: escriba el <b>cargo</b> (Supervisor, Auditor, Jefe de Laboratorio…) y elija quién firma.</p></div></div>
+    <div class="step"><div><b>Usuario del sistema o externo</b><p>Si elige un usuario, el sistema muestra su estado: <i>Firma automática</i> (tiene firma + auto-firma activada), <i>Sin auto-firma</i> o <i>Sin firma cargada</i>. Si es externo, escriba su nombre — firmará a mano.</p></div></div>
+    <div class="step"><div><b>Ordénelos</b><p>Con las flechas ↑↓. Así salen en el bloque de firmas del informe, de a dos por fila.</p></div></div>
+  </div>
+
+  <div class="shot">
+    <div class="shot__bar"><i></i><i></i><i></i><span class="shot__url">informe.pdf — bloque de firmas</span></div>
+    <div class="shot__body">
+      <div class="m-sign">
+        <div>〰️<br><b>Preparado por</b><small>Carlos Morales</small></div>
+        <div>〰️<br><b>Supervisor</b><small>Ing. Rosa Pérez</small></div>
+        <div><br><b>Auditor</b><small>C.P. Pedro Gómez</small></div>
+        <div><br><b>Jefe de Laboratorio</b><small>Ing. Juan Díaz</small></div>
+      </div>
+    </div>
+    <div class="shot__cap">Las firmas con 〰️ salen estampadas (su dueño las pre-autorizó); las demás quedan como línea para firmar a mano.</div>
+  </div>
+</section>
+
+<!-- ════════ PLANES ════════ -->
+<section id="planes">
+  <h2>Planes y suscripciones</h2>
+  <p class="lead">Su suscripción define qué funciones tiene disponibles. El plan vigente se ve en el menú del avatar. Hay cuatro planes; cada uno desbloquea lo del anterior y suma lo suyo:</p>
+  <table class="cmp">
+    <tr><th>Función</th><th>Free</th><th>Basic</th><th>Pro</th><th>Enterprise</th></tr>
+    <tr class="grp"><td colspan="5">Precio y límites</td></tr>
+    <tr><td>Precio mensual (ref.)</td><td>$0</td><td>$9.99</td><td>$49</td><td>$199</td></tr>
+    <tr><td>Precio anual (ref.)</td><td>$0</td><td>$99</td><td>$499</td><td>$1990</td></tr>
+    <tr><td>Usuarios</td><td>1</td><td>1</td><td>10</td><td>Ilimitado</td></tr>
+    <tr><td>Registros por módulo</td><td>50</td><td>5 000</td><td>50 000</td><td>Ilimitado</td></tr>
+    <tr><td>Exportaciones por minuto</td><td>1</td><td>3</td><td>10</td><td>50</td></tr>
+    <tr><td>Soporte</td><td>Comunidad</td><td>Correo</td><td>Correo</td><td>Prioritario</td></tr>
+    <tr class="grp"><td colspan="5">Incluido en todos los planes</td></tr>
+    <tr><td>Exportar CSV</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Filtros y búsqueda</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Papelera y restaurar</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr class="grp"><td colspan="5">Desde Basic</td></tr>
+    <tr><td>Exportar PDF / Excel / Word</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Ver auditoría</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Vistas guardadas</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr class="grp"><td colspan="5">Desde Pro (orientado a equipo)</td></tr>
+    <tr><td>Compartir reportes (portal del cliente)</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Gestión de equipos (Usuarios + Perfiles)</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Importaciones</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Operaciones masivas / Editar todos</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Automatizaciones</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr class="grp"><td colspan="5">Solo Enterprise</td></tr>
+    <tr><td>API REST</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+    <tr><td>Exportaciones con marca / programadas / por correo</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+    <tr><td>Retención extendida</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+    <tr><td>Usuarios restringidos a un cliente</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+  </table>
+  <p>Precios y límites son referenciales y configurables. Si una función no aparece en su menú, su plan no la incluye.</p>
+</section>
+
+<!-- ════════ CLIENTES ════════ -->
+<section id="clientes">
+  <h2>Clientes y su jerarquía</h2>
+  <p class="lead">Cada transformador pertenece a un cliente y a un punto físico de su estructura: <b>Cliente → Ubicación → Área → Subestación → Transformador</b>.</p>
+
+  <figure class="fig">
+  <svg viewBox="0 0 980 92" role="img" aria-label="Jerarquía: cliente, ubicación, área, subestación, transformador">
+    <defs><marker id="arr2" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker></defs>
+    <rect x="5"   y="26" width="170" height="44" rx="10" fill="#354A5F"/>
+    <text x="90"  y="53" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">Cliente</text>
+    <rect x="205" y="26" width="170" height="44" rx="10" fill="#eef2f6" stroke="#cdd6df"/>
+    <text x="290" y="53" text-anchor="middle" font-size="13" fill="#1f2937">Ubicación</text>
+    <rect x="405" y="26" width="170" height="44" rx="10" fill="#eef2f6" stroke="#cdd6df"/>
+    <text x="490" y="53" text-anchor="middle" font-size="13" fill="#1f2937">Área</text>
+    <rect x="605" y="26" width="170" height="44" rx="10" fill="#eef2f6" stroke="#cdd6df"/>
+    <text x="690" y="53" text-anchor="middle" font-size="13" fill="#1f2937">Subestación</text>
+    <rect x="805" y="26" width="170" height="44" rx="10" fill="#eef4fb" stroke="#0A6ED1"/>
+    <text x="890" y="53" text-anchor="middle" font-size="13" font-weight="700" fill="#0A6ED1">Transformador</text>
+    <line x1="178" y1="48" x2="201" y2="48" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr2)"/>
+    <line x1="378" y1="48" x2="401" y2="48" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr2)"/>
+    <line x1="578" y1="48" x2="601" y2="48" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr2)"/>
+    <line x1="778" y1="48" x2="801" y2="48" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr2)"/>
+  </svg>
+  <figcaption>Cada transformador cuelga de un punto físico de la estructura del cliente.</figcaption>
+  </figure>
+
+  <div class="steps">
+    <div class="step"><div><b>Cree el cliente</b><p>Menú lateral → Clientes → «Crear». Nombre, RUC/código, país, dirección y logo (el logo sale en sus informes).</p></div></div>
+    <div class="step"><div><b>Arme su jerarquía</b><p>Dentro del cliente: agregue Ubicaciones (por ejemplo «Sede Lima»), Áreas (por ejemplo «Planta Norte») y Subestaciones. El árbol muestra cuántos trafos cuelgan de cada nivel.</p></div></div>
+    <div class="step"><div><b>Asocie los trafos</b><p>Al crear un transformador se elige el cliente y su subestación. El detalle del cliente muestra todo su parque como árbol.</p></div></div>
+  </div>
+</section>
+
+<!-- ════════ TRAFOS ════════ -->
+<section id="trafos">
+  <h2>Transformadores y marcas</h2>
+  <p class="lead">El registro central del sistema. Cada trafo tiene su placa de datos, su jerarquía de cliente y su historial de ensayos.</p>
+
+  <h3>Crear un transformador</h3>
+  <div class="steps">
+    <div class="step"><div><b>Transformadores → «Crear transformador»</b><p>Serie, TAG, cliente y subestación.</p></div></div>
+    <div class="step"><div><b>Datos de placa</b><p>Tensión (kV), potencia (MVA), año de fabricación, fases, grupo de conexión, conmutador, sistema de preservación.</p></div></div>
+    <div class="step"><div><b>Ejes de diagnóstico</b><p><b>Tipo de aceite</b> y <b>tipo de transformador</b> son clave: determinan qué tabla de reglas se aplica al diagnosticar. El <b>tipo de papel</b> y la fecha del <b>último tratamiento de aceite</b> afinan la lectura de furanos.</p></div></div>
+    <div class="step"><div><b>Marca</b><p>Selecciónela de la lista, o créela al vuelo con «Agregar marca nueva» sin salir del formulario (el sistema avisa si ya existen marcas parecidas, para evitar duplicados). También hay un módulo Marcas para gestionarlas.</p></div></div>
+  </div>
+
+  <h3>Importar desde Excel</h3>
+  <p>Transformadores → «Importar»: descargue la <b>plantilla</b>, complétela y cárguela. El sistema valida en dos fases: primero muestra una <b>vista previa</b> con errores y duplicados detectados, después usted confirma. Lo mismo aplica para las muestras de ensayos.</p>
+  <div class="wizbox">
+    <div class="wizard">
+      <div class="wz done"><div class="n">✓</div><b>Subir archivo</b><em>plantilla Excel</em></div>
+      <div class="wz active"><div class="n">2</div><b>Vista previa</b><em>errores y duplicados</em></div>
+      <div class="wz"><div class="n">3</div><b>Confirmar</b><em>se crean los registros</em></div>
+    </div>
+  </div>
+
+  <h3>Papelera y restaurar</h3>
+  <p>Eliminar manda a la <b>papelera</b> (recuperable). Al eliminar aparece «Deshacer» por 60 segundos. Desde la papelera se puede restaurar o eliminar definitivamente. Los registros viejos de la papelera se purgan automáticamente según política de retención.</p>
+</section>
+
+<!-- ════════ DIAGNÓSTICO ════════ -->
+<section id="diagnostico">
+  <h2>Cómo diagnosticar un transformador</h2>
+  <p class="lead">Abra el trafo (clic en su serie desde el listado o el buscador). El detalle tiene pestañas por prueba; al cargar una muestra, el diagnóstico es automático.</p>
+
+  <figure class="fig">
+  <svg viewBox="0 0 980 116" role="img" aria-label="Flujo del diagnóstico: de la muestra al índice de salud">
+    <defs><marker id="arr" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker></defs>
+    <rect x="5"   y="30" width="170" height="56" rx="11" fill="#f5f9fe" stroke="#0A6ED1"/>
+    <text x="90"  y="55" text-anchor="middle" font-size="13"   font-weight="700" fill="#1f2937">Muestra</text>
+    <text x="90"  y="71" text-anchor="middle" font-size="11.5" fill="#6A6D70">de aceite</text>
+    <rect x="205" y="30" width="170" height="56" rx="11" fill="#f5f9fe" stroke="#0A6ED1"/>
+    <text x="290" y="55" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2937">Reglas por</text>
+    <text x="290" y="71" text-anchor="middle" font-size="11"   fill="#6A6D70">aceite + tipo de trafo</text>
+    <rect x="405" y="30" width="170" height="56" rx="11" fill="#f5f9fe" stroke="#0A6ED1"/>
+    <text x="490" y="55" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2937">Score × peso</text>
+    <text x="490" y="71" text-anchor="middle" font-size="11"   fill="#6A6D70">por gas (dinámico)</text>
+    <rect x="605" y="30" width="170" height="56" rx="11" fill="#f5f9fe" stroke="#0A6ED1"/>
+    <text x="690" y="55" text-anchor="middle" font-size="13"   font-weight="700" fill="#1f2937">DGAF</text>
+    <text x="690" y="71" text-anchor="middle" font-size="11"   fill="#6A6D70">promedio ponderado</text>
+    <rect x="805" y="30" width="170" height="56" rx="11" fill="#e9f7ef" stroke="#1D7044"/>
+    <text x="890" y="55" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1D7044">Semáforo +</text>
+    <text x="890" y="71" text-anchor="middle" font-size="11.5" fill="#1D7044">Índice de salud</text>
+    <line x1="178" y1="58" x2="201" y2="58" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr)"/>
+    <line x1="378" y1="58" x2="401" y2="58" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr)"/>
+    <line x1="578" y1="58" x2="601" y2="58" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr)"/>
+    <line x1="778" y1="58" x2="801" y2="58" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr)"/>
+  </svg>
+  <figcaption>El motor solo aplica fórmulas; los umbrales, pesos y normas viven en datos editables.</figcaption>
+  </figure>
+
+  <div class="shot">
+    <div class="shot__bar"><i></i><i></i><i></i><span class="shot__url">{{domain}}/transformers/ET09618 — resumen</span></div>
+    <div class="shot__body">
+      <div style="display:grid;grid-template-columns:110px 1fr;gap:18px;align-items:center">
+        <div><div class="m-gauge"><b>78%</b></div><div style="text-align:center;font-size:.7rem;color:var(--muted);margin-top:4px">ÍNDICE DE SALUD</div></div>
+        <div>
+          <div class="m-row"><b style="width:130px">Cromatografía</b><span class="m-pill" style="background:var(--lime)">Bueno</span><span style="color:var(--muted);font-size:.78rem">DGAF 1.32 · 48% del índice</span></div>
+          <div class="m-row"><b style="width:130px">Fisicoquímico</b><span class="m-pill" style="background:var(--amber)">Regular</span><span style="color:var(--muted);font-size:.78rem">Clase media (69–230 kV)</span></div>
+          <div class="m-row"><b style="width:130px">Furanos</b><span class="m-pill" style="background:var(--green)">Excelente</span><span style="color:var(--muted);font-size:.78rem">DP 812 · papel sano</span></div>
+          <div class="m-row"><b style="width:130px">Factor de potencia</b><span class="m-pill" style="background:var(--green)">Excelente</span><span style="color:var(--muted);font-size:.78rem">0.3 %</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="shot__cap">Resumen del trafo: gauge del índice de salud + veredicto por prueba con su aporte al índice</div>
+  </div>
+
+  <h3>Las cuatro pruebas</h3>
+  <div class="cards">
+    <div class="card"><div class="ico">🧪</div><b>Cromatografía (DGA)</b><p>Los 9 gases disueltos (H₂, CH₄, C₂H₂…). El motor puntúa cada gas contra su tabla (según aceite + tipo de trafo) y promedia ponderado → DGAF → semáforo IEC 60599. IEEE C57.104 como segunda opinión.</p></div>
+    <div class="card p"><div class="ico">📐</div><b>Duval + relaciones</b><p>Con falla activa: triángulos y pentágonos de Duval localizan el tipo de falla (térmica, descargas…). Rogers y Doernenburg como métodos complementarios.</p></div>
+    <div class="card g"><div class="ico">💧</div><b>Fisicoquímico</b><p>Rigidez, tensión interfacial, acidez, agua y FP del aceite contra IEEE C57.106, por tipo de aceite y clase de tensión.</p></div>
+    <div class="card a"><div class="ico">📜</div><b>Furanos</b><p>2-FAL → grado de polimerización del papel (DP, correlación Chendong) → % de vida del aislamiento consumida.</p></div>
+  </div>
+
+  <h3>Cargar una muestra</h3>
+  <div class="hsteps">
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">1</span><b>Abra la pestaña</b></div>
+      <div class="hstep__shot">
+        <div class="mini-tabs"><span class="mini-tab on">Cromatografía</span><span class="mini-tab">Fisicoquímico</span><span class="mini-tab">Furanos</span><span class="mini-tab">F. potencia</span></div>
+        <div class="mini-btn g">+ Agregar muestra</div>
+      </div>
+      <div class="hstep__cap">Una pestaña por prueba: Cromatografía, Fisicoquímico, Furanos o Factor de potencia.</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">2</span><b>Agregue la muestra</b></div>
+      <div class="hstep__shot">
+        <div class="mini-field">📅 Fecha del ensayo</div>
+        <div style="display:flex;gap:6px"><span class="mini-field" style="flex:1">H₂</span><span class="mini-field" style="flex:1">CH₄</span><span class="mini-field" style="flex:1">C₂H₂</span></div>
+        <div class="mini-btn">Guardar muestra</div>
+      </div>
+      <div class="hstep__cap">Fecha + valores medidos. No hace falta completar todo: el motor usa <b>peso dinámico</b> (lo que falta no penaliza).</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">3</span><b>Diagnóstico instantáneo</b></div>
+      <div class="hstep__shot">
+        <div class="m-row" style="border:none;padding:2px 0;gap:8px"><span class="m-pill" style="background:var(--lime)">Bueno</span><span style="font-size:.74rem;color:var(--muted)">DGAF 1.32</span></div>
+        <div class="m-bar"><i style="width:62%;background:var(--lime)"></i></div>
+        <div style="font-size:.72rem;color:var(--muted)">Índice de salud recalculado · botón «Explicar»</div>
+      </div>
+      <div class="hstep__cap">La muestra queda puntuada con su semáforo, el índice se recalcula y las celdas que exceden límites se tiñen.</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">4</span><b>Comente la muestra</b></div>
+      <div class="hstep__shot">
+        <div style="font-size:.72rem;color:var(--muted)">💬 Notas del diagnosticador</div>
+        <div class="mini-field" style="min-height:36px">Escriba un comentario…</div>
+        <div class="mini-btn">Comentar</div>
+      </div>
+      <div class="hstep__cap">Opcional, por muestra: el análisis del especialista (autor + fecha). Complementa, no reemplaza, el diagnóstico automático.</div>
+    </div>
+  </div>
+
+  <h3>Cada muestra: su diagnóstico y sus comentarios</h3>
+  <p>Dentro de cada prueba, <b>cada muestra muestra su propio diagnóstico</b> —el semáforo y el puntaje de esa fecha, no solo el de la última—, así se ve la evolución muestra a muestra.</p>
+  <p>Además, en cada muestra puede dejar <b>comentarios</b>: las «Notas del diagnosticador» son el análisis del especialista, que <b>complementa</b> (no reemplaza) el diagnóstico automático del sistema. Quedan registradas con autor y fecha (Ctrl + Enter para guardar).</p>
+
+  <h3>Leer los resultados</h3>
+  <ul>
+    <li><b>Semáforo de 5 niveles</b>: Excelente · Bueno · Regular · Malo · Crítico.</li>
+    <li><b>Tendencias</b>: cada prueba tiene gráficos por gas/parámetro con las franjas de límite coloreadas — se ve cuándo un valor cruzó su umbral.</li>
+    <li><b>Tendencia del índice</b> (▲▼▬): si el trafo mejora o empeora entre muestras. La vista «Flota» resalta los que empeoran.</li>
+    <li><b><a href="#bitacora">Bitácora</a></b>: eventos y comentarios del equipo (observaciones, mantenimientos, alarmas), con línea de tiempo y kanban.</li>
+  </ul>
+</section>
+
+<!-- ════════ BITÁCORA ════════ -->
+<section id="bitacora">
+  <h2>Bitácora del transformador</h2>
+  <p class="lead">El historial de sucesos del equipo: observaciones, mantenimientos, alarmas y ensayos. Vive en el detalle del trafo, en la pestaña <b>Bitácora</b>, y se ve como línea de tiempo o como tablero kanban.</p>
+
+  <h3>Registrar un evento</h3>
+  <div class="steps">
+    <div class="step"><div><b>«Nuevo evento»</b><p>Título y comentario. Es el registro de lo que pasó (o lo que hay que hacer) con el equipo.</p></div></div>
+    <div class="step"><div><b>Categoría y estado</b><p>Categoría: <i>Observación</i>, <i>Mantenimiento</i>, <i>Alarma</i> o <i>Ensayo</i>. Estado: <i>Pendiente</i>, <i>En seguimiento</i> o <i>Resuelto</i> — para hacerle seguimiento a lo abierto.</p></div></div>
+    <div class="step"><div><b>Fecha puntual o tramo</b><p>Un evento puede ser de una fecha (puntual) o abarcar un tramo (con fecha de fin). Útil para mantenimientos programados.</p></div></div>
+  </div>
+
+  <h3>Dos vistas</h3>
+  <div class="cards">
+    <div class="card"><div class="ico">📅</div><b>Línea de tiempo</b><p>Los eventos ordenados por fecha — la historia del equipo de un vistazo.</p></div>
+    <div class="card p"><div class="ico">🗂️</div><b>Kanban</b><p>Los eventos agrupados por estado (Pendiente · En seguimiento · Resuelto), para gestionar lo que está abierto.</p></div>
+  </div>
+  <div class="note">No confunda la bitácora con los <a href="#seguridad">logs del sistema</a>: la bitácora son notas operativas que usted escribe sobre el equipo; los logs son el rastro automático de auditoría.</div>
+</section>
+
+<!-- ════════ INFORME ════════ -->
+<section id="informe">
+  <h2>El informe PDF</h2>
+  <p class="lead">Desde el detalle del trafo → botón <b>«Exportar informe»</b>. Un documento profesional, completo y verificable.</p>
+  <div class="cards">
+    <div class="card"><div class="ico">📋</div><b>Carátula-dashboard</b><p>Gauge del índice de salud, veredicto por prueba, metadatos del informe y QR de verificación.</p></div>
+    <div class="card g"><div class="ico">📈</div><b>Datos completos</b><p>Tablas de muestras con límites normativos (excedidos en rojo), un gráfico de tendencia por gas y parámetro, tendencia del DP, Duval y relaciones de gases.</p></div>
+    <div class="card a"><div class="ico">📖</div><b>Metodología</b><p>Cita las normas realmente aplicadas (IEC 60599, IEEE C57.104/106, correlación de Chendong) y solo incluye las pruebas con datos.</p></div>
+    <div class="card p"><div class="ico">✍️</div><b>Firmas</b><p>«Preparado por» (quien genera, con su firma estampada) + el flujo de firmantes del workspace con sus cargos.</p></div>
+  </div>
+  <p><b>Personalización:</b> el logo, la dirección, el disclaimer y los firmantes salen de <a href="#workspace">Mi workspace</a>; el logo del cliente, de su ficha. El idioma del informe sigue el idioma de quien lo genera (o el del enlace compartido).</p>
+  <div class="note ok">Cada emisión queda <b>auditada</b> con su código de informe y su código de verificación — esa es la base de la validación pública.</div>
+</section>
+
+<!-- ════════ VERIFICAR ════════ -->
+<section id="verificar">
+  <h2>Verificar la validez de un informe (QR)</h2>
+  <p class="lead">Cualquier persona con el informe en mano puede confirmar que es auténtico — sin usuario ni contraseña.</p>
+  <div class="hsteps">
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">1</span><b>Escanee el QR</b></div>
+      <div class="hstep__shot" style="align-items:center">
+        <svg width="66" height="66" viewBox="0 0 33 33" aria-label="QR del informe">
+          <rect width="33" height="33" fill="#fff"/>
+          <rect x="1" y="1" width="9" height="9" fill="#1f2937"/><rect x="3" y="3" width="5" height="5" fill="#fff"/><rect x="4" y="4" width="3" height="3" fill="#1f2937"/>
+          <rect x="23" y="1" width="9" height="9" fill="#1f2937"/><rect x="25" y="3" width="5" height="5" fill="#fff"/><rect x="26" y="4" width="3" height="3" fill="#1f2937"/>
+          <rect x="1" y="23" width="9" height="9" fill="#1f2937"/><rect x="3" y="25" width="5" height="5" fill="#fff"/><rect x="4" y="26" width="3" height="3" fill="#1f2937"/>
+          <rect x="13" y="2" width="2" height="2" fill="#1f2937"/><rect x="17" y="2" width="2" height="2" fill="#1f2937"/><rect x="13" y="6" width="2" height="2" fill="#1f2937"/>
+          <rect x="2" y="13" width="2" height="2" fill="#1f2937"/><rect x="6" y="13" width="2" height="2" fill="#1f2937"/><rect x="13" y="13" width="2" height="2" fill="#1f2937"/>
+          <rect x="17" y="15" width="2" height="2" fill="#1f2937"/><rect x="21" y="13" width="2" height="2" fill="#1f2937"/><rect x="25" y="13" width="2" height="2" fill="#1f2937"/><rect x="29" y="15" width="2" height="2" fill="#1f2937"/>
+          <rect x="13" y="17" width="2" height="2" fill="#1f2937"/><rect x="15" y="21" width="2" height="2" fill="#1f2937"/><rect x="19" y="19" width="2" height="2" fill="#1f2937"/><rect x="23" y="21" width="2" height="2" fill="#1f2937"/>
+          <rect x="13" y="25" width="2" height="2" fill="#1f2937"/><rect x="17" y="27" width="2" height="2" fill="#1f2937"/><rect x="21" y="29" width="2" height="2" fill="#1f2937"/><rect x="29" y="29" width="2" height="2" fill="#1f2937"/>
+        </svg>
+        <div class="mini-field" style="text-align:center">XXXX-XXXX-XXXX</div>
+      </div>
+      <div class="hstep__cap">Abre la página pública. También puede entrar a <code>{{verify}}</code> y escribir el código impreso (con o sin guiones).</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">2</span><b>El portal responde</b></div>
+      <div class="hstep__shot">
+        <div class="mini-ok">✔ Informe verificado</div>
+        <div class="mini-field">Serial · Fecha de emisión</div>
+        <div class="mini-field">Índice de salud · Empresa</div>
+        <div class="mini-field">Firmantes (cargo + nombre)</div>
+      </div>
+      <div class="hstep__cap">Si el código existe, muestra los datos de emisión y los firmantes reales. Si no, «No encontrado»: podría no ser auténtico.</div>
+    </div>
+    <div class="hstep">
+      <div class="hstep__h"><span class="hstep__n">3</span><b>Compare con el papel</b></div>
+      <div class="hstep__shot">
+        <div class="mini-ok">✓ Serial coincide</div>
+        <div class="mini-ok">✓ Fecha coincide</div>
+        <div class="mini-ok">✓ Índice coincide</div>
+      </div>
+      <div class="hstep__cap">Si el serial, la fecha o el índice no coinciden con el documento en mano, fue alterado.</div>
+    </div>
+  </div>
+  <div class="note">La página de verificación es multi-idioma (detecta el idioma del navegador) y no expone datos del cliente — solo metadatos de emisión.</div>
+</section>
+
+<!-- ════════ COMPARTIR ════════ -->
+<section id="compartir">
+  <h2>Compartir un trafo o la flota con su cliente</h2>
+  <p class="lead">Su cliente ve sus diagnósticos en un portal seguro, sin que usted le cree un usuario. Función premium (según plan).</p>
+
+  <figure class="fig">
+  <svg viewBox="0 0 940 100" role="img" aria-label="Flujo de compartir con el cliente">
+    <defs><marker id="arr3" markerWidth="10" markerHeight="10" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9aa0a6"/></marker></defs>
+    <rect x="5"   y="28" width="205" height="48" rx="11" fill="#f5f9fe" stroke="#0A6ED1"/>
+    <text x="107" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2937">Usted crea el enlace</text>
+    <text x="107" y="66" text-anchor="middle" font-size="11"   fill="#6A6D70">correo + expiración + idioma</text>
+    <rect x="245" y="28" width="205" height="48" rx="11" fill="#f5f9fe" stroke="#0A6ED1"/>
+    <text x="347" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2937">El cliente recibe correo</text>
+    <text x="347" y="66" text-anchor="middle" font-size="11"   fill="#6A6D70">abre el enlace seguro</text>
+    <rect x="485" y="28" width="205" height="48" rx="11" fill="#fdf6e7" stroke="#E9A23B"/>
+    <text x="587" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1f2937">Código OTP</text>
+    <text x="587" y="66" text-anchor="middle" font-size="11"   fill="#6A6D70">6 dígitos a su correo</text>
+    <rect x="725" y="28" width="205" height="48" rx="11" fill="#e9f7ef" stroke="#1D7044"/>
+    <text x="827" y="50" text-anchor="middle" font-size="12.5" font-weight="700" fill="#1D7044">Ve la flota</text>
+    <text x="827" y="66" text-anchor="middle" font-size="11"   fill="#1D7044">y descarga el PDF oficial</text>
+    <line x1="213" y1="52" x2="241" y2="52" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr3)"/>
+    <line x1="453" y1="52" x2="481" y2="52" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr3)"/>
+    <line x1="693" y1="52" x2="721" y2="52" stroke="#9aa0a6" stroke-width="2" marker-end="url(#arr3)"/>
+  </svg>
+  <figcaption>El cliente nunca necesita un usuario: el código por correo garantiza que solo él entra.</figcaption>
+  </figure>
+
+  <h3>Crear el enlace</h3>
+  <div class="steps">
+    <div class="step"><div><b>Botón «Compartir»</b><p>En el detalle del trafo (comparte ese equipo) o en el detalle del cliente (comparte la <b>flota</b> — completa o un subconjunto que usted elija).</p></div></div>
+    <div class="step"><div><b>Correo, expiración e idioma</b><p>El correo del destinatario, cuánto dura el enlace (7/30/90 días) y el idioma del portal y los correos.</p></div></div>
+    <div class="step"><div><b>«Crear enlace y enviar»</b><p>El cliente recibe el correo con el enlace. Desde el mismo cuadro se puede <b>copiar</b> el enlace, <b>reenviar</b>, <b>extender</b> la expiración o <b>revocar</b>; también se ve cuántas veces lo abrió.</p></div></div>
+  </div>
+
+  <h3>Lo que ve su cliente</h3>
+  <div class="steps">
+    <div class="step"><div><b>Verificación por código (OTP)</b><p>Al abrir el enlace, pide un código de 6 dígitos que se envía a SU correo. Eso garantiza que solo el destinatario accede. La sesión dura 24 h.</p></div></div>
+    <div class="step"><div><b>Flota con KPIs</b><p>Tarjetas resumen (total, índice promedio, «requieren atención», «en buen estado»), buscador, filtro por estado con un clic y orden (peores primero por defecto).</p></div></div>
+    <div class="step"><div><b>Detalle completo por trafo</b><p>«Ver detalle» abre el diagnóstico entero: narrativa por prueba, tablas con límites y excedidos en rojo, conclusiones.</p></div></div>
+    <div class="step"><div><b>Descarga del informe oficial</b><p>El botón PDF descarga el <b>mismo informe completo</b> que usted genera en el sistema — con gráficos, firmas y código de verificación. También queda auditado.</p></div></div>
+  </div>
+
+  <div class="shot">
+    <div class="shot__bar"><i></i><i></i><i></i><span class="shot__url">{{domain}}/r/…/view — portal del cliente (flota)</span></div>
+    <div class="shot__body">
+      <div class="m-kpis">
+        <div class="m-kpi"><b>24</b><span>Transformadores</span></div>
+        <div class="m-kpi"><b>76</b><span>Índice promedio</span></div>
+        <div class="m-kpi"><b style="color:var(--red)">3</b><span>Requieren atención</span></div>
+        <div class="m-kpi"><b style="color:var(--green)">18</b><span>En buen estado</span></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:10px"><span class="m-input">🔍 Buscar por serie, TAG o tipo…</span><span class="m-btn ghost">Peores primero ▾</span></div>
+      <div class="m-row"><b style="width:110px">XA1210A001</b><span style="width:90px;color:var(--muted)">Potencia</span><span class="m-bar" style="max-width:60px"><i style="width:18%;background:var(--red)"></i></span><span style="width:30px">18</span><span class="m-dot" style="background:var(--red)"></span>Crítico<span style="margin-left:auto"><span class="m-btn">Ver detalle</span> <span class="m-btn ghost">PDF</span></span></div>
+      <div class="m-row"><b style="width:110px">XA1211A001</b><span style="width:90px;color:var(--muted)">Potencia</span><span class="m-bar" style="max-width:60px"><i style="width:92%;background:var(--green)"></i></span><span style="width:30px">92</span><span class="m-dot" style="background:var(--green)"></span>Excelente<span style="margin-left:auto"><span class="m-btn">Ver detalle</span> <span class="m-btn ghost">PDF</span></span></div>
+    </div>
+    <div class="shot__cap">Portal de flota: KPIs, buscador, orden y descarga del informe oficial por equipo</div>
+  </div>
+  <div class="note">El portal incluye el aviso de privacidad al destinatario (su correo se usa solo para verificar identidad).</div>
+</section>
+
+<!-- ════════ FILTROS ════════ -->
+<section id="filtros">
+  <h2>Filtros avanzados</h2>
+  <p class="lead">Todos los listados (trafos, clientes, usuarios, marcas…) comparten las mismas herramientas. La búsqueda rápida del listado filtra al escribir (ignora tildes); para condiciones combinadas use los filtros avanzados.</p>
+
+  <h3>Usar los filtros avanzados</h3>
+  <div class="steps">
+    <div class="step"><div><b>Abra «Filtros avanzados»</b><p>El botón está sobre el listado, junto a la búsqueda. Se despliega el panel de condiciones.</p></div></div>
+    <div class="step"><div><b>Arme una condición</b><p>Elija <b>campo</b> + <b>operador</b> + <b>valor</b>. Por ejemplo: <i>tensión ≥ 138</i>, o <i>estado = Malo</i>, o <i>fecha de muestra entre dos fechas</i>.</p></div></div>
+    <div class="step"><div><b>Encadene varias</b><p>Agregue más cláusulas para combinarlas (por ejemplo <i>tensión ≥ 138</i> Y <i>estado = Malo</i>). Cada cláusula se quita con la ✕.</p></div></div>
+    <div class="step"><div><b>Aplicar / Limpiar</b><p>«Aplicar» filtra la tabla; «Limpiar» vuelve a la lista completa. El resultado filtrado es lo que se exporta cuando elige alcance «filtrado».</p></div></div>
+  </div>
+  <div class="note">Los mismos campos/operadores de los filtros avanzados se reutilizan en las <a href="#automatizaciones">automatizaciones</a>.</div>
+</section>
+
+<!-- ════════ VISTAS ════════ -->
+<section id="vistas">
+  <h2>Vistas guardadas y columnas</h2>
+  <p class="lead">Una vista guarda una combinación de filtros + columnas con un nombre, para volver a ella con un clic. Ideal para las consultas que repite todos los días.</p>
+
+  <h3>Elegir las columnas</h3>
+  <div class="steps">
+    <div class="step"><div><b>Abra el selector de columnas</b><p>El ícono de columnas sobre el listado. Marque las que quiere ver y desmarque las que no.</p></div></div>
+    <div class="step"><div><b>Ordénelas</b><p>Arrastre para cambiar el orden en que aparecen.</p></div></div>
+  </div>
+
+  <h3>Crear una vista guardada</h3>
+  <div class="steps">
+    <div class="step"><div><b>Deje el listado como lo quiere</b><p>Aplique los <a href="#filtros">filtros</a> y elija las columnas que necesita (por ejemplo: estado = Malo o Crítico, columnas Serie · Cliente · Tensión · Índice).</p></div></div>
+    <div class="step"><div><b>«Guardar vista»</b><p>Póngale un nombre claro, por ejemplo «Trafos críticos 138 kV».</p></div></div>
+    <div class="step"><div><b>Vuelva a ella cuando quiera</b><p>La vista queda en la lista de vistas del módulo; un clic restaura sus filtros y columnas. Puede renombrarla o eliminarla.</p></div></div>
+  </div>
+  <div class="note"><b>Favoritos y recientes:</b> marque registros con ⭐ para acceso rápido, y vea los últimos abiertos desde el menú del avatar.</div>
+</section>
+
+<!-- ════════ EXPORTS ════════ -->
+<section id="exports">
+  <h2>Exportar e importar</h2>
+  <ul>
+    <li><b>Exportar</b>: CSV (ideal para volúmenes grandes — streaming), Excel, PDF y Word. Se eligen columnas, alcance (filtrado / seleccionados / todo) y opciones de formato. Los archivos grandes se generan en segundo plano y avisan por la campana cuando están listos.</li>
+    <li><b>Importar</b>: plantilla Excel → vista previa con validación y detección de duplicados → confirmar.</li>
+    <li><b>Edición masiva</b>: «Editar todos» abre una grilla para corregir varios registros a la vez; las operaciones grandes (&gt;200) corren en segundo plano con deshacer de 60 s.</li>
+  </ul>
+</section>
+
+<!-- ════════ MENSAJES ════════ -->
+<section id="mensajes">
+  <h2>Mensajes y notificaciones</h2>
+  <div class="cards">
+    <div class="card a"><div class="ico">🔔</div><b>Campana = sistema</b><p>Descargas listas, alertas de automatizaciones, avisos de seguridad (cambio de contraseña, solicitudes de eliminación). «Ver todas» abre el historial completo.</p></div>
+    <div class="card g"><div class="ico">✉️</div><b>Sobre = personas</b><p>Mensajería interna del workspace: redacte un mensaje a otro usuario, con asunto y cuerpo. La bandeja marca leídos/no leídos.</p></div>
+  </div>
+  <p>Las notificaciones importantes también llegan por <b>correo</b> (configurable por el administrador del sistema).</p>
+</section>
+
+<!-- ════════ AUTOMATIZACIONES ════════ -->
+<section id="automatizaciones">
+  <span class="tag admin">Administrador</span>
+  <h2>Automatizaciones</h2>
+  <p class="lead">Menú lateral → <b>Automatizaciones</b>. Reglas que reaccionan solas a eventos del sistema (función premium).</p>
+  <div class="steps">
+    <div class="step"><div><b>Crear automatización</b><p>Elija el evento disparador (por ejemplo, un registro creado/modificado que cumpla condiciones).</p></div></div>
+    <div class="step"><div><b>Condiciones</b><p>Campo + operador + valor, como los <a href="#filtros">filtros avanzados</a>.</p></div></div>
+    <div class="step"><div><b>Acción</b><p>Enviar un correo o una notificación en la campana a los roles del workspace (por ejemplo, los administradores).</p></div></div>
+    <div class="step"><div><b>Historial</b><p>Cada corrida queda registrada con su resultado, para depurar reglas.</p></div></div>
+  </div>
+</section>
+
+<!-- ════════ IDIOMA ════════ -->
+<section id="idioma">
+  <h2>Idioma y tema</h2>
+  <ul>
+    <li><b>Cambiar idioma</b>: avatar (arriba a la derecha) → <b>Idioma</b> → Español / English. Cambia toda la interfaz al instante; los informes salen en el idioma de quien los genera, y los enlaces compartidos en el idioma que se eligió al crearlos.</li>
+    <li><b>Cambiar tema</b>: avatar → <b>Apariencia</b> → Claro / Oscuro / Automático (sigue al sistema operativo).</li>
+    <li><b>Zona horaria</b>: se hereda la del workspace; puede fijar la suya en Mi perfil. Todas las fechas se muestran en su zona.</li>
+  </ul>
+</section>
+
+<!-- ════════ SEGURIDAD ════════ -->
+<section id="seguridad">
+  <h2>Seguridad y privacidad</h2>
+  <div class="cards">
+    <div class="card r"><div class="ico">📜</div><b>Consentimiento demostrable</b><p>La aceptación de Términos/Privacidad queda registrada con fecha, versión e IP. Si los documentos cambian, todos re-aceptan.</p></div>
+    <div class="card"><div class="ico">🕵️</div><b>Auditoría completa</b><p>Altas, bajas, ediciones, emisión de informes, consentimientos y exportaciones de datos — todo con autor, fecha e IP.</p></div>
+    <div class="card g"><div class="ico">🔐</div><b>Aislamiento por workspace</b><p>Cada empresa ve exclusivamente sus datos. Los permisos granulares por rol limitan qué hace cada usuario.</p></div>
+    <div class="card a"><div class="ico">⏱️</div><b>Protección anti-abuso</b><p>Límites de frecuencia en accesos sensibles (códigos OTP, verificación pública, exportaciones de datos) con mensajes claros.</p></div>
+    <div class="card p"><div class="ico">✍️</div><b>Firma protegida</b><p>Su firma vive en disco privado, sin URL pública, y solo se estampa con su acción o su pre-autorización revocable.</p></div>
+    <div class="card"><div class="ico">🧹</div><b>Retención y purga</b><p>Los registros eliminados se purgan automáticamente por política de retención, anonimizando datos personales (incluye archivos de foto y firma).</p></div>
+  </div>
+  <p>Derechos del usuario sobre sus datos (acceso, rectificación, cancelación, oposición): ver <a href="#perfil">Mi perfil → Privacidad y datos</a>.</p>
+</section>
+
+<div class="foot">
+  {{app}} — Manual de uso · Este documento es autocontenido: puede abrirlo en cualquier navegador, imprimirlo o exportarlo a PDF (Ctrl+P).<br>
+  Las maquetas son ilustrativas; puede reemplazarlas por capturas reales de su instalación.<br>
+  Para personalizar nombre, dominio y versión, edite el bloque <b>CONFIGURACIÓN</b> al inicio del archivo HTML.
+</div>
+
+</div><!-- /content -->
+</div></div><!-- /layout /wrap -->
+
+<script>
+// Reemplaza las variables {{app}} {{domain}} {{verify}} {{version}} con el bloque CONFIGURACIÓN.
+(function(){
+  var C = window.MANUAL || {};
+  function rep(s){ return s
+    .replace(/\{\{app\}\}/g,     C.app     || 'TR Health')
+    .replace(/\{\{verify\}\}/g,  C.verify  || '')
+    .replace(/\{\{domain\}\}/g,  C.domain  || '')
+    .replace(/\{\{version\}\}/g, C.version || ''); }
+  document.title = rep(document.title);
+  var w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false), n, todo = [];
+  while((n = w.nextNode())){ if(n.nodeValue.indexOf('{{') !== -1) todo.push(n); }
+  todo.forEach(function(t){ t.nodeValue = rep(t.nodeValue); });
+})();
+
+// Aparición suave de tarjetas, pasos, maquetas y diagramas al entrar en pantalla.
+(function(){
+  if(!('IntersectionObserver' in window)) return;
+  var els = [].slice.call(document.querySelectorAll('.card,.step,.hstep,.shot,.fig,.wizbox,table.t,.note'));
+  els.forEach(function(el){ el.classList.add('reveal'); });
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, {rootMargin:'0px 0px -8% 0px', threshold:.06});
+  els.forEach(function(el){ io.observe(el); });
+})();
+</script>
+
+<script>
+// Resalta en el índice la sección visible al hacer scroll.
+(function(){
+  var links = [].slice.call(document.querySelectorAll('.toc a'));
+  var map = {}, sections = [];
+  links.forEach(function(a){
+    var el = document.getElementById(a.getAttribute('href').slice(1));
+    if(el){ map[el.id] = a; sections.push(el); }
+  });
+  function onScroll(){
+    var pos = window.scrollY + 130, current = sections[0];
+    sections.forEach(function(s){ if(s.offsetTop <= pos) current = s; });
+    links.forEach(function(a){ a.classList.remove('active'); });
+    sections.forEach(function(s){ s.classList.remove('is-current'); });
+    if(current){ current.classList.add('is-current'); if(map[current.id]) map[current.id].classList.add('active'); }
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', onScroll);
+  onScroll();
+})();
+</script>
+</body>
+</html>

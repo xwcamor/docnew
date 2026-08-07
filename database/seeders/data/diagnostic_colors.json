@@ -1,0 +1,14 @@
+{
+    "sema": {
+        "green": "#1D7044",
+        "lime": "#5AA82E",
+        "yellow": "#E9A23B",
+        "orange": "#E2661E",
+        "red": "#C8281D"
+    },
+    "stops": {
+        "good": "#2E933C",
+        "warn": "#E9A23B",
+        "bad": "#C8281D"
+    }
+}

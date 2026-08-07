@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nav A · Giantbar (mega-menú)</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --panel:#fff; --ink:#0f1b2d; --muted:#6b7990; --line:#e6eaf2; --pri:#2f6df6;
+    --vb:#1D7044; --b:#5AA82E;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif}
+  /* ── Giant top bar ── */
+  .bar{position:sticky;top:0;z-index:40;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:0 1px 3px #0f1b2d08}
+  .bar__row{max-width:1500px;margin:0 auto;display:flex;align-items:center;gap:14px;padding:12px 24px}
+  .logo{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px;white-space:nowrap}
+  .logo .sq{width:30px;height:30px;border-radius:9px;background:var(--pri);display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px}
+  .nav{display:flex;gap:2px;margin-left:6px}
+  .nav button{border:0;background:transparent;font:inherit;font-size:14px;font-weight:600;color:#42506a;padding:9px 13px;border-radius:9px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .nav button:hover,.nav button.on{background:#eef2fb;color:var(--ink)}
+  .nav .chev{font-size:10px;opacity:.6}
+  .spacer{flex:1}
+  .gsearch{position:relative;width:300px}
+  .gsearch input{width:100%;background:#f1f4fa;border:1px solid var(--line);border-radius:10px;padding:9px 12px 9px 34px;font-size:13.5px;outline:none}
+  .gsearch svg{position:absolute;left:11px;top:9px}
+  .kbd{position:absolute;right:9px;top:8px;font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:1px 6px;background:#fff}
+  .ava{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#2f6df6,#7aa0ff);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+  .iconbtn{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;color:#42506a}
+
+  /* ── Mega panel ── */
+  .mega{max-width:1500px;margin:0 auto;overflow:hidden;max-height:0;transition:max-height .28s ease}
+  .mega.open{max-height:320px}
+  .mega__inner{padding:6px 24px 22px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px 26px}
+  .mcol h5{margin:0 0 8px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted)}
+  .mlink{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:9px;cursor:pointer;color:#33405a;font-size:13.5px;font-weight:500}
+  .mlink:hover{background:#f1f5ff;color:var(--pri)}
+  .mlink .mi{width:30px;height:30px;border-radius:8px;background:#eef2fb;display:flex;align-items:center;justify-content:center;color:var(--pri);flex:none}
+  .mlink small{display:block;color:var(--muted);font-weight:400;font-size:11.5px}
+
+  /* ── Content ── */
+  .main{max-width:1500px;margin:0 auto;padding:22px 24px 60px}
+  .h1{display:flex;align-items:baseline;gap:12px;margin:0 0 4px}
+  .h1 h1{margin:0;font-size:26px}
+  .h1 .cnt{color:var(--muted);font-size:13px}
+  .hint{font-size:12.5px;color:var(--muted);margin:0 0 18px}
+  .cards{display:flex;flex-direction:column;gap:12px}
+  .row{background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px 18px;display:flex;align-items:center;gap:18px;box-shadow:0 1px 2px #0f1b2d06;border-left:5px solid var(--vb)}
+  .row .nm{font-weight:700;font-size:16px}
+  .row .cli{font-size:12px;color:var(--muted)}
+  .bgs{display:flex;flex-wrap:wrap;gap:6px;flex:1}
+  .bg{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:#475467;background:#f3f5f7;border:1px solid var(--line);border-radius:7px;padding:3px 9px}
+  .ring{width:58px;height:58px;flex:none;display:flex;align-items:center;justify-content:center;border-radius:50%;border:5px solid var(--vb);font-weight:800;color:var(--vb)}
+  .note{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);background:#0f1b2d;color:#fff;font-size:12.5px;padding:9px 16px;border-radius:999px;opacity:.92}
+</style>
+</head>
+<body>
+  <div class="bar">
+    <div class="bar__row">
+      <div class="logo"><span class="sq">⚡</span> TR APP</div>
+      <nav class="nav" id="nav">
+        <button data-m="negocio">Negocio <span class="chev">▾</span></button>
+        <button data-m="diag">Diagnóstico <span class="chev">▾</span></button>
+        <button data-m="accesos">Accesos <span class="chev">▾</span></button>
+        <button data-m="sistema">Sistema <span class="chev">▾</span></button>
+      </nav>
+      <div class="spacer"></div>
+      <div class="gsearch">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6b7990" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input placeholder="Ir a… (Clientes, Reglas, Trafo 1005…)"><span class="kbd">⌘K</span>
+      </div>
+      <div class="iconbtn">🔔</div>
+      <div class="ava">CM</div>
+    </div>
+    <div class="mega" id="mega"><div class="mega__inner" id="megaInner"></div></div>
+  </div>
+
+  <main class="main">
+    <div class="h1"><h1>Transformadores</h1><span class="cnt">2425 registros · ancho completo</span></div>
+    <p class="hint">El contenido usa TODO el ancho. La navegación vive arriba; pasa el mouse por “Negocio / Diagnóstico…”.</p>
+    <div class="cards">
+      <div class="row">
+        <div><div class="nm">10053478-2</div><div class="cli">RED DE ENERGIA DEL PERU · TAG 107049</div></div>
+        <div class="bgs"><span class="bg">Potencia</span><span class="bg">HYOSUNG</span><span class="bg">Mineral</span><span class="bg">220 kV</span><span class="bg">50 MVA</span><span class="bg">2016</span></div>
+        <div class="ring">91</div>
+      </div>
+      <div class="row">
+        <div><div class="nm">10058124</div><div class="cli">RED DE ENERGIA DEL PERU · TAG AUTOT 104</div></div>
+        <div class="bgs"><span class="bg">Potencia</span><span class="bg">HYOSUNG</span><span class="bg">Mineral</span><span class="bg">500 kV</span><span class="bg">Trifásico</span><span class="bg">2015</span></div>
+        <div class="ring">100</div>
+      </div>
+    </div>
+  </main>
+  <div class="note">A · Giantbar con mega-menú — un topbar “grande” que despliega los 25 ítems agrupados</div>
+
+<script>
+  const groups={
+    negocio:[['Negocio',[['📊','Dashboard'],['🏢','Clientes'],['⚡','Transformadores'],['🚀','Panel de flota']]]],
+    diag:[['Condiciones de diagnóstico',[['🧪','Reglas de diagnóstico'],['🛢️','Tipos de aceite'],['🔧','Tipos de transformador'],['🏷️','Marcas'],['🎚️','Tipos de conmutador']]]],
+    accesos:[['Accesos',[['👤','Usuarios'],['🪪','Perfiles'],['🔑','Permisos']]],['Comunicación',[['✉️','Mensajes'],['📥','Bandeja']]],['Auditoría',[['📜','Logs del sistema']]]],
+    sistema:[['Configuración',[['🧩','Mi workspace'],['🏬','Workspaces'],['💳','Planes'],['⚙️','Ajustes']]],['Catálogos',[['🌎','Regiones'],['🌐','Idiomas'],['🏳️','Países'],['🗺️','Locales'],['📦','Módulos']]]],
+  };
+  const mega=document.getElementById('mega'),inner=document.getElementById('megaInner'),nav=document.getElementById('nav');
+  let open=null;
+  function render(m){
+    inner.innerHTML=groups[m].map(([title,items])=>`<div class="mcol"><h5>${title}</h5>${items.map(([ic,label])=>`<div class="mlink"><span class="mi">${ic}</span><span>${label}</span></div>`).join('')}</div>`).join('');
+  }
+  nav.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('mouseenter',()=>{open=btn.dataset.m;render(open);mega.classList.add('open');nav.querySelectorAll('button').forEach(b=>b.classList.remove('on'));btn.classList.add('on')});
+  });
+  document.querySelector('.bar').addEventListener('mouseleave',()=>{mega.classList.remove('open');nav.querySelectorAll('button').forEach(b=>b.classList.remove('on'))});
+</script>
+</body>
+</html>

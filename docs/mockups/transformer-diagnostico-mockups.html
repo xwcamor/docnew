@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockups — Sección de diagnóstico (ver transformador)</title>
+<style>
+  :root{
+    --primary:#0A6ED1; --green:#1d7a44; --lime:#5aa02c; --amber:#d98e04;
+    --red:#C8281D; --surface:#fff; --surface-alt:#f5f6f7; --bg:#eef0f2;
+    --border:#e5e7eb; --border-strong:#dfe3e8; --text:#222b36; --muted:#6A6D70;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+       background:var(--bg);color:var(--text);line-height:1.45}
+  .wrap{max-width:1180px;margin:0 auto;padding:28px 20px 80px}
+  h1{font-size:1.5rem;margin:0 0 4px}
+  .lead{color:var(--muted);margin:0 0 8px}
+  .ctx{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin:14px 0 30px;font-size:.92rem}
+  .ctx b{color:var(--text)}
+  .mock{background:#fff;border:1px solid var(--border);border-radius:16px;margin:0 0 34px;overflow:hidden;box-shadow:0 1px 3px rgba(16,24,40,.05)}
+  .mock__head{padding:16px 20px;border-bottom:1px solid var(--border);background:#fafbfc}
+  .mock__title{font-size:1.12rem;font-weight:700;margin:0;display:flex;align-items:center;gap:10px}
+  .mock__title .n{background:var(--primary);color:#fff;width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-size:.85rem}
+  .mock__desc{margin:8px 0 0;color:var(--muted);font-size:.9rem}
+  .tags{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+  .tag{font-size:.72rem;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--surface-alt);border:1px solid var(--border)}
+  .tag--good{color:var(--green);background:#1d7a4412;border-color:#1d7a4430}
+  .tag--warn{color:var(--amber);background:#d98e0412;border-color:#d98e0430}
+  .mock__body{padding:20px}
+
+  /* ── primitivas compartidas ── */
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:700;padding:3px 10px;border-radius:999px}
+  .pill--good{color:var(--green);background:#1d7a4414}
+  .pill--none{color:var(--muted);background:#0000000a}
+  .bar{height:6px;border-radius:4px;background:#e9edf1;overflow:hidden}
+  .bar > i{display:block;height:100%;border-radius:4px;background:var(--green)}
+  .score{font-weight:700} .score i{font-style:normal;color:var(--muted);font-weight:500;font-size:.8rem}
+  .muted{color:var(--muted)} .small{font-size:.8rem}
+  .ring{--p:75;--c:var(--green);width:64px;height:64px;border-radius:50%;
+        background:conic-gradient(var(--c) calc(var(--p)*1%),#e9edf1 0);display:grid;place-items:center;position:relative;flex:none}
+  .ring::after{content:'';position:absolute;inset:7px;background:#fff;border-radius:50%}
+  .ring b{position:relative;z-index:1;font-size:1.05rem}
+  .ringwrap{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .verdict{font-size:.78rem;color:#475467;margin:8px 0 0;border-top:1px dashed var(--border);padding-top:8px}
+
+  /* ── M1: tabs + grid auto-fill ── */
+  .tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:2px solid var(--border);padding-bottom:0;-webkit-overflow-scrolling:touch}
+  .tab{flex:none;padding:10px 14px;font-size:.9rem;font-weight:600;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-2px;white-space:nowrap;cursor:pointer}
+  .tab.is-active{color:var(--primary);border-bottom-color:var(--primary)}
+  .tab .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:18px}
+  .kpi{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;display:flex;flex-direction:column;gap:8px}
+  .kpi--empty{opacity:.7;background:#fcfcfd}
+  .kpi__top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .kpi__name{font-weight:700;font-size:.95rem}
+  .kpi__row{display:flex;align-items:center;gap:10px}
+  .kpi__meta{display:flex;gap:12px;font-size:.78rem;color:var(--muted)}
+
+  /* ── M2: nav vertical ── */
+  .split{display:grid;grid-template-columns:240px 1fr;gap:18px}
+  .vnav{display:flex;flex-direction:column;gap:4px;border-right:1px solid var(--border);padding-right:6px}
+  .vnav__item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;cursor:pointer;font-weight:600;font-size:.9rem;color:#475467}
+  .vnav__item.is-active{background:#0A6ED112;color:var(--primary)}
+  .vnav__item .dot{width:9px;height:9px;border-radius:50%;flex:none}
+  .vnav__item .b{margin-left:auto;font-size:.72rem;font-weight:700;color:var(--muted)}
+  .panel{min-width:0}
+  .panel h4{margin:0 0 12px;font-size:1rem}
+
+  /* ── M3: acordeón ── */
+  .acc{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:10px}
+  .acc > summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;align-items:center;gap:12px;background:#fff}
+  .acc > summary::-webkit-details-marker{display:none}
+  .acc[open] > summary{border-bottom:1px solid var(--border)}
+  .acc__name{font-weight:700} .acc__sp{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .acc__chev{color:var(--muted);transition:transform .15s} .acc[open] .acc__chev{transform:rotate(90deg)}
+  .acc__body{padding:16px;background:#fcfdfe}
+
+  /* ── M4: dashboard cards drill-down ── */
+  .deck{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  .dcard{border:1px solid var(--border);border-radius:14px;padding:16px;background:#fff;cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;position:relative;overflow:hidden}
+  .dcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--green)}
+  .dcard--empty::before{background:var(--border-strong)}
+  .dcard:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(16,24,40,.10);border-color:#cfd6dd}
+  .dcard__head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .dcard__name{font-weight:700} .dcard__foot{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:.78rem;color:var(--muted)}
+  .spark{height:30px;display:flex;align-items:flex-end;gap:3px}
+  .spark i{flex:1;background:#cfe3d6;border-radius:2px} .spark i:last-child{background:var(--green)}
+
+  @media (max-width:720px){
+    .split{grid-template-columns:1fr}
+    .vnav{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--border);padding:0 0 8px}
+    .vnav__item{flex:none}
+    .vnav__item .b{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sección de diagnóstico — 4 propuestas</h1>
+  <p class="lead">Ver transformador · 106941 · la zona de abajo (pruebas + resumen de diagnóstico).</p>
+  <div class="ctx">
+    <b>Qué resuelven:</b> hoy son tabs horizontales que en mobile se cortan, y el “Resumen de diagnóstico” es un grid de ancho fijo.
+    Las 4 buscan ser <b>responsive</b> (mobile-first) y <b>escalables</b> (agregar pruebas = una fila/card más, sin rediseñar).
+    Redimensioná la ventana para ver el comportamiento. Datos: Cromatografía <b>Bueno</b> (3/4), resto sin registro.
+  </div>
+
+  <!-- ════════ MOCKUP 1 ════════ -->
+  <section class="mock">
+    <div class="mock__head">
+      <p class="mock__title"><span class="n">1</span> Tabs + grilla de KPIs (evolución de lo actual)</p>
+      <p class="mock__desc">Se mantiene la barra de pestañas pero <b>scrollea</b> en mobile, y el resumen es una grilla
+        <b>auto-fill</b> de tarjetas KPI compactas que se reacomodan (3→2→1 columnas).</p>
+      <div class="tags"><span class="tag">Cambio mínimo</span><span class="tag tag--good">Familiar</span><span class="tag">Tabs scrollable</span></div>
+    </div>
+    <div class="mock__body">
+      <div class="tabs">
+        <div class="tab is-active">▦ Resumen</div>
+        <div class="tab"><span class="dot" style="background:var(--green)"></span>Cromatografía</div>
+        <div class="tab"><span class="dot" style="background:#c9ced4"></span>Fisicoquímico</div>
+        <div class="tab"><span class="dot" style="background:#c9ced4"></span>Furanos</div>
+        <div class="tab"><span class="dot" style="background:#c9ced4"></span>Factor de Potencia</div>
+        <div class="tab">🗒 Bitácora</div>
+      </div>
+      <div class="kpis">
+        <div class="kpi">
+          <div class="kpi__top"><span class="kpi__name">Cromatografía (DGA)</span><span class="pill pill--good">● Bueno</span></div>
+          <div class="kpi__row"><div class="bar" style="flex:1"><i style="width:75%"></i></div><span class="score">3<i>/4</i></span></div>
+          <div class="kpi__meta"><span>100% del índice</span><span>📅 2024-07-31</span></div>
+          <p class="verdict">T3 · Falla térmica &gt;700 °C (IEEE C57.104). CO₂/CO=2.6 → posible degradación del papel.</p>
+        </div>
+        <div class="kpi kpi--empty"><div class="kpi__top"><span class="kpi__name">Fisicoquímico</span><span class="pill pill--none">Sin registro</span></div><p class="muted small">Cargá una muestra para diagnosticar.</p></div>
+        <div class="kpi kpi--empty"><div class="kpi__top"><span class="kpi__name">Furanos</span><span class="pill pill--none">Sin registro</span></div><p class="muted small">Cargá una muestra para diagnosticar.</p></div>
+        <div class="kpi kpi--empty"><div class="kpi__top"><span class="kpi__name">Factor de Potencia</span><span class="pill pill--none">Sin registro</span></div><p class="muted small">Cargá una muestra para diagnosticar.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ MOCKUP 2 ════════ -->
+  <section class="mock">
+    <div class="mock__head">
+      <p class="mock__title"><span class="n">2</span> Navegación vertical (lista de pruebas)</p>
+      <p class="mock__desc">Pruebas en una <b>lista lateral</b> con su semáforo; el contenido a la derecha.
+        Escala perfecto: agregar una prueba = un ítem más. En mobile la lista pasa arriba como tira scrollable.</p>
+      <div class="tags"><span class="tag tag--good">Muy escalable</span><span class="tag">Estado a la vista</span><span class="tag">Patrón “settings”</span></div>
+    </div>
+    <div class="mock__body">
+      <div class="split">
+        <nav class="vnav">
+          <div class="vnav__item is-active"><span class="dot" style="background:var(--green)"></span>Cromatografía <span class="b">Bueno</span></div>
+          <div class="vnav__item"><span class="dot" style="background:#c9ced4"></span>Fisicoquímico <span class="b">—</span></div>
+          <div class="vnav__item"><span class="dot" style="background:#c9ced4"></span>Furanos <span class="b">—</span></div>
+          <div class="vnav__item"><span class="dot" style="background:#c9ced4"></span>Factor de Potencia <span class="b">—</span></div>
+          <div class="vnav__item"><span class="dot" style="background:#c9ced4"></span>Duval / Rogers <span class="b">—</span></div>
+          <div class="vnav__item"><span class="dot" style="background:var(--primary)"></span>Bitácora</div>
+        </nav>
+        <div class="panel">
+          <h4>Cromatografía (DGA) <span class="pill pill--good" style="vertical-align:middle">● Bueno</span></h4>
+          <div class="kpi__row" style="max-width:320px"><div class="bar" style="flex:1"><i style="width:75%"></i></div><span class="score">3<i>/4</i></span></div>
+          <div class="kpi__meta" style="margin-top:8px"><span>100% del índice</span><span>📅 2024-07-31</span></div>
+          <p class="verdict" style="max-width:560px">T3 · Falla térmica &gt;700 °C — IEEE C57.104. Con gases normales NO es falla real. CO₂/CO=2.6 → posible degradación térmica del papel; conviene revisar (IEC 60599).</p>
+          <p class="muted small">(Aquí iría la tabla de gases + tendencias de la prueba seleccionada.)</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════ MOCKUP 3 ════════ -->
+  <section class="mock">
+    <div class="mock__head">
+      <p class="mock__title"><span class="n">3</span> Acordeón apilado (todo en una página)</p>
+      <p class="mock__desc">Sin pestañas: cada prueba es una <b>sección colapsable</b> con su estado en el encabezado.
+        Ideal mobile (apila natural), scaneable de un vistazo, e imprimible. Abrí/cerrá lo que te interesa.</p>
+      <div class="tags"><span class="tag tag--good">Mejor en mobile</span><span class="tag">Scaneable</span><span class="tag">Sin tabs</span></div>
+    </div>
+    <div class="mock__body">
+      <details class="acc" open>
+        <summary>
+          <span class="acc__chev">▶</span><span class="acc__name">Cromatografía (DGA)</span>
+          <span class="acc__sp"><span class="bar" style="width:90px"><i style="width:75%"></i></span><span class="score small">3<i>/4</i></span><span class="pill pill--good">● Bueno</span></span>
+        </summary>
+        <div class="acc__body">
+          <p class="verdict" style="margin-top:0;border:0;padding:0;max-width:600px">T3 · Falla térmica &gt;700 °C (IEEE C57.104). CO₂/CO=2.6 → posible degradación del papel. <span class="muted">📅 2024-07-31 · 100% del índice</span></p>
+          <p class="muted small">(Tabla de gases + tendencias.)</p>
+        </div>
+      </details>
+      <details class="acc">
+        <summary><span class="acc__chev">▶</span><span class="acc__name">Fisicoquímico</span><span class="acc__sp"><span class="pill pill--none">Sin registro</span></span></summary>
+        <div class="acc__body"><p class="muted small">Cargá una muestra para diagnosticar.</p></div>
+      </details>
+      <details class="acc">
+        <summary><span class="acc__chev">▶</span><span class="acc__name">Furanos</span><span class="acc__sp"><span class="pill pill--none">Sin registro</span></span></summary>
+        <div class="acc__body"><p class="muted small">Cargá una muestra para diagnosticar.</p></div>
+      </details>
+      <details class="acc">
+        <summary><span class="acc__chev">▶</span><span class="acc__name">Factor de Potencia</span><span class="acc__sp"><span class="pill pill--none">Sin registro</span></span></summary>
+        <div class="acc__body"><p class="muted small">Cargá una muestra para diagnosticar.</p></div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ════════ MOCKUP 4 ════════ -->
+  <section class="mock">
+    <div class="mock__head">
+      <p class="mock__title"><span class="n">4</span> Dashboard de tarjetas (drill-down)</p>
+      <p class="mock__desc">Una <b>grilla de tarjetas</b>, una por prueba, con anillo de score + mini-tendencia.
+        Clic en la tarjeta → detalle (modal o pantalla). Muy visual, auto-fill responsive, escala agregando tarjetas.</p>
+      <div class="tags"><span class="tag tag--good">Más visual</span><span class="tag">Auto-fill</span><span class="tag tag--warn">+1 clic al detalle</span></div>
+    </div>
+    <div class="mock__body">
+      <div class="deck">
+        <div class="dcard">
+          <div class="dcard__head"><span class="dcard__name">Cromatografía</span><span class="pill pill--good">● Bueno</span></div>
+          <div class="ringwrap" style="flex-direction:row;justify-content:space-between;align-items:center">
+            <div class="ring" style="--p:75;--c:var(--green)"><b>3/4</b></div>
+            <div class="spark"><i style="height:40%"></i><i style="height:55%"></i><i style="height:50%"></i><i style="height:70%"></i><i style="height:62%"></i><i style="height:75%"></i></div>
+          </div>
+          <div class="dcard__foot"><span>100% del índice</span><span>📅 2024-07-31</span></div>
+        </div>
+        <div class="dcard dcard--empty"><div class="dcard__head"><span class="dcard__name">Fisicoquímico</span><span class="pill pill--none">Sin registro</span></div><p class="muted small">Sin muestras todavía.</p><div class="dcard__foot"><span>—</span><span>Cargar →</span></div></div>
+        <div class="dcard dcard--empty"><div class="dcard__head"><span class="dcard__name">Furanos</span><span class="pill pill--none">Sin registro</span></div><p class="muted small">Sin muestras todavía.</p><div class="dcard__foot"><span>—</span><span>Cargar →</span></div></div>
+        <div class="dcard dcard--empty"><div class="dcard__head"><span class="dcard__name">Factor de Potencia</span><span class="pill pill--none">Sin registro</span></div><p class="muted small">Sin muestras todavía.</p><div class="dcard__foot"><span>—</span><span>Cargar →</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="ctx" style="margin-top:6px">
+    <b>Mi recomendación:</b> <b>Mockup 2 (navegación vertical)</b> para escritorio + <b>Mockup 3 (acordeón)</b> en mobile —
+    o sea, el mismo contenido que cambia de “lista lateral” a “acordeón” según el ancho. Es lo más escalable y el que mejor
+    aguanta agregar pruebas (Duval, Rogers, etc.) sin saturar. Si querés el mínimo cambio, el <b>1</b>. Si querés impacto visual, el <b>4</b>.
+  </div>
+</div>
+</body>
+</html>

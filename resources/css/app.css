@@ -1,0 +1,1341 @@
+@import 'tailwindcss';
+@import 'ant-design-vue/dist/reset.css';
+@import 'ag-grid-community/styles/ag-grid.css';
+@import 'ag-grid-community/styles/ag-theme-quartz.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+@source '../**/*.vue';
+
+@theme {
+    --font-sans: 'Inter', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* Reset duro de margins en html/body — Tailwind v4 preflight no siempre
+   cubre el margin default del navegador (8px) cuando hay imports de terceros
+   antes. Sin esto queda una franja blanca arriba de la shell-bar. */
+html, body { margin: 0; padding: 0; }
+
+/* ─── Feedback de navegación (Inertia) ──────────────────────────────────────
+   Barra de progreso más gruesa y visible + spinner debajo de la shell-bar.
+   El elemento clickeado se atenúa y se bloquea mientras dura el visit (evita
+   el doble-click; Inertia ya cancela el visit anterior). */
+#nprogress .bar { height: 3px !important; }
+#nprogress .peg { box-shadow: 0 0 12px #0A6ED1, 0 0 6px #0A6ED1 !important; }
+#nprogress .spinner { top: 52px !important; right: 18px !important; }
+.is-navigating { pointer-events: none !important; cursor: progress !important; opacity: 0.55 !important; transition: opacity 0.1s ease; }
+body.is-navigating, body.is-navigating * { cursor: progress !important; }
+
+
+/* ============================================================================
+   Estándar de índice de módulos: CONSOLA de filtros (prefijo .mi-)
+   Look unificado para todos los módulos (Customers master + clones). El markup
+   vive por página; el estilo es UNO solo aquí para no duplicar ni divergir.
+   Transformers usa su propia versión scoped (.tx-); no se toca.
+   ============================================================================ */
+.mi-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 4px 0 16px; flex-wrap: wrap; }
+.mi-title .page-header__title { justify-content: flex-start; }
+.mi-title .page-header__heading { text-align: left; }
+.mi-title .page-header__title h1 { font-size: 1.6rem; }
+.mi-title__actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mi-title__actions .saved-views-trigger { height: 32px; }
+
+/* Barra de "vista de resultados" (toggle tabla/lista/tarjetas) encima de los
+   resultados, alineada a la derecha. */
+.mi-resultbar { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.mi-resultbar__actions { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; }
+
+/* Flecha de los selects en color de acento (estilo SAP Fiori). Sigue el esquema
+   vía --color-primary (azul en SAP, y el acento de cada apariencia en los demás).
+   Solo el caret: el ícono de limpiar (x) y los deshabilitados quedan muteados. */
+.ant-select:not(.ant-select-disabled) .ant-select-arrow {
+    color: var(--color-primary, #0A6ED1);
+}
+
+/* Mismo acento en el ícono de DatePicker/TimePicker/RangePicker (calendario/
+   reloj) para que combinen con los selects. Solo el ícono persistente (suffix);
+   el de limpiar (x), el separador (→) y los deshabilitados quedan muteados.
+   Cascader/TreeSelect ya heredan .ant-select-arrow de arriba. */
+.ant-picker:not(.ant-picker-disabled) .ant-picker-suffix {
+    color: var(--color-primary, #0A6ED1);
+}
+
+/* Botón Exportar: acento SUAVE (fondo azul claro + texto/ícono azul). Resalta
+   como la acción clave de la toolbar sin competir con el primario (Crear). */
+.mi-export-btn.ant-btn {
+    background: var(--color-primary-soft, #eaf3fc) !important;
+    border-color: var(--color-primary-border, #c2ddf6) !important;
+    color: var(--color-primary, #0A6ED1) !important;
+    font-weight: 600;
+}
+.mi-export-btn.ant-btn .anticon { color: var(--color-primary, #0A6ED1); }
+.mi-export-btn.ant-btn:hover { background: #ddecfb !important; border-color: #a9cef2 !important; }
+html[data-theme="dark"] .mi-export-btn.ant-btn { background: #12324f !important; border-color: #1d4e7a !important; color: #69b3f5 !important; }
+
+/* Barra de Vistas guardadas como tabs (atajos de resultados). */
+.mi-viewsbar { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; flex-wrap: wrap; }
+
+/* Mini-etiqueta de zona (FILTROS / ORDEN / VER) — gris, mayúsculas chicas. */
+.mi-zonelabel {
+    font-size: 0.66rem; font-weight: 700; letter-spacing: 0.07em;
+    text-transform: uppercase; color: var(--color-text-muted, #8a9099);
+    flex-shrink: 0; user-select: none;
+}
+
+.mi-console {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e7eaee);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+}
+.mi-console__div { height: 1px; background: var(--color-border, #eef0f3); margin: 12px 0; }
+
+.mi-searchrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.mi-searchrow .mi-bigbtn { height: 44px; border-radius: 10px; padding: 0 16px; font-weight: 600; }
+.mi-searchrow .mi-gear { width: 44px; padding: 0; font-size: 1.05rem; }
+.mi-searchrow .mi-bigbtn .anticon { font-size: 1rem; }
+.mi-savedviews .saved-views-trigger { height: 44px; border-radius: 10px; }
+.mi-colsel-host { display: none; }
+
+.mi-ctrls { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.mi-ctrls__left, .mi-ctrls__right { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* Grupo orden + dirección (se resaltan juntos en el tour). */
+.mi-sortgroup { display: inline-flex; align-items: center; gap: 8px; }
+
+.mi-bar {
+    flex: 1 1 460px;
+    display: flex; align-items: center; gap: 10px;
+    height: 44px; padding: 0 6px 0 16px;
+    background: var(--color-surface-alt, #f4f6f8);
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: text;
+    transition: box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.mi-bar:hover { background: var(--color-surface-alt, #eef1f4); }
+.mi-bar:focus-within,
+.mi-bar.is-active {
+    background: var(--color-surface, #fff);
+    border-color: var(--color-primary, #2f6df6);
+    box-shadow: 0 0 0 3px rgba(47, 109, 246, 0.12);
+}
+.mi-bar__icon { font-size: 1.05rem; color: var(--color-text-muted, #8a9099); flex: none; }
+.mi-bar__input {
+    flex: 1; min-width: 0; border: 0; outline: none; background: transparent;
+    font-size: 0.95rem; color: var(--color-text-strong, #1f2329); line-height: 44px;
+}
+.mi-bar__input::placeholder { color: var(--color-text-muted, #9aa0a6); }
+.mi-bar__act {
+    flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--color-text-muted, #5f6b7a); cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.05rem; transition: background 0.14s ease, color 0.14s ease;
+}
+.mi-bar__act:hover { background: rgba(16, 24, 40, 0.07); color: var(--color-text-strong, #1f2329); }
+/* Separador + micrófono de búsqueda por voz dentro de la barra. */
+.mi-bar__sep { width: 1px; height: 24px; background: var(--color-border, #e3e6ea); flex: none; }
+.mi-bar__mic:hover { color: var(--color-primary, #0A6ED1); }
+.mi-bar__mic--on { color: #C8281D; animation: mi-mic-pulse 1.1s ease-in-out infinite; }
+@keyframes mi-mic-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.12); opacity: 0.7; }
+}
+
+/* Cuando la vista es lista/tarjetas, las cards NO deben quedar "atrapadas"
+   dentro del Card contenedor de la tabla (.grid-card). Si el grid-card contiene
+   la grilla de cards (.rt-mobile) o las filas de lista (.rt-rows), le quitamos
+   marco/fondo/sombra/padding — igual que Transformers, que las saca del Card. */
+.grid-card:has(.rt-mobile),
+.grid-card:has(.rt-rows) {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+}
+.grid-card:has(.rt-mobile) > .ant-card-body,
+.grid-card:has(.rt-rows) > .ant-card-body { padding: 0 !important; }
+
+/* Controles de la fila 2: orden + conmutador de vista (compartidos). */
+/* Zona de filtros: etiqueta "Filtros" a la izquierda + el builder a la derecha. */
+.mi-builder { display: flex; align-items: flex-start; gap: 14px; margin-top: 2px; }
+.mi-builder > .mi-zonelabel { min-width: 54px; padding-top: 8px; }
+.mi-builder > .ifb { flex: 1; min-width: 0; }
+.sort-btn { display: inline-flex; align-items: center; gap: 6px; }
+.sort-btn__label { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.view-toggle {
+    display: inline-flex; gap: 2px; padding: 3px;
+    background: var(--color-surface-alt, #f1f3f5);
+    border: 1px solid var(--color-border, #e8eaed);
+    border-radius: 10px;
+}
+.view-toggle__btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 30px; border: 0; border-radius: 7px;
+    background: transparent; color: var(--color-text-muted, #8a9099); cursor: pointer;
+    font-size: 1rem; transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.view-toggle__btn:hover { color: var(--color-text-strong, #1f2329); }
+.view-toggle__btn--active {
+    background: var(--color-surface, #fff);
+    color: var(--color-primary, #0A6ED1);
+    box-shadow: 0 1px 3px rgba(16,24,40,0.12);
+}
+
+/* ─── Consola v2 (rediseño de jerarquía — prototipo en Clientes) ────────────
+   Un solo bloque sin etiquetas de zona: tira de vistas arriba (tabs), buscador
+   con peso, "Agregar filtro" debajo, y la toolbar de resultados pegada a la
+   tabla (no flotando en una franja gris). Aislado bajo .mi-console--v2 para no
+   tocar los otros modulos hasta aprobar el diseño. */
+.mi-console--v2 { padding: 0; border-radius: 14px; overflow: hidden; }
+/* Tira de vistas: cabecera sutil del panel, separada por un borde. */
+.mi-console--v2 .mi-viewsbar {
+    margin: 0;
+    padding: 8px 14px;
+    background: transparent;
+    border-bottom: 0;
+}
+/* Buscador + filtros agrupados (sin divisores internos, solo respiración). */
+.mi-console--v2 .mi-builder { margin-top: 10px; }
+.mi-console--v2 .mi-bar { flex-basis: 100%; }
+
+/* Toolbar de resultados pegada al tope de la tabla (parte de los resultados,
+   no de los filtros). Sobrevive al strip de padding del grid-card en vista
+   lista/tarjetas porque trae su propio padding. */
+.mi-tabletoolbar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border, #eef0f3);
+}
+.mi-tabletoolbar__left { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.mi-tabletoolbar__right { display: inline-flex; align-items: center; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+/* En lista/tarjetas el grid-card se vuelve transparente; la toolbar mantiene
+   su separador inferior como linea divisoria sobre el fondo gris. */
+.grid-card:has(.rt-mobile) .mi-tabletoolbar,
+.grid-card:has(.rt-rows) .mi-tabletoolbar { border-bottom-color: var(--color-border, #e7eaee); }
+
+/* Panel de resultados (Transformers): la tabla y las cards son ramas v-if/v-else
+   que no comparten un Card, asi que envolvemos toolbar + resultados en un panel
+   para que la toolbar quede PEGADA arriba y no flote en una franja gris. En vista
+   tabla se fusiona con el grid-card (una sola tarjeta); en cards/lista la toolbar
+   es la cabecera blanca sobre las tarjetas transparentes. */
+.mi-resultpanel { margin-bottom: 18px; }
+.mi-resultpanel > .mi-tabletoolbar {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e7eaee);
+    border-radius: 14px 14px 0 0;
+    border-bottom: 1px solid var(--color-border, #eef0f3);
+}
+.mi-resultpanel > .grid-card {
+    border-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+/* En cards/lista la toolbar cierra sus esquinas inferiores (no hay card debajo). */
+.mi-resultpanel > .tcards-wrap { margin-top: 0; }
+/* En vista LISTA/TARJETAS (hay .tcards-wrap) la toolbar NO usa panel blanco:
+   queda transparente sobre el gris, igual que los módulos estándar. El fondo
+   blanco solo aplica en vista TABLA (se fusiona con el grid-card). */
+.mi-resultpanel:has(.tcards-wrap) > .mi-tabletoolbar {
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--color-border, #e7eaee);
+    border-radius: 0;
+}
+
+/* ─── Celda principal de los index: avatar + título (lead__name) + subtítulo
+   (lead__sub). ESTÁNDAR ÚNICO para todos los módulos y las 3 vistas
+   (tabla / lista / tarjetas): título en negrita, subtítulo legible y discreto.
+   Antes cada módulo lo duplicaba en su <style scoped> y habían divergido
+   (unos con subtítulo monoespaciado, otros no). Transformers mantiene su
+   propia versión custom (tiene glyph + más datos). */
+.lead { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.lead__ava {
+    flex-shrink: 0; width: 40px; height: 40px; border-radius: 11px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 0.82rem; font-weight: 700; letter-spacing: 0.02em;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16), 0 1px 2px rgba(16,24,40,0.12);
+}
+.lead__ava--img { background: var(--color-surface-alt, #f4f6f8) !important; overflow: hidden; }
+.lead__ava img { width: 100%; height: 100%; object-fit: cover; }
+.lead__txt { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.lead__name { font-weight: 600; font-size: 0.92rem; color: var(--color-text-strong, #1f2329); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lead__sub { font-weight: 400; font-size: 0.75rem; color: var(--color-text-muted, #8a9099); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ─── Show pages: grilla de "información general" (estándar tomado de Brands).
+   Celdas suaves label/valor en 2 columnas. Usado por todos los Show (negocio +
+   core) para que se vean iguales. Una sola fuente de verdad. */
+.spec-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.spec-pad { padding: 18px; }
+.spec-cell {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 14px; border-radius: 8px;
+    background: var(--color-surface-alt, #f5f6f7);
+    border: 1px solid var(--color-border, #e5e5e5);
+    min-width: 0;
+}
+.spec-cell--wide { grid-column: 1 / -1; }
+.spec-cell__label {
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+    color: var(--color-text-muted, #6A6D70);
+}
+.spec-cell__value { font-size: 0.95rem; color: var(--color-text, #32363A); word-break: break-word; overflow-wrap: anywhere; }
+/* Identificadores (slug/código) en fichas: MISMA tipografía que el resto del
+   texto — el <code> del navegador usa monoespaciada y desentona. Sin caja. */
+.spec-cell__value code, .spec dd code,
+.ant-descriptions-item-content code {
+    font: inherit;
+    background: none; border: 0; padding: 0;
+}
+@media (max-width: 640px) { .spec-grid { grid-template-columns: 1fr; } }
+
+/* Nota: NO usar `overflow-x: hidden` en html/body — rompe `position: sticky`
+   (shell-bar) porque crea un scroll container, y genera contextos de stacking
+   que pueden ocultar contenido. Para el overflow horizontal del contenido el fix
+   real es atacar la causa: min-width: 0 en flex children de Antd Inputs (abajo).
+
+   PERO sí usamos `overflow-x: clip` en el root (no `hidden`): a diferencia de
+   `hidden`, `clip` NO crea un scroll container, así que NO rompe el sticky del
+   shell-bar; y como overflow-y queda `visible`, la página sigue scrolleando
+   vertical. Esto recorta el excedente horizontal de los popups de Antd
+   (tooltip/popover/dropdown) que se MONTAN en <body> — fuera del `.content`
+   (que ya tiene su propio `overflow-x: clip`). Sin esto, un tooltip pegado al
+   borde derecho sobresale 1 frame antes de que `autoAdjustOverflow` lo reubique,
+   ensancha el documento, dispara la barra horizontal y entra en un loop de
+   mostrar/ocultar (la barra mueve el botón fuera del cursor → mouseleave →
+   oculta → barra desaparece → mouseenter → muestra). */
+html, body { overflow-x: clip; }
+
+/* ─── Antd Input: min-width: 0 en flex children ────────────────────────────
+   Sin esto, un <input> con value largo dentro de .ant-input-affix-wrapper
+   (Input con prefix/suffix) crece a su contenido y empuja el form +
+   la página entera hacia la derecha. Fix flexbox clasico. */
+.ant-input-affix-wrapper,
+.ant-input-affix-wrapper > input.ant-input,
+.ant-input-number,
+.ant-input-number-input-wrap,
+.ant-form-item-control-input,
+.ant-form-item-control-input-content { min-width: 0; }
+.ant-input-affix-wrapper { max-width: 100%; }
+
+/* ─── Antd Alert / Descriptions / Card / Table: word-break global ──────────
+   Strings sin espacios (emails, slugs, nombres "qqqqqq..." de testing)
+   NO empujan estos contenedores hacia la derecha. Aplica word-break +
+   overflow-wrap en el contenido textual. Defensa global — todos los
+   modulos heredan, no hay que arreglar uno por uno. */
+.ant-alert-message,
+.ant-alert-description,
+.ant-descriptions-item-content,
+.ant-descriptions-item-label,
+.ant-card-body,
+.ant-card-meta-description,
+.ant-modal-body,
+.ant-drawer-body,
+.ant-form-item-explain,
+.ant-form-item-extra,
+.ant-list-item-meta-title,
+.ant-list-item-meta-description,
+.ant-typography,
+.ant-popover-inner-content,
+.ant-tooltip-inner {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+}
+
+/* Descriptions: el inner content puede shrinkar y wrappear.
+   IMPORTANTE: NO tocar .ant-descriptions-item (el <td> table cell) —
+   setear min-width: 0 ahi rompe el layout de la tabla de Descriptions
+   (las celdas pueden colapsar a 0 ancho). Solo el div interno. */
+.ant-descriptions-item-content { min-width: 0; }
+.ant-descriptions-view { max-width: 100%; }
+
+/* Alert con icono usa flex internamente (.ant-alert-content). Sin min-width: 0
+   el bloque de texto crece a su contenido y empuja todo el Alert. */
+.ant-alert-content { min-width: 0; }
+
+/* ─── Tablas: nunca recortan ni empujan la página (defensa global) ─────────
+   Si una Antd Table es más ancha que su contenedor, scrollea horizontal DENTRO
+   de su propio ancho en lugar de salirse por la derecha o perder columnas. El
+   `.content` del layout tiene overflow-x: hidden (la ventana no scrollea), así
+   que SIN esto una tabla ancha sin `:scroll` quedaba recortada. Cubre todas las
+   tablas — las que ya usan :scroll={x} no se ven afectadas. */
+.ant-table-wrapper { max-width: 100%; }
+.ant-table-wrapper .ant-table-content { overflow-x: auto; }
+/* La tabla interna toma su ancho natural (las columnas no se aplastan); el
+   scroll del wrapper se encarga del exceso. */
+.ant-table-wrapper .ant-table-content > table { min-width: 100%; }
+
+/* Avatar de INICIALES en la celda principal de los listados: en pantallas
+   chicas (vista de tarjetas) no aporta y ocupa espacio → se oculta. Los logos
+   reales (.lead__ava--img de Clientes/Marcas) SÍ se conservan. */
+@media (max-width: 767.98px) {
+    .lead__ava:not(.lead__ava--img) { display: none; }
+}
+
+/* Botones que colapsan a SOLO-ICONO en pantallas chicas: envolver el texto del
+   botón en <span class="btn-txt"> y dejar el icono (+ su Tooltip). Convención
+   global reutilizable — cualquier botón la puede usar.
+   OJO: Antd define `.ant-btn > span { display: inline-block }` (especificidad
+   0,0,1,1) que le gana a `.btn-txt` (0,0,1,0) → sin !important el texto NO se
+   ocultaba dentro de un Antd Button. */
+@media (max-width: 768px) {
+    .btn-txt { display: none !important; }
+}
+
+/* Tablas PROPIAS (no-Antd) usadas en editores/detalles: en pantallas chicas
+   scrollean horizontal dentro de su ancho en vez de recortarse/empujar. Solo
+   afecta <768px; en escritorio quedan como tabla normal. */
+@media (max-width: 768px) {
+    .edit-table,
+    .rule-table,
+    .rules-table,
+    .ds-table,
+    .sets-table,
+    .st-table,
+    .cl-table,
+    .ex-table {
+        display: block;
+        max-width: 100%;
+        overflow-x: auto;
+    }
+}
+
+/* ─── Filas de acciones / toolbars: envuelven en pantallas chicas ──────────
+   Un header de módulo con varios botones (SectionHeader, page-actions) nunca
+   se sale por la derecha: si no entran, bajan a la siguiente línea. */
+.section-header__actions,
+.page-actions,
+.toolbar-actions { flex-wrap: wrap; }
+
+/* ─── Última defensa: ningún media/contenido embebido excede el viewport ───
+   Imágenes, iframes, canvas (gráficos) y pre/code largos se contienen al ancho
+   disponible en lugar de empujar la página. NO se incluye `table` aquí: las
+   tablas scrollean (regla de arriba), forzarles max-width las aplastaría. */
+.content img,
+.content canvas,
+.content iframe,
+.content video { max-width: 100%; }
+.content pre { max-width: 100%; overflow-x: auto; }
+/* SVG sueltos (gráficos/ilustraciones) se contienen al ancho... */
+.content svg { max-width: 100%; }
+/* ...PERO los ICONOS (anticon, dentro de botones) se resetean: `max-width:100%`
+   los achicaba/deformaba en celdas/flex angostos. */
+.content .anticon svg,
+.content .ant-btn svg,
+.content button svg { max-width: none; }
+
+/* ─── Drawers y modales: nunca exceden el viewport en pantallas chicas ──────
+   Muchos Drawers de filtros usan width fijo (380/480/560px). En un celular más
+   angosto que ese valor, el drawer se salía por la derecha. Aquí se capa al
+   ancho disponible — defensa global, cubre todos los drawers/modales sin
+   tocarlos uno por uno. No-scoped: drawers/modales portean al body. */
+@media (max-width: 600px) {
+    .ant-drawer-right > .ant-drawer-content-wrapper,
+    .ant-drawer-left > .ant-drawer-content-wrapper {
+        max-width: 100vw !important;
+    }
+    .ant-modal {
+        max-width: calc(100vw - 16px) !important;
+    }
+}
+
+/* ─── Export/Import dialog fullscreen en mobile ───────────────────────────
+   Las clases --fullscreen las setea cada dialog en wrap-class-name. En
+   desktop el modal queda como modal centrado normal. En mobile (<768px) lo
+   forzamos a cubrir TODO el viewport — sin margen superior, sin border
+   radius, body scroll interno. Patron Drawer-as-fullscreen.
+   No-scoped: los modals portean fuera del componente al body. */
+@media (max-width: 767px) {
+    .export-dialog--fullscreen .ant-modal,
+    .import-dialog--fullscreen .ant-modal {
+        top: 0 !important;
+        max-width: 100vw !important;
+        width: 100vw !important;
+        margin: 0 !important;
+        padding-bottom: 0 !important;
+        height: 100vh;
+        height: 100dvh; /* dvh = dynamic viewport height (toma en cuenta barras del browser mobile) */
+    }
+    .export-dialog--fullscreen .ant-modal-content,
+    .import-dialog--fullscreen .ant-modal-content {
+        height: 100vh;
+        height: 100dvh;
+        border-radius: 0 !important;
+        display: flex;
+        flex-direction: column;
+        padding: 0 !important;
+    }
+    .export-dialog--fullscreen .ant-modal-header,
+    .import-dialog--fullscreen .ant-modal-header {
+        margin: 0 !important;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--color-border-soft);
+        flex-shrink: 0;
+    }
+    .export-dialog--fullscreen .ant-modal-body,
+    .import-dialog--fullscreen .ant-modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+    }
+    .export-dialog--fullscreen .ant-modal-close,
+    .import-dialog--fullscreen .ant-modal-close {
+        top: 8px !important;
+        right: 8px !important;
+    }
+}
+
+/* ─── Design tokens (SAP Fiori Quartz palette) ──────────────────────────────
+   Único lugar donde se definen los colores de marca. Componentes consumen
+   `var(--color-*)` y nunca hardcodean hex. Cambiar el token = cambiar la app. */
+:root {
+    /* Brand */
+    --color-primary:           #0A6ED1;
+    --color-primary-accent:    #4db6e8;
+    /* Fondo del shell-bar (topbar). Por defecto el navy SAP; cada esquema lo
+       pisa con un tono oscuro propio para que la barra superior siga el color. */
+    --color-shell-bar:         #354A5F;
+    /* Fondo del sidebar fijo (modo "Con sidebar"): el mismo tono del topbar pero
+       ~15% más claro, para que se distinga del topbar sin ser blanco. Se deriva
+       de --color-shell-bar → sigue cada esquema automáticamente. El Drawer de
+       "Pantalla completa"/móvil NO usa esto (queda blanco). */
+    --color-sidebar-bg:        color-mix(in srgb, var(--color-shell-bar) 85%, #ffffff);
+    --color-danger:            #BB0000;
+    --color-danger-bright:     #C8281D;
+    --color-warning:           #f59e0b;
+    --color-input-error:       #ff4d4f;
+
+    /* Text */
+    --color-text:              #32363A;
+    --color-text-muted:        #6A6D70;
+    --color-text-strong:       #334155;
+    --color-text-dim:          #9aa0a6;
+    --color-text-on-dark:      #ffffff;
+
+    /* Surfaces */
+    --color-surface:           #ffffff;
+    --color-surface-alt:       #F8FAFC;
+    --color-surface-hover:     #F5F9FE;
+    --color-surface-selected:  #E6F1FB;
+    --color-surface-overlay:   #354A5F;
+    /* Fondo de página (detrás de las tarjetas). En dark va MÁS oscuro que las
+       tarjetas para dar profundidad y que no se vea una losa gris plana. */
+    --color-page-bg:           #F7F7F7;
+    /* Fondo gris-azulado del look SAP (índices .sap-index, forms .sap-form,
+       fichas .sap-show). En dark cae a --color-page-bg (ver bloque dark). */
+    --sap-page-bg:             #e9edf2;
+
+    /* Borders */
+    --color-border:            #e5e7eb;
+    --color-border-soft:       #f0f0f0;
+    --color-border-selected:   #B5D7F4;
+    --color-border-strong:     #E5E5E5;
+    --color-border-overlay:    #2C3E51;
+    /* Divider entre items de lista: gris medio-oscuro (slate-500) — claramente
+       visible sobre blanco (contraste ~3.7:1). border-strong/soft son para
+       contornos de containers; un divider entre filas necesita más peso
+       visual sobre todo en mobile a densidad alta. Patrón Yape / iOS Mail. */
+    --color-divider:           #6b7280;
+
+    /* Iconos / decorativos */
+    --color-icon-mute:         #cbd5e1;
+    --color-icon-soft:         #b8c5d0;
+
+    /* Row tints (filas dirty/duplicate, alertas suaves) */
+    --tint-dirty:              rgba(245, 158, 11, 0.06);
+    --tint-duplicate:          rgba(200, 40, 29, 0.06);
+}
+
+/* ─── Esquemas de color (apariencia, por usuario) ───────────────────────
+   Cambian la MARCA (primary + acento + tintes de hover/seleccionado). El
+   default (SAP, azul) vive en :root. Se aplican con data-scheme en <html>.
+   Van ANTES del bloque dark a propósito: en modo oscuro, dark sobrescribe los
+   tintes de superficie y el `--color-primary` del esquema sobrevive (dark no lo
+   define). Ant Design lee --color-primary en runtime → botones/links siguen. */
+html[data-scheme="slate"] {
+    --color-primary:           #475569;
+    --color-primary-accent:    #64748b;
+    --color-shell-bar:         #334155;
+    --color-surface-hover:     #f1f5f9;
+    --color-surface-selected:  #e2e8f0;
+    --color-border-selected:   #cbd5e1;
+}
+html[data-scheme="emerald"] {
+    --color-primary:           #059669;
+    --color-primary-accent:    #34d399;
+    --color-shell-bar:         #065f46;
+    --color-surface-hover:     #ecfdf5;
+    --color-surface-selected:  #d1fae5;
+    --color-border-selected:   #a7f3d0;
+}
+html[data-scheme="indigo"] {
+    --color-primary:           #4f46e5;
+    --color-primary-accent:    #818cf8;
+    --color-shell-bar:         #3730a3;
+    --color-surface-hover:     #eef2ff;
+    --color-surface-selected:  #e0e7ff;
+    --color-border-selected:   #c7d2fe;
+}
+/* Rojo apagado (granate) — "rojo pero no tan rojo": desaturado y oscuro para
+   contraste con texto blanco en botones/links. */
+html[data-scheme="red"] {
+    --color-primary:           #B23A48;
+    --color-primary-accent:    #e08a94;
+    --color-shell-bar:         #7a2832;
+    --color-surface-hover:     #fdf2f3;
+    --color-surface-selected:  #fbe1e4;
+    --color-border-selected:   #f1c2c8;
+}
+/* Ámbar / ocre cálido. */
+html[data-scheme="amber"] {
+    --color-primary:           #B45309;
+    --color-primary-accent:    #f59e0b;
+    --color-shell-bar:         #78350f;
+    --color-surface-hover:     #fffbeb;
+    --color-surface-selected:  #fef3c7;
+    --color-border-selected:   #fcd34d;
+}
+/* Teal / cian frío. */
+html[data-scheme="teal"] {
+    --color-primary:           #0E7490;
+    --color-primary-accent:    #22d3ee;
+    --color-shell-bar:         #164e63;
+    --color-surface-hover:     #ecfeff;
+    --color-surface-selected:  #cffafe;
+    --color-border-selected:   #a5f3fc;
+}
+/* Alto contraste (accesibilidad): azul fuerte + texto/bordes más oscuros. */
+html[data-scheme="contrast"] {
+    --color-primary:           #1d4ed8;
+    --color-primary-accent:    #2563eb;
+    --color-shell-bar:         #0f172a;
+    --color-text:              #0b0f19;
+    --color-text-muted:        #374151;
+    --color-text-strong:       #0b0f19;
+    --color-border:            #9ca3af;
+    --color-border-strong:     #6b7280;
+    --color-divider:           #374151;
+    --color-surface-hover:     #eff6ff;
+    --color-surface-selected:  #dbeafe;
+    --color-border-selected:   #60a5fa;
+}
+
+html[data-theme="dark"] {
+    --color-text:              #e5e6e7;
+    --color-text-muted:        #a8aaae;
+    --color-text-strong:       #e5e6e7;
+    --color-surface:           #1c2228;
+    --color-surface-alt:       #2c3034;
+    --color-page-bg:           #12161b;
+    /* El fondo SAP claro (#e9edf2) NO tiene sentido en dark: cae al fondo de
+       página oscuro. Sin esto, los índices/forms/fichas quedaban con una losa
+       gris clara detrás de las tarjetas oscuras. */
+    --sap-page-bg:             var(--color-page-bg);
+    --color-surface-hover:     #313a44;
+    --color-surface-selected:  rgba(77, 182, 232, 0.10);
+    --color-border:            #3f4448;
+    --color-border-soft:       #3f4448;
+    --color-border-selected:   #4db6e8;
+    --color-border-strong:     #3f4448;
+    --color-divider:           #3f4448;
+    --tint-dirty:              rgba(245, 158, 11, 0.10);
+    --tint-duplicate:          rgba(200, 40, 29, 0.12);
+}
+
+/* ─── Fullscreen modals (export/import) ─────────────────────────────────
+   IMPORTANTE: NO tocar `display` ni `inset` en .ant-modal-wrap. Cuando antd
+   cierra el modal aplica `display: none` ahí — si lo overrideamos con
+   !important, el wrap invisible queda capturando clicks y bloquea la
+   página. Anulamos el centrado flex con align/justify: stretch en su lugar.
+   El modal interno usa el espacio completo via width/height + flex-grow. */
+.export-dialog--fullscreen,
+.import-dialog--fullscreen {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+}
+.export-dialog--fullscreen .ant-modal,
+.import-dialog--fullscreen .ant-modal {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none !important;
+    top: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform: none !important;
+    vertical-align: top !important;
+}
+.export-dialog--fullscreen .ant-modal-content,
+.import-dialog--fullscreen .ant-modal-content {
+    width: 100% !important;
+    height: 100vh;
+    height: 100dvh;
+    max-height: none !important;
+    border-radius: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-shadow: none !important;
+}
+.export-dialog--fullscreen .ant-modal-header,
+.import-dialog--fullscreen .ant-modal-header {
+    flex-shrink: 0 !important;
+    border-radius: 0 !important;
+}
+.export-dialog--fullscreen .ant-modal-body,
+.import-dialog--fullscreen .ant-modal-body {
+    flex: 1 1 auto !important;
+    overflow-y: auto !important;
+    /* Respeta safe-area de iOS al fondo (notch / home indicator). */
+    padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)) !important;
+}
+.export-dialog--fullscreen .ant-modal-footer,
+.import-dialog--fullscreen .ant-modal-footer {
+    flex-shrink: 0 !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+}
+.export-dialog--fullscreen .ant-modal-close,
+.import-dialog--fullscreen .ant-modal-close {
+    top: 8px !important;
+    inset-inline-end: 8px !important;
+}
+
+/* ─── Sidebar mobile drawer (fullscreen) ────────────────────────────────
+   Solo aplica abajo de 768px — desktop sigue con el sidebar inline normal.
+   Header con título + X grande (touch target 44px). Body con safe-area
+   bottom inset para iPhones con home indicator. */
+@media (max-width: 767.98px) {
+    .sidebar-mobile-drawer .ant-drawer-content-wrapper {
+        width: 100vw !important;
+    }
+    .sidebar-mobile-drawer .ant-drawer-header {
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--color-border);
+    }
+    .sidebar-mobile-drawer .ant-drawer-header-title {
+        flex-direction: row-reverse;
+    }
+    .sidebar-mobile-drawer .ant-drawer-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--color-text);
+    }
+    .sidebar-mobile-drawer .ant-drawer-close {
+        width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+        margin: -8px -8px -8px 0;
+        color: var(--color-text-muted);
+    }
+    .sidebar-mobile-drawer .ant-drawer-close:hover {
+        color: var(--color-primary);
+    }
+    .sidebar-mobile-drawer .ant-drawer-body {
+        padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
+    }
+}
+
+/* ─── Button hover spring effect ─────────────────────────────────────────────
+   Solo en desktop con mouse fino (no toca mobile/touch).
+   Usa transform (GPU-accelerated) — 0 reflow, 0 cost de perf.
+   Excluye text/link buttons (son planos, queda raro).
+*/
+@media (hover: hover) and (pointer: fine) {
+    .ant-btn {
+        transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1),
+                    box-shadow 0.18s ease,
+                    background-color 0.15s ease,
+                    border-color 0.15s ease;
+    }
+
+    /* TODOS los botones reaccionan al hover — uniforme, realce vía sombra/fondo.
+       OJO: NO mover la geometría del botón en :hover (translate/scale). Si el
+       botón crece o se desplaza bajo el cursor, cerca del borde el puntero queda
+       fuera de su nuevo bounding box → dispara mouseleave → vuelve → mouseenter →
+       loop infinito, y el Tooltip que envuelve al botón parpadea ("se raya").
+       El "lift" se simula solo con box-shadow (no cambia el bounding box). El
+       movimiento real queda únicamente en :active (click), que no genera loop. */
+    .ant-btn:not(:disabled) {
+        will-change: box-shadow;
+    }
+
+    /* Primary: lift + sombra azul fuerte */
+    .ant-btn-primary:not(:disabled):hover {
+        box-shadow: 0 6px 18px rgba(10, 110, 209, 0.32);
+    }
+
+    /* Danger: lift + sombra roja */
+    .ant-btn[ant-btn-danger]:not(:disabled):hover,
+    .ant-btn.ant-btn-dangerous:not(:disabled):hover {
+        box-shadow: 0 6px 18px rgba(187, 0, 0, 0.26);
+    }
+
+    /* Default: lift + sombra neutral */
+    .ant-btn-default:not(:disabled):hover {
+        box-shadow: 0 5px 14px rgba(15, 23, 42, 0.14);
+    }
+
+    /* Text / link: scale + bg sutil — sin sombra porque no hay borde */
+    .ant-btn-text:not(:disabled):hover,
+    .ant-btn-link:not(:disabled):hover {
+        background-color: rgba(10, 110, 209, 0.06);
+    }
+
+    /* Press feedback — vuelve hacia abajo y achica un toque */
+    .ant-btn:not(:disabled):active {
+        transform: translateY(0) scale(0.98);
+        transition-duration: 80ms;
+    }
+}
+
+/* Reduced motion respeta accessibility */
+@media (prefers-reduced-motion: reduce) {
+    .ant-btn {
+        transition: none !important;
+    }
+    .ant-btn:hover {
+        transform: none !important;
+    }
+}
+
+/* Highlight verde pulso 2s en filas recién creadas/restauradas. Lo aplica
+   useRecentRowHighlight via :row-class-name. Global porque todos los Index.vue
+   lo usan idéntico. */
+.ant-table-tbody > tr.row-highlight > td {
+    animation: row-pulse 2s ease-out;
+}
+@keyframes row-pulse {
+    0%   { background-color: rgba(82, 196, 26, 0.22); }
+    60%  { background-color: rgba(82, 196, 26, 0.10); }
+    100% { background-color: transparent; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .ant-table-tbody > tr.row-highlight > td { animation: none; }
+}
+
+/* ─── Animaciones compartidas de Index.vue (.grid-card pattern) ─────────────
+   Cualquier <Card class="grid-card"> hereda:
+   - Fade-in stagger de filas (primeras 10 con delay progresivo)
+   - Hover-lift sutil del card
+   - Empty-state icon respiración
+   - Hover-to-reveal de acciones por fila (patrón Notion/Linear)
+   Antes vivían duplicadas en cada Index.vue — extraídas para DRY. Nuevos
+   módulos solo necesitan poner class="grid-card" para recibirlas.
+*/
+.grid-card .ant-table-tbody > tr {
+    transition: background-color 0.15s ease;
+    animation: row-fade-in 0.32s ease-out both;
+}
+.grid-card .ant-table-tbody > tr:hover > td {
+    background: var(--color-surface-hover) !important;
+}
+/* "Acciones" (columna fija a la derecha): título e iconos centrados en TODOS
+   los módulos. Un solo lugar, sin tocar cada config de columnas. */
+.grid-card .ant-table-thead > tr > th.ant-table-cell-fix-right,
+.grid-card .ant-table-tbody > tr > td.ant-table-cell-fix-right { text-align: center !important; }
+
+/* Header de tabla UNIFORME (estilo SAP Fiori): banda gris sutil en TODAS las
+   columnas, incluida la fija (Acciones). Centralizado con !important para ganarle
+   al CSS scoped por-módulo, que ponía el header en blanco (--color-surface) y
+   dejaba solo la columna fija en otro tono. Una sola fuente de verdad. */
+.grid-card .ant-table-thead > tr > th { background: var(--color-surface-alt, #fafbfc) !important; }
+
+/* Columna fija (Acciones): FONDO SÓLIDO. Sin esto, en tablas con muchas
+   columnas (Transformers) la columna fija es transparente y se ve "encimada"
+   sobre los valores al hacer scroll horizontal — parecía que tapaba datos.
+   Con fondo sólido + la sombra nativa de antd, tapa limpio (patrón Stripe). */
+.grid-card .ant-table-thead > tr > th.ant-table-cell-fix-right { background: var(--color-surface-alt, #fafbfc) !important; }
+.grid-card .ant-table-tbody > tr > td.ant-table-cell-fix-right { background: var(--color-surface, #fff) !important; }
+.grid-card .ant-table-tbody > tr:hover > td.ant-table-cell-fix-right { background: var(--color-surface-hover) !important; }
+/* Refuerzo de la sombra que indica que la columna está fijada (más visible). */
+.grid-card .ant-table-ping-right .ant-table-cell-fix-right-first::after,
+.grid-card .ant-table-ping-right .ant-table-cell-fix-right-last::after {
+    box-shadow: inset -10px 0 8px -8px rgba(16,24,40,0.18);
+}
+.grid-card .ant-table-tbody > tr:nth-child(1)  { animation-delay: 0ms;   }
+.grid-card .ant-table-tbody > tr:nth-child(2)  { animation-delay: 30ms;  }
+.grid-card .ant-table-tbody > tr:nth-child(3)  { animation-delay: 60ms;  }
+.grid-card .ant-table-tbody > tr:nth-child(4)  { animation-delay: 90ms;  }
+.grid-card .ant-table-tbody > tr:nth-child(5)  { animation-delay: 120ms; }
+.grid-card .ant-table-tbody > tr:nth-child(6)  { animation-delay: 150ms; }
+.grid-card .ant-table-tbody > tr:nth-child(7)  { animation-delay: 180ms; }
+.grid-card .ant-table-tbody > tr:nth-child(8)  { animation-delay: 210ms; }
+.grid-card .ant-table-tbody > tr:nth-child(9)  { animation-delay: 240ms; }
+.grid-card .ant-table-tbody > tr:nth-child(10) { animation-delay: 270ms; }
+@keyframes row-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Card lift al hover */
+.grid-card { transition: box-shadow 0.18s ease; }
+.grid-card:hover { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08); }
+
+/* Mobile: las tarjetas de la lista FLOTAN sobre el fondo, separadas con espacio
+   entre sí (cada una con su borde/sombra desde ResponsiveTable). Se quita el
+   marco blanco del Card exterior para que no haya doble-marco. Solo mobile. */
+@media (max-width: 767.98px) {
+    .grid-card {
+        background: transparent !important;
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+}
+
+/* Empty state — el icono respira */
+.grid-card .empty-state__icon,
+.grid-card .ant-empty-image {
+    animation: empty-breathe 3.5s ease-in-out infinite;
+    transform-origin: center;
+}
+@keyframes empty-breathe {
+    0%, 100% { transform: scale(1)    translateY(0);  opacity: 0.85; }
+    50%      { transform: scale(1.04) translateY(-2px); opacity: 1;    }
+}
+
+/* Hover-to-reveal de acciones (Notion/Linear pattern) */
+.grid-card .ant-table-tbody .row-actions-desktop {
+    opacity: 0.45;
+    transition: opacity 0.15s ease;
+}
+.grid-card .ant-table-tbody > tr:hover .row-actions-desktop,
+.grid-card .ant-table-tbody .row-actions-desktop:focus-within {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .grid-card .ant-table-tbody > tr { animation: none; }
+    .grid-card .empty-state__icon,
+    .grid-card .ant-empty-image { animation: none; }
+}
+
+/* ─── Bell de notificaciones — titileo cuando hay unread ──────────────────
+   Activado por `.notif-bell-btn--alert` (Vue lo aplica si inbox.unread > 0).
+   Patrón Slack/Discord: pulso de color cada ~3s + leve "ring" del icono que
+   atrae el ojo sin ser molesto. La animación se pausa al hover (el usuario
+   ya la vio, no necesita seguir vibrando). */
+.notif-bell-btn--alert {
+    animation: bell-pulse 2.4s ease-in-out infinite;
+    position: relative;
+}
+.notif-bell-btn--alert .anticon {
+    /* El icono mismo hace un pequeño swing al inicio de cada ciclo. */
+    display: inline-block;
+    animation: bell-ring 2.4s ease-in-out infinite;
+    transform-origin: top center;
+    color: var(--color-warning, #f59e0b);
+}
+.notif-bell-btn--alert:hover {
+    animation: none;
+}
+.notif-bell-btn--alert:hover .anticon {
+    animation: none;
+}
+
+@keyframes bell-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+    }
+    20% {
+        box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.25);
+    }
+    40% {
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+    }
+}
+
+@keyframes bell-ring {
+    0%, 50%, 100% { transform: rotate(0); }
+    10%           { transform: rotate(-12deg); }
+    20%           { transform: rotate(10deg); }
+    30%           { transform: rotate(-8deg); }
+    40%           { transform: rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .notif-bell-btn--alert,
+    .notif-bell-btn--alert .anticon {
+        animation: none;
+    }
+    /* Mantenemos el color amarillo para que igual destaque sin moverse. */
+    .notif-bell-btn--alert .anticon { color: var(--color-warning, #f59e0b); }
+}
+
+/* ─── Popconfirm/Popover SIEMPRE arriba del Tooltip ──────────────────────
+   Cuando un action button está envuelto en <Tooltip> y dispara un
+   <Popconfirm>, ambos compiten por el mismo z-index (1060 default de antd).
+   El Tooltip queda enfrente y tapa el Popconfirm. Fix: forzar Popover
+   por encima del Tooltip. Aplica también a Popconfirm porque internamente
+   antd lo renderiza como `.ant-popover`. */
+.ant-popover { z-index: 1080 !important; }
+.ant-tooltip { z-index: 1070 !important; }
+
+/* Cuando el Popconfirm está visible para un trigger, ocultar cualquier
+   Tooltip residual del mismo origen — evita el "stuck tooltip" cuando el
+   usuario hace click rápido y el hover queda atrapado. */
+.ant-tooltip-hidden { display: none !important; }
+
+/* ─── Click derecho deshabilitado en action buttons ──────────────────────
+   Los componentes *ActionsCell.vue tienen botones con íconos (ver/editar/
+   eliminar/duplicar). El menú contextual del navegador en estos íconos
+   no aporta nada útil (no son links navegables) y confunde. */
+.row-actions-desktop,
+.row-actions-mobile,
+.row-icon-btn {
+    -webkit-touch-callout: none;
+}
+.row-actions-desktop *,
+.row-actions-mobile *,
+.row-icon-btn,
+.row-icon-btn * {
+    pointer-events: auto;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Efectos sobrios de diagnóstico (transformadores). Solo opacity/transform →
+   no afectan performance. Transición al cambiar de sub-vista (Segmented).
+   ────────────────────────────────────────────────────────────────────────── */
+.vrise-enter-active {
+    transition: opacity 0.28s ease, transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vrise-enter-from {
+    opacity: 0;
+    transform: translateY(10px);
+}
+/* leave: instantaneo (sin regla) para evitar solapamientos de layout */
+
+/* Micro-interacción reutilizable: leve elevación de tarjetas al pasar el mouse. */
+.lift {
+    transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(16, 24, 40, 0.10);
+}
+html[data-theme="dark"] .lift:hover {
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   REDISEÑO ESTILO SAP/FIORI PARA ÍNDICES DE MÓDULO (.sap-index)
+   Compartido por todos los módulos (Customers fue el master). Aplica el look
+   Fiori: fondo gris-azulado, header blanco con tabs debajo, tabla blanca con
+   títulos grises, toolbar compacto. Se activa agregando class="sap-index" al
+   div raíz del Index de cada módulo.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Fondo de página gris-azulado (bleed para cubrir todo el área de contenido). */
+.sap-index { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - 110px); }
+@media (max-width: 768px) {
+    .sap-index { margin: -16px; padding: 16px; }
+    /* En mobile el bleed es -16px (el contenedor padea 16, no 24). */
+    .sap-index .mi-title { margin: -16px -16px 0; padding: 14px 16px 8px; }
+    .sap-index .mi-console--v2 { margin: 0 -16px; padding: 0 16px; }
+    .sap-index .mi-tabletoolbar { margin: 0; padding: 6px 2px 10px; }
+    .sap-index .mi-builder--table { margin: 0; padding: 0 2px 10px; }
+    .sap-index .grid-card { margin: 0; }
+    .sap-index .tx-title { margin: -16px -16px 0 !important; padding: 14px 16px 8px !important; }
+    .sap-index .tx-console { margin: 0 -16px !important; padding: 2px 16px 0 !important; }
+}
+
+/* Header Fiori: título + quick-filter tabs como BANDA blanca plana a BORDE
+   COMPLETO (full-bleed): pegada arriba y a los lados, sin gutter gris, sin
+   esquinas redondeadas, sin sombra. */
+.sap-index .mi-title {
+    background: var(--color-surface, #fff);
+    margin: -24px -24px 0;
+    padding: 16px 24px 8px;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    align-items: center;
+}
+/* Layout del título: icono (caja 40x40) a la IZQUIERDA + título/subtítulo a la
+   derecha, centrados verticalmente. Esto vivía SCOPED en los componentes
+   PageHeader (Brands/Plans/etc.); lo subimos a global para los módulos que usan
+   page-header__* inline (AuditLogs, Dashboard, Comparison, etc.) — si no, el
+   icono se estira como franja arriba. align-items:center centra el título con el
+   icono cuando NO hay subtítulo. */
+.sap-index .mi-title .page-header__title { display: flex; align-items: center; gap: 14px; }
+.sap-index .mi-title .page-header__icon {
+    width: 40px; height: 40px; border-radius: 4px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    /* Tinte suave + glifo en primario (no relleno sólido): el cuadrado lleno
+       parecía un botón primario clickeable. */
+    background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+    color: var(--color-primary); box-shadow: none;
+}
+.sap-index .mi-title .page-header__heading h1 { font-size: 1.6rem; font-weight: 400; margin: 0; color: var(--color-text-strong, #1f2329); }
+.sap-index .mi-title .page-header__heading p  { font-size: 0.8125rem; margin: 2px 0 0; color: var(--color-text-muted, #6a7280); }
+/* Módulos SIN quick-links (Bandeja, Auditoría, Dashboard, Aprobaciones, etc.): el
+   contenido no debe quedar pegado a la banda del título. Si el .mi-title NO va
+   seguido de un console (los que tienen quick-links agrupan título+console sin
+   gap), se agrega un gap gris debajo. */
+.sap-index .mi-title:not(:has(+ .mi-console)) { margin-bottom: 16px; }
+
+/* Quick-filters (tabs) → MISMA superficie blanca continua (sin línea debajo del
+   título, sin fondo propio, sin gap gris). Solo divisor sutil bajo las tabs. */
+.sap-index .mi-console--v2 {
+    background: var(--color-surface, #fff);
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 2px 24px 0;
+    margin: 0 -24px;
+}
+/* Quick links pegados al título, SIN espacio hacia abajo (base = Trafos). */
+.sap-index .mi-viewsbar { margin-bottom: 0; }
+.sap-index .sv-bar { gap: 5px; }
+.sap-index .sv-bar > *:last-child { margin-left: auto; }
+
+/* Sección de tabla a BORDE COMPLETO, plana, sin gutter ni esquinas redondeadas. */
+.sap-index .grid-card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e3e6ea);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+    margin: 0 0 18px;
+}
+/* Títulos de tabla en GRIS sobre el body blanco. */
+.sap-index .grid-card .ant-table-thead > tr > th {
+    background: var(--color-surface-alt, #eef1f4);
+    color: var(--color-text-muted, #5a6470);
+    border-bottom: 1px solid var(--color-border, #d6dde6);
+}
+.sap-index .grid-card .ant-table-thead th .ant-table-column-sorter { color: #aeb6c0; }
+/* Filas de datos SIEMPRE blancas (sin cebra); hover y selección se mantienen. */
+.sap-index .grid-card .ant-table-tbody > tr > td { background: var(--color-surface, #fff); }
+.sap-index .grid-card .ant-table-tbody > tr:hover > td { background: var(--color-surface-hover, #f8fafc) !important; }
+.sap-index .grid-card .ant-table-tbody > tr.ant-table-row-selected > td { background: var(--color-surface-selected, #e6f0fb) !important; }
+/* Footer/paginación: banda clara. */
+.sap-index .grid-card .ant-table-pagination {
+    margin: 0; padding: 10px 14px;
+    background: var(--color-surface-alt, #f7f8fa);
+    border-top: 1px solid var(--color-border, #e3e6ea);
+    border-radius: 0 0 8px 8px;
+}
+
+/* Toolbar Fiori a borde completo (cabecera blanca de la sección de tabla). */
+.sap-index .mi-tabletoolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 6px 2px 10px; background: transparent; border-bottom: 0; }
+.sap-index .mi-tabletoolbar__right { display: flex; align-items: center; gap: 6px; }
+.sap-index .mi-bar--toolbar {
+    flex: 0 0 auto; width: 240px; height: 32px; gap: 2px; padding: 0 4px 0 10px;
+    background: var(--color-surface, #fff); border: 1px solid var(--color-border, #d6dde6); border-radius: 6px;
+}
+.sap-index .mi-bar--toolbar .mi-bar__input { font-size: 0.82rem; }
+.sap-index .mi-bar--toolbar .mi-bar__sep { display: none; }
+.sap-index .mi-iconbtn { position: relative; width: 32px; height: 32px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.sap-index .mi-iconbtn .anticon { font-size: 1rem; margin: 0; }
+.sap-index .mi-iconbtn--active { color: var(--color-primary); border-color: var(--color-primary); }
+.sap-index .mi-iconbtn__count {
+    position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px; padding: 0 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--color-primary); color: #fff; font-size: 0.66rem; font-weight: 700; line-height: 1;
+    border-radius: 999px; border: 1.5px solid var(--color-surface, #fff);
+}
+.sap-index .mi-create-btn .anticon { font-size: 1.05rem; }
+.sap-index .mi-toolbar-count { font-size: 0.9rem; font-weight: 600; color: var(--color-text, #32363a); }
+.sap-index .mi-toolbar-sep { width: 1px; height: 22px; background: var(--color-border, #dfe3e8); margin: 0 2px; }
+.sap-index .bidx-clear, .sap-index .bidx-savefilter {
+    display: inline-flex; align-items: center; gap: 6px;
+    height: 32px; padding: 0 12px; border-radius: 6px;
+    border: 1px solid var(--color-border, #d6dde6);
+    background: var(--color-surface, #fff);
+}
+.sap-index .bidx-clear:hover, .sap-index .bidx-savefilter:hover {
+    border-color: var(--color-primary, #0A6ED1);
+}
+.sap-index .mi-builder--table { margin: 0; padding: 0 2px 10px; background: transparent; border-bottom: 0; }
+.sap-index .mi-builder--table:empty { display: none; }
+
+/* Responsive (sin modo mobile aparte): en pantallas chicas la toolbar de
+   resultados envuelve; el buscador pasa a su propia fila a todo el ancho y los
+   botones con etiqueta (Ordenar / Vista) quedan SOLO en icono. */
+@media (max-width: 640px) {
+    .sap-index .mi-tabletoolbar { flex-wrap: wrap; }
+    .sap-index .mi-tabletoolbar__right { flex-wrap: wrap; row-gap: 8px; margin-left: 0; width: 100%; }
+    .sap-index .mi-bar--toolbar { flex: 1 1 100%; width: auto; }
+    .sap-index .mi-tabletoolbar .sort-btn__label { display: none; }
+    .sap-index .mi-tabletoolbar .sort-btn { padding-left: 8px; padding-right: 8px; }
+}
+
+/* Nombre/primer valor como hipervínculo (Fiori): azul SAP + subrayado al hover. */
+.sap-index .lead__link { color: var(--color-primary); cursor: pointer; outline: none; text-decoration: none; }
+.sap-index .lead__link:hover, .sap-index .lead__link:focus-visible { color: var(--color-primary); text-decoration: underline; }
+
+/* Transformers usa tx-title/tx-console (no .mi-): banda full-bleed igual que el
+   resto de módulos. */
+.sap-index .tx-title {
+    background: var(--color-surface, #fff) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    margin: -24px -24px 0 !important;
+    padding: 16px 24px 8px !important;
+    box-shadow: none !important;
+}
+.sap-index .tx-console {
+    background: var(--color-surface, #fff) !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 -24px !important;
+    padding: 2px 24px 0 !important;
+    overflow: visible !important;
+}
+/* Trafos envuelve el toolbar + tabla en .mi-resultpanel. NO va full-bleed: la
+   sección de resultados queda contenida (con gutter) y la tabla como card. El
+   toolbar va transparente arriba. */
+.sap-index .mi-resultpanel { margin-bottom: 18px; }
+.sap-index .mi-resultpanel > .mi-tabletoolbar {
+    margin: 0;
+    padding: 6px 2px 10px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+}
+.sap-index .mi-resultpanel > .grid-card {
+    margin: 0;
+    border: 1px solid var(--color-border, #e3e6ea);
+    border-radius: 10px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.05);
+}
+.sap-index .mi-resultpanel > .mi-builder--table { margin: 0; padding: 0 2px 10px; }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   LOOK SAP/FIORI PARA FORMS DE CREATE/EDIT (.sap-form)
+   Familia de .sap-index. Se activa con class="form-page sap-form" en el div raíz
+   del Form, + el Form en layout="horizontal" + FormFooter con prop `floating`.
+   Da: fondo gris, franja blanca de título full-bleed, cuerpo sin fondo blanco,
+   campos apilados (label izq + input der), footer toolbar fino full-bleed.
+   ════════════════════════════════════════════════════════════════════════════ */
+.sap-form { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - 110px); }
+/* Franja blanca del título a borde completo. */
+.sap-form .section-header {
+    background: var(--color-surface, #fff);
+    margin: -24px -24px 20px;
+    padding: 16px 24px;
+    border-radius: 0;
+    box-shadow: none;
+}
+/* Cuerpo sin fondo blanco: Card o .form-body transparentes. */
+.sap-form .ant-card,
+.sap-form .ant-card-body,
+.sap-form .form-body { background: transparent; border: 0; box-shadow: none; }
+.sap-form .form-body { padding: 8px 28px 24px; }
+/* Campos apilados: Col a ancho completo (el layout horizontal pone label/input). */
+.sap-form .ant-col:not(.ant-form-item-label):not(.ant-form-item-control) { flex: 0 0 100% !important; max-width: 100% !important; }
+.sap-form .ant-form-item { margin-bottom: 16px; }
+/* Título de subsección. */
+.sap-form .form-section-title {
+    font-size: 0.95rem; font-weight: 700; color: var(--color-text-strong, #32363a); margin: 0 0 18px;
+}
+.sap-form .form-section-title--spaced { margin-top: 18px; }
+/* Asterisco de obligatorio más fuerte. */
+.sap-form .ant-form-item-required::before { color: #e0182d; font-size: 1.05em; font-weight: 700; }
+/* Footer toolbar fino full-bleed (-52 = padding .sap-form 24 + body/card 28). */
+.sap-form .form-footer--floating { margin: 12px -52px 0; padding: 8px 52px; }
+@media (max-width: 768px) {
+    .sap-form { margin: -16px; padding: 16px; }
+    .sap-form .section-header { margin: -16px -16px 16px; padding: 14px 16px; }
+    .sap-form .form-footer--floating { margin: 12px -32px 0; padding: 8px 16px; }
+}
+
+/* ── Ficha (Show): franja blanca del título full-bleed sobre fondo gris ──────
+   Misma franja que forms/índices, pero SIN aplanar las tarjetas ni forzar las
+   columnas a 100% (por eso es una clase aparte de .sap-form, que sí hace eso y
+   rompería los layouts de las fichas). Las tarjetas del Show quedan con su estilo
+   propio (blancas). Trafos NO la usa (su ficha tiene layout propio). */
+.sap-show { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - 110px); }
+.sap-show .section-header {
+    background: var(--color-surface, #fff);
+    margin: -24px -24px 20px;
+    padding: 16px 24px;
+    border-radius: 0;
+    box-shadow: none;
+}
+@media (max-width: 768px) {
+    .sap-show { margin: -16px; padding: 16px; }
+    .sap-show .section-header { margin: -16px -16px 16px; padding: 14px 16px; }
+}
+
+/* ── Editar todo (EditAll) ─────────────────────────────────────────────────
+   Cabecera de la tabla fija al scrollear, como el thead del index (offset 44 =
+   shell-bar). El card no debe clipear (overflow hidden rompe el sticky). */
+.edit-table thead th { position: sticky; top: 44px; z-index: 2; }
+/* En pantallas chicas .edit-table se vuelve su propio scroll container
+   (display:block + overflow-x:auto arriba — y overflow-x:auto fuerza también
+   overflow-y por spec CSS). Ahí el sticky deja de ser relativo al viewport y
+   pasa a serlo del CONTENEDOR: el top:44px empujaba las cabeceras 44px hacia
+   abajo DENTRO del card → la franja blanca arriba de las cabeceras que se veía
+   solo en móvil. Dentro del contenedor el offset correcto es 0. */
+@media (max-width: 768px) {
+    .edit-table thead th { top: 0; }
+}
+.edit-all .edit-table-card { overflow: visible; }
+/* Paginación como FOOTER del card (igual que el index en vista tabla): fondo
+   surface-alt + borde superior + esquinas redondeadas abajo. */
+.edit-all .edit-pagination {
+    display: flex; justify-content: flex-end;
+    margin: 0; padding: 10px 14px;
+    background: var(--color-surface-alt, #f7f8fa);
+    border-top: 1px solid var(--color-border, #e3e6ea);
+    border-radius: 0 0 12px 12px;
+}
+/* Item activo de la paginación con el color del esquema (como el index). */
+.ant-pagination-item-active { border-color: var(--color-primary, #0A6ED1); }
+.ant-pagination-item-active a { color: var(--color-primary, #0A6ED1); }
+
+/* ── Ver eliminados (Trash) ────────────────────────────────────────────────
+   Franja blanca (de .sap-form) pero la tabla queda como card BLANCA (no
+   transparente como en los forms) + paginación tipo footer, igual que el index. */
+.sap-form.trash-page .ant-card {
+    background: var(--color-surface, #fff);
+    border: 1px solid var(--color-border, #e8eaed);
+    border-radius: 12px;
+    box-shadow: 0 1px 2px rgba(16,24,40,0.04), 0 4px 12px rgba(16,24,40,0.04);
+}
+.trash-page .ant-table-pagination {
+    margin: 0; padding: 10px 14px;
+    background: var(--color-surface-alt, #f7f8fa);
+    border-top: 1px solid var(--color-border, #e3e6ea);
+    border-radius: 0 0 12px 12px;
+}
+/* Buscador de Trash debajo del título y a la DERECHA (como la toolbar de los
+   índices, que alinea el buscador al lado derecho). */
+.trash-page .trash-toolbar { display: flex; justify-content: flex-end; margin: 0 0 12px; }
+.trash-page .trash-search { max-width: 320px; }
+
+/* ── Barra de acciones masivas (selección de filas en los índices) ─────────
+   Franja blanca pegada al pie (sticky), full-bleed dentro de .sap-index, igual
+   que el footer flotante de los forms / "Editar todo". Aparece al seleccionar
+   filas y va como hijo de .sap-index DESPUÉS del card de la tabla. Antes era una
+   banda tintada arriba del card (y oscura fija solo en móvil); ahora es la misma
+   franja blanca en todas las pantallas. La regla está GLOBAL (no scoped) para que
+   los 20 *BulkBar.vue la compartan sin duplicar estilos. */
+.bulk-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    position: sticky; bottom: 0; z-index: 6;
+    margin: 16px -24px 0; padding: 10px 24px 14px;
+    background: var(--color-surface, #fff);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+    border-top: 1px solid var(--color-border-soft, #eceff2);
+    font-size: 0.875rem;
+}
+.bulk-bar__label { color: var(--color-text); }
+.bulk-bar__label strong { color: var(--color-primary); font-weight: 600; }
+@media (max-width: 768px) {
+    .bulk-bar {
+        margin: 16px -16px 0;
+        padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
+        flex-wrap: nowrap;
+    }
+}

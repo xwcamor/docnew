@@ -1,0 +1,1941 @@
+id,customer_location_id,name,deleted
+1,1,"ABENGOA PERU S.A.- SE FRANCOISE",0
+2,2,Transformers,0
+3,3,"Reactores 500 kV",0
+4,3,Transformadores,0
+5,3,Reactores,0
+6,4,"ABENGOA PERU S.A. - SE SAN ISIDRO",0
+7,5,"ABENGOA PERU S.A. - SE KIMAN AYLLU",0
+8,6,"ABENGOA PERU S.A. - SE CARHUAMAYO",0
+9,7,"Empresa Transmisora Eléctrica Catacaos",0
+10,8,"Empresa Agroindustrial Laredo S. A. A.",0
+11,9,"AGROLMOS S.A.",0
+12,10,"AGUAS DE BAYOVAR",0
+13,11,Transformers,0
+14,12,TRANSFORMER,0
+15,13,PERU,0
+16,14,"SE Principal",0
+17,14,"SE 05",0
+18,14,"SE DETERGENTES",0
+19,14,"SE 03",0
+20,14,"SE 04",0
+21,14,"SE 03A",0
+22,14,"SE 02",0
+23,15,"C.H. CARHUAC",0
+24,16,PPTR,0
+25,17,Transformer,0
+26,18,"C.H. ZAÑA",0
+27,19,Transformadores,0
+28,19,"GCZ Ingenieros S.A.C",0
+29,20,Transformers,0
+30,21,PPTR,0
+31,22,Transformadores,0
+32,23,Transformadores,0
+33,24,PPTR,0
+34,25,"SE PRINCIPAL",0
+35,25,"N°1 San Jeronimo",0
+36,25,"N°2 Buncker",0
+37,25,"N°9 Bolivar N°1",0
+38,25,"N°3 Planta Filtrado",0
+39,25,"N°8 San Martin STANBY",0
+40,25,"10 -2",0
+41,25,"N°1 San Jeronimo STANBY",0
+42,25,"10-7 NV189",0
+43,25,"N°2 Buncker STANBY",0
+44,25,"10-6 NV3000",0
+45,25,Chilcayoc,0
+46,25,"Costado de la Compresora",0
+47,25,"N°11 Tunel Sur",0
+48,25,"N°7 San Martin",0
+49,25,"N°6 Harina",0
+50,25,"10-8 NV 3000",0
+51,25,"N°10 Bolivar N°2",0
+52,25,"10-9 NV3000",0
+53,25,"10-10 NV2950",0
+54,25,"Costado de Almacen",0
+55,25,"10-13 NV3050",0
+56,25,"10-11 NV30",0
+57,25,"10-12 NV3000",0
+58,25,"10-5 NV3050",0
+59,25,"10-4 NV3090",0
+60,25,"SE 10-1",0
+61,25,"10-3 NV3090",0
+62,25,"Costado de Oficina Superintendencia",0
+63,25,"N°5 Uyuccasa",0
+64,25,"N°8 Amada",0
+65,26,"YURA S.A.",0
+66,26,"CENTRAL TÉRMICA 8MW",0
+67,26,"SE YURA 1",0
+68,26,"SE YURA 2",0
+69,26,"SE SANTUARIO",0
+70,26,"SE YURA 3",0
+71,216,Transformadores,0
+72,27,"Cementos Pacasmayo Planta Piura",0
+73,27,Patio,0
+74,27,"S.E N°06",0
+75,28,Transformer,0
+76,28,"CEMENTOS 5",0
+77,28,"Enlace I - SE 60 kV",0
+78,28,DINO,0
+79,28,"CEMENTOS 6",0
+80,28,TEMBLADERA,0
+81,28,"CHANCADORA SECUNDARIA",0
+82,28,"Enlace II - SE 60 kV",0
+83,28,RESIDENCIAS,0
+84,28,"HORNO 2",0
+85,28,"MOLINO CRUDO 2",0
+86,28,"CEMENTOS 4",0
+87,28,TEMBLADERAS,0
+88,28,"PLANTA FUERZA 2",0
+89,28,"TRANS ALUMBRADO",0
+90,28,"TRAFO 2",0
+91,28,"CRUDO 1",0
+92,28,"TRANSFORMADOR 1",0
+93,28,"CEMENTOS 3",0
+94,28,"HOMOGENIZACION 1",0
+95,28,"SE 60 kV",0
+96,28,"SE Gallito Ciego",0
+97,28,"HORNO 3",0
+98,28,"ENFRIADOR HORNO 3",0
+99,28,"EXTRAFO ENLACE",0
+100,28,"HOMOGENIZACION 2",0
+101,29,"Sub Estación N°2",0
+102,29,"Sub Estación N°1",0
+103,29,"Sub Estación N°3",0
+104,29,"Sub Estación Principal",0
+105,30,"Sub Estación",0
+106,31,"Sub Estación 04",0
+107,31,"Sub Estación 03",0
+108,31,"Sub Estación 01",0
+109,31,"Sub Estación 02",0
+110,32,"Planta 01",0
+111,32,"Planta 02",0
+112,33,"CIA. MINERA ARES - SE ARCATA",0
+113,34,Transformer,0
+114,34,CAYLLOMA,0
+115,34,ARCATA,0
+116,35,Transformadores,0
+117,36,TRANSFORMER,0
+118,37,Transformer,0
+119,38,"CERRO CORONA",0
+120,38,"Subestacíon Cajamarca Norte",0
+121,38,"SVC Cajamarca",0
+122,39,Transformers,0
+123,39,Compresoras,0
+124,39,Orcopampa,0
+125,39,"Casa Fuerza",0
+126,39,Julcani,0
+127,40,TRANSFORMERS,0
+128,41,"COMPAÑIA ELECTRO ANDINA",0
+129,42,TRANSFORMERS,0
+130,42,Transformadores,0
+131,42,"Chancadora Secundaria",0
+132,42,"Sistema bombeo de agua",0
+133,42,"Campamento Nuevo-Yanacancha",0
+134,42,"Oficinas Yanacancha",0
+135,42,"Agua fresca - Barcazas",0
+136,42,Reagents,0
+137,42,"Sala 6",0
+138,217,"CASA FUERZA",0
+139,217,PPTR,0
+140,217,"TRANSFORMADORES SIN UBICACION",0
+141,218,Transformadores,0
+142,219,PPTR,0
+143,220,"Transf.3 - 220/60kV",0
+144,220,"Transf.2 - 220/60kV",0
+145,42,"Portatil Mina",0
+146,42,"Sala 2",0
+147,42,Miscelaneos,0
+148,42,"Subestación Vizcarra- 220KV",0
+149,42,"Oficinas de Operaciones Mina",0
+150,42,"Shelter 2",0
+151,42,"Chancadora Terciaria",0
+152,42,"ZONA 420",0
+153,42,"Taller de Mantenimiento",0
+154,42,"Estación N°3",0
+155,42,"Molinos SAG",0
+156,42,Molienda,0
+157,42,"Chancadora Primaria",0
+158,42,"Flotación de Zinc",0
+159,42,"Auxiliar de la concentradora",0
+160,42,"Opción 05",0
+161,42,"Truck Shop",0
+162,42,Transportadora,0
+163,42,"Molinos de Bolas N°4",0
+164,42,"Sala 3",0
+165,42,"Subestación Principal",0
+166,42,"Sala 7",0
+167,42,"Campamento Antiguo-Yanacancha",0
+168,42,"Concentradora Staker",0
+169,42,"Sala 4",0
+170,42,"Almacen Zic Zac",0
+171,42,"Sala 10",0
+172,42,"Almacen Concentradora",0
+173,42,Booster,0
+174,42,"Agua Recuperada",0
+175,42,"Tanques de Almacenamiento",0
+176,42,Molienda/Flotación,0
+177,42,HUINCUSH,0
+178,42,"Quebrada Rampa Sur",0
+179,42,"Welding Shop",0
+180,42,"Molinos de Bolas N°1",0
+181,42,"Molinos de Bolas N°3",0
+182,42,"Molinos de Bolas N°2",0
+183,42,"Seelter Pebble",0
+184,42,Colection,0
+185,42,GENSET,0
+186,42,"Shelter 1",0
+187,42,Geología,0
+188,42,"Estación N°2",0
+189,43,"SE Principal",1
+190,43,"Puerto Huarmey",1
+191,43,"SE Colletion",1
+192,44,"MINERA TINTAYA",0
+193,45,Transformers,0
+194,45,Transformadores,0
+195,242,Transformer,0
+196,243,PPTR,0
+197,45,TRANSFORMER,0
+198,45,PPTR,0
+199,45,Molienda,0
+200,45,"COMPAÑIA MINERA ANTAPACCAY S.A.",0
+201,45,"TRANSFOR SIN UBICACION",0
+202,45,"Transformadores Almacenados",0
+203,45,"Condensador Sincronico",0
+204,45,"Molino Bolas 2",0
+205,45,"Molino Bolas 1",0
+206,45,Concentradora,0
+207,45,"SE Area 03",0
+208,45,"PSI Area 100",0
+209,45,"Taller de Mantenimiento Eléctrico",0
+210,45,"Chancado Terciario",0
+211,45,"SE Movil TF 140",0
+212,45,"In House 01",0
+213,45,"Chancado Secundario",0
+214,45,"Chancado Primario",0
+215,45,"In House 02",0
+216,45,"SE Casa de Fuerza",0
+217,45,"Molino SAG",0
+218,45,"Chancado Pebles",0
+219,45,"Planta de Filtros",0
+220,45,"Transformadores Auxiliares",0
+221,45,SSAA,0
+222,46,TRANSFORMERS,0
+223,47,Transformadores,0
+224,243,"C.H. YANANGO - ENEL",0
+225,47,"EDIFICIO MOLIENDA",0
+226,244,Transformers,0
+227,47,"SE CASA FUERZA",0
+228,47,"POZO #5",0
+229,47,"POZO #3",0
+230,47,"BOMBEO INTERMEDIO",0
+231,47,"OFICINA ADMINISTRATIVA",0
+232,47,CAMPAMENTO,0
+233,47,"ESPESADOR DE RELAVES",0
+234,47,"SE CHANCADO PRIMARIO",0
+235,47,"SE CHANCADO CUATERNARIO",0
+236,47,"RELAVE #4",0
+237,47,GARITA,0
+238,47,"POZO #1",0
+239,47,"RELAVE #3",0
+240,47,"POZO #2",0
+241,48,"COMPAÑIA MINERA KOLPA S.A.",0
+242,49,Transformador,0
+243,50,TRANSFORMERS,0
+244,50,PPTR,0
+245,51,Transformer,0
+246,51,"CASA FUERZA",0
+247,51,"PLANTA CONCENTRADORA",0
+248,51,GAYCO,0
+249,51,HOSPITAL,0
+250,51,CATUVA,0
+251,51,SHUCSHAPA,0
+252,51,MINA,0
+253,51,"C.H. CASHAUCRO",0
+254,52,"Sub Estación Principal",0
+255,53,PPTR,0
+256,53,"Sala Eléctrica Horno 2",0
+257,53,"Sala Eléctrica Horno 1",0
+258,54,PPTR,0
+259,55,Transformadores,0
+260,56,Transformadores,0
+261,57,Transformers,0
+262,58,"Subestación Uchucchacua",0
+263,59,"Central Hidroelectrica Huapa",0
+264,60,"SE Mallay",0
+265,61,Transformers,0
+266,62,"Subestación Palmar",0
+267,63,"Subestacion Huanza",0
+268,64,"Subestación Caudalosa Grande",0
+269,65,"Subestación Ingenio",0
+270,66,"Central Hidroelectrica Tucsipampa",0
+271,67,"Central Hidroelectrica Ingenio",0
+272,68,"Subestacion Iscaycruz",0
+273,69,TRANFORMADORES,0
+274,70,"S.E. Tayabamba",0
+275,71,"S.E. PIAS",0
+276,72,"S.E. Pucallpa",0
+277,73,"CONSORCIO TRANSMANTARO-Carabayllo",0
+278,74,"Subestación Socabaya",0
+279,75,PPTR,0
+280,76,"Patio de Llaves",0
+281,76,"CENTRAL EOLICA CUPISNIQUE",0
+282,77,"TRANSFORMADOR 220/30kV",0
+283,86,"Sala TR5",0
+284,86,"Subestacion Principal Arequipa",0
+285,79,TRANSFORMERS,0
+286,79,"7.Otros Transformadores",0
+287,79,TR011,0
+288,79,TR0112,0
+289,79,"TR SEC 01 -Trafo Aux. 1 NTL",0
+290,79,"Planta Industrialización",0
+291,79,Aduanas,0
+292,79,"TR7 (HORNO ELECTRICO)",0
+293,79,"TR10 - S.E.14.1",0
+294,79,TR1-TAMINI,0
+295,79,"Reserva -Lam1",0
+296,79,"Recuperacion Organica",0
+297,79,TR3A,0
+298,79,"L1 TR7 -L7",0
+299,79,"L1 TR1 -L1",0
+300,79,"Planta de Agua",0
+301,79,"TR8 Horno Cuchara",0
+302,79,SAB,0
+303,79,TR3,0
+304,79,"TR8 (HORNO CUCHARA)",0
+305,79,"TR4 -ABB",0
+306,79,"Ex TR8 (Reserva)",0
+307,79,APT,0
+308,79,"Sala Electrica SE 14.2",0
+309,79,"AH-TR6 Planta de Humos",0
+310,79,"L1 TR5 -L5",0
+311,79,"L1 TR4 -L4",0
+312,79,"L1 TR2 -L2",0
+313,79,TR5,0
+314,79,"Chancado de Escoria",0
+315,79,"L1 TR8 -L8",0
+316,79,"L1 TR9 -L9",0
+317,79,"Reducción Directa",0
+318,79,"Alumbrado Reducción",0
+319,79,"Ex TR7",0
+320,79,L2-TR9,0
+321,79,L2-TR3,0
+322,79,L2-TR11,0
+323,79,"TR9 Fragmentadora",0
+324,79,"L2-TR12 (Pta. Agua)",0
+325,79,L2-TR8,0
+326,79,L2-TR5,0
+327,79,L2-TR2,0
+328,79,L2-TR1,0
+329,79,R1,0
+330,79,"L1 TR3 -L3",0
+331,79,"TR7 Horno Eléctrico",0
+332,79,L2-TR6,0
+333,79,L2-TR10,0
+334,79,"Planta Calibrados",0
+335,79,L2-TR7,0
+336,79,L2-TR4,0
+337,79,"L1 TR6 -L6",0
+338,79,TR4-NATIONAL,0
+339,79,TR1-NATIONAL,0
+340,79,"EX L7 -Lam1",0
+341,79,"Ex L3 -Lam1",0
+342,79,"Precipitador Electrostatico",0
+343,79,"TR PA",0
+344,79,TR2,0
+345,80,Transformadores,0
+346,80,"SE Ilo",0
+347,81,Transformer,0
+348,82,"EDEESTE, city is a default location.",0
+349,83,"Electro Antapata",0
+350,84,Transformadores,0
+351,85,Transformadores,0
+352,86,Transformadores,0
+353,87,Transformadores,0
+354,88,Transformadores,0
+355,89,Transformadores,0
+356,90,"Bahía 01",0
+357,91,Transformadores,0
+358,92,Transformadores,0
+359,93,Transformadores,0
+360,94,"Subestacion Nasca",0
+361,95,PPTR,0
+362,96,Transformadores,0
+363,97,Transformadores,0
+364,98,"ELECTRO ORIENTE - Tarapoto",0
+365,99,"ELECTRO ORIENTE - Juanjui",0
+366,100,Transformer,0
+367,101,"ELECTRO ORIENTE - Central Termica",0
+368,102,"ELECTRO ORIENTE - Santa Rosa",0
+369,103,"ELECTRO ORIENTE - Moyobamba",0
+370,104,"ELECTRO ORIENTE - Bellavista",0
+371,105,"ELECTRO SUR ESTE - Abancay",0
+372,106,TRANSFORMER,0
+373,106,"ELECTRO SUR ESTE - Puerto Maldonado",0
+374,107,"ELECTRO SUR ESTE - Oropeza",0
+375,108,"ELECTRO SUR ESTE - Calca",0
+376,109,"Sub Estación KITENI",0
+377,110,"ELECTRO SUR ESTE - PAUCARTAMBO",0
+378,111,"Nueva Subestacion en 138kV",0
+379,112,"ELECTRO SUR ESTE - Sicuani",0
+380,113,"ELECTRO SUR ESTE - Urpipata",0
+381,114,"ELECTRO SUR ESTE - Chalhuanca",0
+382,115,"ELECTRO SUR ESTE - Santa Maria",0
+383,116,"ELECTRO SUR ESTE - Huaro",0
+384,117,"ELECTRO SUR ESTE - Pisac",0
+385,118,"ELECTRO SUR ESTE - Urubamba",0
+386,119,"ELECTRO SUR ESTE - Chahuares",0
+387,120,"ELECTRO SUR ESTE - Andahuaylas",0
+388,121,"ELECTRO SUR ESTE - Chuquibambilla",0
+389,122,"ELECTROCENTRO - Ayacucho",0
+390,123,"ELECTROCENTRO - Pasco",0
+391,124,"ELECTROCENTRO - Chalhuamayo",0
+392,125,Transformers,0
+393,126,"ELECTROCENTRO - Salesianos",0
+394,127,Transformadores,0
+395,128,Transformadores,0
+396,129,Transformadores,0
+397,130,"ELECTROCENTRO - Oxapampa",0
+398,131,Transformadores,0
+399,132,"ELECTROCENTRO - Huancayo Este",0
+400,133,"ELECTROCENTRO - Parque Industrial",0
+401,134,"ELECTROCENTRO - Pichanaki",0
+402,135,Transformadores,0
+403,136,"ELECTROCENTRO - Xauxa",0
+404,137,"ELECTROCENTRO - Chupaca",0
+405,138,Transformadores,0
+406,139,"ELECTROCENTRO - Chanchamayo",0
+407,140,Transformadores,0
+408,141,"ELECTROCENTRO - Alto Marcavalle",0
+409,142,Transformadores,0
+410,143,"ELECTROCENTRO - Concepción",0
+411,144,"ELECTROCENTRO - Ninatambo",0
+412,145,Transformadores,0
+413,146,Transformadores,0
+414,147,Transformadores,0
+415,148,Transformadores,0
+416,149,"ELECTROCENTRO - Satipo",0
+417,150,Transformadores,0
+418,151,"Set Goyllarisquizga",0
+419,152,Transformadores,0
+420,153,"ELECTROCENTRO - Curipata",0
+421,154,Transformadores,0
+422,155,Transformadores,0
+423,155,"ELECTRONOROESTE - Paita",0
+424,156,Transformadores,0
+425,157,Transformadores,0
+426,158,Transformadores,0
+427,159,Transformadores,0
+428,160,Transformadores,0
+429,161,Transformadores,0
+430,162,Transformadores,0
+431,163,Transformadores,0
+432,164,Transformadores,0
+433,165,Transformadores,0
+434,166,Transformadores,0
+435,167,Transformadores,0
+436,168,Transformadores,0
+437,169,Transformadores,0
+438,170,Transformadores,0
+439,171,Transformadores,0
+440,172,Transformadores,0
+441,173,Transformadores,0
+442,174,TRANSFORMERS,0
+443,174,Transformadores,0
+444,175,"ELECTRONORTE - SE Lambayeque Sur",0
+445,176,Transformadores,0
+446,177,Transformadores,0
+447,177,"ELECTRONORTE - Olmos",0
+448,178,Transformadores,0
+449,179,Transformadores,0
+450,180,Transformadores,0
+451,181,Transformadores,0
+452,182,Transformadores,0
+453,183,Transformadores,0
+454,184,Transformadores,0
+455,185,Transformadores,0
+456,186,Transformadores,0
+457,187,Transformadores,0
+458,188,Transformadores,0
+459,189,"SET BOTIFLACA",0
+460,190,Transformadores,0
+461,190,Animon,0
+462,190,"C.H. Baños IV",0
+463,190,"C.H. CACRAY",0
+464,190,"C.H. San Jose",0
+465,190,"C.H. SHAGUA",0
+466,190,"C.H. Baños II",0
+467,190,Alpamarca,0
+468,190,"C.H. Baños III",0
+469,190,"C.H. YANAHUIN",0
+470,190,"C.H. HUANCHAY",0
+471,190,"C.H. Baños I",0
+472,190,"C.H. Baños V",0
+473,191,Transformadores,0
+474,191,"S.E. YARINACOCHA",0
+475,192,"ELECTROUCAYALI - Pucallpa",0
+476,193,"ELECTROUCAYALI - Parque Industrial",0
+477,194,PPTR,0
+478,195,PPTR,0
+479,196,PPTR,0
+480,197,PPTR,0
+481,198,PPTR,0
+482,199,PPTR,0
+483,200,Transformadores,0
+484,201,"C.T. INDEPENDENCIA",0
+485,201,"ARICOTA 2",0
+486,201,SARITA,0
+487,201,"ARICOTA 1",0
+488,202,TRANSFORMERS,0
+489,202,Transformadores,0
+490,202,"C.T. Dolorespata",0
+491,202,"C.H. Machupicchu",0
+492,202,"SUBESTACION MACHUPICHU",0
+493,202,"EMPRESA DE GENERACION ELECTRICA MACHUPICCHU S.A. - SE CUSCO",0
+494,203,Transformers,0
+495,204,"CH. RENOVANDES- EG SANTA ANA",0
+496,205,"C.H. Santa Lorenza",0
+497,206,"C.H. Las Pizarras",0
+498,207,Transformadores,0
+499,207,"ELECTROPERU - Complejo Hidroenergetico del Mantaro",0
+500,207,"Santiago Antunez de Mayolo",0
+501,207,Restitución,0
+502,208,"SET MANCORA",0
+503,209,"Sub Estación Piedra Blanca",0
+504,210,Transformer,0
+505,210,"ESPISAMIENTO Y FILTRADO",0
+506,210,CHANCADO,0
+507,210,"MOLIENDA FLOTACION",0
+508,210,"MOLINO DE 10.5X13",0
+509,210,"N°1 NV 4510 MINA",0
+510,210,"N° 2 BYPASS 4510 MINA",0
+511,210,RELAVERA,0
+512,210,"N° 1 NV. 4580 MINA",0
+513,210,"MAGISTRAL NORTE SUPERFICIE",0
+514,210,"MAGISTRAL CENTRO SUPERFICIE",0
+515,210,"Cia. Minera Los Quenuales S.A.",0
+516,210,"NV 4440 MAGESTRAL CENTRO MINA",0
+517,211,"ELECTROPUNO - Bellavista",0
+518,212,"ELECTROPUNO - Ananea",0
+519,213,"ELECTROPUNO - Ilave",0
+520,214,"ELECTROPUNO - Pomata",0
+521,215,"ELECTROPUNO - Antauta",0
+522,216,"TUBOS Y VIALES",0
+523,216,ENERGÍA,0
+524,216,"Continuous caster, billet",0
+525,244,"C.H. CALLAHUANCA - ENEL",0
+526,245,"Transformadores sin ubicacion",0
+527,220,Reserva,0
+528,220,"Transf.1 - 220/60kV",0
+529,220,"Transf. - 60/10kV",0
+530,221,PPTR,0
+531,222,PPTR,0
+532,222,"Transf.3 - 220/60kV",0
+533,222,"SVC 60/4.86 40MVA",0
+534,222,"Transf.4 - 220/60kV",0
+535,222,"Transf. 60/10",0
+536,222,"Transf.2 - 220/60kV",0
+537,222,Reserva,0
+538,222,"Transf.1 - 220/60kV",0
+539,223,PPTR,0
+540,224,PPTR,0
+541,225,PPTR,0
+542,225,AREA1,0
+543,226,PPTR,0
+544,227,PPTR,0
+545,228,PPTR,0
+546,229,PPTR,0
+547,230,PPTR,0
+548,231,PPTR,0
+549,232,PPTR,0
+550,233,PPTR,0
+551,234,PPTR,0
+552,235,PPTR,0
+553,236,PPTR,0
+554,237,PPTR,0
+555,238,PPTR,0
+556,239,PPTR,0
+557,240,PPTR,0
+558,241,PPTR,0
+559,242,"Terna Nº 3",0
+560,242,"Terna Nº 1",0
+561,242,"Terna Nº 2",0
+562,242,TGN4,0
+563,245,"ENEL generación Peru",0
+564,255,"Casa de Maquinas",0
+565,256,"SE Principal",0
+566,256,13BPT01GH300,0
+567,256,"SE TG3",0
+568,256,"SE TG 2",0
+569,256,"SE TG1",0
+570,256,Rectificadores,0
+571,256,"SE Auxiliar",0
+572,256,"Toma de agua de mar",0
+573,256,Transformadores,0
+574,257,Transformadores,0
+575,270,Transformadores,0
+576,246,"SE CHILLON - ENEL",0
+577,247,"SE MIRADOR - ENEL",0
+578,248,Transformers,0
+579,249,Transformers,0
+580,249,"Subestacion Santa Rosa Antigua",0
+581,249,"Subestacion Santa Rosa",0
+582,249,"TR2 220/60 (3x40)MVA",0
+583,250,Transformers,0
+584,250,"C.H. MOYOPAMPA - ENEL",0
+585,251,Transformers,0
+586,251,"C.H. HUINCO - ENEL",0
+587,252,Transformers,0
+588,253,Transformers,0
+589,253,"TR1 220/60 40MVA",0
+590,253,"TR2 220/60 40MVA",0
+591,254,Transformer,0
+592,272,"S.E. COMPRESORA PROYECTOS",0
+593,272,"S.E. DIFUSOR SSAA",0
+594,272,"S.E. FACALA-CHUIN",0
+595,272,"S.E. INTERCONNECIONES",0
+596,272,"S.E. DESMEDULADORA SS.AA",0
+597,272,"S.E. INDUCIDO TSXG (MALLA)",0
+598,272,S.E.AUTOS,0
+599,272,"S.E. PLANTA DE FUERZA 2MVA-SISTEMAS I-II",0
+600,272,"S.E. PLANTA ELECTRICA TR-2",0
+601,272,Otros,0
+602,272,"S.E. TORRE BALQUE",0
+603,272,"S.E. PLANTA DE FUERZA",0
+604,272,"S.E. PLANTA DE FUERZA SS.AA TGM",0
+605,272,"S.E. PLANTA ELECTRICA TR-1",0
+606,272,"S.E CENTRIFUGA SS.AA",0
+607,272,"S.E JUGO CRUDO TR-2",0
+608,272,"S.E. SONDA OBLICUA",0
+609,272,"S.E. BOSQUE SS.AA",0
+610,272,"S.E. RRMM (MALLA)",0
+611,258,Transfromadores,0
+612,259,Transformers,0
+613,260,Transformadores,0
+614,261,Transformer,0
+615,262,"C.H. YUNCÁN - ENGIE",0
+616,263,Transformadores,0
+617,264,Transformers,0
+618,265,Transformadores,0
+619,266,Transformadores,0
+620,267,Transformadores,0
+621,268,"SE RUMICOLCA",0
+622,268,"SE PIÑIPAMPA",0
+623,268,"SE COLLANA",0
+624,269,Transformers,0
+625,272,"S.E.CASA CALDEROS CENTRIGUGA TR-2",0
+626,272,"S.E.CASA CALDEROS CENTRIGUGA TR-1",0
+627,272,"S.E. DESTILERIN",0
+628,271,Transformadores,0
+629,272,"S.E. TRAFO GRUPO4",0
+630,272,"S.E. FARIAS",0
+631,272,"S.E. OSMOSIS",0
+632,272,"S.E. TORRE PAHARPUR SS.AA",0
+633,272,"S.E. TORRE DE ENFRIAMIENTO SSAA",0
+634,272,"S.E. TORRE DE ENFRIAMIENTO 5MVA",0
+635,272,"S.E. CENTRIFUGA TR-1",0
+636,272,"S.E. JUGO CRUDO TR-1",0
+637,272,"S.E. JUNTOS SI PODEMOS SS.AA",0
+638,272,"S.E. REFINERIA TR-1",0
+639,272,"S.E. REFINERIA TR-2",0
+640,272,"S.E. REFINERIA - SS.AA",0
+641,272,"S.E. SONDA OBLICUA AEREA",0
+642,272,"S.E. SONDA OBLICUA SS.AA",0
+643,272,"S.E.LAVADEROS TF-1",0
+644,272,"S.E. SAUSAL GRUPO4",0
+645,275,TRANSFORMERS,0
+646,276,"SE Principal",0
+647,285,"HIDRANDINA S.A.",0
+648,285,"Subestacion Huari",0
+649,285,"Subestación Trapecio",0
+650,286,Transformadores,0
+651,287,Transformers,0
+652,288,"Subestacion Viru",0
+653,288,"Subestacion Viru-01",0
+654,289,Transformadores,0
+655,290,Transformadores,0
+656,291,Transformadores,0
+657,292,Transformadores,0
+658,293,Transformadores,0
+659,294,Transformadores,0
+660,315,Transformadores,0
+661,273,Transformer,0
+662,274,"SE Cerro Corona",0
+663,276,"Patio Taller VES",0
+664,277,Transformers,0
+665,278,Transformadores,0
+666,279,Transformadores,0
+667,280,Transformadores,0
+668,281,Transformadores,0
+669,281,"SE Trapecio",0
+670,282,Transformadores,0
+671,283,Transformadores,0
+672,284,Transformadores,0
+673,285,"Subestacion Pomabamba",0
+674,285,"Subestacion Celendin",0
+675,285,"Subestacion Cantange",0
+676,285,"Subestacion Trujillo Noroeste",0
+677,316,RESERVA,0
+678,316,8000,0
+679,316,MR,0
+680,316,3400,0
+681,294,"HIDRANDINA - Trujillo Sur",0
+682,295,Transformadores,0
+683,296,Transformadores,0
+684,297,Transformadores,0
+685,298,Transformers,0
+686,299,Transformadores,0
+687,299,PPMV,0
+688,300,Transformadores,0
+689,301,Transformadores,0
+690,302,Transformadores,0
+691,303,Transformadores,0
+692,304,Transformadores,0
+693,305,Transformadores,0
+694,306,Transformadores,0
+695,307,Transformadores,0
+696,308,Transformadores,0
+697,309,Transformadores,0
+698,310,Transformadores,0
+699,311,Transformadores,0
+700,312,Transformadores,0
+701,313,Transformers,0
+702,314,"C.H. YARUCAYA - Huaura Power Group",0
+703,316,1000B,0
+704,316,1000A,0
+705,316,4000,0
+706,316,9000,0
+707,316,8002,0
+708,316,7601,0
+709,316,6300,0
+710,316,7001,0
+711,316,PR,0
+712,316,"Sin Locación",0
+713,316,TF-SS-11,0
+714,316,TF-SS-10,0
+715,316,TF-SS-07,0
+716,316,TF-SS-12,0
+717,316,TF-SS-09,0
+718,316,TF-SS-06,0
+719,316,TF-SS-01,0
+720,316,TF-SS-02,0
+721,317,"IBM del Perú",0
+722,322,PPTR,0
+723,322,"INDECO S.A.",0
+724,323,"SE Principal",1
+725,325,Transformer,0
+726,326,Transformadores,0
+727,327,Transformers,0
+728,328,"SE 02",0
+729,328,SED-01,0
+730,330,"La Colonial Fabrica De Hilos SA",0
+731,332,"SE PRINCIPAL",0
+732,332,"SE CASA FUERZA",0
+733,332,CO-ESU-03,0
+734,332,CO-ESU-04,0
+735,332,CO-ESU-06,0
+736,318,Transformadores,0
+737,319,Transformadores,0
+738,319,"Grupo de Generación 01",0
+739,319,"Grupo de Generación 04",0
+740,319,"Grupo de Generación 02",0
+741,319,"Grupo de Generación 03",0
+742,320,Transformers,0
+743,321,Transformer,0
+744,332,PP-ESU-01,0
+745,332,PP-ESU-02,0
+746,323,"Presion de Aire",1
+747,323,"Sisntesis de Amoniaco",1
+748,323,"Area Electrólisis",1
+749,323,"SE 11",1
+750,323,"Area Administrativa",1
+751,324,"SE PRINCIPAL",0
+752,332,"SERV. AUXILIARES",0
+753,332,CO-ESU-01,0
+754,337,Transformadores,0
+755,362,"Marcobre S.A.C. - Mina Justa",0
+756,329,Transformadores,0
+757,331,"C.H. La Virgen",0
+758,364,"Casa Fuerza",0
+759,364,"SE Llacuabamba",0
+760,364,"SE Tayabamba",0
+761,332,CO-ESU-02,0
+762,332,"SE POZO BOMBA 2",0
+763,332,"Lima Airport Partners",0
+764,332,CO-ESU-05,0
+765,332,"SE FRIO AEREO",0
+766,332,"SE PLANTA TRATAMIENTO",0
+767,332,"SE AVIANCA",0
+768,332,"SE NUEVA SUR",0
+769,332,"SE FLORES ESMERALDA",0
+770,332,"SE ANTENA RADAR",0
+771,332,"SE AERONAUTICA",0
+772,332,"SE ADUANAS",0
+773,332,"SE CISTERNA PLAYA",0
+774,332,"SE LOTE 16",0
+775,332,"SE MECANICA",0
+776,332,"SE BIPOSTE N°02",0
+777,332,"SE BIPOSTE N°01",0
+778,333,Transformadores,0
+779,333,"LUZ DEL SUR - SE Bujama",0
+780,334,TRANSFORMERS,0
+781,334,PPTR,0
+782,335,Transformadores,0
+783,336,Transformadores,0
+784,364,"Cámara 39",0
+785,364,Relaves,0
+786,364,"NV 3220",0
+787,338,Transformadores,0
+788,339,Transformadores,0
+789,340,Transformadores,0
+790,341,Transformadores,0
+791,342,PPTR,0
+792,342,"LUZ DEL SUR - SE CHILCA",0
+793,343,Transformadores,0
+794,344,Transformers,0
+795,345,Transformadores,0
+796,346,Transformadores,0
+797,347,Transformadores,0
+798,348,Transformadores,0
+799,349,Transformadores,0
+800,350,Transformadores,0
+801,351,Transformadores,0
+802,351,"LUZ DEL SUR - San Bartolo",0
+803,352,Transformadores,0
+804,353,Transformadores,0
+805,354,Transformadores,0
+806,355,Transformadores,0
+807,356,Transformadores,0
+808,357,Transformadores,0
+809,358,"C.H. SANTA TERESA",0
+810,359,Transformadores,0
+811,360,Transformadores,0
+812,361,Transformadores,0
+813,364,"Cámara 23",0
+814,364,"San Vicente",0
+815,364,Manganeso,0
+816,364,Chilca,0
+817,364,CC29,0
+818,364,CC18,0
+819,364,"Cabana Curva 5",0
+820,364,Llacuabamba,0
+821,363,"Discrete Automation & Motion D",0
+822,364,Transformadores,0
+823,364,Patrick,0
+824,364,"Mantenimiento General",0
+825,364,Curva,0
+826,364,NV2450RB12,0
+827,364,"Buenos Aires",0
+828,364,NV2950RB11,0
+829,364,"Casa Tapial",0
+830,364,NV2570CC26,0
+831,364,"NV3220 Principal Pique",0
+832,364,CB16,0
+833,365,TRANSFORMERS,0
+834,367,Transformers,0
+835,368,Molienda,0
+836,368,"Sala 10",0
+837,368,"Molino SAG",0
+838,368,"AREA DE GRUAS",0
+839,368,"Almacen Ransa",0
+840,368,"SE Kingsmill",0
+841,368,"Transformadores Stand by",0
+842,368,"Rectificadores Toromocho",0
+843,368,"Bomba GEHO",0
+844,365,Transformadores,0
+845,365,"Chancadora Secundaria",0
+846,365,"Chancadora Primaria",0
+847,365,"Truck Shop",0
+848,365,"Sub Estación Principal T4.",0
+849,365,"Planta CIC -TR103",0
+850,365,"Nueva PLS Y POP -T102",0
+851,365,"Nueva Poza ARD - T104",0
+852,365,"Plante CIC -TR101",0
+853,365,"Planta CIC -TR102",0
+854,365,"Planta CIC -TR104",0
+855,365,"Bombas Booster -T20",0
+856,365,"Planta Trat. Secund.- T103",0
+857,365,"Planta Generación - T101",0
+858,365,"PLS - T19",0
+859,365,"Planta RO- T102",0
+860,365,Procesos-Switchgear,0
+861,365,"Planta RO- T101",0
+862,365,"Área de Pozas",0
+863,365,"Laboratorio Químico",0
+864,365,"Planta Chancado",0
+865,365,"Planta de Procesos",0
+866,365,"Área de Proyecto Procesos",0
+867,366,Transformadores,0
+868,368,"MINERA CHINALCO PERU S.A.",0
+869,367,"Sub Estación 04",0
+870,367,"Sub Estación 02",0
+871,367,"Nivel 7",0
+872,367,"Sub Estación 25",0
+873,367,"Sub Estación 35",0
+874,367,"Sub Estación 32 Nivel 5",0
+875,367,"Sub Estación 2010",0
+876,367,"Sub Estación San Francisco",0
+877,367,"Sub Estación 06",0
+878,367,"Sub Estación 05",0
+879,367,"Sub Estación 33",0
+880,367,"Sub Estación 15",0
+881,368,"Sub Estación Principal",0
+882,368,"Molino Bolas N°2",0
+883,368,Hidrometalurgia,0
+884,368,"Sala 15",0
+885,368,"Recuperacion de Agua Relave",0
+886,368,"Molino Bolas N°1",0
+887,368,"Sala 05",0
+888,368,Flotación,0
+889,368,"Chancadora Primario",0
+890,368,"Sala 33",0
+891,368,"Poza de Emergencia",0
+892,369,"Plataforma 05",0
+893,368,"Sala 06",0
+894,369,"Plataforma 02",0
+895,368,"Servicios Auxiliares",0
+896,368,"Sala 07",0
+897,368,"Sala 30",0
+898,368,"Sala 17",0
+899,368,"Sala 31",0
+900,369,"Plataforma 01",0
+901,368,"Sala MSC",0
+902,369,"Plataforma 03",0
+903,368,Bombas,0
+904,369,"LAS BAMBAS S.A.",0
+905,368,"Sala 09",0
+906,368,"Aguas Frescas IV",0
+907,368,"Aguas Frescas III",0
+908,368,"Chancadora de Pebbles",0
+909,368,"Aguas Frescas II",0
+910,368,"Aguas Frescas I",0
+911,371,"Minera Yanacocha",0
+912,368,"Recuperacion de Agua",0
+913,368,"Recuperación de Molibdeno",0
+914,368,Almacen,0
+915,369,Transformadores,0
+916,369,SEM-001,0
+917,369,SEM-004,0
+918,369,SEM-003,0
+919,369,SEM-002,0
+920,369,"Zona 0551",0
+921,369,"Plataforma 07",0
+922,369,"Plataforma PTAR",0
+923,369,"Plataforma 06",0
+924,371,Transformadores,0
+925,370,"MINERA SHUNTUR S.A.C",0
+926,372,Transformadores,0
+927,373,Transformadores,0
+928,374,PPTR,0
+929,375,"NEPTUNIA CALLAO",0
+930,377,"Planta de Oxigeno",0
+931,377,"Utilidades Sección 90-20",0
+932,377,"Seccion 73",0
+933,377,Administración,0
+934,377,"Sin Ubicación",0
+935,378,"S.E. Cerro lindo",0
+936,378,"S.E. Desierto",0
+937,378,"Hidro Candelaria",0
+938,371,"SISTEMA GMD",0
+939,371,Almacenes,0
+940,378,"S.E. Bombeo 1",0
+941,378,"S.E. Bombeo 3",0
+942,378,"S.E. Bocamina NV.1940",0
+943,378,"S.E. Bombeo 2",0
+944,378,"S.E. Bocamina NV.1875 (Casuarinas)",0
+945,378,"S.E. Moliendo y flotación",0
+946,378,"S.E. Molienda, flotación y reactivos I",0
+947,376,Transformadores,0
+948,376,"Sub Estación 03",0
+949,376,"Sala Eléctrica",0
+950,376,"Sala Eléctrica Calderas",0
+951,376,TR4,0
+952,376,"Sala Eléctrica Hornos",0
+953,376,"Sala Tablero Eléctrico",0
+954,376,"Sala Eléctrica Helados",0
+955,376,"Sala Eléctrica de Calderos",0
+956,377,Transformadores,0
+957,377,"Planta de Agua",0
+958,377,TR3,0
+959,377,TR2,0
+960,377,"Seccion 81",0
+961,377,"Sección 20",0
+962,377,"Seccion 30",0
+963,377,"Sección 25",0
+964,377,"Sección 75",0
+965,377,"Utilidades Sección 90",0
+966,377,"Sección 35",0
+967,377,"Seccion 93",0
+968,377,"Sección 34",0
+969,377,"Sección 96",0
+970,377,Almacén,0
+971,377,TR1,0
+972,377,"SE Principal Area 90",0
+973,377,"Laboratorio Central",0
+974,377,"Sección 10",0
+975,377,"Sección 42",0
+976,378,"S.E. Pasta 1",0
+977,378,"S.E. Planta desalinizadora",0
+978,378,"S.E. Chancado secundario y terciario",0
+979,378,"S.E. Talleres y laboratorio",0
+980,378,"Faja 5 - Tratamiento de aguas",0
+981,378,"S.E. Bocamina",0
+982,378,"S.E. Bocamina NV.1800",0
+983,378,Transformadores,0
+984,378,"S.E. Chancado Secundario",0
+985,378,"S.E. Espesamiento y filtrado",0
+986,378,"S.E. Faja 4",0
+987,378,"S.E. Pasta 1 ( Fase I)",0
+988,378,"S.E. Pasta 2",0
+989,378,"S.E. Sopladores y comprensor",0
+990,378,"S.E. Cámara de chancado primario",0
+991,378,"S.E. Filtrado de Relave 1",0
+992,378,"S.E. Moliendo, flotación y reactivos 2",0
+993,378,"S.E. Bocamina Pahuaypite",0
+994,378,"S.E. Espesadores",0
+995,378,"S.E. Filtrado de relave 2",0
+996,378,"S.E. Molino Metso I",0
+997,378,"S.E. Faja 3",0
+998,378,"S.E. Playa Jaguay",0
+999,378,"S.E. Moliendo, flotación y reactivos 3",0
+1000,378,"S.E. Molino Metso II",0
+1001,378,"S.E. Bocamina NV.1970",0
+1002,379,"SET CHICRIN",0
+1003,379,"SET PRINCIPAL",0
+1004,379,"Compañia Minera Atacocha S.A.",0
+1005,379,"SET CHAPRIN",0
+1006,381,"SE 3 EW-SX",0
+1007,381,"SE Chacado",0
+1008,381,"SE Campamentos",0
+1009,383,PPTR,0
+1010,385,Transformers,0
+1011,385,"CASA DE FUERZA",0
+1012,379,"SET Nº 03",0
+1013,380,TRANSFORMERS,0
+1014,385,"CAÑON DEL PATO",0
+1015,386,PPTR,0
+1016,382,Transformer,0
+1017,384,Transformers,0
+1018,389,"SE N° 02",0
+1019,389,"SE SALA DE PRUEBAS",0
+1020,389,"SE N° 01",0
+1021,391,Transformadores,0
+1022,392,TRANSFORMERS,0
+1023,393,"PETROLEOS DEL PERU PETROPERU S.A - REFINERIA IQUITOS",0
+1024,394,TRANSFORMER,0
+1025,396,TRANSFORMERS,0
+1026,396,"PRAXAIR PERU SRL",0
+1027,397,"SE 02",0
+1028,387,Transformers,0
+1029,388,Transformers,0
+1030,397,"SE 01",0
+1031,398,"Sub Estación 05",0
+1032,398,"Sub Estación 07",0
+1033,390,"SE 02",0
+1034,390,"SE 01",0
+1035,390,"SE Harina de Pescado",0
+1036,398,"Sub Estación 09",0
+1037,398,"Sub Estación 10",0
+1038,398,"Sub Estación 02",0
+1039,399,"SE N°2",0
+1040,399,"SE N°1",0
+1041,400,Transformadores,0
+1042,409,"SE SOCABAYA-RED DE ENERGIA DEL PERU S.A.",0
+1043,394,Transformers,0
+1044,410,TRANSFORMER,0
+1045,394,"Central Eléctrica - Corrientes",0
+1046,395,"SE Huayuri",0
+1047,410,"RED DE ENERGIA DEL PERU S.A. - SE HUAYUCACHI",0
+1048,411,Transformadores,0
+1049,412,Transformadores,0
+1050,398,Transformadores,0
+1051,413,Transformadores,0
+1052,414,TRANSFORMER,0
+1053,415,Transformadores,0
+1054,416,TRANSFORMER,0
+1055,399,"SE Principal",0
+1056,417,TRANSFORMER,0
+1057,418,TRANSFORMER,0
+1058,419,TRANSFORMER,0
+1059,420,"SE INDUSTRIALES- LUZ DEL SUR",0
+1060,401,Transformadores,0
+1061,401,Reactores,0
+1062,401,"RED DE ENERGIA DEL PERU S.A. - SE MARCONA",0
+1063,402,TRANSFORMER,0
+1064,403,TRANSFORMER,0
+1065,404,Transformadores,0
+1066,405,"ISA Perú S.A.",0
+1067,405,AGUAYTIA,0
+1068,405,PARAGSHA,0
+1069,405,PUCALLPA,0
+1070,406,Reactores,0
+1071,406,Autotransformadores,0
+1072,406,"Trujillo Nueva",0
+1073,407,TRANSFORMER,0
+1074,408,Transformadores,0
+1075,408,Reactores,0
+1076,409,TRANSFORMER,0
+1077,409,"Banco de Transformadores",0
+1078,409,"Transformadores 500 kV",0
+1079,42,"Sala 5",0
+1080,421,Transformers,0
+1081,422,Reactores,0
+1082,423,TRANSFORMER,0
+1083,423,"RED DE ENERGIA DEL PERU S.A. - SE PIURA OESTE",0
+1084,424,Transformadores,0
+1085,425,Transformadores,0
+1086,426,PPTR,0
+1087,427,TRANSFORMER,0
+1088,428,TRANSFORMER,0
+1089,429,TRANSFORMER,0
+1090,430,"ISA PERU S.A. - SE PUCALLPA",0
+1091,431,TRANSFORMER,0
+1092,432,Transformers,0
+1093,433,Reactores,0
+1094,434,Reactores,0
+1095,439,Reserva,0
+1096,439,Transformadores,0
+1097,439,"Sub Estación RLP 21",0
+1098,435,Transformadores,0
+1099,436,TRANSFORMER,0
+1100,437,Transformers,0
+1101,438,"SE MOLLEPATA-RED DE ENERGIA DEL PERU S.A",0
+1102,439,"REPSOL - REFINERIA LA PAMPILLA",0
+1103,439,"Planta de Envasado",0
+1104,439,"Facilidades ELE",0
+1105,439,"Zona Norte",0
+1106,439,"Sub Estación Auxiliar 2",0
+1107,439,"Parqueo Sur",0
+1108,439,"Procesos A",0
+1109,439,"Amarradero 3",0
+1110,439,"Sub Estación Cubetos Norte",0
+1111,439,"Procesos B",0
+1112,439,"Nueva Sur",0
+1113,439,"Sub Estación Auxilar 4",0
+1114,439,"Planta de Ventas",0
+1115,439,Efluentes,0
+1116,439,"Sub Estación Auxiliar 1",0
+1117,439,Asfalto,0
+1118,439,"Facilidades MTP",0
+1119,439,"Sub Estación Cubetos Sur",0
+1120,440,TRANSFORMERS,0
+1121,439,"Pozo 2",0
+1122,439,Contratistas,0
+1123,439,"Pozo 1",0
+1124,439,Amarradero,0
+1125,443,Transformadores,0
+1126,445,"C.H. POECHOS 1 - SINERSA",0
+1127,446,"C.H. CHANCAY - SINERSA",0
+1128,441,"SDE PIURA S.A.C",0
+1129,442,1C,0
+1130,442,"S.E. MARCONA",0
+1131,442,CD2,0
+1132,442,2C,0
+1133,442,8B,0
+1134,442,CD1,0
+1135,442,1E,0
+1136,442,1A,0
+1137,442,1B,0
+1138,442,2B,0
+1139,444,"C.H. CURUMUY - SINERSA",0
+1140,447,Transformadores,0
+1141,448,"ELECTROANDES - Excelsior",0
+1142,449,"ELECTROANDES - San Mateo",0
+1143,450,"ELECTROANDES - San Cristóbal",0
+1144,451,"ELECTROANDES - San Antonio",0
+1145,452,"ELECTROANDES - Chumpe",0
+1146,453,"ELECTROANDES - San Juan",0
+1147,454,"ELECTROANDES - Oroya",0
+1148,455,"ELECTROANDES - Huicra",0
+1149,456,"ELECTROANDES - Casapalca",0
+1150,457,"ELECTROANDES - Mahr Tunel",0
+1151,458,"ELECTROANDES - Morococha",0
+1152,459,"ELECTROANDES - Bellavista",0
+1153,460,"ELECTROANDES - Carhuamayo",0
+1154,461,"ELECTROANDES - Antuquito",0
+1155,462,Transformadores,0
+1156,463,"ELECTROANDES - Andaychagua",0
+1157,464,Transformers,0
+1158,465,Transformers,0
+1159,466,Transformers,0
+1160,467,Transformers,0
+1161,468,Transformers,0
+1162,469,Transformers,0
+1163,470,"SE LAMBRAMANI- SEAL",0
+1164,471,Transformers,0
+1165,472,"SE Porongoche - SEAL",0
+1166,473,Transformers,0
+1167,474,"SE Alto Cayma - SEAL",0
+1168,475,Transformers,0
+1169,476,Transformadores,0
+1170,477,Transformers,0
+1171,478,Transformers,0
+1172,479,Transformers,0
+1173,480,"SE Tiabaya - SEAL",0
+1174,481,Transformers,0
+1175,482,Transformers,0
+1176,483,Transformers,0
+1177,484,"SE Chuquibamba - SEAL",0
+1178,485,Transformers,0
+1179,486,"SE Caraveli - SEAL",0
+1180,487,Transformers,0
+1181,488,Transformers,0
+1182,489,Transformers,0
+1183,490,"SE Real Plaza - SEAL",0
+1184,491,Transformers,0
+1185,492,"SE Cocachacra - SEAL",0
+1186,493,"SE Ocoña - SEAL",0
+1187,494,Transformers,0
+1188,495,"SE Jahuay - SEAL",0
+1189,496,PPTR,0
+1190,497,Transformers,0
+1191,497,Transformadores,0
+1192,497,"SE PRINCIPAL",0
+1193,497,"Sala 5",0
+1194,497,Molienda,0
+1195,497,"Chancado Secundario",0
+1196,497,"Chancado Primario",0
+1197,497,Relaves,0
+1198,497,Flotación,0
+1199,497,Almacenes,0
+1200,497,"SOCIEDAD MINERA CERRO VERDE",0
+1201,497,"PRIMARY CYCLONE",0
+1202,497,"S.E. Eléctrica SALA 6 MC 61",0
+1203,497,"Planta Ciclones",0
+1204,497,"Planta Antigua",0
+1205,497,Remolienda,0
+1206,497,Molinos,0
+1207,497,"Trafos Finland",0
+1208,497,"HPGR Linea 1",0
+1209,497,"Sala 11 - Auxiliares",0
+1210,497,"Sala 65 - Auxiliares",0
+1211,497,Secundario,0
+1212,497,"HPGR Linea 2",0
+1213,497,"Espesamiento y filtrado",0
+1214,498,Transformadores,0
+1215,499,Transformer,0
+1216,499,"SE CONCENTRADORA",0
+1217,499,"SE LAVADO - CHANCADO 2 Y 3",0
+1218,499,"SE MINA",0
+1219,500,Transformadores,0
+1220,500,"Chancado Primario",0
+1221,500,TP15,0
+1222,500,"SE VW 02",0
+1223,500,TW2A,0
+1224,500,"SE VW 04",0
+1225,500,"SE Taller Eléctrico Principal",0
+1226,500,TW3,0
+1227,500,"SE VW 03",0
+1228,500,"SE Movil N° 06",0
+1229,500,"Sala de Filtros",0
+1230,500,TP12,0
+1231,500,TP5,0
+1232,500,TW6,0
+1233,500,TP11,0
+1234,500,"SE Viscachas",0
+1235,500,"SE Movil N° 08",0
+1236,500,"Sala eléctrica Barcaza",0
+1237,500,TP14,0
+1238,500,"SE TP3A",0
+1239,500,"Trafo Hooper C",0
+1240,500,"Planta Molibdeno",0
+1241,500,"SE VW 01",0
+1242,500,"SE Movil N° 07",0
+1243,500,"SE Movil N° 12",0
+1244,500,"SE Movil N° 13",0
+1245,500,"SE Movil N° 10",0
+1246,500,"SE Movil N° 11",0
+1247,500,"SE Chuntakala",0
+1248,500,"SE Locomotoras",0
+1249,500,"SE Soldadura y Maestranza",0
+1250,500,"Planta Chancado SEC T-14B",0
+1251,500,"Drives House",0
+1252,500,"SE Movil N° 09",0
+1253,500,"Sala Molinos",0
+1254,500,TP8,0
+1255,500,"SE Titijones",0
+1256,500,"SE Casa de Bombas",0
+1257,500,TW4,0
+1258,500,TP9,0
+1259,500,"SE Hidroeléctrica",0
+1260,500,"Remolienda y Flotación",0
+1261,500,"SE Movil N° 14",0
+1262,501,"SE PRINCIPAL",0
+1263,501,"PLANTA ELECTROLITICA",0
+1264,501,"PLANTA DE ANODOS",0
+1265,501,"GRUPO ELECTROGENO",0
+1266,501,"SISTEMA DE BOMBAS",0
+1267,502,Rectificadores,0
+1268,502,"Planta de Convertidores 02",0
+1269,502,"Centro de Carga Smelter 02",0
+1270,502,"Planta de Fusion",0
+1271,502,"Planta de Acidos 01",0
+1272,502,"Área L.C.D.O 05-10",0
+1273,502,"Smelter 03",0
+1274,502,"Área 460",0
+1275,502,"Taller Eléctrico",0
+1276,502,"Taller de Maestranza",0
+1277,502,"Área L.C.C.M.T. A-20,30,50,60",0
+1278,502,"Southern Peru Cooper Corporation - Ilo - Fundicion",0
+1279,502,"Planta de Convertidores 01",0
+1280,502,"Área 620",0
+1281,502,"Área 310",0
+1282,502,"Área 290 Convertidores",0
+1283,502,"Smelter 01",0
+1284,502,"Área 230",0
+1285,502,"Sub Estación Principal",0
+1286,502,"Sala LC 103",0
+1287,502,"Planta de Oxigeno 02",0
+1288,502,"Área 410",0
+1289,502,"Planta de Oxigeno 01",0
+1290,502,"Planta de Cal",0
+1291,502,"Smelter 02",0
+1292,503,Transformer,0
+1293,503,MINA,0
+1294,503,"ALMACEN CASA DE BOMBAS",0
+1295,503,"CAMPAMENTO SUCHE",0
+1296,503,"SW Room 2",0
+1297,503,"CONCENTRADORA ASMOL",0
+1298,503,"ESTACION BOMBEO",0
+1299,503,"SE Transformacion",0
+1300,503,"SW Room 1",0
+1301,503,"SW Room 3",0
+1302,503,"SW Room Secundaria",0
+1303,503,"CONCENTRADORA RELAVES",0
+1304,503,"SW Room Planta de Filtros",0
+1305,503,"MEJORA TECNOLOGICA",0
+1306,504,"CH Pariac 3A",0
+1307,504,"CH Pariac 3N",0
+1308,504,"CH Pariac 4",0
+1309,504,"CH Pariac 2",0
+1310,505,"CH Misapuquio",0
+1311,505,"CH Huayllacho",0
+1312,505,"CH San Ignacio II",0
+1313,505,"CH San Ignacio I",0
+1314,506,Transformadores,0
+1315,506,"CT Pacasmayo",0
+1316,506,"CH Cahua",0
+1317,506,"C.H. CAHUA - STATKRAFT",0
+1318,507,"C.H. PACHAHACA - STATKRAFT",0
+1319,508,Transformadores,0
+1320,509,"C.H. MALPASO - STATKRAFT",0
+1321,510,Transformadores,0
+1322,511,"C.H. CHEVES - STATKRAFT",0
+1323,512,Transformers,0
+1324,513,"Sunshine Export S.A.C.",0
+1325,514,Transformer,0
+1326,515,"TEJIDOS SAN JACINTO S.A",0
+1327,516,Transformer,0
+1328,517,Transformadores,0
+1329,518,Transformadores,0
+1330,518,"SE Principal N°1",0
+1331,518,"Textiles Camones S.A.",0
+1332,518,"SE Principal N°2",0
+1333,519,PPTR,0
+1334,520,Transformadores,0
+1335,521,Transformadores,0
+1336,521,"Subestación Principal",0
+1337,521,"SE Condorcocha",0
+1338,521,"SE Carpapata II",0
+1339,521,"SE Carpapata I",0
+1340,522,Transformadores,0
+1341,522,Campamentos,0
+1342,522,"Oficinas Casino Administración",0
+1343,522,"S.E. Embolsadura",0
+1344,522,"Transformador Transmisión Horno III",0
+1345,522,"Transformador Circuito Elecsa",0
+1346,522,"Consorcio JSF (Ex Escuela)",0
+1347,522,"S.E Servicios proyecto Horno IV",0
+1348,522,"Residencial Empleado Obrero",0
+1349,522,"Transformador Fabrica",0
+1350,522,"Transformador S.E 4.7",0
+1351,522,"TD S.E 4.6 Molienda de carbón",0
+1352,522,"TD S.E 4.4 Dosificación petróleo y carbón",0
+1353,522,"Transformador S.E 4.1A",0
+1354,522,"Transformador S.E 4.2A",0
+1355,522,"Transformador S.E 4.3 Accionamiento H 4",0
+1356,522,"Transformador S.E 4.7.3 Ventilador separador",0
+1357,522,"Transformador S.E 4.1B Transporte",0
+1358,522,"Transformador S.E 4.4",0
+1359,522,"Transformador S.E 4.7.2 Separador de cemento",0
+1360,522,"Transformador S.E 4.2.4",0
+1361,522,"Transformador S.E 4.2.1 Prensa de crudo",0
+1362,522,"Transformador S.E 4.2.2 Ventilador de crudo",0
+1363,522,"TD S.E 4.4",0
+1364,522,"Transformador S.E 4.2.3 Ventilador de crudo",0
+1365,522,"Transformador S.E 4.7.1 Prensa de cemento",0
+1366,522,"Tranformador de Repuesto (stand by)",0
+1367,522,"Transformador MCC II",0
+1368,522,"Transformador S.E. 6A",0
+1369,522,"Transformador Mot. Vent. Horno II",0
+1370,522,"Transformador MCCI",0
+1371,522,"Transformador 630 (Embolsadura)",0
+1372,522,"Transformador Aux. Molino 4",0
+1373,522,"Chancadora M&H",0
+1374,522,"SE 3C - Petroleo",0
+1375,522,"Transformador S.E. H",0
+1376,522,"Transformador S.E. 1B",0
+1377,522,"S.E.6A Transformador Mot. Vent.",0
+1378,522,"Transformador S.E. 4",0
+1379,522,"Transformador S.E. II",0
+1380,522,"Transformador S.E. 3A",0
+1381,523,"CEMENTO ANDINO S.A. - SE CARPAPATA",0
+1382,524,Transformadores,0
+1383,525,Transformadores,0
+1384,526,Transformer,0
+1385,527,"Universidad de Lima",0
+1386,528,"HIDROELECTRICA HUANCHOR S.A.C.",0
+1387,529,"S.E. ANDAYCHAGUA",0
+1388,530,Transformers,0
+1389,542,"Sub estación principal",0
+1390,542,"Planta laminación 1",0
+1391,542,"Planta laminación 2",0
+1392,542,Aceria,0
+1393,542,"Reducción directa",0
+1394,542,Acedim,0
+1402,548,"SAN GABAN",0
+1403,549,"SE Principal",0
+1404,549,Concentradora,0
+1405,552,Subestación,0
+1406,319,Planta,0
+1407,553,"Zona Urbana",0
+1408,319,Electrólisis,0
+1409,319,Administrativa,0
+1410,319,"Presion aire",0
+1411,319,"SE Principal",0
+1412,319,"Sintesis  amoniaco",0
+1413,319,"SE 11",0
+1414,554,"Zona Urbana",0
+1415,555,Córdoba,0
+1416,555,Montería,0
+1417,555,"Santa Cruz de Lorica",0
+1418,555,Sincelejo,1
+1419,556,Sucre,0
+1420,556,Sincelejo,0
+1421,557,Cartagena,0
+1422,558,Valledupar,0
+1423,557,Bolivar,0
+1424,560,"Primary Crusher",0
+1425,560,"Sulfide Fine Crushing",0
+1426,560,"Chancado Terciario",1
+1427,560,"Water Services",0
+1428,560,"Flotación Rougher",0
+1429,560,"SE Principal",0
+1430,560,"Sulfine Primary Grinding",0
+1431,560,"Sulfide Concent",0
+1432,560,"Mine III (SKID)",0
+1433,560,"Mine I (SKID)",0
+1434,560,"Transfer Point (SKID)",0
+1435,560,"Mine II (SKID)",0
+1436,560,"Mine Infrastructure",0
+1437,560,"Administration (SKID)",0
+1438,560,Grupo,0
+1439,561,"Concentradora I",0
+1440,562,Rectificadores,0
+1441,563,"Demo area",0
+1442,566,"Mejora tecnológica",0
+1443,566,"Almacen casa de bombas",0
+1444,566,"Campamento SUCHE",0
+1445,566,"Concentradora ASMOL",0
+1446,566,"Concentradora relaves",0
+1447,566,"Estación bombeo",0
+1448,566,Mina,0
+1449,566,"SW Room 1",0
+1450,566,"SW Room 2",0
+1451,566,"SW Room 3",0
+1452,566,"SW Room Planta Filtros",0
+1453,566,"SW Room Secundaria",0
+1454,562,"Área 230",0
+1455,562,"Área 290",0
+1456,562,"Área 310",0
+1457,562,"Área 410",0
+1458,562,"Área 460",0
+1459,562,"Planta de acidos 01",0
+1460,562,"Planta de acidos 02",0
+1461,562,"Planta de Cal",0
+1462,562,"Planta de Conversión",0
+1463,562,"Planta de fusión",0
+1464,562,"Planta de oxigeno 01",0
+1465,562,"Planta de oxigeno 02",0
+1466,568,"SE Neyra",0
+1467,568,"SE BALNEARIOS",0
+1468,568,"SE Cantera",0
+1469,568,"SE Industriales",0
+1470,568,"SE Planicie",0
+1471,568,"SE Puente",0
+1472,568,"SE Salamanca",0
+1473,568,"SE San Bartolo",0
+1474,568,"SE San Juan",0
+1475,568,"SE Santa Anita",0
+1476,568,"SE Santa Clara",0
+1477,568,"SE Villa María",0
+1478,568,"SE Huachipa",0
+1479,568,"SE Central",0
+1480,568,"SE Ingenieros",0
+1481,568,"SE Ingenieros",1
+1482,569,Malabrigo,0
+1483,570,Montelibano,0
+1484,571,Subestación,0
+1485,566,Subestación,0
+1486,572,Procesos,0
+1487,573,"C.T. PUERTO BRAVO",1
+1488,574,"GRUPO DE GENERACIÓN 01",0
+1489,574,"GRUPO DE GENERACIÓN 02",0
+1490,574,"GRUPO DE GENERACIÓN 03",0
+1491,574,"GRUPO DE GENERACIÓN 04",0
+1492,578,"CARTAGENA - TURBACO",0
+1493,579,"LA LOMA",0
+1494,580,RECTIFICADORES,1
+1495,560,3562-SS-302,0
+1496,560,3565-SS-305,0
+1497,560,"PERFORADORA N°3",0
+1498,560,"PERFORADORA N°5",0
+1499,560,"PERFORADORA N°4",0
+1500,582,CARTAGENA,0
+1501,583,"BARRRIO EL SILENCIO",0
+1502,584,"CHANCADO PRIMARIO",0
+1503,584,LIXIVIACIÓN,0
+1505,587,"AREA 2",0
+1506,550,SUBESTACIÓN,0
+1507,588,VALLEDUPAR,0
+1508,589,PROCESOS,0
+1509,590,ATIBAIA,0
+1510,591,SUBESTACIONES,0
+1511,592,"CASA DE FUERZA",0
+1512,593,SUPE,0
+1513,594,VEGUETA,0
+1514,595,CALLAO,0
+1515,596,PISCO,0
+1516,597,MATARANI,0
+1517,569,CHIMBOTE,0
+1518,598,SUBESTACION,0
+1519,599,SUBESTACIÓN,0
+1520,600,"PLANTA TERMICA",0
+1521,601,SUBESTACIÓN,0
+1522,602,BARRANQUILLA,0
+1523,602,"TERMOELECTRICA TERMOFLORES",0
+1524,558,CESAR,0
+1525,603,MAGDALENA,0
+1526,604,BARRANQUILLA,0
+1527,605,"CENTRAL TERMICA",0
+1528,606,"SECCIÓN 70",0
+1529,606,"SECCIÓN 75",0
+1530,607,FORTUNIA,0
+1531,607,"ROOM PAD",0
+1532,607,CHANCADO,0
+1533,607,"SE PEBLES",0
+1534,607,"SERV AUX L2",0
+1535,607,"RECUPERACION L1",0
+1536,607,300-FLOTACIÓN,0
+1537,607,300-COMPRESORAS,0
+1538,607,"400-ISA MILL",0
+1539,607,"CASA FUERZA",0
+1540,607,FILTROS,0
+1541,607,MOLIBDENO,0
+1542,607,"RECUPERACIÓN L2",0
+1543,607,RELAVES,0
+1544,607,REMOLIENDA,0
+1545,607,"SE LINEA 1",0
+1546,607,"SE LINEA 2",0
+1547,607,"SE PRINCIPAL",0
+1548,607,"SERV AUX L1",0
+1549,607,TMF,0
+1550,607,"WORK SHOP",0
+1551,608,SUBESTACIÓN,0
+1552,609,"YURA 0",0
+1553,609,"EQUIPO MOVIL FUERZA",0
+1554,609,"BOMBA INTERMEDIA",0
+1555,609,INGENIEROS,0
+1556,609,TRANSFORMADORES,0
+1557,609,PRINCIPAL,0
+1558,609,"AUX MOLIENDA CEMENTOS 2",0
+1559,609,"PLANTA DE CARBON",0
+1560,609,"CRUDOS 2",0
+1561,609,"ALUMBRADO PLANTA",0
+1562,609,"MOLINOS PENG FEI",0
+1563,609,LOESCHE,0
+1564,609,"AUX LINEA 1",0
+1565,609,"GENERADOR CUMING TR-05",0
+1566,609,"AUX HORNO 2",0
+1567,609,"CENTRAL TERMICA",0
+1568,609,"YURA 3",0
+1569,609,"INTERCAMBIADOR HORNO",0
+1570,609,"SALA ENFRIADOR",0
+1571,609,"MOLINO UBE",0
+1572,609,"MATERIAS PRIMAS",0
+1573,609,"MOLINO DE CARBON",0
+1574,609,"ILUMINACIÓN GENERAL LINEA 3",0
+1575,609,"MOTORES HORNO 2",0
+1576,609,"EQUIPO MOVIL ALUMBRADO",0
+1577,609,"ALUMBRADO CHANCADORA SECUNDARIA",0
+1578,609,"CHANCADORA SECUNDARIA",0
+1579,609,"PLATAFORMA NUEVA BALANZA",0
+1580,609,"GRUPOS ELECTROGENOS",0
+1581,609,"YURA 2",0
+1582,609,CANTERA,0
+1583,549,"AGUA FRESCA",0
+1584,549,BOOSTER,0
+1585,549,"CAMPAMENTO NUEVO",0
+1586,549,"CHANCADORA PRIMARIA",0
+1587,549,"CHANCADORA SECUNDARIA",0
+1588,549,GENSET,0
+1589,549,GEOLOGÍA,0
+1590,549,HUINCUSH,0
+1591,549,"PORTATIL MINA",0
+1592,549,"SHELTER 1",0
+1593,549,"SHELTER 2",0
+1594,549,VIZCARRA,0
+1595,549,"TALLER MANTENIMIENTO",0
+1596,549,"TRUCK SHOP",0
+1597,549,"WELDING SHOP",0
+1598,610,ÁREA,0
+1599,611,"PATIO DE LLAVES",0
+1600,607,"SPI-220 KV",0
+1601,607,CAMPAMENTO,0
+1602,607,"TRANSFORMADORES HUDBAY",0
+1603,612,MINA,0
+1604,612,"PATIO LLAVES",0
+1605,606,"SECCIÓN 81",0
+1606,606,"SECCIÓN 90",0
+1607,613,SUBESTACIÓN,0
+1608,614,SUBESTACIÓN,0
+1609,616,MINA,0
+1610,618,HUAYLAS,0
+1611,619,"SE PRINCIPAL",0
+1612,620,HUAYANCA,0
+1613,621,"PATIO DE LLAVES",0
+1614,622,TINTAYA,0
+1615,622,COMBAPATA,0
+1616,567,HIDROELÉCTRICA,0
+1617,566,TTIJONES,0
+1618,567,"CASA DE BOMBAS",0
+1619,567,VW1,0
+1620,567,TW3,0
+1621,567,BARCAZA,0
+1622,567,TP9A,0
+1623,567,TW6,0
+1624,567,"PRINCIPAL VIZCACHAS",0
+1625,567,VW2,0
+1626,567,TP8,0
+1627,567,TITIJONES,0
+1628,567,VW4,0
+1629,567,VW3,0
+1630,623,DOSQUEBRADAS,0
+1631,624,"PLANTA DE TRANSFORMADORES DOSQUEBRADAS",0
+1632,625,"TRINIDA Y TOBAGO",0
+1633,561,"SALA ELECTRICA",0
+1634,626,"CAÑO SUR",0
+1635,627,MEDELLIN,0
+1636,628,MANTENIMIENTO,0
+1637,568,"SE - CHORRILLOS",0
+1638,568,"SE - PRADERAS",0
+1639,568,"SE - SAN ISIDRO",0
+1640,568,"SE - SANTA ROSA NUEVA",0
+1641,561,"SUBESTACION RECKA",0
+1642,629,MINA,0
+1643,630,"CENTRAL TERMOELECTRICA RECKA",0
+1644,631,PRINCIPAL,0
+1645,633,"JOSE MARTI 123",0
+1646,633,CENTRO,0
+1647,632,NORTE,0
+1648,605,"CENTRAL HIDROELECTRICA",0
+1649,634,"CENTRAL TERMICA",0
+1650,620,"PIURA OESTE",0
+1651,635,"POWER PLANT",0
+1652,567,SARANDA,0
+1653,636,"SAN SALVADOR",0
+1654,637,"SANTA TECLA",0
+1655,568,"SE ASIA",0
+1656,568,"SE BARRANCO",0
+1657,568,"SE BUJAMA",0
+1658,568,"SE VERTIENTES",0
+1659,568,"SE VILLA EL SALVADOR",0
+1660,568,"SE CHILCA",0
+1661,568,"SE CHOSICA",0
+1662,568,"SE GALVEZ",0
+1663,568,"SE LIMATAMBO",0
+1664,568,"SE LOS SAUCES",0
+1665,568,"SE LURIN",0
+1666,568,"SE MANCHAY",0
+1667,568,"SE MONTERRICO",0
+1668,568,"SE ÑAÑA",0
+1669,568,"SE PACHACAMAC",0
+1670,568,"SE PROGRESO",0
+1671,568,"SE SAN LUIS",0
+1672,568,"SE PACHACUTEC",0
+1673,606,"SECCIÓN 35",0
+1674,638,"C.H. CARHUAQUERO",0
+1675,639,MINA,0
+1676,640,"CENTRAL HIDROELÉCTRICA",0
+1677,641,"CENTRAL HIDROELECTIRCA URRA",0
+1678,642,-,0
+1679,643,-,0
+1680,644,-,0
+1681,645,-,0
+1682,646,-,0
+1683,647,-,0
+1684,648,-,0
+1685,649,-,0
+1686,650,-,0
+1687,651,-,0
+1688,652,-,0
+1689,653,-,0
+1690,654,-,0
+1691,655,-,0
+1692,656,-,0
+1693,657,-,0
+1694,658,-,0
+1695,659,-,0
+1696,660,-,0
+1697,661,-,0
+1698,662,-,0
+1699,663,-,0
+1700,664,-,0
+1701,665,-,0
+1702,666,-,0
+1703,667,-,0
+1704,668,-,0
+1705,669,-,0
+1706,670,-,0
+1707,671,-,0
+1708,672,-,0
+1709,673,-,0
+1710,674,-,0
+1711,675,-,0
+1712,676,-,0
+1713,677,-,0
+1714,678,-,0
+1715,679,-,0
+1716,680,-,0
+1717,681,-,0
+1718,682,-,0
+1719,683,-,0
+1720,685,-,0
+1721,686,-,0
+1722,687,SUBESTACIÓN,0
+1723,688,-,0
+1724,689,-,0
+1725,690,-,0
+1726,691,-,0
+1727,684,-,0
+1728,692,-,0
+1729,693,-,0
+1730,694,-,0
+1731,695,-,0
+1732,696,-,0
+1733,697,-,0
+1734,698,-,0
+1735,699,-,0
+1736,700,-,0
+1737,701,-,0
+1738,702,-,0
+1739,703,-,0
+1740,704,-,0
+1741,705,-,0
+1742,706,-,0
+1743,707,-,0
+1744,708,-,0
+1745,709,-,0
+1746,710,-,0
+1747,711,-,0
+1748,712,-,0
+1749,713,-,0
+1750,714,-,0
+1751,715,-,0
+1752,567,MINA,0
+1753,560,"VILLA COLABORADORES",0
+1754,716,-,0
+1755,717,-,0
+1756,718,-,0
+1757,719,-,0
+1758,720,-,1
+1759,721,-,0
+1760,722,-,0
+1761,723,-,0
+1762,724,PAVANA,0
+1763,725,-,0
+1764,726,MAITENES,0
+1765,727,"AREA CONCENTRADORA",0
+1766,728,-,0
+1767,729,-,0
+1768,567,TALLER,0
+1769,730,-,0
+1770,732,MOLINOS,0
+1771,733,MOLINOS,0
+1772,734,-,0
+1773,735,-,0
+1774,736,-,0
+1775,737,-,0
+1776,738,-,0
+1777,739,-,0
+1778,740,"CAJAMARCA NORTE",0
+1779,741,-,0
+1780,742,-,0
+1781,553,PEREIRA,0
+1782,743,"CENTRAL HIDROELECTRICA FORTUNA",0
+1783,744,-,0
+1784,745,"PLANTA PAPELES NACIONALES - PUERTO CALDAS",0
+1785,622,MOQUEGUA,0
+1786,620,"TRUJILLO NUEVA",0
+1787,620,"TRUJILLO NORTE",0
+1788,620,"CHICLAYO OESTE",0
+1789,620,PARAMONGA,0
+1790,746,CARAPONGO,0
+1791,747,NEIVA,0
+1792,747,VEGALARGA,0
+1793,620,CHIMBOTE,0
+1794,620,PIURA,0
+1795,749,"ZIJIN, ROSEBEL GOLD MINE",0
+1796,620,ZORRITOS,0
+1797,750,SUBESTACIÓN,0
+1798,751,ÁREA,0
+1799,620,GUADALUPE,0
+1800,752,SUBESTACIÓN,0
+1801,753,-,0
+1802,754,-,0
+1803,755,"CENTRAL GENERACIÓN",0
+1804,756,SUBESTACIÓN,0
+1805,757,SUBESTACIÓN,0
+1806,746,CARABAYLLO,0
+1807,620,"LA NIÑA",0
+1808,758,-,0
+1809,759,ARES,0
+1810,760,CAUDALOSA,0
+1811,761,INGENIO,0
+1812,762,LOMERA,0
+1813,763,YUMPAG,0
+1814,764,-,0
+1815,765,"SANTA CRUZ I",0
+1816,766,"SANTA CRUZ II",0
+1817,606,"SECCIÓN 73",0
+1818,606,"ELECTRO 75",0
+1819,767,"C.T. INDEPENDENCIA",0
+1820,768,-,0
+1821,770,SUBESTACIÓN,0
+1822,771,-,0
+1823,772,-,0
+1824,622,AZANGARO,0
+1825,773,-,0
+1826,774,"LA TEBAIDA",0
+1827,774,SALENTO,0
+1828,774,QUIMBAYA,0
+1829,774,MONTENEGRO,0
+1830,774,CALARCA,0
+1831,774,ARMENIA,0
+1832,775,SUBESTACIÓN,0
+1833,776,SUBESTACIÓN,0
+1834,777,-,0
+1835,778,-,0
+1836,779,-,0
+1837,780,-,0
+1838,746,HUAYUCACHI,0
+1839,746,ORCOPAMPA,0
+1840,746,MOLLEPATA,0
+1841,781,PALMIRA,0
+1842,782,"CIUDAD CALIFORNIA",0
+1843,783,-,0
+1844,784,-,0
+1845,746,CAMPAS,0
+1846,785,"CENTRAL GENERACION CNFL ",0
+1847,622,"SAN NICOLAS",0
+1848,746,PASCO,0
+1849,746,TOCACHE,0
+1850,622,SURIRAY,0
+1851,746,ICA,0
+1852,786,SUBESTACIÓN,0
+1853,787,-,0
+1854,622,"ABANCAY NUEVA",0
+1855,622,COTARUSE,0
+1856,622,QUENCORO,0
+1857,622,CUSCO,0
+1858,788,BOSCONIA,0
+1859,789,-,0
+1860,790,SUBESTACIÓN,0
+1861,791,ICA,0
+1862,792,"PUNTA CANA",0
+1863,793,-,0
+1864,794,SUBESTACIÓN,0
+1865,795,SUBESTACIÓN,0
+1866,797,-,0
+1867,798,-,0
+1868,799,PAIPA,0
+1869,800,-,0
+1870,801,-,0
+1871,796,-,0
+1872,802,BARRANCAS,0
+1873,803,-,0
+1874,804,-,0
+1875,805,HUASAHUASI,0
+1876,806,"RONATULLO II",0
+1877,807,"RONATULLO III",0
+1878,808,TACNA,0
+1879,809,LAMBAYEQUE,0
+1880,810,-,0
+1881,811,BARBADOS,0
+1882,812,BRIDGETOWN,0
+1883,813,SUBESTACION,0
+1884,814,"PLANTA SAN MARCOS YUMBO",0
+1885,815,-,0
+1886,816,SUBESTACION,0
+1887,817,-,0
+1888,818,"CENTRAL TERMICA KALLPA",0
+1889,819,-,0
+1890,820,ZARZAL,0
+1891,821,-,0
+1892,822,-,0
+1893,823,-,0
+1894,824,"PARQUE SOLAR",0
+1895,825,SUBESTACIÓN,0
+1896,826,-,0
+1897,827,SUBESTACION,0
+1898,622,JULIACA,0
+1899,622,PUNO,0
+1900,746,HUANCAVELICA,0
+1901,828,PEREIRA,0
+1902,829,SUBESTACIÓN,0
+1903,830,SUBESTACIÓN,0
+1904,746,"TINGO MARIA",0
+1905,746,COLCABAMBA,0
+1906,620,CHICLAYO,0
+1907,746,AGUAYTIA,0
+1908,746,HUACHO,0
+1909,746,"PUERTO CHANCAY",0
+1910,622,CAHUACHI,0
+1911,746,DESIERTO,0
+1912,746,CHINCHA,0
+1913,746,INDEPENDENCIA,0
+1914,622,POROMA,0
+1915,622,MARCONA,0
+1916,746,PUCALLPA,0
+1917,746,ORCOTUNA,0
+1918,746,PLANICIE,0
+1919,831,"ZONA FRANCA COYOL",0
+1920,832,"PROVINCIA DE PANAMA OESTE",0
+1921,832,"PROVINCUIA DE PANAMA OESTE",0
+1922,746,HUANUCO,0
+1923,746,CHILCA,0
+1924,620,TALARA,0
+1925,833,-,0
+1926,834,-,0
+1927,835,"CENTRAL HIDROELECTRICA MONTE LIRIO",0
+1928,836,SUBESTACIÓN,0
+1929,837,SUBESTACION,0
+1930,838,AREA,0
+1931,839,-,0
+1932,840,SUBESTACIÓN,0
+1933,841,"ZONA FRANCA DEL PACIFICO - PALMIRA",0
+1934,842,"CARTAGENA - PLANTA TERMOCANDELARIA",0
+1935,843,"SAHAGUN, CORREGIMIENTO DE SAN ANTONIO",0
+1936,844,-,0
+1937,845,SUBESTACIÓN,0
+1938,846,"PLANTA STEPAN MANIZALEZ",0
+1939,847,-,0
+1940,622,SOCABAYA,0
+1941,622,AYAVIRI,0
+1942,620,REQUE,0
+1943,746,AUCAYACU,0
+1944,620,"LA BREA",0
+1945,620,HUALLANCA,0
+1946,620,PARIÑAS,0
+1947,622,YARABAMBA,0
+1948,848,-,0

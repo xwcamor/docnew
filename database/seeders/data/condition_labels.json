@@ -1,0 +1,7 @@
+{
+    "4": { "es": "Excelente", "en": "Excellent" },
+    "3": { "es": "Bueno", "en": "Good" },
+    "2": { "es": "Regular", "en": "Fair" },
+    "1": { "es": "Malo", "en": "Poor" },
+    "0": { "es": "Crítico", "en": "Critical" }
+}

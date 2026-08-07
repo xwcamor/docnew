@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockups — Vista de Transformador escalable</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+:root{
+  --primary:#0A6ED1; --surface:#fff; --surface-alt:#f5f6f7; --bg:#eef1f4;
+  --border:#e5e5e5; --text:#32363A; --muted:#6A6D70;
+  --g-green:#2E7D32; --g-lime:#7CB342; --g-yellow:#F9A825; --g-orange:#EF6C00; --g-red:#C62828;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);}
+a{color:inherit;text-decoration:none}
+.wrap{max-width:1180px;margin:0 auto;padding:18px 20px 80px;}
+
+/* ── Barra de control del mockup ── */
+.mockbar{position:sticky;top:0;z-index:50;background:#1b2733;color:#fff;border-radius:10px;padding:14px 18px;margin-bottom:18px;box-shadow:0 2px 10px rgba(0,0,0,.18);}
+.mockbar h1{font-size:1rem;margin:0 0 3px;font-weight:700;}
+.mockbar p{margin:0;font-size:.8rem;color:#aebacd;}
+.seg{display:inline-flex;background:#0f1822;border-radius:9px;padding:4px;margin-top:12px;gap:4px;flex-wrap:wrap;}
+.seg button{border:0;background:transparent;color:#aebacd;font:inherit;font-size:.82rem;font-weight:600;padding:8px 14px;border-radius:7px;cursor:pointer;transition:.15s;}
+.seg button:hover{color:#fff;}
+.seg button.on{background:var(--primary);color:#fff;}
+.note{font-size:.78rem;color:#aebacd;margin-top:10px;line-height:1.5;border-left:3px solid var(--primary);padding:2px 0 2px 11px;}
+
+/* ── Topbar simulada ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap;}
+.crumb{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.9rem;}
+.crumb .ic{width:30px;height:30px;border-radius:7px;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:700;}
+.crumb b{color:var(--text);font-size:1.05rem;font-weight:700;}
+.acts{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);font:inherit;font-size:.82rem;font-weight:600;padding:7px 13px;border-radius:7px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn--p{background:var(--primary);color:#fff;border-color:var(--primary);}
+.btn--d{color:var(--g-red);border-color:#f1c4c0;}
+
+/* ── HERO (replica de tr-hero) ── */
+.hero{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:28px;padding:20px 24px;margin-bottom:16px;border-radius:8px;background:var(--surface);border:1px solid var(--border);border-left:4px solid var(--hi);box-shadow:0 1px 2px rgba(0,0,0,.06);}
+.hero__art{width:104px;height:104px;flex-shrink:0;display:grid;place-items:center;background:var(--surface-alt);border-radius:12px;color:var(--hi);}
+.hero__serial{font-size:1.6rem;font-weight:800;line-height:1.1;}
+.hero__meta{margin-top:4px;color:var(--muted);font-size:.9rem;}
+.hero__chips{margin-top:14px;display:flex;flex-wrap:wrap;gap:9px;}
+.kpi{display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:6px;background:var(--surface-alt);border:1px solid var(--border);font-size:.92rem;font-weight:600;}
+.kpi i{font-style:normal;font-weight:400;color:var(--muted);font-size:.8rem;}
+.hero__loc{margin-top:11px;font-size:.86rem;color:var(--muted);}
+.hero__gauge{display:flex;flex-direction:column;align-items:center;gap:5px;}
+.gauge{width:104px;height:104px;transform:rotate(-90deg);}
+.gauge__track{fill:none;stroke:#e9ebee;stroke-width:8;}
+.gauge__val{fill:none;stroke-width:8;stroke-linecap:round;stroke:var(--hi);}
+.gauge__num{transform:rotate(90deg);transform-origin:50px 50px;text-anchor:middle;fill:var(--text);font-size:1.9rem;font-weight:800;}
+.gauge__pct{transform:rotate(90deg);transform-origin:50px 50px;text-anchor:middle;fill:var(--muted);font-size:.8rem;}
+.gauge-label{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:.92rem;}
+.gauge-cap{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;}
+.gdot{width:10px;height:10px;border-radius:50%;display:inline-block;background:var(--hi);}
+
+/* status dot helper */
+.sdot{width:9px;height:9px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.s-green{background:var(--g-green)} .s-lime{background:var(--g-lime)} .s-yellow{background:var(--g-yellow)}
+.s-orange{background:var(--g-orange)} .s-red{background:var(--g-red)} .s-none{background:#c8cdd2}
+
+.panel{display:none}
+.panel.on{display:block}
+.cap{font-size:.78rem;color:var(--muted);background:#fff;border:1px dashed var(--border);border-radius:8px;padding:9px 12px;margin:0 0 14px;}
+.cap b{color:var(--primary)}
+
+/* ════════ OPCIÓN A — rail lateral ════════ */
+.objpage{display:grid;grid-template-columns:248px 1fr;gap:16px;align-items:start;}
+.rail{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px;position:sticky;top:96px;}
+.rail__group{font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding:12px 12px 6px;}
+.rail__item{display:flex;align-items:center;gap:10px;padding:9px 11px;border-radius:8px;cursor:pointer;font-size:.9rem;font-weight:500;color:var(--text);position:relative;}
+.rail__item:hover{background:var(--surface-alt);}
+.rail__item.on{background:#eaf3fc;color:var(--primary);font-weight:700;}
+.rail__item.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:3px;background:var(--primary);}
+.rail__ic{width:18px;text-align:center;opacity:.8;}
+.rail__lbl{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rail__n{font-size:.7rem;color:var(--muted);background:var(--surface-alt);border-radius:999px;padding:1px 7px;font-weight:600;}
+.content{min-width:0;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px;}
+.section-title{margin:2px 0 14px;font-size:1.05rem;font-weight:700;}
+
+/* diag grid (replica) */
+.diag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;}
+.diag-card{position:relative;background:#fff;border:1px solid var(--border);border-radius:14px;padding:15px 16px;overflow:hidden;}
+.diag-card::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--c,#e5e7eb);}
+.diag-card__top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:4px;}
+.diag-card__name{font-weight:700;font-size:.9rem;}
+.diag-card__pill{font-size:.7rem;font-weight:700;color:#fff;background:var(--c,#9aa0a6);padding:2px 10px;border-radius:999px;white-space:nowrap;}
+.diag-card__rating{display:flex;align-items:center;gap:10px;margin-top:14px;}
+.diag-card__bar{flex:1;height:7px;border-radius:5px;background:#eef1f4;overflow:hidden;}
+.diag-card__bar i{display:block;height:100%;border-radius:5px;background:var(--c,#9aa0a6);}
+.diag-card__score{font-size:1.05rem;font-weight:800;color:var(--c,#1f2937);}
+.diag-card__score i{font-style:normal;font-size:.72rem;font-weight:500;color:#9aa0a6;}
+.diag-card__meta{display:flex;justify-content:space-between;margin-top:11px;font-size:.76rem;color:var(--muted);}
+.diag-card--empty{opacity:.7;}
+.diag-card__empty{margin-top:14px;color:#9aa0a6;font-size:.85rem;font-style:italic;}
+
+/* fake test body */
+.fakebody{color:var(--muted);font-size:.9rem;}
+.fakerow{height:13px;border-radius:5px;background:var(--surface-alt);margin:10px 0;}
+.faketable{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:14px;}
+.faketable div{display:grid;grid-template-columns:repeat(5,1fr);}
+.faketable span{padding:9px 12px;border-bottom:1px solid var(--border);font-size:.82rem;}
+.faketable .h span{background:var(--surface-alt);font-weight:700;color:var(--text);}
+
+/* ════════ OPCIÓN B — tabs agrupados ════════ */
+.tabsbar{display:flex;align-items:center;gap:4px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:nowrap;overflow:hidden;}
+.tab{padding:11px 15px;font-size:.92rem;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;display:inline-flex;gap:7px;align-items:center;}
+.tab:hover{color:var(--text);}
+.tab.on{color:var(--primary);border-bottom-color:var(--primary);}
+.tabs-spacer{flex:1;}
+.tab--more{color:var(--text);}
+.reg-group{display:inline-flex;gap:4px;padding-left:10px;margin-left:6px;border-left:1px solid var(--border);}
+.reg-group .tab{color:var(--muted);font-weight:500;}
+.dropdown{position:relative;}
+.menu{position:absolute;right:0;top:38px;background:#fff;border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px rgba(17,24,39,.14);padding:6px;min-width:210px;display:none;z-index:20;}
+.menu.on{display:block;}
+.menu a{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:7px;font-size:.88rem;}
+.menu a:hover{background:var(--surface-alt);}
+
+/* ════════ OPCIÓN C — dashboard drill-in ════════ */
+.hubgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:15px;}
+.hub-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:17px;cursor:pointer;transition:.16s;position:relative;overflow:hidden;}
+.hub-card::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:var(--c,#e5e7eb);}
+.hub-card:hover{box-shadow:0 10px 26px rgba(17,24,39,.12);transform:translateY(-2px);}
+.hub-card__h{display:flex;align-items:center;gap:10px;}
+.hub-card__ic{width:38px;height:38px;border-radius:9px;display:grid;place-items:center;background:color-mix(in srgb,var(--c,#888) 14%,#fff);color:var(--c,#555);font-size:1.1rem;}
+.hub-card__name{font-weight:700;font-size:.95rem;}
+.hub-card__sub{font-size:.74rem;color:var(--muted);}
+.hub-card__pill{margin-left:auto;font-size:.7rem;font-weight:700;color:#fff;background:var(--c,#9aa0a6);padding:2px 9px;border-radius:999px;}
+.hub-card__foot{display:flex;justify-content:space-between;align-items:center;margin-top:14px;font-size:.78rem;color:var(--muted);}
+.hub-card__go{color:var(--primary);font-weight:700;}
+.detailhdr{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.backbtn{border:1px solid var(--border);background:#fff;border-radius:8px;padding:7px 13px;font:inherit;font-weight:600;font-size:.85rem;cursor:pointer;}
+.chip-reg{margin-left:auto;}
+.hide{display:none}
+@media(max-width:880px){
+  .objpage{grid-template-columns:1fr;}
+  .rail{position:static;display:flex;overflow-x:auto;}
+  .rail__group{display:none;}
+  .hero{grid-template-columns:1fr;text-align:center;justify-items:center;}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mockbar">
+    <h1>Mockups — Vista de Transformador escalable</h1>
+    <p>Mismo trafo (abc · Abengoa Peru SA), 3 maneras de organizar pruebas + registro. Datos de ejemplo (diagnosticado) para mostrar los semáforos.</p>
+    <div class="seg">
+      <button data-opt="a" class="on">Opción A · Rail lateral</button>
+      <button data-opt="b">Opción B · Tabs agrupados</button>
+      <button data-opt="c">Opción C · Tablero + detalle</button>
+    </div>
+    <div class="note" id="optnote"></div>
+  </div>
+
+  <!-- topbar -->
+  <div class="topbar">
+    <div class="crumb">
+      <span class="ic">←</span>
+      <div><b>abc</b><div style="font-size:.82rem">Abengoa Peru SA</div></div>
+    </div>
+    <div class="acts">
+      <button class="btn">⤴ Compartir</button>
+      <button class="btn">🗎 Logs del sistema</button>
+      <button class="btn btn--p">✎ Editar</button>
+      <button class="btn btn--d">🗑 Eliminar</button>
+    </div>
+  </div>
+
+  <!-- HERO (compartido) -->
+  <div class="hero" style="--hi:var(--g-lime)">
+    <div class="hero__art">
+      <svg width="58" height="58" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 8h10v9H7z"/><path d="M9 8V5M15 8V5M9 17v2M15 17v2"/><path d="M12 10l-1.5 2.5h3L12 15"/></svg>
+    </div>
+    <div class="hero__id">
+      <div class="hero__serial">abc</div>
+      <div class="hero__meta">TAG 123 · Potencia · Mineral</div>
+      <div class="hero__chips">
+        <span class="kpi">⚡ 21.00 <i>kV</i></span>
+        <span class="kpi">⊙ 34.00 <i>MVA</i></span>
+        <span class="kpi">▦ 1900 <i>· 126 años</i></span>
+        <span class="kpi">⑂ Trifásico</span>
+        <span class="kpi">◈ ABB</span>
+        <span class="kpi">▤ OLTC</span>
+        <span class="kpi">⬡ Dyn5</span>
+      </div>
+      <div class="hero__loc">⌖ Abengoa Peru SA · ABENGOA PERU S.A. - SE CHILCA › Transformers › Transformers</div>
+    </div>
+    <div class="hero__gauge">
+      <svg viewBox="0 0 100 100" class="gauge">
+        <circle class="gauge__track" cx="50" cy="50" r="42"/>
+        <circle class="gauge__val" cx="50" cy="50" r="42" stroke-dasharray="263.9" stroke-dashoffset="73.9"/>
+        <text x="50" y="47" class="gauge__num">72</text>
+        <text x="50" y="62" class="gauge__pct">%</text>
+      </svg>
+      <div class="gauge-label"><span class="gdot"></span> Bueno</div>
+      <div class="gauge-cap">Índice de salud</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ OPCIÓN A ════════════════════ -->
+  <div class="panel on" id="opt-a">
+    <div class="cap">El menú de pruebas pasa de fila horizontal a <b>rail vertical</b>. Crece sin desbordar (scroll), separa <b>Diagnóstico</b> de <b>Registro</b>, y cada item muestra un <b>punto de semáforo</b> — ves el estado de todo el trafo de un vistazo sin abrir nada.</div>
+    <div class="objpage">
+      <aside class="rail" id="railA">
+        <div class="rail__group">Diagnóstico</div>
+        <div class="rail__item on" data-sec="resumen"><span class="rail__ic">▥</span><span class="rail__lbl">Resumen</span></div>
+        <div class="rail__item" data-sec="cromas"><span class="rail__ic">⚗</span><span class="rail__lbl">Cromatografía (DGA)</span><span class="sdot s-yellow"></span></div>
+        <div class="rail__item" data-sec="fiquis"><span class="rail__ic">◑</span><span class="rail__lbl">Fisicoquímico</span><span class="sdot s-lime"></span></div>
+        <div class="rail__item" data-sec="furanos"><span class="rail__ic">⬡</span><span class="rail__lbl">Furanos</span><span class="sdot s-orange"></span></div>
+        <div class="rail__item" data-sec="fpot"><span class="rail__ic">⊙</span><span class="rail__lbl">Factor de Potencia</span><span class="sdot s-green"></span></div>
+        <div class="rail__item" data-sec="duval"><span class="rail__ic">△</span><span class="rail__lbl">Duval / Rogers</span><span class="sdot s-yellow"></span></div>
+        <div class="rail__item" data-sec="f1"><span class="rail__ic">≈</span><span class="rail__lbl">Tangente delta</span><span class="sdot s-none"></span></div>
+        <div class="rail__item" data-sec="f2"><span class="rail__ic">↻</span><span class="rail__lbl">Relación TTR</span><span class="sdot s-none"></span></div>
+        <div class="rail__item" data-sec="f3"><span class="rail__ic">▦</span><span class="rail__lbl">Resistencia aislamiento</span><span class="sdot s-none"></span></div>
+        <div class="rail__item" data-sec="f4"><span class="rail__ic">🌡</span><span class="rail__lbl">Termografía</span><span class="sdot s-none"></span></div>
+        <div class="rail__group">Registro</div>
+        <div class="rail__item" data-sec="bitacora"><span class="rail__ic">▤</span><span class="rail__lbl">Bitácora</span><span class="rail__n">4</span></div>
+        <div class="rail__item" data-sec="cambios"><span class="rail__ic">⟲</span><span class="rail__lbl">Cambios / Auditoría</span></div>
+      </aside>
+      <div class="content" id="contentA"></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════ OPCIÓN B ════════════════════ -->
+  <div class="panel" id="opt-b">
+    <div class="cap">Mantiene <b>tabs arriba</b> (mínimo cambio) pero solo las pruebas principales; el resto entra en <b>“Más ▾”</b>, y <b>Bitácora/Cambios</b> se separan a la derecha como grupo “Registro”. Aguanta más pruebas, pero el “Más” esconde cosas y a 12+ pruebas vuelve a apretar.</div>
+    <div class="tabsbar">
+      <span class="tab on">▥ Resumen</span>
+      <span class="tab">⚗ Cromatografía <span class="sdot s-yellow"></span></span>
+      <span class="tab">◑ Fisicoquímico <span class="sdot s-lime"></span></span>
+      <span class="tab">⬡ Furanos <span class="sdot s-orange"></span></span>
+      <span class="tab">⊙ Factor de Potencia <span class="sdot s-green"></span></span>
+      <span class="dropdown">
+        <span class="tab tab--more" id="moreBtn">Más ▾</span>
+        <div class="menu" id="moreMenu">
+          <a>△ Duval / Rogers <span class="sdot s-yellow"></span></a>
+          <a>≈ Tangente delta</a>
+          <a>↻ Relación TTR</a>
+          <a>▦ Resistencia aislamiento</a>
+          <a>🌡 Termografía</a>
+        </div>
+      </span>
+      <span class="tabs-spacer"></span>
+      <span class="reg-group">
+        <span class="tab">▤ Bitácora</span>
+        <span class="tab">⟲ Cambios</span>
+      </span>
+    </div>
+    <div id="contentB"></div>
+  </div>
+
+  <!-- ════════════════════ OPCIÓN C ════════════════════ -->
+  <div class="panel" id="opt-c">
+    <div class="cap">No hay fila de tabs. El <b>Resumen es un tablero de tarjetas</b> (una por prueba) que crece infinito en grilla; clic en una tarjeta <b>entra al detalle</b> con botón “volver”. Registro queda en un botón aparte. Lo más escalable; cuesta 1 clic extra para llegar a cada prueba.</div>
+    <div id="hubC">
+      <div class="detailhdr">
+        <h2 class="section-title" style="margin:0">Pruebas de diagnóstico</h2>
+        <button class="btn chip-reg">▤ Bitácora</button>
+        <button class="btn">⟲ Cambios</button>
+      </div>
+      <div class="hubgrid">
+        <div class="hub-card" style="--c:var(--g-yellow)" data-d="Cromatografía (DGA)">
+          <div class="hub-card__h"><div class="hub-card__ic">⚗</div><div><div class="hub-card__name">Cromatografía</div><div class="hub-card__sub">DGA · 6 muestras</div></div><span class="hub-card__pill">Medio</span></div>
+          <div class="hub-card__foot"><span>Última: 2025-11-02</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+        <div class="hub-card" style="--c:var(--g-lime)" data-d="Fisicoquímico">
+          <div class="hub-card__h"><div class="hub-card__ic">◑</div><div><div class="hub-card__name">Fisicoquímico</div><div class="hub-card__sub">IEEE C57.106 · 4 muestras</div></div><span class="hub-card__pill">Bueno</span></div>
+          <div class="hub-card__foot"><span>Última: 2025-10-20</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+        <div class="hub-card" style="--c:var(--g-orange)" data-d="Furanos">
+          <div class="hub-card__h"><div class="hub-card__ic">⬡</div><div><div class="hub-card__name">Furanos</div><div class="hub-card__sub">2-FAL · DP 410</div></div><span class="hub-card__pill">Malo</span></div>
+          <div class="hub-card__foot"><span>Última: 2025-09-15</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+        <div class="hub-card" style="--c:var(--g-green)" data-d="Factor de Potencia">
+          <div class="hub-card__h"><div class="hub-card__ic">⊙</div><div><div class="hub-card__name">Factor de Potencia</div><div class="hub-card__sub">2 muestras</div></div><span class="hub-card__pill">Muy Bueno</span></div>
+          <div class="hub-card__foot"><span>Última: 2025-08-01</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+        <div class="hub-card" style="--c:var(--g-yellow)" data-d="Duval / Rogers">
+          <div class="hub-card__h"><div class="hub-card__ic">△</div><div><div class="hub-card__name">Duval / Rogers</div><div class="hub-card__sub">Triángulos + ratios</div></div><span class="hub-card__pill">Medio</span></div>
+          <div class="hub-card__foot"><span>Derivado de DGA</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+        <div class="hub-card" style="--c:#c8cdd2" data-d="Tangente delta">
+          <div class="hub-card__h"><div class="hub-card__ic">≈</div><div><div class="hub-card__name">Tangente delta</div><div class="hub-card__sub">Sin registro</div></div></div>
+          <div class="hub-card__foot"><span>—</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+        <div class="hub-card" style="--c:#c8cdd2" data-d="Termografía">
+          <div class="hub-card__h"><div class="hub-card__ic">🌡</div><div><div class="hub-card__name">Termografía</div><div class="hub-card__sub">Sin registro</div></div></div>
+          <div class="hub-card__foot"><span>—</span><span class="hub-card__go">Abrir →</span></div>
+        </div>
+      </div>
+    </div>
+    <div id="detailC" class="hide">
+      <div class="detailhdr">
+        <button class="backbtn" id="backC">← Volver al tablero</button>
+        <h2 class="section-title" style="margin:0" id="detailTitle">Prueba</h2>
+      </div>
+      <div class="card">
+        <div class="fakebody">Aquí va el componente real de la prueba (tabla de muestras + gráfico de tendencia + semáforo + comentarios), idéntico a lo que ya tienes en cada Section.vue.</div>
+        <div class="faketable"><div class="h"><span>Fecha</span><span>Valor 1</span><span>Valor 2</span><span>Valor 3</span><span>Condición</span></div>
+          <div><span>2025-11-02</span><span>112</span><span>34</span><span>8</span><span>Medio</span></div>
+          <div><span>2025-08-10</span><span>98</span><span>30</span><span>6</span><span>Bueno</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const NOTES={
+  a:"Recomendada. Escala a 15+ pruebas sin romperse, separa Diagnóstico/Registro y suma estado a la vista. Cambio mediano en Show.vue (Tabs → layout de 2 columnas).",
+  b:"Cambio chico, riesgo bajo. Pero el menú “Más” esconde pruebas y a la larga vuelve el mismo problema de espacio.",
+  c:"La más escalable y limpia para muchas pruebas. Cuesta un clic extra por prueba y es el rediseño más grande."
+};
+const noteEl=document.getElementById('optnote');
+function setOpt(o){
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.opt===o));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  document.getElementById('opt-'+o).classList.add('on');
+  noteEl.textContent=NOTES[o];
+}
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>setOpt(b.dataset.opt));
+setOpt('a');
+
+/* ── Opción A: contenido por sección ── */
+const diagCards=`
+  <h3 class="section-title">Resumen de diagnóstico</h3>
+  <div class="diag-grid">
+    ${[['Cromatografía (DGA)','Medio',2,'var(--g-yellow)','54% del índice'],
+       ['Fisicoquímico','Bueno',3,'var(--g-lime)','22% del índice'],
+       ['Furanos','Malo',1,'var(--g-orange)','15% del índice'],
+       ['Factor de Potencia','Muy Bueno',4,'var(--g-green)','9% del índice']]
+      .map(([n,c,r,col,s])=>`<div class="diag-card" style="--c:${col}">
+        <div class="diag-card__top"><span class="diag-card__name">${n}</span><span class="diag-card__pill">${c}</span></div>
+        <div class="diag-card__rating"><div class="diag-card__bar"><i style="width:${r/4*100}%"></i></div><span class="diag-card__score">${r}<i>/4</i></span></div>
+        <div class="diag-card__meta"><span>${s}</span><span>▦ 2025-11-02</span></div></div>`).join('')}
+    <div class="diag-card diag-card--empty"><div class="diag-card__top"><span class="diag-card__name">Tangente delta</span></div><div class="diag-card__empty">Sin muestras</div></div>
+  </div>`;
+function fakeTest(title){return `<div class="card"><h3 class="section-title">${title}</h3>
+  <div class="fakebody">Componente real de la prueba (tabla + tendencia + semáforo + comentarios).</div>
+  <div class="faketable"><div class="h"><span>Fecha</span><span>Valor 1</span><span>Valor 2</span><span>Valor 3</span><span>Condición</span></div>
+  <div><span>2025-11-02</span><span>112</span><span>34</span><span>8</span><span>Medio</span></div>
+  <div><span>2025-08-10</span><span>98</span><span>30</span><span>6</span><span>Bueno</span></div></div></div>`;}
+const SEC={
+  resumen:diagCards+`<div class="card"><h3 class="section-title">Datos del transformador</h3><div class="fakebody">Grilla de specs (igual que hoy).</div><div class="fakerow" style="width:90%"></div><div class="fakerow" style="width:75%"></div><div class="fakerow" style="width:85%"></div></div>`,
+  cromas:fakeTest('Análisis Cromatográfico (DGA)'),
+  fiquis:fakeTest('Fisicoquímico'),
+  furanos:fakeTest('Furanos'),
+  fpot:fakeTest('Factor de Potencia'),
+  duval:fakeTest('Duval / Rogers'),
+  f1:fakeTest('Tangente delta'),f2:fakeTest('Relación TTR'),f3:fakeTest('Resistencia de aislamiento'),f4:fakeTest('Termografía'),
+  bitacora:`<div class="card"><h3 class="section-title">Bitácora</h3><div class="fakebody">Eventos operativos del trafo (mantenimientos, cambios de aceite…).</div></div>`,
+  cambios:`<div class="card"><h3 class="section-title">Cambios / Auditoría</h3><div class="fakebody">Historial de auditoría (creado/editado por, timeline). Ahora vive en “Registro”, separado de las pruebas.</div></div>`
+};
+const contentA=document.getElementById('contentA');
+contentA.innerHTML=SEC.resumen;
+document.querySelectorAll('#railA .rail__item').forEach(it=>it.onclick=()=>{
+  document.querySelectorAll('#railA .rail__item').forEach(x=>x.classList.remove('on'));
+  it.classList.add('on');
+  contentA.innerHTML=SEC[it.dataset.sec]||fakeTest(it.querySelector('.rail__lbl').textContent);
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+/* ── Opción B: contenido + menú Más ── */
+document.getElementById('contentB').innerHTML=SEC.resumen+`<div class="card"><h3 class="section-title">Datos del transformador</h3><div class="fakebody">Grilla de specs.</div></div>`;
+const moreBtn=document.getElementById('moreBtn'),moreMenu=document.getElementById('moreMenu');
+moreBtn.onclick=(e)=>{e.stopPropagation();moreMenu.classList.toggle('on');};
+document.addEventListener('click',()=>moreMenu.classList.remove('on'));
+
+/* ── Opción C: drill-in ── */
+const hubC=document.getElementById('hubC'),detailC=document.getElementById('detailC');
+document.querySelectorAll('.hub-card').forEach(c=>c.onclick=()=>{
+  document.getElementById('detailTitle').textContent=c.dataset.d;
+  hubC.classList.add('hide');detailC.classList.remove('hide');window.scrollTo({top:0,behavior:'smooth'});
+});
+document.getElementById('backC').onclick=()=>{detailC.classList.add('hide');hubC.classList.remove('hide');};
+</script>
+</body>
+</html>
