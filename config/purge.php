@@ -99,6 +99,14 @@ return [
             'model' => \App\Models\Company::class,
             'days'  => 90,
         ],
+        'people' => [
+            'model' => \App\Models\Person::class,
+            'days'  => 90,
+        ],
+        'work_plans' => [
+            'model' => \App\Models\WorkPlan::class,
+            'days'  => 90,
+        ],
         // Suma modulos nuevos aqui:
         // 'patients' => [...],
         // 'doctors'  => [...],

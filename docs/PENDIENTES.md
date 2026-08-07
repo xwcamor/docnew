@@ -38,9 +38,10 @@ silencio.
 6. Tests: los del dominio viejo se borraron; faltan los del dominio nuevo.
 7. Flujo de aprobación de documentos: el de TRAFODEX se borró con los informes de diagnóstico.
    La estructura ya está (`approval_rules` + `work_plan_approvals`), falta la pantalla.
-10. El módulo `Companies` se generó clonando `Brand`, así que trae `code`/`sort_order` renombrados
-    a `num_doc`/`complete_name`. Falta revisar sus vistas: el formulario y el listado todavía
-    tratan `complete_name` como si fuera un número de orden.
+10. Los módulos `Companies`, `People` y `WorkPlans` se generaron clonando `Brand`, así que trae `code`/`sort_order` renombrados
+    a las columnas reales. Falta revisar sus vistas una por una: el formulario y el listado
+    todavía tratan la segunda columna como si fuera un número de orden, y les faltan los campos
+    propios (país, nacionalidad, empresa, tipo de trabajo, fechas).
 11. `DocufizDemoSeeder` no está en `DatabaseSeeder`: se ejecuta a mano con
     `php artisan db:seed --class=DocufizDemoSeeder`. Decidir si entra en el sembrado por defecto.
 8. Índices únicos que faltan en el sistema viejo: hay que resolver antes el duplicado `47019239`.

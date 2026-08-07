@@ -67,6 +67,14 @@ return [
             'model'      => \App\Models\Company::class,
             'show_route' => 'business_management.companies.show',
         ],
+        'people' => [
+            'model'      => \App\Models\Person::class,
+            'show_route' => 'business_management.people.show',
+        ],
+        'work_plans' => [
+            'model'      => \App\Models\WorkPlan::class,
+            'show_route' => 'business_management.work_plans.show',
+        ],
         // Agrega modulos nuevos aqui cuando crees patients, doctors, etc.
     ],
 ];

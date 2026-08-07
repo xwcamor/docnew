@@ -1,6 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BusinessManagement\WorkPlanController;
+use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Http\Controllers\BusinessManagement\CompanyController;
 use App\Http\Controllers\BusinessManagement\BrandController;
 use App\Http\Controllers\BusinessManagement\CustomerController;
@@ -248,5 +250,153 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('companies/{company}/lock',   [CompanyController::class, 'lock'])->name('companies.lock');
         Route::post('companies/{company}/unlock', [CompanyController::class, 'unlock'])->name('companies.unlock');
+    });
+
+
+    // ── People ──
+    // Bloque generado por make:module. Reordena o ajusta permisos según tu dominio.
+
+    // 1) Trash + restore + force_delete (super only — defense in depth)
+    Route::middleware('role:super')->group(function () {
+        Route::get('people/trash',                  [PersonController::class, 'trash'])->name('people.trash');
+        Route::post('people/bulk_restore',          [PersonController::class, 'bulkRestore'])->name('people.bulk_restore');
+        Route::post('people/{slug}/restore',        [PersonController::class, 'restore'])->name('people.restore');
+        Route::get('people/{slug}/restore',         fn () => redirect()->route('business_management.people.trash'));
+        Route::delete('people/{slug}/force_delete', [PersonController::class, 'forceDelete'])->name('people.force_delete');
+    });
+
+    // 2) Exports (gated por plan_feature por formato)
+    Route::middleware('permission:people.view')->group(function () {
+        Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
+            ->post('people/export_excel', [PersonController::class, 'exportExcel'])->name('people.export_excel');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
+            ->post('people/export_pdf',   [PersonController::class, 'exportPdf'])->name('people.export_pdf');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_word'])
+            ->post('people/export_word',  [PersonController::class, 'exportWord'])->name('people.export_word');
+        Route::middleware('throttle:5,1')
+            ->post('people/export_csv',   [PersonController::class, 'exportCsv'])->name('people.export_csv');
+    });
+
+    // 3) Imports
+    Route::middleware(['permission:people.create', 'plan_feature:bulk_operations'])->group(function () {
+        Route::post('people/import',          [PersonController::class, 'import'])->name('people.import');
+        Route::get('people/import_template',  [PersonController::class, 'importTemplate'])->name('people.import_template');
+    });
+
+    // 4) Bulk operations
+    Route::middleware(['permission:people.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('people/bulk_delete',     [PersonController::class, 'bulkDelete'])->name('people.bulk_delete');
+        Route::post('people/bulk_set_active', [PersonController::class, 'bulkSetActive'])->name('people.bulk_set_active');
+    });
+
+    // Undo del ultimo borrado (60s window)
+    Route::middleware('permission:people.delete')->group(function () {
+        Route::post('people/undo_last_delete', [PersonController::class, 'undoLastDelete'])->name('people.undo_last_delete');
+    });
+
+    // Edit All
+    Route::middleware('permission:people.edit')->group(function () {
+        Route::get('people/edit_all',         [PersonController::class, 'editAll'])->name('people.edit_all');
+        Route::post('people/edit_all/update', [PersonController::class, 'editAllUpdate'])->name('people.edit_all.update');
+    });
+
+    // 5) CRUD principal — paths estaticos PRIMERO.
+    Route::middleware('permission:people.create')->group(function () {
+        Route::get('people/create', [PersonController::class, 'create'])->name('people.create');
+        Route::post('people',       [PersonController::class, 'store'])->name('people.store');
+        Route::post('people/{person}/duplicate', [PersonController::class, 'duplicate'])->name('people.duplicate');
+    });
+
+    Route::middleware('permission:people.view')->group(function () {
+        Route::get('people',                [PersonController::class, 'index'])->name('people.index');
+        Route::get('people/{person}',  [PersonController::class, 'show'])->name('people.show');
+    });
+    Route::middleware('permission:people.edit')->group(function () {
+        Route::get('people/{person}/edit', [PersonController::class, 'edit'])->name('people.edit');
+        Route::put('people/{person}',      [PersonController::class, 'update'])->name('people.update');
+    });
+    Route::middleware('permission:people.delete')->group(function () {
+        Route::get('people/{person}/delete',        [PersonController::class, 'delete'])->name('people.delete');
+        Route::delete('people/{person}/deleteSave', [PersonController::class, 'deleteSave'])->name('people.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('people/{person}/lock',   [PersonController::class, 'lock'])->name('people.lock');
+        Route::post('people/{person}/unlock', [PersonController::class, 'unlock'])->name('people.unlock');
+    });
+
+
+    // ── WorkPlans ──
+    // Bloque generado por make:module. Reordena o ajusta permisos según tu dominio.
+
+    // 1) Trash + restore + force_delete (super only — defense in depth)
+    Route::middleware('role:super')->group(function () {
+        Route::get('work_plans/trash',                  [WorkPlanController::class, 'trash'])->name('work_plans.trash');
+        Route::post('work_plans/bulk_restore',          [WorkPlanController::class, 'bulkRestore'])->name('work_plans.bulk_restore');
+        Route::post('work_plans/{slug}/restore',        [WorkPlanController::class, 'restore'])->name('work_plans.restore');
+        Route::get('work_plans/{slug}/restore',         fn () => redirect()->route('business_management.work_plans.trash'));
+        Route::delete('work_plans/{slug}/force_delete', [WorkPlanController::class, 'forceDelete'])->name('work_plans.force_delete');
+    });
+
+    // 2) Exports (gated por plan_feature por formato)
+    Route::middleware('permission:work_plans.view')->group(function () {
+        Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
+            ->post('work_plans/export_excel', [WorkPlanController::class, 'exportExcel'])->name('work_plans.export_excel');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
+            ->post('work_plans/export_pdf',   [WorkPlanController::class, 'exportPdf'])->name('work_plans.export_pdf');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_word'])
+            ->post('work_plans/export_word',  [WorkPlanController::class, 'exportWord'])->name('work_plans.export_word');
+        Route::middleware('throttle:5,1')
+            ->post('work_plans/export_csv',   [WorkPlanController::class, 'exportCsv'])->name('work_plans.export_csv');
+    });
+
+    // 3) Imports
+    Route::middleware(['permission:work_plans.create', 'plan_feature:bulk_operations'])->group(function () {
+        Route::post('work_plans/import',          [WorkPlanController::class, 'import'])->name('work_plans.import');
+        Route::get('work_plans/import_template',  [WorkPlanController::class, 'importTemplate'])->name('work_plans.import_template');
+    });
+
+    // 4) Bulk operations
+    Route::middleware(['permission:work_plans.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('work_plans/bulk_delete',     [WorkPlanController::class, 'bulkDelete'])->name('work_plans.bulk_delete');
+        Route::post('work_plans/bulk_set_active', [WorkPlanController::class, 'bulkSetActive'])->name('work_plans.bulk_set_active');
+    });
+
+    // Undo del ultimo borrado (60s window)
+    Route::middleware('permission:work_plans.delete')->group(function () {
+        Route::post('work_plans/undo_last_delete', [WorkPlanController::class, 'undoLastDelete'])->name('work_plans.undo_last_delete');
+    });
+
+    // Edit All
+    Route::middleware('permission:work_plans.edit')->group(function () {
+        Route::get('work_plans/edit_all',         [WorkPlanController::class, 'editAll'])->name('work_plans.edit_all');
+        Route::post('work_plans/edit_all/update', [WorkPlanController::class, 'editAllUpdate'])->name('work_plans.edit_all.update');
+    });
+
+    // 5) CRUD principal — paths estaticos PRIMERO.
+    Route::middleware('permission:work_plans.create')->group(function () {
+        Route::get('work_plans/create', [WorkPlanController::class, 'create'])->name('work_plans.create');
+        Route::post('work_plans',       [WorkPlanController::class, 'store'])->name('work_plans.store');
+        Route::post('work_plans/{workPlan}/duplicate', [WorkPlanController::class, 'duplicate'])->name('work_plans.duplicate');
+    });
+
+    Route::middleware('permission:work_plans.view')->group(function () {
+        Route::get('work_plans',                [WorkPlanController::class, 'index'])->name('work_plans.index');
+        Route::get('work_plans/{workPlan}',  [WorkPlanController::class, 'show'])->name('work_plans.show');
+    });
+    Route::middleware('permission:work_plans.edit')->group(function () {
+        Route::get('work_plans/{workPlan}/edit', [WorkPlanController::class, 'edit'])->name('work_plans.edit');
+        Route::put('work_plans/{workPlan}',      [WorkPlanController::class, 'update'])->name('work_plans.update');
+    });
+    Route::middleware('permission:work_plans.delete')->group(function () {
+        Route::get('work_plans/{workPlan}/delete',        [WorkPlanController::class, 'delete'])->name('work_plans.delete');
+        Route::delete('work_plans/{workPlan}/deleteSave', [WorkPlanController::class, 'deleteSave'])->name('work_plans.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('work_plans/{workPlan}/lock',   [WorkPlanController::class, 'lock'])->name('work_plans.lock');
+        Route::post('work_plans/{workPlan}/unlock', [WorkPlanController::class, 'unlock'])->name('work_plans.unlock');
     });
 });

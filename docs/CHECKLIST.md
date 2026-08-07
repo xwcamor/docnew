@@ -31,8 +31,9 @@
 | [x] | `signature_events` + `evidence_files` | en base |
 | [x] | Índice único real de identidad `(tenant, país, tipo doc, documento)` | índice parcial de PostgreSQL creado |
 | [x] | 23 modelos Eloquent del dominio, con relaciones, casts y constantes | **probados contra la base con un seeder de demostración** |
-| [x] | Primer módulo generado con `make:module`: **Companies** | rutas registradas, front compila |
-| [ ] | Resto de módulos (personas → planes → formatos) | pendiente, mismo patrón |
+| [x] | Módulos generados con `make:module`: **Companies**, **People**, **WorkPlans** | rutas registradas, front compila |
+| [x] | **Alta de persona que reutiliza la identidad** (`PersonService::vincularOCrear`) | probado: la misma persona en dos empresas, **sin identidad nueva**, conservando biometría e historial de firmas |
+| [ ] | Módulos de formatos y bandeja de firmas | pendiente, mismo patrón |
 | [ ] | Motor de formatos: editor y tipos de campo | pendiente |
 | [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |
