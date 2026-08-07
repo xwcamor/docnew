@@ -5,7 +5,7 @@ import { Input, Checkbox, Button, Alert, Select, SelectOption } from 'ant-design
 import {
     MailOutlined, LockOutlined, EyeOutlined, EyeInvisibleOutlined,
     SafetyOutlined, GoogleOutlined,
-    ExperimentOutlined, HeartOutlined, NodeIndexOutlined, SafetyCertificateOutlined,
+    FileDoneOutlined, ScanOutlined, TeamOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons-vue';
 
 import AuthLayout from '@/Layouts/AuthLayout.vue';
@@ -47,33 +47,15 @@ const submit = () => {
 
 // Sin parallax: el hero tiene efectos eléctricos animados (CSS/SVG).
 
-// ─── Flota: 4 índices de salud animados en el hero ────────────────────────
-// Cada anillo cuenta 0 → su valor (solo número, language-neutral) y su arco se
-// llena en su color de semáforo: representa el estado de salud de la flota.
-const FCIRC = 94.25; // 2π·15
-const FLEET = [
-    { cx: 222, cy: 48, color: '#3FBF6F', target: 96 }, // formatos confirmados
-    { cx: 258, cy: 48, color: '#9BD64A', target: 88 }, // firmas verificadas
-    { cx: 222, cy: 92, color: '#F0A23C', target: 42 }, // pendientes de revision
-    { cx: 258, cy: 92, color: '#F2554A', target: 12 }, // sin cerrar
-];
-const fleetPct = ref(FLEET.map(() => 0));
-const fleetDash = (i) => `${(fleetPct.value[i] / 100 * FCIRC).toFixed(1)} ${FCIRC}`;
+// ─── Ilustracion: verificacion facial y firma ──────────────────────────────
+// La animacion es puramente CSS (ver estilos abajo). Aqui solo se respeta la
+// preferencia del sistema de reducir movimiento.
+const sinMovimiento = ref(false);
 
 onMounted(() => {
-    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) { fleetPct.value = FLEET.map((f) => f.target); return; }
-    FLEET.forEach((f, i) => {
-        const t0 = performance.now(), dur = 1400, delay = i * 180;
-        const step = (now) => {
-            const p = Math.min(1, Math.max(0, (now - t0 - delay) / dur));
-            fleetPct.value[i] = f.target * (1 - Math.pow(1 - p, 3)); // ease-out cúbico
-            if (p < 1) requestAnimationFrame(step);
-            else fleetPct.value[i] = f.target;
-        };
-        requestAnimationFrame(step);
-    });
+    sinMovimiento.value = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 });
+
 
 // ─── Locale switch ─────────────────────────────────────────────────────────
 const onLocaleChange = (newLocale) => {
@@ -115,95 +97,79 @@ const disclosureHtml = computed(() => {
 
                 <!-- Hero on-brand: transformador con efectos eléctricos animados. -->
                 <div class="login-brand__hero">
-                    <svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"
+                         :class="{ 'sin-movimiento': sinMovimiento }">
                         <defs>
-                            <linearGradient id="tr-tank" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="rgba(255,255,255,0.17)" />
-                                <stop offset="100%" stop-color="rgba(255,255,255,0.05)" />
+                            <linearGradient id="df-card" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0" stop-color="rgba(255,255,255,0.14)" />
+                                <stop offset="1" stop-color="rgba(255,255,255,0.04)" />
                             </linearGradient>
-                            <linearGradient id="tr-arc" x1="0" y1="0" x2="1" y2="1">
-                                <stop offset="0%" stop-color="#7BD389" />
-                                <stop offset="100%" stop-color="#4DB6E8" />
-                            </linearGradient>
-                            <filter id="tr-glow" x="-60%" y="-60%" width="220%" height="220%">
-                                <feGaussianBlur stdDeviation="2.2" result="b" />
+                            <filter id="df-glow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur stdDeviation="2.5" result="b" />
                                 <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
                             </filter>
+                            <clipPath id="df-marco">
+                                <rect x="86" y="24" width="108" height="104" rx="10" />
+                            </clipPath>
                         </defs>
 
-                        <!-- Radiadores (aletas de refrigeración) -->
-                        <g stroke="rgba(255,255,255,0.22)" stroke-width="3" stroke-linecap="round">
-                            <line x1="50" y1="104" x2="50" y2="150" />
-                            <line x1="56" y1="104" x2="56" y2="150" />
-                            <line x1="62" y1="104" x2="62" y2="150" />
-                            <line x1="188" y1="104" x2="188" y2="150" />
-                            <line x1="194" y1="104" x2="194" y2="150" />
-                            <line x1="200" y1="104" x2="200" y2="150" />
+                        <!-- Tablet de obra -->
+                        <rect x="70" y="10" width="140" height="180" rx="16"
+                              fill="url(#df-card)" stroke="rgba(255,255,255,0.22)" stroke-width="1.2" />
+
+                        <!-- Encuadre de reconocimiento -->
+                        <g clip-path="url(#df-marco)">
+                            <rect x="86" y="24" width="108" height="104" fill="rgba(10,110,209,0.10)" />
+
+                            <!-- Rostro -->
+                            <g fill="none" stroke="#cdeeff" stroke-width="2" stroke-linecap="round">
+                                <circle cx="140" cy="66" r="22" />
+                                <path d="M112,124 C114,102 126,94 140,94 C154,94 166,102 168,124" />
+                                <path class="df-ojo" d="M131,62 h6" />
+                                <path class="df-ojo df-ojo-b" d="M149,62 h6" />
+                                <path d="M134,76 c4,3 8,3 12,0" stroke-opacity=".7" />
+                            </g>
+
+                            <!-- Malla de puntos: los 128 valores que se comparan -->
+                            <g class="df-puntos" fill="#7fe0ff">
+                                <circle cx="128" cy="52" r="1.6" /><circle cx="140" cy="48" r="1.6" />
+                                <circle cx="152" cy="52" r="1.6" /><circle cx="124" cy="66" r="1.6" />
+                                <circle cx="156" cy="66" r="1.6" /><circle cx="132" cy="78" r="1.6" />
+                                <circle cx="148" cy="78" r="1.6" /><circle cx="140" cy="86" r="1.6" />
+                                <circle cx="140" cy="66" r="1.6" />
+                            </g>
+
+                            <!-- Barrido -->
+                            <rect class="df-barrido" x="86" y="24" width="108" height="3" fill="#7fe0ff"
+                                  filter="url(#df-glow)" opacity=".85" />
                         </g>
 
-                        <!-- Boquillas (bushings) -->
-                        <rect x="83" y="62" width="10" height="28" rx="4" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.25)" />
-                        <rect x="115" y="56" width="10" height="34" rx="4" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.25)" />
-                        <rect x="147" y="62" width="10" height="28" rx="4" fill="rgba(255,255,255,0.18)" stroke="rgba(255,255,255,0.25)" />
-                        <circle class="term" cx="88" cy="60" r="4.5" fill="#7fe0ff" filter="url(#tr-glow)" />
-                        <circle class="term term-b" cx="120" cy="54" r="4.5" fill="#7fe0ff" filter="url(#tr-glow)" />
-                        <circle class="term term-c" cx="152" cy="60" r="4.5" fill="#7fe0ff" filter="url(#tr-glow)" />
-                        <g stroke="rgba(255,255,255,0.30)" stroke-width="1">
-                            <line x1="82" y1="72" x2="94" y2="72" /><line x1="82" y1="80" x2="94" y2="80" />
-                            <line x1="114" y1="66" x2="126" y2="66" /><line x1="114" y1="74" x2="126" y2="74" /><line x1="114" y1="82" x2="126" y2="82" />
-                            <line x1="146" y1="72" x2="158" y2="72" /><line x1="146" y1="80" x2="158" y2="80" />
+                        <!-- Esquinas del encuadre -->
+                        <g stroke="#7fe0ff" stroke-width="2.4" fill="none" stroke-linecap="round">
+                            <path d="M92,42 v-10 h10" /><path d="M188,42 v-10 h-10" />
+                            <path d="M92,110 v10 h10" /><path d="M188,110 v10 h-10" />
                         </g>
 
-                        <!-- Arcos eléctricos entre boquillas (crepitan) -->
-                        <g stroke="#cdeeff" stroke-width="1.6" fill="none" stroke-linejoin="round" stroke-linecap="round" filter="url(#tr-glow)">
-                            <path class="arcA" d="M88,60 L96,52 L103,61 L112,50 L120,54" />
-                            <path class="arcA2" d="M88,60 L95,56 L105,49 L113,58 L120,54" />
-                            <path class="arcB" d="M120,54 L129,49 L135,61 L145,50 L152,60" />
-                            <path class="arcB2" d="M120,54 L128,58 L138,49 L146,57 L152,60" />
-                        </g>
+                        <!-- Firma trazandose sobre la linea -->
+                        <line x1="94" y1="164" x2="186" y2="164" stroke="rgba(255,255,255,0.28)" stroke-width="1.5" />
+                        <path class="df-firma" d="M100,160 c6,-14 12,-14 16,-2 c3,9 7,10 11,1 c4,-10 9,-9 13,2
+                                                  c3,8 8,7 12,-3 c4,-9 10,-6 14,4 c3,6 8,6 12,-2"
+                              fill="none" stroke="#ffffff" stroke-width="2.4"
+                              stroke-linecap="round" stroke-linejoin="round" filter="url(#df-glow)" />
 
-                        <!-- Tanque -->
-                        <rect x="58" y="88" width="134" height="78" rx="12" fill="url(#tr-tank)" stroke="rgba(255,255,255,0.20)" stroke-width="1.2" />
-                        <!-- Placa de datos -->
-                        <rect x="74" y="104" width="50" height="32" rx="5" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.16)" />
-                        <rect x="80" y="110" width="32" height="3" rx="1.5" fill="rgba(255,255,255,0.40)" />
-                        <rect x="80" y="118" width="38" height="2.5" rx="1.2" fill="rgba(255,255,255,0.22)" />
-                        <rect x="80" y="126" width="24" height="2.5" rx="1.2" fill="rgba(255,255,255,0.18)" />
-                        <circle cx="158" cy="150" r="6" fill="none" stroke="rgba(255,255,255,0.28)" stroke-width="2" />
-
-                        <!-- Corriente entrando por las boquillas (flujo animado) -->
-                        <g stroke="#9fe1ff" stroke-width="2" stroke-linecap="round" filter="url(#tr-glow)">
-                            <line class="flow" x1="88" y1="64" x2="88" y2="100" />
-                            <line class="flow flow-b" x1="120" y1="58" x2="120" y2="100" />
-                            <line class="flow flow-c" x1="152" y1="64" x2="152" y2="100" />
-                        </g>
-
-                        <!-- Base + ruedas -->
-                        <rect x="70" y="166" width="110" height="5" rx="2.5" fill="rgba(255,255,255,0.16)" />
-                        <circle cx="88" cy="176" r="4" fill="rgba(255,255,255,0.20)" />
-                        <circle cx="162" cy="176" r="4" fill="rgba(255,255,255,0.20)" />
-
-                        <!-- Burbujas de gases disueltos -->
-                        <g fill="#4DB6E8">
-                            <circle class="bub" cx="150" cy="98" r="3" />
-                            <circle class="bub bub-b" cx="160" cy="86" r="2.3" />
-                            <circle class="bub bub-c" cx="168" cy="77" r="1.8" />
-                        </g>
-
-                        <!-- Flota: 4 índices de salud (semáforo), se llenan al cargar -->
-                        <g v-for="(f, i) in FLEET" :key="i" :transform="`translate(${f.cx},${f.cy})`">
-                            <circle r="15" fill="rgba(28,40,52,0.65)" />
-                            <circle r="15" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="4" />
-                            <circle class="gArc" r="15" fill="none" :stroke="f.color" stroke-width="4" stroke-linecap="round" :stroke-dasharray="fleetDash(i)" transform="rotate(-90)" />
-                            <text x="0" y="3.5" text-anchor="middle" font-size="10" font-weight="700" fill="#fff" font-family="-apple-system,Segoe UI,Roboto,sans-serif">{{ Math.round(fleetPct[i]) }}</text>
+                        <!-- Sello de verificado -->
+                        <g class="df-sello" transform="translate(196,138)">
+                            <circle r="17" fill="rgba(29,112,68,0.92)" />
+                            <path d="M-7,0 l5,5 l9,-10" fill="none" stroke="#fff" stroke-width="2.8"
+                                  stroke-linecap="round" stroke-linejoin="round" />
                         </g>
                     </svg>
                 </div>
 
                 <ul class="login-brand__features">
-                    <li><ExperimentOutlined /><span>{{ $t('auth.feature_tests') }}</span></li>
-                    <li><HeartOutlined /><span>{{ $t('auth.feature_health') }}</span></li>
-                    <li><NodeIndexOutlined /><span>{{ $t('auth.feature_methods') }}</span></li>
+                    <li><FileDoneOutlined /><span>{{ $t('auth.feature_tests') }}</span></li>
+                    <li><ScanOutlined /><span>{{ $t('auth.feature_health') }}</span></li>
+                    <li><TeamOutlined /><span>{{ $t('auth.feature_methods') }}</span></li>
                     <li><SafetyCertificateOutlined /><span>{{ $t('auth.feature_reports') }}</span></li>
                 </ul>
             </div>
@@ -432,27 +398,26 @@ const disclosureHtml = computed(() => {
 }
 
 /* ── Efectos eléctricos del hero (transformador animado) ── */
-@keyframes hero-flickA { 0%,18%,22%,100%{opacity:.12} 20%,54%,58%{opacity:1} 56%{opacity:.4} }
-@keyframes hero-flickB { 0%,48%,52%,100%{opacity:.12} 50%,84%,88%{opacity:1} 86%{opacity:.4} }
-@keyframes hero-pulseT { 0%,100%{opacity:.5} 50%{opacity:1} }
-@keyframes hero-flow   { to{stroke-dashoffset:-24} }
-@keyframes hero-rise   { 0%{transform:translateY(0);opacity:0} 15%{opacity:.9} 100%{transform:translateY(-18px);opacity:0} }
-@keyframes hero-gfill  { from{stroke-dashoffset:137.2} to{stroke-dashoffset:0} }
-@keyframes hero-gglow  { 0%,100%{opacity:.82} 50%{opacity:1} }
-.login-brand__hero :deep(.arcA)  { animation: hero-flickA 1.7s infinite; }
-.login-brand__hero :deep(.arcA2) { animation: hero-flickA 1.7s infinite .35s; }
-.login-brand__hero :deep(.arcB)  { animation: hero-flickB 2s infinite; }
-.login-brand__hero :deep(.arcB2) { animation: hero-flickB 2s infinite .45s; }
-.login-brand__hero :deep(.term)   { animation: hero-pulseT 1.8s ease-in-out infinite; }
-.login-brand__hero :deep(.term-b) { animation-delay: .6s; }
-.login-brand__hero :deep(.term-c) { animation-delay: 1.2s; }
-.login-brand__hero :deep(.flow)   { stroke-dasharray: 3 9; animation: hero-flow 1.1s linear infinite; }
-.login-brand__hero :deep(.flow-b) { animation-delay: .3s; }
-.login-brand__hero :deep(.flow-c) { animation-delay: .6s; }
-.login-brand__hero :deep(.bub)    { animation: hero-rise 3.2s ease-in infinite; }
-.login-brand__hero :deep(.bub-b)  { animation-delay: 1.1s; }
-.login-brand__hero :deep(.bub-c)  { animation-delay: 2.1s; }
-.login-brand__hero :deep(.gArc)   { animation: hero-gglow 2.6s ease-in-out 1.5s infinite; }
+@keyframes df-barrido { 0%{transform:translateY(0);opacity:0} 8%{opacity:.9} 92%{opacity:.9} 100%{transform:translateY(101px);opacity:0} }
+@keyframes df-parpadeo { 0%,92%,100%{opacity:1} 95%{opacity:.15} }
+@keyframes df-punto    { 0%,100%{opacity:.35} 50%{opacity:1} }
+@keyframes df-trazo    { from{stroke-dashoffset:220} to{stroke-dashoffset:0} }
+@keyframes df-sello    { 0%{opacity:0;transform:translate(196px,138px) scale(.6)} 100%{opacity:1;transform:translate(196px,138px) scale(1)} }
+
+.login-brand__hero :deep(.df-barrido) { animation: df-barrido 3.4s ease-in-out infinite; }
+.login-brand__hero :deep(.df-ojo)     { animation: df-parpadeo 4.2s ease-in-out infinite; }
+.login-brand__hero :deep(.df-ojo-b)   { animation-delay: .06s; }
+.login-brand__hero :deep(.df-puntos) circle { animation: df-punto 2.4s ease-in-out infinite; }
+.login-brand__hero :deep(.df-puntos) circle:nth-child(2n) { animation-delay: .4s; }
+.login-brand__hero :deep(.df-puntos) circle:nth-child(3n) { animation-delay: .8s; }
+.login-brand__hero :deep(.df-firma)   { stroke-dasharray: 220; animation: df-trazo 2.6s ease-out 1s forwards; stroke-dashoffset: 220; }
+.login-brand__hero :deep(.df-sello)   { opacity: 0; animation: df-sello .5s ease-out 3.4s forwards; }
+
+/* Respeta a quien pidio menos movimiento: se ve el resultado final, quieto. */
+.login-brand__hero :deep(.sin-movimiento) * { animation: none !important; }
+.login-brand__hero :deep(.sin-movimiento) .df-firma { stroke-dashoffset: 0; }
+.login-brand__hero :deep(.sin-movimiento) .df-sello { opacity: 1; }
+.login-brand__hero :deep(.sin-movimiento) .df-barrido { opacity: 0; }
 @media (prefers-reduced-motion: reduce) {
     .login-brand__hero :deep(*) { animation: none !important; }
 }
