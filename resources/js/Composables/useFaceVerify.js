@@ -118,5 +118,41 @@ export function useFaceVerify(opciones = {}) {
         return null;
     }
 
-    return { cargarModelos, abrirCamara, cerrarCamara, verificar, capturar };
+    /**
+     * Enrolamiento guiado, como en el kiosco de asistencia: se pide mantener la
+     * cara encuadrada y se toman varias muestras espaciadas.
+     *
+     * De la cara NO se guarda ninguna imagen: solo los 128 numeros con los que
+     * despues se compara.
+     */
+    async function enrolar(video, muestras = 3, alCambiar = () => {}) {
+        const descriptores = [];
+        const inicio = Date.now();
+        const LIMITE_MS = 45000;
+
+        while (descriptores.length < muestras) {
+            if (Date.now() - inicio > LIMITE_MS) {
+                return { estado: 'agotado', descriptores };
+            }
+
+            const deteccion = await detectar(video);
+
+            if (!deteccion) {
+                alCambiar({ fase: 'encuadra', tomadas: descriptores.length, total: muestras });
+                await new Promise((r) => setTimeout(r, 250));
+                continue;
+            }
+
+            descriptores.push(Array.from(deteccion.descriptor));
+            alCambiar({ fase: 'muestra', tomadas: descriptores.length, total: muestras });
+
+            // Espaciado entre muestras: si se toman seguidas son casi identicas
+            // y no aportan variedad de angulo ni de luz.
+            await new Promise((r) => setTimeout(r, 1200));
+        }
+
+        return { estado: 'listo', descriptores };
+    }
+
+    return { cargarModelos, abrirCamara, cerrarCamara, verificar, capturar, enrolar };
 }

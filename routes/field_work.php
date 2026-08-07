@@ -35,6 +35,11 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
         Route::get('people/{person}/descriptors', [SignatureController::class, 'descriptors'])
             ->name('signatures.descriptors')
             ->middleware('throttle:30,1');
+        // Enrolamiento: hace falta antes de la primera firma.
+        Route::post('people/{person}/enroll', [SignatureController::class, 'enroll'])
+            ->name('signatures.enroll')
+            ->middleware('throttle:10,1');
+
         Route::post('signatures', [SignatureController::class, 'store'])
             ->name('signatures.store')
             ->middleware('throttle:60,1');
@@ -46,6 +51,8 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
             ->name('signatures.review');
         Route::post('signatures/{signature_event}/resolve', [SignatureController::class, 'resolve'])
             ->name('signatures.resolve');
+        Route::post('people/{person}/unenroll', [SignatureController::class, 'unenroll'])
+            ->name('signatures.unenroll');
         Route::get('evidence/{evidence_file}', [SignatureController::class, 'evidence'])
             ->name('signatures.evidence');
     });

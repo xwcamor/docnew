@@ -30,7 +30,7 @@ class Company extends Model
 
     protected $fillable = [
         'slug', 'name', 'country_id',
-        'num_doc', 'is_active', 'complete_name', 'tenant_id',
+        'num_doc', 'legacy_id', 'is_active', 'complete_name', 'tenant_id',
         'created_by', 'deleted_by', 'deleted_description',
     ];
 

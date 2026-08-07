@@ -3,6 +3,14 @@
 Todo lo que quedó sin confirmar, sin terminar o marcado para mejorar. Nada se da por cerrado en
 silencio.
 
+## Para revisar a mano tras la migración
+
+**13 documentos con nombres distintos entre las tablas del sistema viejo.** El comando se quedó con
+el nombre más largo, pero conviene mirarlos: hay tildes que faltan (`sánchez` / `sanchez`), apellidos
+invertidos (`Cruz Jose Luis Benavides Santa` / `Jose Luis Benavides Santa Cruz`) y uno que parece un
+registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al correr
+`php artisan docufiz:migrate-data personas`.
+
 ## Necesito que lo confirmes
 
 | # | Asunto | Estado |

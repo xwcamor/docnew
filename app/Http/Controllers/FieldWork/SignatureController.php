@@ -169,4 +169,51 @@ class SignatureController extends Controller
 
         return Storage::disk('local')->response($evidence_file->file_path);
     }
+
+    /**
+     * Enrolamiento facial: se guardan los descriptores, nunca la foto.
+     *
+     * Es lo que falta cuando alguien va a firmar por primera vez: la pantalla
+     * detecta que no tiene cara registrada y guia la captura de varias muestras.
+     */
+    public function enroll(Request $request, Person $person)
+    {
+        abort_unless($request->user()->can('people.edit'), 403);
+
+        $datos = $request->validate([
+            'descriptors'     => ['required', 'array', 'min:1', 'max:5'],
+            'descriptors.*'   => ['array', 'size:128'],
+            'descriptors.*.*' => ['numeric'],
+            'consent'         => ['accepted'],
+        ]);
+
+        abort_if(
+            $person->activeBiometric !== null,
+            409,
+            __('Esta persona ya tiene una cara registrada. Debe retirarse antes de volver a enrolar.'),
+        );
+
+        $biometria = \App\Models\PersonBiometric::create([
+            'person_id'       => $person->id,
+            'face_descriptor' => $datos['descriptors'],
+            'enrolled_at'     => now(),
+            'enrolled_by'     => $request->user()->id,
+            'is_active'       => true,
+        ]);
+
+        return response()->json([
+            'samples' => count($datos['descriptors']),
+            'message' => __('Cara registrada. Ya puede firmar con reconocimiento.'),
+        ], 201);
+    }
+
+    /** Retira la biometria vigente para poder volver a enrolar. */
+    public function unenroll(Request $request, Person $person)
+    {
+        abort_unless($request->user()->can('signature_events.review'), 403);
+
+        $person->biometrics()->update(['is_active' => false]);
+
+        return back()->with('success', __('Biometria retirada.'));
+    }
 }

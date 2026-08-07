@@ -47,6 +47,11 @@
 | [x] | Un formato publicado no se edita: se saca versión nueva | probado: la entrega firmada conserva su versión |
 | [x] | **Los cuatro formatos históricos, con los catálogos reales** (`docufiz:migrate-formats`) | leídos de la base anterior: AST con **127 actividades, 83 peligros, 51 controles** y matriz 5×5; PTF con 17 preguntas; EPP con 25 ítems; IHM con 16 herramientas y 10 puntos |
 | [x] | Conexión de solo lectura a la base del sistema anterior | `config/database.php` → `legacy`, alimentada por `LEGACY_DB_*` |
+| [x] | **Empresas migradas** (`docufiz:migrate-data empresas`) | 22 de 22; una existente se adoptó por RUC en vez de duplicarse |
+| [x] | **Personas migradas** (`docufiz:migrate-data personas`) | **402 filas de tres tablas → 228 identidades**, 370 vínculos y 240 firmas. **87 personas trabajan en 2 o más empresas** con una sola identidad |
+| [x] | Informe de conflictos de nombre | 13 documentos con nombres distintos entre tablas, listados para revisión manual |
+| [x] | **Enrolamiento facial** (`field_work.signatures.enroll`) | 3 muestras guiadas; se guardan los descriptores, **nunca la foto**; exige consentimiento |
+| [ ] | Migrar planes, documentos y evidencias | pendiente |
 | [x] | Modelos de face-api.js en el repositorio (6,8 MB) | no se descargan en tiempo de ejecución |
 | [x] | Verificación facial en el navegador con los dos relojes | portada a `useFaceVerify` |
 | [ ] | Reto de vida (gesto de cabeza) y enrolamiento desde la app | pendiente |

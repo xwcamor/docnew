@@ -35,7 +35,36 @@ async function firmar(fila, tipo, rol) {
         await cara.cargarModelos();
         stream = await cara.abrirCamara(video.value);
 
-        const { data } = await axios.get(route('field_work.signatures.descriptors', fila.person.slug));
+        let data;
+
+        try {
+            ({ data } = await axios.get(route('field_work.signatures.descriptors', fila.person.slug)));
+        } catch (e) {
+            // 404 = la persona no tiene cara registrada. Se enrola en el momento,
+            // que es justo lo que pasa la primera vez que alguien va a firmar.
+            if (e?.response?.status !== 404) throw e;
+
+            mensaje.value = 'Esta persona no tiene su cara registrada. Manten el rostro encuadrado.';
+            const enrol = await cara.enrolar(video.value, 3, (e2) => {
+                fase.value = e2.fase;
+                mensaje.value = e2.fase === 'muestra'
+                    ? `Registrando cara: ${e2.tomadas} de ${e2.total}`
+                    : 'Encuadra el rostro en la camara';
+            });
+
+            if (enrol.estado !== 'listo') {
+                mensaje.value = 'No se pudo registrar la cara. Intentalo de nuevo con mejor luz.';
+                return;
+            }
+
+            await axios.post(route('field_work.signatures.enroll', fila.person.slug), {
+                descriptors: enrol.descriptores,
+                consent: true,
+            });
+
+            ({ data } = await axios.get(route('field_work.signatures.descriptors', fila.person.slug)));
+            mensaje.value = 'Cara registrada. Ahora firma.';
+        }
 
         const resultado = await cara.verificar(
             video.value,
@@ -84,6 +113,8 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
                 <span v-if="fase === 'buscando'">Buscando un rostro...</span>
                 <span v-else-if="fase === 'comparando'">Comparando ({{ distancia?.toFixed(3) }})</span>
                 <span v-else-if="fase === 'evidencia'">Sin coincidencia: tomando la foto para revision</span>
+                <span v-else-if="fase === 'encuadra'">Encuadra el rostro</span>
+                <span v-else-if="fase === 'muestra'">Registrando cara…</span>
             </p>
         </div>
 
