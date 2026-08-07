@@ -18,10 +18,13 @@ registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al c
 | 1 | **Jerarquía duplicada.** TRAFODEX trae `Customer → ubicación → área → subestación`. El dominio nuevo trae `companies` + `work_locations` + `work_areas` + `workstations`. Se solapan | conservé las dos: la de TRAFODEX está entretejida con usuarios, roles, buscador y bloqueo de registros, y borrarla ahora rompía el núcleo. Hay que unificarlas |
 | 2 | **`Brand`** (marca de transformador) sigue en el proyecto porque es la plantilla que clona `make:module`. Borrarla deja el generador inservible | ¿lo renombramos a algo neutro tipo `Sample`/`Plantilla` o lo dejamos oculto? |
 | 3 | **`Customer`**: ¿es la empresa contratista de DOCUFIZ, o el cliente del SaaS y las contratistas van en `companies`? | hoy conviven las dos cosas |
-| 4 | **Usuarios falsos**: creé **26**, uno por cada `user_detail` del volcado. Mencionaste 29 | confirmar el número correcto |
-| 5 | **Contraseñas**: pensaba no migrar los hashes, pero Rails y Laravel usan el mismo bcrypt, así que **sí se pueden migrar tal cual** | decidir: migrarlas o forzar cambio en el primer ingreso |
+| 4 | ~~**Usuarios**: ¿26 o 29?~~ | **cerrado: son 26.** `user_details` tiene 26 filas con `user_id` del 1 al 26, y solo tres de ellos aparecen registrando planes (el usuario 2 registró 3 715 de los 3 722) |
+| 5 | ~~**Contraseñas**~~ | **cerrado por los hechos: no hay hashes que migrar.** La tabla `users` vino vacía del volcado, así que los 26 se reconstruyeron desde `user_details` con contraseña aleatoria. Falta decidir cómo entran la primera vez (ver abajo) |
 | 6 | **Suscripciones y planes de facturación** de TRAFODEX se conservaron | ¿DOCUFIZ se vende como SaaS a varias empresas o es instalación única? |
-| 7 | **Formatos AST y PTF**: quedaron fuera del motor de formatos por volumen (226 875 y 62 254 filas) | revisar al final, con datos de rendimiento |
+| 7 | ~~**Formatos AST y PTF fuera del motor por volumen**~~ | **cerrado: entraron los cuatro.** Las 431 098 filas de la v1 se convierten en 48 522 respuestas, porque lo que allí era una fila por casilla marcada aquí es una respuesta por trabajador, herramienta o peligro. No hizo falta la excepción |
+| 9 | **Correos de los 26 usuarios**: son provisionales (`usuarioN@pendiente.local`) | **hay que reemplazarlos por los reales antes de abrir el sistema**, o nadie puede entrar |
+| 10 | **Primer ingreso**: `users` no tiene columna para forzar el cambio de contraseña | hoy la vía es «olvidé mi contraseña» una vez puestos los correos reales. ¿Añadimos la columna o basta con eso? |
+| 11 | **Rol de los usuarios migrados**: todos entraron como «Usuario de campo», el de menos privilegios | hay que asignar los reales; el origen no traía esa información |
 | 8 | **Multi-país**: el 100 % de los planes del sistema viejo son de Perú | se mantiene la estructura, sin invertir más |
 
 ## Decisiones tomadas que conviene recordar
@@ -34,6 +37,27 @@ registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al c
 | Motor de formatos | se usa para los formatos nuevos; los históricos se evalúan después |
 | Trabajo en campo | sigue en navegador (tablets Android); sin app nativa ni API por ahora |
 
+## Lo que la migración dejó a la vista
+
+**El 89 % de las firmas de cinco años no tiene prueba detrás.** De las 30 695 referencias a fotos y
+firmas del sistema anterior, 27 000 son literalmente las cadenas `detected_by_IA` y `signed_by_IA`:
+el archivo nunca se escribió. Solo 3 797 tienen algo real. Esas firmas se migran marcadas con
+`evidence_missing`, porque inventar un archivo que no existió sería peor que reconocer el hueco.
+
+Es exactamente el problema que motivó el rediseño, y ahora está medido: por eso en DOCUFIZ la foto
+se guarda **siempre** y la comparación la hace el servidor.
+
+**El riesgo del AST se calculaba mal en la primera versión del motor.** Se puso
+`severidad × probabilidad`, y la matriz real de la v1 es un ranking del 1 al 25 donde el 1 es lo
+peor. Doce de las veinticinco celdas caían en banda distinta. Corregido: `docufiz:migrate-formats`
+copia la tabla real. **Si alguien llenó un AST con la versión anterior del motor, hay que
+recalcularlo.**
+
+**Llenar un formato no funcionaba.** `FormSubmission` era el único modelo sin `getRouteKeyName()`,
+así que sus rutas resolvían por id mientras la pantalla mandaba el slug. Guardar respuestas,
+adjuntar la foto y cerrar el formato fallaban los tres, y de paso el id correlativo sí funcionaba,
+o sea que contando se podía confirmar la entrega de otro. Corregido y con prueba.
+
 ## Trabajo técnico pendiente
 
 1. ~~Adaptar `CLAUDE.md`~~ — hecho.
@@ -43,7 +67,9 @@ registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al c
 4. ~~Menú lateral y traducciones~~ — limpiados; faltan las entradas de los módulos nuevos,
    que se añaden cuando cada módulo exista (una entrada a una ruta inexistente rompe la página).
 5. ~~Seeder de roles y permisos~~ — reescrito con los módulos y perfiles de DOCUFIZ.
-6. Tests: los del dominio viejo se borraron; faltan los del dominio nuevo.
+6. ~~Tests: los del dominio viejo se borraron; faltan los del dominio nuevo.~~ — hecho: **603 pruebas
+   en verde, 0 rojas**. Cubren firma y evidencia, tipos de campo compuestos, PDF, enlace de rutas,
+   buscador y las transformaciones de la migración.
 7. Flujo de aprobación de documentos: el de TRAFODEX se borró con los informes de diagnóstico.
    La estructura ya está (`approval_rules` + `work_plan_approvals`), falta la pantalla.
 10. Los módulos `Companies`, `People` y `WorkPlans` se generaron clonando `Brand`, así que trae `code`/`sort_order` renombrados
@@ -53,7 +79,19 @@ registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al c
 11. `DocufizDemoSeeder` no está en `DatabaseSeeder`: se ejecuta a mano con
     `php artisan db:seed --class=DocufizDemoSeeder`. Decidir si entra en el sembrado por defecto.
 8. Índices únicos que faltan en el sistema viejo: hay que resolver antes el duplicado `47019239`.
-9. Auditar `public/images_uploads` del sistema viejo contra las 4 189 referencias de la base.
+9. **Copiar los 4 027 archivos de `public/images_uploads` del servidor viejo.** El comando
+   `docufiz:migrate-data archivos --desde=…` está escrito y probado: pesa cada fichero y calcula su
+   hash de verdad. Hasta que se copien, esas 3 797 evidencias apuntan a una ruta con `byte_size = 0`.
+12. **PDF a nivel de plan**: hoy el PDF es por entrega, y cada uno repite el bloque de firmas del
+    plan entero. Si se quiere un solo documento con los cuatro formatos, falta hacerlo.
+13. **Adjuntos que no son imagen** (un PDF escaneado): dompdf no puede incrustar un PDF dentro de
+    otro, así que sale una nota con su hash. Si eso no vale, hace falta fusionar PDFs aparte.
+14. **`form_templates.pdf_template`** (plantilla propia para formatos con diseño fijo por ley) existe
+    en la base pero no se usa: todos salen con el mismo diseño genérico.
+15. **Editor de formatos desde la interfaz**: el servicio está (`FormTemplateBuilder`), falta la
+    pantalla para crear un formato sin tocar código.
+16. **Probar la cámara en una tablet real.** No es verificable desde aquí, y es lo único del flujo
+    que nadie ha visto funcionar sobre el hardware de obra.
 
 ## Hallazgos de esta tanda
 

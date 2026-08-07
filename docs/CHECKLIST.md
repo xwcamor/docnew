@@ -51,15 +51,21 @@
 | [x] | **Personas migradas** (`docufiz:migrate-data personas`) | **402 filas de tres tablas → 228 identidades**, 370 vínculos y 240 firmas. **87 personas trabajan en 2 o más empresas** con una sola identidad |
 | [x] | Informe de conflictos de nombre | 13 documentos con nombres distintos entre tablas, listados para revisión manual |
 | [x] | **Enrolamiento facial** (`field_work.signatures.enroll`) | 3 muestras guiadas; se guardan los descriptores, **nunca la foto**; exige consentimiento |
-| [ ] | Migrar planes, documentos y evidencias | pendiente |
+| [x] | **Migrar planes, documentos y evidencias** (`docufiz:migrate-data planes\|documentos\|evidencias`) | ejecutado dos veces contra la base real: **3 722 planes, 9 186 asignaciones, 11 166 aprobaciones, 14 435 entregas, 48 522 respuestas, 17 276 firmas**. La segunda pasada informa 0 nuevos y conteos idénticos: es idempotente |
+| [x] | Los 26 usuarios de la aplicación (`docufiz:migrate-data usuarios`) | reconstruidos desde `user_details`, porque `users` vino vacía. Correos provisionales, contraseñas aleatorias sin anotar |
+| [ ] | Copiar los archivos físicos de `public/images_uploads` | el comando `docufiz:migrate-data archivos --desde=…` está probado; **faltan los 4 027 ficheros del servidor viejo** |
 | [x] | Modelos de face-api.js en el repositorio (6,8 MB) | no se descargan en tiempo de ejecución |
 | [x] | Verificación facial en el navegador con los dos relojes | portada a `useFaceVerify` |
-| [ ] | Reto de vida (gesto de cabeza) y enrolamiento desde la app | pendiente |
+| [x] | **Reto de vida** (gesto de cabeza al azar, con vuelta al centro) | implementado en `useFaceVerify`; no bloquea: si falla, firma y queda pendiente de revisión |
+| [x] | Enrolamiento desde la app | 3 muestras guiadas al ir a firmar sin cara registrada |
 | [ ] | Probar la cámara en una tablet real | **no verificable desde aquí** |
-| [ ] | Motor de formatos: editor y tipos de campo | pendiente |
-| [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
+| [x] | **Tipos de campo compuestos en pantalla** (matriz de riesgo, EPP por trabajador, IHM por herramienta, banco de preguntas) | probado: la pantalla emite exactamente lo que exige `validarValor()`, con una prueba por tipo |
+| [ ] | Editor de formatos desde la interfaz | el servicio existe (`FormTemplateBuilder`); falta la pantalla |
+| [x] | **PDF firmado de la entrega** | probado: membrete, versión congelada, adjuntos, bloque de firmas con foto de evidencia incrustada del disco privado, y las pendientes marcadas |
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |
 | [x] | `npm install` y `npm run build` | **compila sin errores** |
+| [x] | **Conjunto de pruebas completo en verde** | **603 pasan, 0 fallan**, 19 omitidas |
+| [x] | **Alertas de seguridad de dependencias** | de 44 avisos en 14 paquetes (1 crítico) a **0**, sin cambiar ninguna versión mayor |
 
 ## Documentación
 
