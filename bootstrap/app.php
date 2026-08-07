@@ -29,11 +29,10 @@ return Application::configure(basePath: dirname(__DIR__))
         // (comando app:cleanup-expired-downloads, cada hora). Es más completa
         // que el comando viejo (grace period + dry-run + try/catch).
 
-        // Purga soft-deleted records antiguos (según config/purge.php).
-        $schedule->command('app:purge-soft-deleted')
-            ->dailyAt('04:00')
-            ->withoutOverlapping()
-            ->onOneServer();
+        // Nota: la purga de soft-deleted (app:purge-soft-deleted) tambien vive
+        // en routes/console.php, a las 03:00. Estaba programada dos veces, y
+        // withoutOverlapping no lo evita porque son horas distintas: se
+        // ejecutaba dos veces cada noche.
 
         // Automatizaciones del tenant — el "tick" busca automations vencidas
         // cada minuto y las despacha al queue. Es el único cron que necesita

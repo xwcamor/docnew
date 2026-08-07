@@ -84,10 +84,10 @@ Reinicia Laragon de nuevo.
 
 ### 1.4. Configurar el dominio del proyecto
 
-Laragon crea automáticamente un virtual host por cada carpeta dentro de `C:\laragon\www\`. Por ejemplo, si clonas el proyecto en `C:\laragon\www\trafodex-main`, automáticamente puedes abrirlo en:
+Laragon crea automáticamente un virtual host por cada carpeta dentro de `C:\laragon\www\`. Por ejemplo, si clonas el proyecto en `C:\laragon\www\docufiz`, automáticamente puedes abrirlo en:
 
 ```
-http://trafodex-main.test
+http://docufiz.test
 ```
 
 Sin tocar el archivo `hosts` ni configurar Apache manualmente.
@@ -160,7 +160,7 @@ Abre **pgAdmin 4** (lo instaló el instalador, búscalo en el menú Inicio):
    - **Servers** → **PostgreSQL 16** → te pide el password del superusuario `postgres` (el que apuntaste).
 3. **Crear la BD**:
    - Click derecho en **Databases** → **Create** → **Database…**
-   - **Database**: `trafodex`
+   - **Database**: `docufiz`
    - Click **Save**.
 4. **Crear el usuario de la app**:
    - Click derecho en **Login/Group Roles** → **Create** → **Login/Group Role…**
@@ -171,10 +171,10 @@ Abre **pgAdmin 4** (lo instaló el instalador, búscalo en el menú Inicio):
      - ✅ Create databases?
    - Click **Save**.
 5. **Asignar permisos sobre la BD** (obligatorio en PostgreSQL 15+):
-   - Click izquierdo en `trafodex` para seleccionarla → ícono **Query Tool** (⚡ arriba).
+   - Click izquierdo en `docufiz` para seleccionarla → ícono **Query Tool** (⚡ arriba).
    - Pega y ejecuta (botón ▶ o F5):
      ```sql
-     GRANT ALL PRIVILEGES ON DATABASE trafodex TO laravel;
+     GRANT ALL PRIVILEGES ON DATABASE docufiz TO laravel;
      GRANT ALL ON SCHEMA public TO laravel;
      ALTER SCHEMA public OWNER TO laravel;
      ```
@@ -188,7 +188,7 @@ En la misma pgAdmin → **Servers** → click derecho → **Register → Server�
 - Pestaña **Connection**:
   - Host: `localhost`
   - Port: `5432`
-  - Maintenance database: `trafodex`
+  - Maintenance database: `docufiz`
   - Username: `laravel`
   - Password: `secret`
 - Click **Save**.
@@ -216,14 +216,14 @@ Si conecta sin error, **el usuario y la BD están bien configurados**.
 4. Llena:
    - **Host**: `localhost`
    - **Port**: `5432`
-   - **Database**: `trafodex`
+   - **Database**: `docufiz`
    - **Username**: `laravel`
    - **Password**: `secret` (marca "Save password")
 5. Click **Test Connection**:
    - La primera vez te pedirá descargar el driver JDBC de PostgreSQL → click **Download** → espera 5 segundos.
    - Si sale "Connected", click **Finish**.
 
-En el panel izquierdo verás `trafodex` → expande → **Schemas** → **public** → **Tables**.
+En el panel izquierdo verás `docufiz` → expande → **Schemas** → **public** → **Tables**.
 
 ### 3.3. Conectar a tu MySQL de Laragon (opcional)
 
@@ -266,7 +266,7 @@ node -v                 # v20.x.x
 npm -v                  # 10.x.x
 ```
 
-Y desde **pgAdmin** o **DBeaver** debes poder conectar a `localhost:5432 / trafodex / laravel`.
+Y desde **pgAdmin** o **DBeaver** debes poder conectar a `localhost:5432 / docufiz / laravel`.
 
 ✅ Si todo lo anterior pasa, estás listo para clonar el proyecto y seguir el [README principal](../README.md).
 
@@ -301,9 +301,26 @@ Detalle completo en [`DEPLOY.md`](DEPLOY.md) y [`../README-PROD.md`](../README-P
 ## Próximos pasos después de instalar
 
 1. Clonar el repo y correr `composer install` + `npm install` — guía en [`../README-DEV.md`](../README-DEV.md#12-clonar-e-instalar).
-2. Crear la BD `trafodex` y la extensión `unaccent`.
+2. Crear la BD `docufiz` y la extensión `unaccent`.
 3. Configurar `.env` (`APP_KEY`, `DB_*`, `MAIL_*`) — referencia en [`ENV.md`](ENV.md).
 4. Correr `php artisan setup:project` para sembrar toda la data inicial.
+
+### Si vas a probar la firma con la cámara
+
+Dos cosas que sorprenden la primera vez:
+
+- **La cámara solo abre en `http://localhost` o en `https://`.** Entrar desde una
+  tablet a `http://192.168.x.x:8000` no funciona, y el navegador no explica bien
+  por qué. Es política de `getUserMedia()`, no un fallo de la aplicación.
+- **Los modelos de reconocimiento ya vienen en el repositorio**, en
+  `public/models/` (unos 7 MB). No se descargan en tiempo de ejecución, así que la
+  firma funciona sin internet — que es justo lo que hace falta en obra.
+
+### Si vas a migrar los datos del sistema anterior
+
+Necesitas además **MySQL** en local, para importar el volcado del sistema v1. En
+producción no hace falta: allí solo vive PostgreSQL. El procedimiento completo
+está en [`BASE-DE-DATOS-LOCAL.md`](BASE-DE-DATOS-LOCAL.md).
 
 ---
 

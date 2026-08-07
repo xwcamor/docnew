@@ -283,21 +283,6 @@ class HandleInertiaRequests extends Middleware
             }
         }
 
-        // Las 5 etiquetas de calificación (cond_*) son editables por idioma desde
-        // el dataset `condition_labels` (indexado por rating). Las sobrescribimos
-        // aquí en UN solo punto → todos los componentes Vue que usan
-        // t('diagnostics.cond_*') reflejan la edición sin tocarlos uno por uno.
-        // Si la BD no está lista, el helper cae al archivo lang (no-op).
-        try {
-            if (isset($out['diagnostics'])) {
-                $out['diagnostics'] = array_merge(
-                    $out['diagnostics'],
-                    \App\Support\Diagnostics\ConditionLabel::i18nOverrides()
-                );
-            }
-        } catch (\Throwable) {
-            // Tabla aún no migrada / sin datos → se queda con el archivo lang.
-        }
 
         return $out;
     }

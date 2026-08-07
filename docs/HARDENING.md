@@ -44,9 +44,14 @@ hay migrations de "retrofit" sumando constraints después. Estado consolidado:
 
 Sin `tenant_countries` (eliminada — era código muerto sin modelo ni uso).
 
-Patrón estándar para módulos nuevos vía `make:module`: el template clona
-`create_customers_table.php` que ya trae el FK, así que se hereda
-automáticamente. NO hay que recordar agregarlo a mano.
+Las cinco migraciones del dominio de DOCUFIZ (`2026_08_07_1003xx`) siguen el mismo
+patrón: `companies`, `people`, `work_plans`, `form_templates` y sus catálogos
+declaran `tenant_id` con `constrained('tenants')->nullOnDelete()` desde el propio
+`Schema::create`.
+
+Patrón para módulos nuevos vía `make:module`: el comando clona
+`create_brands_table.php`, que ya trae la FK, así que se hereda sin que nadie
+tenga que acordarse.
 
 ---
 
@@ -118,7 +123,13 @@ etc. Ahora el cliente debe declarar explícitamente qué puede hacer el token.
 **Archivo**: [`routes/auth_management.php`](../routes/auth_management.php)
 
 `throttle:5,1` en `POST password/email` y `POST password/reset` — mitiga
-enumeración de emails y brute-force.
+enumeración de correos y fuerza bruta.
+
+> **`POST login` no lo tiene.** El formulario de inicio de sesión acepta intentos
+> sin límite. Los ajustes `security.max_login_attempts` (5) y
+> `security.lockout_minutes` (15) llevan tiempo sembrados sin que nadie los lea.
+> Mientras eso siga así, **ningún documento debe prometer que la cuenta se bloquea
+> tras N intentos**, porque no ocurre.
 
 ### OAuth Google sin tenant hardcoded
 
@@ -143,8 +154,9 @@ permite caracteres raros, doble extensión tipo `shell.php.jpg`, etc.).
 
 ### Bulk jobs con `ShouldBeUnique`
 
-**Patrón aplicado a 10 jobs** (Customers, Users, Roles, Automations,
-Countries, Languages, Locales, Regions, Settings, SystemModules, Tenants):
+**Patrón aplicado a todos los jobs de acción masiva** (Customers, Brands,
+Companies, People, WorkPlans, FormTemplates, Users, Roles, Automations, Countries,
+Languages, Locales, Regions, Settings, SystemModules, Tenants):
 
 ```php
 class BulkCustomersActionJob implements ShouldQueue, ShouldBeUnique
@@ -208,8 +220,8 @@ pasar al cron parser, y vuelve a UTC para persistir.
 
 ## 7. Performance — exports masivos
 
-**Patrón aplicado a 33 jobs Excel/PDF/Word** (todos los `Generate*ExcelJob`,
-`Generate*PdfJob`, `Generate*WordJob`):
+**Patrón aplicado a todos los jobs de Excel/PDF/Word** (`Generate*ExcelJob`,
+`Generate*PdfJob`, `Generate*WordJob` — hoy son unos 48 archivos):
 
 Antes:
 ```php
@@ -239,8 +251,13 @@ CSV ya usaba `chunkById(1000)` (streaming desde antes).
 Los caracteres `%` y `_` del input usuario actúan como literales (antes
 actuaban como comodines SQL).
 
-Aplicado en 8 modelos: `Customer`, `Country`, `Language`, `Locale`,
-`Region`, `Setting`, `SystemModule`, `Tenant`. 17 queries totales.
+Aplicado en 13 modelos: los del core (`Country`, `Language`, `Locale`, `Region`,
+`Setting`, `SystemModule`, `Tenant`, `Customer`, `Brand`) y los del dominio de
+obra (`Company`, `Person`, `WorkPlan`, `FormTemplate`).
+
+Aquí `unaccent` no es un adorno: en obra se busca a una persona por su apellido
+escrito como salga (`Rodriguez`, `Rodríguez`, `RODRIGUEZ`) y a una empresa por un
+nombre con tildes. Sin la extensión, media búsqueda no encuentra nada.
 
 Patrón uniforme:
 ```php
@@ -271,14 +288,59 @@ $qq->orWhereRaw(
 
 ## 10. Pendiente / no resuelto
 
-Estado a 2026-05-18:
-
-- **`enforceMorphMap`**: no aplicado. Refactor futuro de namespaces puede
-  romper polymorphic FKs históricos (audit_log, user_favorites).
+- **`enforceMorphMap`**: no aplicado. Un cambio futuro de namespaces puede
+  romper las FK polimórficas históricas (`audit_logs`, `user_favorites`, y ahora
+  también `signature_events.signable` y los comentarios).
 - **`UserController` route binding tenant check**: User usa `BelongsToTenant`
   trait que filtra reads via global scope — los writes ya están protegidos
   por el FormRequest. Verificar caso por caso si aparece un endpoint que
   haga lookup directo sin scope.
-- **`mimes:` vs `mimetypes:`** en uploads — sigue siendo validación por
-  extensión, no por contenido. El nombre del archivo ya se sanitiza, así
-  que el riesgo es bajo.
+- **`mimes:` vs `mimetypes:`** en las subidas — sigue siendo validación por
+  extensión, no por contenido. El nombre del archivo ya se regenera al guardar,
+  así que el riesgo es bajo.
+- **Las columnas de bloqueo faltan en cinco tablas.** El trait `Lockable` está en
+  `Company`, `Person`, `WorkPlan`, `FormTemplate` y `Brand`, y sus rutas
+  `lock`/`unlock` existen, pero la única migración que crea `locked_at`,
+  `locked_by` y `lock_scope` lo hace solo sobre `customers`. Detalle en
+  [`ACCESS-MODEL.md` §6.5](ACCESS-MODEL.md#65-lock-por-registro-congelar--trait-lockable).
+- **`export`/`import` sin gate en los módulos de obra.** Las rutas de exportación
+  de `companies`, `people`, `work_plans` y `form_templates` exigen `.view` en
+  lugar de `.export`, así que un perfil de solo lectura puede sacar el listado
+  completo de personas con sus documentos de identidad. `customers` y `brands` sí
+  lo tienen bien; el arreglo es copiar ese middleware.
+
+---
+
+## 11. Lo que hay que endurecer en el dominio nuevo
+
+Todo lo anterior es de la base heredada. Estas tres son propias de DOCUFIZ, y
+están ya implementadas — se apuntan aquí porque son las que no hay que aflojar.
+
+### La decisión de la firma se toma en el servidor
+
+`SignatureService` recalcula la distancia euclidiana contra la biometría enrolada
+y persiste `match_distance` y `threshold_used` junto al evento. El navegador manda
+el descriptor y la foto; nunca manda un veredicto.
+
+Es la corrección del agujero más grave del sistema anterior, donde el navegador
+enviaba `is_approved=1` en un campo oculto y bastaba abrir las herramientas de
+desarrollo para firmar como cualquiera.
+
+### Verificación 1:1, nunca 1:N
+
+La persona escribe su documento y el servidor devuelve **solo los descriptores de
+esa persona**. En ningún momento el navegador tiene la biometría de toda la
+plantilla. La ruta lleva además `throttle:30,1`, para que no se pueda usar como
+oráculo de "qué documentos existen".
+
+### Las evidencias no salen por URL
+
+Se sirven por `field_work/evidence/{evidence_file}`, bajo
+`permission:signature_events.review`. En el PDF se incrustan como data-uri
+leyéndolas del disco. Nunca hay un enlace a una cara que se pueda reenviar.
+
+> **Cuidado al borrar.** Varias filas de `evidence_files` pueden apuntar al mismo
+> archivo, porque la misma persona firmando varios formatos del mismo plan y el
+> mismo día reutiliza la foto. Borrar una fila **no** puede borrar el archivo sin
+> comprobar antes que nadie más lo usa. Hoy no hay ninguna pantalla que borre
+> evidencias; cuando la haya, esa comprobación es obligatoria.

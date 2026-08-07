@@ -7,111 +7,132 @@
 **Cuándo leerlo**: la primera vez que abres el proyecto y cada vez que dudes "¿dónde pongo esto?".
 
 ```
-trafodex-main/
+docufiz/
 ├── app/
-│   ├── Console/Commands/           # Comandos Artisan custom
-│   │   ├── SetupProjectCommand.php       # Recrea la BD desde cero (dev only)
-│   │   ├── CleanupExpiredDownloads.php   # Borra exports vencidos (cron horario)
-│   │   ├── PurgeSoftDeleted.php          # Purga registros soft-deleted antiguos
-│   │   ├── CheckSubscriptionExpirations.php  # Expira subs y manda warnings
-│   │   ├── AutomationsTick.php           # Tick por minuto de Automatizaciones
-│   │   ├── MakeModuleCommand.php         # Scaffold de módulos nuevos (clona Customers)
-│   │   ├── SeedFakeRegions.php           # Dev: genera N regiones para benchmarking
-│   │   └── BenchmarkRegions.php          # Dev: mide performance de queries
+│   ├── Console/Commands/           # Comandos Artisan propios
+│   │   ├── SetupProjectCommand.php           # Recrea la BD desde cero (se niega en producción)
+│   │   ├── MakeModuleCommand.php             # Scaffold de módulos nuevos (clona Brand)
+│   │   ├── MakeViewCommand.php               # Genera una vista suelta
+│   │   ├── MigrateLegacyDataCommand.php      # docufiz:migrate-data — empresas y personas del sistema v1
+│   │   ├── MigrateLegacyFormatsCommand.php   # docufiz:migrate-formats — AST, PTF, EPP, IHM
+│   │   ├── CleanupExpiredDownloads.php       # Borra exportaciones vencidas (cron horario)
+│   │   ├── PurgeSoftDeleted.php              # Purga registros borrados hace tiempo
+│   │   ├── PurgeIdempotencyKeys.php          # Purga claves de idempotencia de la API
+│   │   ├── PurgeAutomationNotifications.php  # Vacía la campana de notificaciones de automatización
+│   │   ├── CheckSubscriptionExpirations.php  # Expira suscripciones y avisa
+│   │   ├── AutomationsTick.php               # Tick por minuto de Automatizaciones
+│   │   ├── ExportCustomPermissions.php       # Vuelca a JSON los permisos de los perfiles
+│   │   ├── FixDatabaseSequencesCommand.php   # Recoloca las secuencias de PostgreSQL tras una carga masiva
+│   │   ├── SeedFakeRegions.php               # Dev: genera N regiones para medir
+│   │   └── BenchmarkRegions.php              # Dev: mide el coste de las consultas
+│   ├── Exports/                    # Clases de exportación (Excel, Word, plantilla de importación)
+│   ├── Imports/                    # Clases de importación con validación y deduplicación
 │   ├── Http/
-│   │   ├── Controllers/            # Controllers (organizados por grupo: SystemManagement, BusinessManagement, AuthManagement, etc.)
+│   │   ├── Controllers/            # Por grupo: SystemManagement, BusinessManagement, FieldWork, AuthManagement…
 │   │   ├── Middleware/
-│   │   │   ├── HandleInertiaRequests.php  # Comparte props globales con Vue
-│   │   │   ├── EnforcePlanFeature.php     # Plan gating por ruta
-│   │   │   ├── EnforceSubscription.php    # Bloqueo de tenants suspendidos
-│   │   │   └── MaintenanceMode.php        # Página 503 toggleable desde Settings
-│   │   ├── Requests/                # FormRequests por módulo
-│   │   └── Resources/               # API Resources (Eloquent → JSON)
-│   ├── Jobs/                       # Queue jobs (exports, bulk ops, automations)
-│   ├── Mail/                       # Mailables (subscription expiring, automation digest)
-│   ├── Models/                     # Eloquent models (User, Tenant, Customer, etc.)
-│   ├── Notifications/              # Notifications (DownloadReady, PlanChanged, etc.)
+│   │   │   ├── HandleInertiaRequests.php  # Props globales que ve Vue
+│   │   │   ├── EnforcePlanFeature.php     # Gateo por plan, ruta a ruta
+│   │   │   ├── EnforceSubscription.php    # Bloquea workspaces suspendidos
+│   │   │   ├── EnforceIdempotency.php     # Clave de idempotencia en la API
+│   │   │   ├── EnsureUserActive.php       # Corta la sesión de un usuario desactivado
+│   │   │   ├── TenantResolver.php         # Resuelve el workspace de la petición
+│   │   │   └── MaintenanceMode.php        # Página 503 conmutable desde Ajustes
+│   │   ├── Requests/               # FormRequests por módulo
+│   │   └── Resources/              # Recursos de API (Eloquent → JSON)
+│   ├── Jobs/                       # Trabajos en cola (exportaciones, masivas, automatizaciones)
+│   ├── Mail/                       # Mailables
+│   ├── Models/                     # Modelos Eloquent
+│   ├── Notifications/              # Notificaciones (DownloadReady, PlanChanged…)
+│   ├── Observers/
+│   │   └── SystemModuleObserver.php  # Crea los 7 permisos canónicos al registrar un módulo
 │   ├── Providers/
-│   │   ├── AppServiceProvider.php          # Gate::before super bypass, rate limiters
-│   │   └── SettingsServiceProvider.php     # Lee settings de BD y override config (app.name, session.lifetime)
-│   ├── Rules/                      # Validation rules (UniqueNormalizedName)
-│   ├── Scopes/                     # Eloquent scopes (HideSuperScope)
-│   ├── Services/                   # Lógica de negocio (1 service por módulo)
-│   ├── Support/                    # Helpers (Tz, AppSettings, FeatureGate)
-│   └── Traits/                     # Auditable, BelongsToTenant, HasFavorites, HasDependents
+│   │   ├── AppServiceProvider.php         # Gate::before del super, limitadores de tasa
+│   │   ├── AutomationServiceProvider.php  # Registra data sources y actions de automatización
+│   │   └── SettingsServiceProvider.php    # Vuelca ajustes de la BD dentro de config()
+│   ├── Rules/                      # Reglas de validación (UniqueNormalizedName)
+│   ├── Scopes/                     # Scopes de Eloquent (HideSuperScope)
+│   ├── Services/                   # Lógica de negocio, un servicio por módulo
+│   │   ├── BusinessManagement/     # CompanyService, PersonService, WorkPlanService, FormTemplateService…
+│   │   ├── FieldWork/              # FormSubmissionService, SignatureService, FormTemplateBuilder
+│   │   ├── Automations/            # Runner, registries, data sources y actions
+│   │   └── …
+│   ├── Support/                    # Tz, FeatureGate, LikeQuery, HtmlSanitizer
+│   └── Traits/                     # Auditable, BelongsToTenant(OrGlobal), Lockable, HasFavorites, HasDependents…
 │
 ├── bootstrap/
-│   └── app.php                     # Configuración global: middleware aliases, schedule, providers, exceptions
+│   └── app.php                     # Middleware, calendario de tareas, providers, manejo de excepciones
 │
 ├── database/
-│   ├── migrations/                 # 27 migraciones consolidadas (sin add_/rename_/drop_)
-│   ├── seeders/                    # Datos iniciales (DatabaseSeeder llama a 12 seeders en orden)
-│   └── factories/                  # Factories por modelo (para tests)
+│   ├── migrations/                 # Las cinco del dominio son 2026_08_07_1003xx: organización, personas, planes, motor de formatos y evidencias
+│   ├── seeders/                    # DatabaseSeeder marca el orden. SystemModulesSeeder y RolesAndPermissionsSeeder son los que gobiernan el acceso
+│   │   └── data/                   # Datos de apoyo (CSV/JSON). Ojo: aún quedan datasets de TRAFODEX sin usar
+│   └── factories/                  # Factories por modelo, para pruebas
 │
 ├── public/
-│   ├── build/                      # Assets compilados por Vite (regenera con npm run build)
-│   └── storage/                    # Symlink a storage/app/public (crear con php artisan storage:link)
+│   ├── build/                      # Assets compilados por Vite
+│   ├── models/                     # Pesos de face-api.js (~7 MB). Versionados a propósito: no se descargan en ejecución
+│   └── storage/                    # Enlace a storage/app/public (php artisan storage:link)
 │
 ├── resources/
-│   ├── css/
-│   │   └── app.css                 # Tailwind 4 + Ant Design Vue + reset global de Antd
+│   ├── css/app.css                 # Tailwind 4 + Ant Design Vue
 │   ├── js/
-│   │   ├── app.js                  # Bootstrap Inertia + Vue 3 + Ant Design Vue
-│   │   ├── bootstrap.js            # Axios global config
-│   │   ├── Pages/                  # Componentes Inertia por módulo (Index/Show/Form/Delete/Trash/EditAll)
-│   │   ├── Components/             # Componentes Vue por módulo + Common/
-│   │   ├── Composables/            # useAuth, useViewport, useDateFormat, useModuleFilters, etc.
-│   │   ├── Layouts/                # AppLayout (logged-in), AuthLayout (login)
-│   │   └── Plugins/i18n.js         # Plugin Vue para $t()
-│   ├── lang/
-│   │   ├── es/                     # 27 archivos de traducción español
-│   │   └── en/                     # 27 archivos inglés
+│   │   ├── app.js                  # Arranque de Inertia + Vue 3 + Ant Design Vue
+│   │   ├── Pages/                  # Una página Inertia por pantalla
+│   │   │   ├── Companies|People|WorkPlans|FormTemplates/  # Maestros, patrón Index/Show/Form/Delete/Trash/EditAll
+│   │   │   └── FieldWork/          # Forms, FormFill, Sign, SignatureReview — las pantallas de obra
+│   │   ├── Components/
+│   │   │   ├── Common/             # ResponsiveTable, FilterBar, ExportDialog, SavedViews, RecordHistory…
+│   │   │   └── FormFields/         # Los tipos compuestos: RiskMatrixField, PersonChecklistField, CatalogSelect…
+│   │   ├── Composables/            # useAuth, useFaceVerify, useModuleFilters, usePlanFeatures…
+│   │   ├── Layouts/                # AppLayout (dentro), AuthLayout (login)
+│   │   └── Plugins/i18n.js         # Plugin de traducción para $t()
+│   ├── lang/{es,en}/               # Un archivo por módulo, unos 40 en cada idioma
 │   └── views/
-│       ├── app.blade.php           # Root shell de Inertia
-│       ├── exports/                # Templates PDF (Dompdf) por módulo
-│       ├── emails/                 # Templates de email (Blade)
-│       ├── maintenance.blade.php   # Página de mantenimiento (503)
-│       └── subscription-expired.blade.php  # Página de plan vencido
+│       ├── app.blade.php           # Cascarón de Inertia
+│       ├── exports/                # Plantillas PDF (dompdf)
+│       ├── emails/                 # Plantillas de correo
+│       └── maintenance.blade.php   # Página de mantenimiento (503)
 │
 ├── routes/
-│   ├── web.php                     # Rutas web (Inertia + Blade)
-│   ├── api.php                     # Rutas API (Sanctum)
-│   ├── console.php                 # Schedules de Laravel (cleanup-expired-downloads cada hora, etc.)
-│   ├── auth_management.php         # Login, password reset, profile
-│   ├── user_management.php         # Users + Roles
-│   ├── system_management.php       # Módulos super (Regions, Languages, Countries, Locales, Tenants, Plans, etc.)
-│   ├── business_management.php     # Customers + módulos de negocio futuros (creados por make:module)
-│   ├── communication.php           # Inbox + Messages
-│   └── automation_management.php   # Automatizaciones
+│   ├── web.php                     # Punto de entrada; incluye el resto dentro del grupo de idioma + auth
+│   ├── api.php                     # API con Sanctum (solo customers hoy)
+│   ├── console.php                 # Parte del calendario de tareas
+│   ├── auth_management.php         # Login, recuperación de contraseña, perfil
+│   ├── user_management.php         # Usuarios + Perfiles
+│   ├── system_management.php       # Core del super: Regiones, Idiomas, Países, Locales, Workspaces, Planes, Ajustes, Auditoría
+│   ├── business_management.php     # Los maestros: Clientes, Marcas, Empresas, Personas, Planes de trabajo, Plantillas de formato
+│   ├── field_work.php              # Trabajo en obra: llenar formatos, firmar, bandeja de revisión
+│   ├── communication.php           # Inbox + Mensajes
+│   ├── automation_management.php   # Automatizaciones
 │   ├── dashboard_management.php    # Dashboards
-│   ├── download_management.php     # Descargas
-│   └── legal_management.php        # Términos, privacidad
+│   ├── notifications.php           # Campana
+│   ├── saved_views.php             # Vistas guardadas
+│   ├── user_preferences.php        # Preferencias de interfaz
+│   ├── localized.php               # Rutas con prefijo de idioma
+│   ├── tools.php                   # Utilidades sueltas
+│   └── legal_management.php        # Términos y privacidad
 │
 ├── storage/
-│   └── app/public/                 # Archivos subidos (logos, fotos, exports, PDFs)
+│   └── app/                        # Archivos subidos. Las evidencias de firma van en disco PRIVADO, nunca bajo public
 │
-├── docs/                           # Documentación detallada
-│   ├── INSTALL-TOOLS.md
-│   ├── STRUCTURE.md                ← este archivo
-│   ├── ENV.md
-│   ├── PERMISSIONS.md
-│   ├── FRONTEND.md
-│   ├── TROUBLESHOOTING.md
-│   └── DEPLOY.md
-│
-├── .env                            # Variables locales (NO commitear)
-├── .env.example                    # Template de variables (sí commitear)
-├── .gitignore
-├── package.json                    # Deps Node
-├── composer.json                   # Deps PHP
-├── vite.config.js                  # Config Vite (Vue + Tailwind + Laravel)
+├── docs/                           # Esta documentación
+├── .env                            # Variables locales (NO se commitea)
+├── .env.example                    # Plantilla sin secretos (sí se commitea)
+├── package.json                    # Dependencias Node
+├── composer.json                   # Dependencias PHP
+├── vite.config.js                  # Config de Vite
 └── README.md                       # Portada
 ```
+
+> **`routes/field_work.php` es el archivo que separa DOCUFIZ de la base SaaS.**
+> Todo lo demás sigue el patrón CRUD heredado. Ahí viven las tres pantallas que
+> solo tienen sentido en obra: llenar el formato, firmar con la cámara y resolver
+> las firmas que quedaron dudosas.
 
 ## Convenciones por carpeta
 
 ### `app/Http/Controllers/`
-Organizados por módulo:
+Organizados por grupo, no por capa:
 ```
 Controllers/
 ├── AuthManagement/
@@ -119,39 +140,48 @@ Controllers/
 │   └── UserController.php
 ├── SystemManagement/
 │   ├── LanguageController.php
-│   ├── RegionController.php
 │   └── TenantController.php
-└── DashboardManagement/
-    └── DashboardController.php
+├── BusinessManagement/
+│   ├── CompanyController.php
+│   ├── PersonController.php
+│   ├── WorkPlanController.php
+│   └── FormTemplateController.php
+└── FieldWork/
+    ├── FormSubmissionController.php   # llenar y confirmar un formato
+    └── SignatureController.php        # firmar, enrolar, bandeja de revisión, servir evidencias
 ```
 
 ### `resources/js/Pages/`
-Cada `.vue` aquí es una **página completa** que Inertia sirve. Estructura por módulo:
+Cada `.vue` aquí es una **página completa** que sirve Inertia:
 ```
 Pages/
 ├── Dashboard/Index.vue
-├── Users/Index.vue
-├── Users/Create.vue
-├── Users/Edit.vue
-├── Customers/Index.vue
-└── ...
+├── People/{Index,Show,Form,Delete,Trash,EditAll}.vue     # el patrón de los maestros
+├── WorkPlans/{Index,Show,Form,…}.vue
+└── FieldWork/
+    ├── Forms.vue             # la lista de formatos del plan
+    ├── FormFill.vue          # llenar uno
+    ├── Sign.vue              # la cámara
+    └── SignatureReview.vue   # la bandeja del supervisor
 ```
 
-Convención: la ruta `Users/Index.vue` se llama desde el controller con `inertia('Users/Index', [...])`.
+Convención: `People/Index.vue` se invoca desde el controller con `inertia('People/Index', [...])`.
 
 ### `routes/`
-Cada archivo `*_management.php` agrupa rutas de su módulo. Se incluyen desde `routes/web.php` dentro del grupo de localización + auth.
+Cada archivo agrupa las rutas de su área. Todos se incluyen desde `routes/web.php` dentro del grupo de idioma + auth.
 
-### `storage/app/public/`
-```
-storage/app/public/
-├── tenants/{id}/logos/
-├── users/{id}/avatars/
-├── exports/{user_id}/{filename}.xlsx
-└── documents/{tenant_id}/{filename}.pdf
-```
+### Dónde van los archivos subidos
 
-Accesible vía URL `/storage/...` gracias al symlink. Cuando migres a Spaces/S3, solo cambias el filesystem en `.env`.
+Hay dos destinos, y la diferencia importa:
+
+| Qué | Dónde | Por qué |
+|---|---|---|
+| Logos de workspace, fotos de perfil, exportaciones | `storage/app/public/`, accesible por `/storage/...` gracias al enlace | Son públicos y se piden mucho |
+| **Fotos de firma y adjuntos de formato** | Disco **privado**, servidos por una ruta autenticada | Son la prueba de quién estuvo en obra. Un enlace público se reenvía; una ruta con `signature_events.review` no |
+
+En el PDF generado las fotos se incrustan como data-uri leyéndolas del disco: no
+se crea ninguna URL de una cara, ni siquiera autenticada, dentro de un documento
+que después puede acabar en un correo.
 
 ## Archivos que NO se commitean (en `.gitignore`)
 
@@ -175,3 +205,4 @@ Accesible vía URL `/storage/...` gracias al symlink. Cuando migres a Spaces/S3,
 - [`CREATE-MODULE.md`](CREATE-MODULE.md) — qué archivos genera el scaffold y dónde los coloca
 - [`PERMISSIONS.md`](PERMISSIONS.md) — cómo se organizan controllers/rutas por rol y permiso
 - [`FRONTEND.md`](FRONTEND.md) — convenciones de los archivos en `resources/js/`
+- [`DOMINIO.md`](DOMINIO.md) — qué tabla es cada cosa y cómo se relacionan

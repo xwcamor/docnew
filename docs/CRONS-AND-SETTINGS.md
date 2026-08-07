@@ -1,6 +1,6 @@
 # Crons, Schedulers y Settings — guía completa
 
-**Qué es esto**: explica cómo se conectan las tres capas que controlan el comportamiento del sistema en tiempo real: **cron del SO**, **scheduler de Laravel**, y los 23 **settings de la BD**.
+**Qué es esto**: explica cómo se conectan las capas que controlan el comportamiento del sistema en caliente: **cron del sistema operativo**, **scheduler de Laravel**, **comandos** y los **ajustes de la BD**.
 
 **Para qué sirve**: saber cuándo tocar un setting (no requiere redeploy), cuándo tocar el scheduler (requiere deploy) y cuándo el cron del SO (requiere acceso al server). Esencial antes de cualquier cambio operativo en producción.
 
@@ -59,13 +59,13 @@ Son 3 entradas. Las dos últimas son **independientes de Laravel** — no las mu
 ```cron
 # Laravel scheduler — dispara TODOS los schedules internos de Laravel.
 # Sin este, nada del scheduler corre. Es la pieza más crítica del cron.
-* * * * * cd /var/www/trafodex && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /var/www/docufiz && php artisan schedule:run >> /dev/null 2>&1
 
 # Backup BD diario a las 02:00 (independiente de Laravel)
-0 2 * * * postgres pg_dump baseapp | gzip > /var/backups/baseapp-$(date +\%Y\%m\%d).sql.gz
+0 2 * * * postgres pg_dump docufiz | gzip > /var/backups/docufiz-$(date +\%Y\%m\%d).sql.gz
 
 # Limpieza de backups viejos (más de 14 días)
-5 2 * * * find /var/backups/baseapp-*.sql.gz -mtime +14 -delete
+5 2 * * * find /var/backups/docufiz-*.sql.gz -mtime +14 -delete
 ```
 
 ### B. Supervisor (queue worker)
@@ -73,9 +73,9 @@ Son 3 entradas. Las dos últimas son **independientes de Laravel** — no las mu
 No es cron, es un proceso persistente que procesa los Jobs del queue. Necesario para que los exports, emails y automations se ejecuten.
 
 ```ini
-; /etc/supervisor/conf.d/baseapp-queue.conf
-[program:baseapp-queue]
-command=php /var/www/trafodex/artisan queue:work --sleep=3 --tries=3 --max-time=3600
+; /etc/supervisor/conf.d/docufiz-queue.conf
+[program:docufiz-queue]
+command=php /var/www/docufiz/artisan queue:work --sleep=3 --tries=3 --max-time=3600
 autostart=true
 autorestart=true
 numprocs=2
@@ -92,32 +92,58 @@ php artisan schedule:list
 
 | Comando | Frecuencia | Para qué | Vive en |
 |---|---|---|---|
-| `app:cleanup-expired-downloads` | cada hora | Borra archivos de exports expirados o descargados (>24h) | `routes/console.php` |
-| `app:purge-soft-deleted` | diario 03:00/04:00 | Borra registros soft-deleted antiguos | `routes/console.php` + `bootstrap/app.php` |
-| `subscriptions:check-expirations` | diario 03:00 | Expira subs vencidas + envía email "tu plan vence en 7 días" | `bootstrap/app.php` |
-| `automations:tick` | cada minuto | Busca automations con `next_run_at <= now()` y las despacha al queue | `bootstrap/app.php` |
+| `app:cleanup-expired-downloads` | cada hora | Borra los archivos de exportación expirados o ya descargados | `routes/console.php` |
+| `automations:purge-old-notifications` | cada hora | Borra notificaciones de automatización de más de 12 h, para que la campana no se llene | `routes/console.php` |
+| `app:purge-soft-deleted` | diario 03:00 **y** 04:00 | Borra registros borrados hace tiempo, según `config/purge.php` | `routes/console.php` **y** `bootstrap/app.php` |
+| `api:purge-idempotency-keys` | diario 04:30 | Borra las claves de idempotencia de la API ya vencidas | `routes/console.php` |
+| `subscriptions:check-expirations` | diario 03:00 | Expira suscripciones vencidas y avisa por email "tu plan vence en 7 días" | `bootstrap/app.php` |
+| `automations:tick` | cada minuto | Busca automatizaciones con `next_run_at <= now()` y las despacha a la cola | `bootstrap/app.php` |
 
-> **Nota**: `app:purge-soft-deleted` aparece dos veces (03:00 en `routes/console.php` y 04:00 en `bootstrap/app.php`). Hay que decidir cuál queda ANTES de producción — anotado en el [backlog](brain/backlog-decisiones.md).
+> **`app:purge-soft-deleted` está agendado dos veces**: a las 03:00 en
+> `routes/console.php` y a las 04:00 en `bootstrap/app.php`. `withoutOverlapping()`
+> evita que choquen, pero corre dos veces al día sin motivo. Quitar una antes de
+> producción.
+
+> **Dos schedules apuntan a comandos que ya no existen.** `routes/console.php`
+> agenda `reports:purge-chart-cache` (domingos 03:30) y `reports:purge-frozen`
+> (diario). Los dos eran del flujo de informes de diagnóstico y se fueron con la
+> purga; sus clases no están en `app/Console/Commands/`. Cada corrida falla y
+> ensucia `storage/logs/purge.log`. Se arregla borrando esas dos entradas; es
+> cambio de código, no de este documento.
+
+### D. Los comandos de migración del sistema anterior
+
+No están agendados y no deben estarlo: se corren a mano, una vez, en tu máquina.
+
+| Comando | Para qué |
+|---|---|
+| `docufiz:migrate-formats` | Crea las plantillas AST, PTF, EPP e IHM con sus catálogos reales. `--fresh` las rehace |
+| `docufiz:migrate-data {empresas\|personas\|todo}` | Migra empresas y personas desde el MySQL del sistema v1 |
+
+Los dos son idempotentes: cada fila migrada guarda su `legacy_id`, así que
+repetirlos no duplica nada. El procedimiento está en
+[`BASE-DE-DATOS-LOCAL.md`](BASE-DE-DATOS-LOCAL.md).
 
 ---
 
-## 3. Settings disponibles (23 keys en 9 grupos)
+## 3. Settings disponibles
 
-Todos los settings están sembrados por [`SettingsSeeder.php`](../database/seeders/SettingsSeeder.php). Idempotente: correr `php artisan db:seed --class=SettingsSeeder` no duplica.
+Los siembra [`SettingsSeeder.php`](../database/seeders/SettingsSeeder.php), que es idempotente: `php artisan db:seed --class=SettingsSeeder` no duplica ni pisa lo que el super haya editado.
 
-Los lee el código vía `\App\Models\Setting::get($key, $default)`, `getBool($key, $default)` o `getInt($key, $default)`. El modelo tiene cache request-scoped para no spamear queries.
+Los lee el código con `\App\Models\Setting::get($key, $default)`, `getBool()` o `getInt()`. El modelo cachea por request para no repetir la consulta.
 
 ### Grupo `app`
 
-| Key | Tipo | Default | Para qué |
+| Key | Tipo | Sembrado | Para qué |
 |---|---|---|---|
-| `app.maintenance_mode` | bool | false | Bloquea acceso al sistema (excepto super). Muestra página 503. |
-| `app.support_email` | string | `soporte@example.com` | Email mostrado al usuario para contacto. |
-| `app.name` | string | `Application Name` | Nombre comercial mostrado en login, header, emails, título del browser. |
-| `app.logo_url` | string | (vacío) | URL del logo de marca. Si vacío se muestra solo el nombre. |
-| `app.default_locale` | string | `es` | Idioma asignado a usuarios nuevos (es / en). |
+| `app.maintenance_mode` | bool | false | Bloquea el acceso (excepto super) y muestra la página 503. |
+| `app.support_email` | string | `soporte@example.com` | Email de contacto que se muestra al usuario. |
+| `app.name` | string | `DOCUFIZ` | Nombre comercial en login, cabecera, correos y título del navegador. **Esta es la fuente de verdad**, no `APP_NAME` del `.env`. |
+| `app.logo_url` | string | (vacío) | URL del logo. Si está vacío se muestra solo el nombre. |
+| `app.default_locale` | string | `es` | Idioma que reciben los usuarios nuevos. |
+| `legal.terms_version` | string | `1.0` | Versión vigente de Términos y Privacidad. **Subirla obliga a todos los usuarios a aceptar de nuevo** en su siguiente sesión, y la aceptación queda registrada con fecha y versión. Es la palanca de LPDP, no un número decorativo. |
 
-### Grupo `features` (toggles globales)
+### Grupo `features` (interruptores globales)
 
 | Key | Tipo | Default | Para qué |
 |---|---|---|---|
@@ -135,24 +161,25 @@ Los lee el código vía `\App\Models\Setting::get($key, $default)`, `getBool($ke
 
 | Key | Tipo | Default | Para qué |
 |---|---|---|---|
-| `exports.max_csv_rows` | int | 0 | 0 = sin límite (streaming). |
-| `exports.max_excel_rows` | int | 25000 | Más filas requieren CSV. |
-| `exports.max_pdf_rows` | int | 5000 | Render PDF es costoso. |
-| `exports.max_word_rows` | int | 10000 | DOCX en RAM. |
+| `exports.max_csv_rows` | int | 0 | 0 = sin límite. El CSV se transmite en streaming y no carga RAM. |
+| `exports.max_excel_rows` | int | 25000 | El Spreadsheet se arma entero en RAM. |
+| `exports.max_pdf_rows` | int | 500 | dompdf renderiza todo en RAM. El PDF es formato presentable, no volcado de datos. |
+| `exports.max_word_rows` | int | 1000 | Mismo criterio con PHPWord. |
 
 ### Grupo `downloads` (vida útil de los archivos exportados)
 
-| Key | Tipo | Default | Para qué |
+| Key | Tipo | Sembrado | Para qué |
 |---|---|---|---|
-| `downloads.expire_after_hours` | int | 24 | Cuántas horas vive un export desde que se crea. Tras eso, el archivo se borra y queda solo el registro. |
-| `downloads.grace_hours` | int | 24 | Tras una descarga, cuántas horas adicionales se mantiene el archivo (por si el user quiere bajarlo otra vez). |
+| `downloads.expire_after_hours` | int | 24 | Horas que vive un archivo desde que se crea. Después se borra del disco y queda solo el registro de auditoría. |
+| `downloads.grace_hours` | int | 24 | Horas extra que se conserva el archivo **después** de que el usuario ya lo descargó, por si quiere bajarlo otra vez. |
+| `downloads.stale_processing_minutes` | int | 30 | Si una descarga lleva más de N minutos en "procesando", se marca como fallida. Es el detector de "el `queue:work` no está corriendo". Debe ser mayor que el timeout del job. |
 
 ### Grupo `notifications`
 
-| Key | Tipo | Default | Para qué |
+| Key | Tipo | Sembrado | Para qué |
 |---|---|---|---|
-| `notifications.poll_interval_seconds` | int | 4 | Cada cuántos segundos el frontend pregunta al backend si hay notificaciones nuevas (la campana del header). Clampeado en cliente a [1, 60]. |
-| `notifications.email_enabled` | bool | true | Si false, las notificaciones se muestran solo en el bell, no envían email. |
+| `notifications.poll_interval_seconds` | int | 30 | Cada cuántos segundos el frontend pregunta si hay notificaciones nuevas. El cliente lo acota a [1, 60]. |
+| `notifications.email_enabled` | bool | true | Si es `false`, las notificaciones aparecen solo en la campana y no salen correos. |
 
 ### Grupo `security`
 
@@ -181,7 +208,37 @@ Si necesitas multi-tenant whitelabel (cada workspace con su propio remitente), e
 
 | Key | Tipo | Default | Para qué |
 |---|---|---|---|
-| `audit.retention_days` | int | 365 | Días que se conservan los audit logs antes del purge. |
+| `audit.retention_days` | int | 365 | Días que se conservan los registros de auditoría antes de purgarlos. |
+
+### Los ajustes de la firma facial — se leen, pero NO se siembran
+
+`SignatureService` y `SignatureController` consultan cuatro claves del grupo
+`docufiz` que **`SettingsSeeder` no crea**. Como `Setting::get()` devuelve `null`
+si la clave no existe, cada lectura cae a su valor por defecto en código:
+
+| Key | Valor efectivo hoy | Qué controla |
+|---|---|---|
+| `docufiz.always_store_photo` | `true` | Si se guarda la foto en **todas** las firmas, no solo cuando el reconocimiento falla. |
+| `docufiz.face_threshold` | el del código | Distancia máxima para dar por reconocida a una persona. |
+| `docufiz.face_timeout_seconds` | `30` | Segundos antes de pasar a captura por tiempo de espera. |
+| `docufiz.face_liveness` | `true` | Si se exige el gesto del reto de vida. |
+
+Funcionan, pero **no se pueden cambiar desde la interfaz** porque no hay fila que
+editar. Sembrarlas es la tarea pendiente; hasta entonces, tocar el umbral exige
+un despliegue, que es justo lo que este mecanismo existe para evitar. El
+significado de cada una está en [`BIOMETRIA.md`](BIOMETRIA.md).
+
+### Ajustes heredados que ya no lee nadie
+
+Tres claves siguen sembradas y visibles en la pantalla de Configuración, pero
+ningún código las consulta. Son restos de TRAFODEX y conviene quitarlas de
+`SettingsSeeder` para que nadie las cambie creyendo que hacen algo:
+
+| Key | Qué era |
+|---|---|
+| `fleet_report.pdf_max_transformers` | Tope de transformadores en el PDF de flota |
+| `reports.frozen_retention_years` | Retención del archivo del informe de diagnóstico aprobado |
+| `diagnostics.cell_alert_sev` | Filtro del amarillo en la grilla de diagnóstico |
 
 ---
 
@@ -222,9 +279,10 @@ Y en Vue: `page.props.tuKey`.
 
 ## 5. Wire-ups actuales (qué setting controla qué)
 
-Todos los settings están **conectados al código** salvo los 2 marcados explícitamente como "futuro".
+Un ajuste sembrado no es un ajuste que haga algo. Esta sección es la lista de los
+que sí, y la de los que no.
 
-### Conectados (live ya)
+### Conectados
 
 | Setting | Lo lee | Efecto |
 |---|---|---|
@@ -240,21 +298,32 @@ Todos los settings están **conectados al código** salvo los 2 marcados explíc
 | `exports.max_csv_rows`, `max_excel_rows`, `max_pdf_rows`, `max_word_rows` | `Setting::getExportLimits()` | Caps por formato en ExportDialog |
 | `downloads.expire_after_hours` | `Download::computeExpiresAt()` → 21 jobs | Cuánto vive el archivo desde que se crea |
 | `downloads.grace_hours` | `CleanupExpiredDownloads::handle()` | Horas adicionales tras descarga antes de borrar |
+| `downloads.stale_processing_minutes` | `CleanupExpiredDownloads::handle()` | Minutos antes de dar por fallida una descarga atascada en "procesando" |
 | `notifications.poll_interval_seconds` | `AppLayout.vue::startInboxPolling` vía shared prop | Frecuencia del polling del bell (clamp [1, 60]) |
 | `notifications.email_enabled` | `DownloadReady::via()`, `DownloadFailed::via()`, `PlanChanged::via()`, `EmailAction::execute()`, `CheckSubscriptionExpirations` | Apaga TODOS los emails sin desactivar el bell |
 | `security.session_lifetime_minutes` | `SettingsServiceProvider` override `config('session.lifetime')` | Minutos de inactividad antes de cerrar sesión |
 | `uploads.user_photo_max_mb` | User `StoreRequest` / `UpdateRequest` rule `max:N` | Tope upload de foto de perfil |
 | `uploads.tenant_logo_max_mb` | Tenant `StoreRequest` rule `max:N` | Tope upload de logo workspace |
-| `audit.retention_days` | `PurgeSoftDeleted::purgeModule('audit_logs')` | Días que se mantienen los audit logs antes del purge |
+| `audit.retention_days` | `PurgeSoftDeleted::purgeModule('audit_logs')` | Días que se mantienen los registros de auditoría antes de purgarlos |
+| `legal.terms_version` | Comprobación de aceptación de términos | Subirla obliga a todos a aceptar de nuevo |
 
-### Futuro (settings sembrados, sin wire-up todavía)
+### Sembrados, pero sin conectar
 
 | Setting | Pendiente porque |
 |---|---|
-| `security.max_login_attempts` | El login no implementa throttle/lockout aún. Cuando se implemente, leer este setting. |
-| `security.lockout_minutes` | Idem — duración del lockout. |
+| `security.max_login_attempts` | El login no implementa bloqueo por intentos. Cuando se implemente, leer este ajuste. |
+| `security.lockout_minutes` | Ídem, para la duración del bloqueo. |
 
-Estos están listos en la tabla `settings` y visibles en la UI. Cuando alguien implemente el rate-limit del login, los conecta con `Setting::getInt('security.max_login_attempts', 5)`.
+### Conectados, pero sin sembrar
+
+Los cuatro `docufiz.*` de la firma facial. Los lee el código con un valor por
+defecto y funcionan; lo que no se puede es cambiarlos desde la interfaz. Ver la
+sección 3.
+
+### Ni sembrados ni conectados
+
+`fleet_report.pdf_max_transformers`, `reports.frozen_retention_years` y
+`diagnostics.cell_alert_sev` están sembrados pero no los lee nadie. Sección 3.
 
 ---
 
@@ -276,7 +345,7 @@ El sender de mail (`mail.from.name`, `mail.from.address`) NO se sobreescribe —
 ```bash
 php artisan queue:restart   # workers se reciclan en el próximo job
 # o en supervisor:
-supervisorctl restart baseapp-queue:*
+supervisorctl restart docufiz-queue:*
 ```
 
 ---
@@ -293,7 +362,7 @@ Si necesitas forzar refresh dentro de una misma request: `Setting::flushCache()`
 **Para queue workers que viven en memoria** (`queue:work`): hay que reiniciarlos para que tomen settings nuevos. En supervisor:
 
 ```bash
-supervisorctl restart baseapp-queue:*
+supervisorctl restart docufiz-queue:*
 ```
 
 O usar `queue:restart` que indica a los workers a reciclarse en el próximo job.
@@ -319,12 +388,12 @@ Razones técnicas:
 - Debe correr aunque Laravel esté caído (post deploy fallido).
 - Es simple, no necesita la infra de Laravel.
 
-Ejemplo de cron (ya en `crontab` o `/etc/cron.d/baseapp-backup`):
+Ejemplo de cron (ya en `crontab` o `/etc/cron.d/docufiz-backup`):
 
 ```cron
 # Backup diario a las 02:00, retención de 14 días
-0 2 * * * postgres pg_dump baseapp | gzip > /var/backups/baseapp-$(date +\%Y\%m\%d).sql.gz
-5 2 * * * find /var/backups/baseapp-*.sql.gz -mtime +14 -delete
+0 2 * * * postgres pg_dump docufiz | gzip > /var/backups/docufiz-$(date +\%Y\%m\%d).sql.gz
+5 2 * * * find /var/backups/docufiz-*.sql.gz -mtime +14 -delete
 ```
 
 En prod serio se recomienda **DigitalOcean Managed Databases** ($15/mes) que ya incluye backups automáticos + failover gestionados.
@@ -350,7 +419,8 @@ En prod serio se recomienda **DigitalOcean Managed Databases** ($15/mes) que ya 
 | Mis schedules no corren en prod | Falta el cron `* * * * * schedule:run` en el server. |
 | Cambio un setting y no toma efecto | El queue worker está en memoria — `supervisorctl restart`. |
 | Settings::get devuelve null en un test | El seeder no corrió. Agregar `--seed` al `migrate:fresh`. |
-| El bell se actualiza muy lento | Subir `notifications.poll_interval_seconds` al revés, o el queue está lento. |
+| La campana tarda en actualizarse | **Bajar** `notifications.poll_interval_seconds` (está en 30 s), o la cola va lenta. |
+| Una descarga se queda en "procesando" para siempre | No hay `queue:work` corriendo. Pasados `downloads.stale_processing_minutes` el cron horario la marca como fallida. |
 | Los archivos de download no se borran nunca | Falta el cron del SO, o el comando `app:cleanup-expired-downloads` falla. Revisar `storage/logs/cleanup-downloads.log`. |
 
 ---
@@ -359,7 +429,7 @@ En prod serio se recomienda **DigitalOcean Managed Databases** ($15/mes) que ya 
 
 - [`AUTOMATIONS.md`](AUTOMATIONS.md) — `automations:tick` corre cada minuto sobre este scheduler
 - [`MAIL-SETUP.md`](MAIL-SETUP.md) — toggle `notifications.email_enabled` controla envío de correos
-- [`USAGE.md`](USAGE.md) — UI de Settings (super only) para editar los 23 settings sin redeploy
+- [`USAGE.md`](USAGE.md) — UI de Settings (super only) para editar los ajustes sin redeploy
 - [`PERMISSIONS.md`](PERMISSIONS.md) — quién puede tocar Settings (super only)
 - [`../README-PROD.md`](../README-PROD.md) — cómo se monta supervisor + cron del SO en producción
 - [`DEPLOY.md`](DEPLOY.md) — stack proyectado para producción

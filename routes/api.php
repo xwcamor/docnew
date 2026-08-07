@@ -61,28 +61,4 @@ Route::prefix('v1')
             Route::delete('customers/{slug}',     [CustomerApiController::class, 'destroy']);
             Route::post('customers/bulk-delete',  [CustomerApiController::class, 'bulkDelete']);
         });
-
-        // ── Laboratorio ────────────────────────────────────────────────────
-        // Entrada de resultados de ensayo del sistema de laboratorio (TR LAB).
-        // Reemplaza la escritura directa contra nuestra base. Contrato completo,
-        // ejemplos y errores: docs/API-LABORATORIO.md
-        //
-        // Token abilities:
-        //   transformers:read  → buscar el equipo al que pertenece una muestra
-        //   transformers:write → darlo de alta cuando no existe
-        //   lab:write          → cargar resultados
-        //
-        // NO se agregó un plan_feature propio: `api_access` (enterprise) ya
-        // gatea todo /api/v1 y una feature nueva habría que darla de alta en
-        // cada fila de la tabla `plans` —que es la fuente de verdad— o el
-        // workspace recibiría 402 aun teniendo el plan que corresponde.
-        Route::middleware('ability:transformers:read')->group(function () {
-        });
-        Route::middleware(['ability:transformers:write', 'idempotency:optional'])->group(function () {
-        });
-        // La clave de idempotencia es OBLIGATORIA acá: es el único punto donde
-        // un reintento tras un timeout duplicaba muestras (el índice
-        // (transformer_id, sample_date) no es único).
-        Route::middleware(['ability:lab:write', 'idempotency'])->group(function () {
-        });
     });

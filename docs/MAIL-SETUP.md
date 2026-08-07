@@ -17,8 +17,18 @@ El sistema manda email en estos casos:
 | Suscripción por vencer (7 días antes) | Admin del workspace | Cron diario `subscriptions:check-expirations` |
 | Plan cambiado | Admin del workspace | Cambio manual del super |
 | Automatizaciones (acción `Email`) | Destinatarios configurados | Cron `automations:tick` cada minuto |
+| Bienvenida al crear un usuario | El usuario nuevo | `UserService::create()`, después del commit |
 
-Todo respeta el toggle global `notifications.email_enabled` (en Settings) — si está en `false`, nada sale por email (siguen apareciendo en la campana del header).
+Todo respeta el interruptor global `notifications.email_enabled` (en Ajustes): si está en `false`, no sale ningún correo, y las notificaciones siguen apareciendo en la campana.
+
+> **El correo no participa en el flujo de obra.** Ni firmar un formato, ni aprobar
+> un plan, ni resolver una firma dudosa mandan un correo. La aprobación en DOCUFIZ
+> **se firma con la cara**, en la misma pantalla; no se solicita por correo ni se
+> responde desde una bandeja. Si el SMTP está caído, la obra sigue igual: lo que
+> se rompe es recuperar una contraseña y avisar de una suscripción por vencer.
+>
+> Es un cambio deliberado respecto a TRAFODEX, donde los informes de diagnóstico
+> sí circulaban por correo para su aprobación.
 
 ---
 

@@ -19,7 +19,7 @@
 | **Cache / Sessions / Queues** | `database` driver (Postgres) | Decisión deliberada: sin Redis. Sub-1ms con índices Postgres es suficiente para los volúmenes esperados |
 | **Queues** | Supervisor + `queue:work` | Para exports, emails, jobs pesados |
 | **SSL** | Cloudflare (DNS + SSL gratis) | O Let's Encrypt con Certbot |
-| **Storage** | Local en `storage/app/public` | Migrar a Spaces cuando crezca |
+| **Storage** | Local, disco privado | Las fotos de firma son el único archivo que crece solo. Con las medidas de `docs/BIOMETRIA.md` van del orden de 1 GB al año; la recomendación para producción es DO Spaces, no el disco del droplet |
 | **Backups** | Snapshots de DigitalOcean (+20%) | $2.40/mes en plan 2GB |
 
 > **Redis es opcional** y NO se usa hoy. Solo tendrá sentido sumarlo cuando escales a múltiples app servers (donde las sesiones HTTP deben ser compartidas).
@@ -44,7 +44,7 @@
 apt update && apt upgrade -y
 apt install -y nginx php8.3-fpm php8.3-pgsql php8.3-mbstring php8.3-xml \
                 php8.3-curl php8.3-zip php8.3-gd php8.3-intl php8.3-bcmath \
-                postgresql-16 redis-server supervisor git curl \
+                postgresql-16 supervisor git curl \
                 ufw certbot python3-certbot-nginx
 
 # Node 20
@@ -57,18 +57,21 @@ mv composer.phar /usr/local/bin/composer
 
 # Clonar el proyecto
 cd /var/www
-git clone <repo-url> trafodex
-cd trafodex
+git clone <repo-url> docufiz
+cd docufiz
 
-# Configurar PostgreSQL (crear DB y usuario)
-sudo -u postgres psql -c "CREATE DATABASE trafodex;"
+# Configurar PostgreSQL (crear DB y usuario).
+# Si en el mismo droplet conviven TRAFODEX y tenkofiz, usa el guion de
+# docs/DESPLIEGUE-POSTGRES.md en vez de estas cinco lineas: alli se revoca
+# el CONNECT a PUBLIC, que es lo unico que aisla de verdad una base de otra.
+sudo -u postgres psql -c "CREATE DATABASE docufiz;"
 sudo -u postgres psql -c "CREATE USER laravel WITH ENCRYPTED PASSWORD 'STRONG_PASSWORD';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE trafodex TO laravel;"
-sudo -u postgres psql -d trafodex -c "GRANT ALL ON SCHEMA public TO laravel;"
-sudo -u postgres psql -d trafodex -c "ALTER SCHEMA public OWNER TO laravel;"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE docufiz TO laravel;"
+sudo -u postgres psql -d docufiz -c "GRANT ALL ON SCHEMA public TO laravel;"
+sudo -u postgres psql -d docufiz -c "ALTER SCHEMA public OWNER TO laravel;"
 
 # OBLIGATORIO: activar extensión unaccent (case + accent insensitive search)
-sudo -u postgres psql -d trafodex -c "CREATE EXTENSION IF NOT EXISTS unaccent;"
+sudo -u postgres psql -d docufiz -c "CREATE EXTENSION IF NOT EXISTS unaccent;"
 
 # Instalar deps
 composer install --no-dev --optimize-autoloader
@@ -85,17 +88,16 @@ php artisan key:generate
 php artisan migrate --force
 php artisan db:seed --force  # solo la primera vez
 
-# Cachear
+# Cachear (route:cache NO — ver la nota de abajo)
 php artisan config:cache
-php artisan route:cache
 php artisan view:cache
 php artisan storage:link
 
 # Permisos
-chown -R www-data:www-data /var/www/trafodex
-chmod -R 755 /var/www/trafodex
-chmod -R 775 /var/www/trafodex/storage
-chmod -R 775 /var/www/trafodex/bootstrap/cache
+chown -R www-data:www-data /var/www/docufiz
+chmod -R 755 /var/www/docufiz
+chmod -R 775 /var/www/docufiz/storage
+chmod -R 775 /var/www/docufiz/bootstrap/cache
 
 # Configurar Nginx (ver sección abajo)
 # Configurar Supervisor para queues (ver sección abajo)
@@ -115,7 +117,7 @@ Con data real ya cargada, los deploys son **incrementales** — nunca `setup:pro
 ni `migrate:fresh` (borrarían la data). Flujo estándar:
 
 ```bash
-cd /var/www/trapnew
+cd /var/www/docufiz
 git pull origin main
 composer install --no-dev --optimize-autoloader
 npm ci && npm run build
@@ -131,35 +133,19 @@ sudo systemctl restart php8.3-fpm
 ### ¿Qué comando EXTRA correr según lo que cambió el deploy?
 
 El flujo de arriba cubre código, assets, migraciones y cachés. Lo único que NO se
-refresca solo es lo **persistido/cacheado en la BD**:
+refresca solo es lo que vive **como dato en la BD**:
 
 | Si el deploy cambió… | Correr después (UNA vez) | Por qué |
 |---|---|---|
-| **Lógica de diagnóstico** (motores, IEEE, Duval que alimenta el cache, índice de salud, pesos del HI, semáforos) | `php artisan diagnose:fleet-cache` | Recalcula y persiste el índice de salud + el cache de flota (`ieee_condition`, `fault_type`, `gassing_rate`, `paper_dp`, `paper_life_years`, pronóstico) de TODOS los trafos. Sin esto, los trafos viejos siguen mostrando el valor anterior hasta recibir una muestra nueva. |
-| **Datos de referencia en BD** (umbrales fiqui, reglas de cromas, catálogos, planes, permisos) | `php artisan db:seed --class=XxxSeeder --force` (el seeder puntual) | Los deploys incrementales NO re-seedean. Solo si cambió ese dataset. Los seeders son idempotentes. |
-| **Solo código/UI, o datos de archivo** (`duval_zones.json`, `*_rules.json`, … — se leen del disco en runtime) | nada extra | Quedan vivos con el `git pull`. |
+| **Catálogos, planes, permisos o módulos** (`SystemModulesSeeder`, `RolesAndPermissionsSeeder`, `PlansSeeder`, `SettingsSeeder`) | `php artisan db:seed --class=XxxSeeder --force` | Los deploys incrementales NO re-seedean. Los seeders son idempotentes: no duplican ni pisan lo que ya editó el cliente. |
+| **Un módulo nuevo con `make:module`** | `php artisan db:seed --class=RolesAndPermissionsSeeder --force` | El módulo inserta su fila en `system_modules`, y de ahí salen sus 7 permisos. Sin re-sembrar, nadie tiene acceso y el sidebar no lo muestra. |
+| **Solo código o UI** | nada extra | Queda vivo con el `git pull` + `npm run build`. |
 
-**En la práctica, el ~95% de los deploys NO necesitan nada extra.** El más frecuente
-es **`diagnose:fleet-cache`**, y SOLO cuando tocaste el motor de diagnóstico — **no es
-de cada deploy.**
+**En la práctica, la mayoría de los deploys no necesitan nada extra.**
 
-> `diagnose:fleet-cache` corre `HealthIndexService::evaluate(persist: true)` sobre cada
-> trafo (lotes de 200, sin notificar). Es el equivalente en prod del
-> `RecalculateTransformerHealthSeeder` que ya corre DENTRO de `setup:project` (por eso
-> en pruebas, con `setup:project`, no hace falta correrlo aparte). No toca las muestras,
-> solo recalcula columnas cacheadas → seguro. En el droplet de 1 GB con miles de trafos
-> puede tardar unos minutos; correlo en una ventana tranquila.
-
-> ¿Cuándo es automático? (a) POR TRAFO: cada muestra registrada/editada
-> recalcula el suyo al instante. (b) AL EDITAR REGLAS EN EL EDITOR
-> (`/system_management/diagnostic-rules`): al guardar se encola el job
-> `RecalculateFleetCache` (delay 2 min, agrupa guardados seguidos en UN
-> recálculo; super → flota completa, admin → solo su workspace; requiere
-> `queue:work`). El comando manual queda para lo que NO pasa por el editor:
-> cambios de motor deployados por código o re-seed de reglas por consola.
-
-**Historial de cambios que exigieron `diagnose:fleet-cache`:**
-- 2026-06 — migración IEEE C57.104 1991 → 2019 (`ieee_condition` ahora guarda el DGA Status 1/2/3).
+> **Las plantillas de formato NO son código.** Un AST o un PTF nuevo es
+> configuración en `form_templates`: se crea desde la interfaz y no requiere
+> deploy. Ese es el punto del motor de formatos.
 
 ---
 
@@ -219,9 +205,14 @@ FILESYSTEM_DISK=public  # o spaces cuando migres
 7. **Después** de cada deploy:
    ```bash
    php artisan config:cache
-   php artisan route:cache
    php artisan view:cache
    ```
+   **`route:cache` no**, y no es una preferencia: los archivos de rutas tienen
+   closures (los redirects `.../{slug}/restore` de cada módulo, y la raíz en
+   `routes/localized.php`). Laravel no puede serializar un closure, así que el
+   comando falla con *"Unable to prepare route for serialization"*. Si algún día
+   se quieren cachear las rutas, primero hay que mover esos closures a métodos de
+   controller.
 8. **Cuando edites el código en caliente**: limpia primero el cache (`php artisan config:clear`), edita, vuelve a cachear. Si no, los cambios no se ven.
 
 ---
@@ -244,6 +235,8 @@ Sin Spaces, sin managed DB, sin nada extra. Un solo Droplet con todo dentro.
 
 - [`../README-PROD.md`](../README-PROD.md) — guía operativa principal de producción (paso a paso)
 - [`../README-DEV.md`](../README-DEV.md) — guía de desarrollo en PC
+- [`DESPLIEGUE-POSTGRES.md`](DESPLIEGUE-POSTGRES.md) — DOCUFIZ, TRAFODEX y tenkofiz en un mismo PostgreSQL sin que se vean entre sí
+- [`BASE-DE-DATOS-LOCAL.md`](BASE-DE-DATOS-LOCAL.md) — migrar el sistema anterior en local y subir la base ya terminada
 - [`DROPLET-POSTGRES-SECURITY.md`](DROPLET-POSTGRES-SECURITY.md) — PostgreSQL en el droplet sin exponerlo a internet (VPC, TLS, `pg_hba.conf`, roles mínimos, túnel SSH, backups)
 - [`ENV.md`](ENV.md) — variables de entorno (qué tiene que cambiar para producción)
 - [`MAIL-SETUP.md`](MAIL-SETUP.md) — SMTP en producción (Mailgun / SES / Postmark)

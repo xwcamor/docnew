@@ -21,15 +21,17 @@
 [Instalar el código] → [setup:project siembra todo] → [Login como super]
 ```
 
-Con `php artisan setup:project` se crean automáticamente:
+Con `php artisan setup:project` se crean:
 
-- **Catálogos globales**: 14 idiomas, 18 locales, 50+ países, 5 regiones
+- **Catálogos globales**: idiomas, locales, países y regiones
 - **Planes**: free / basic / pro / enterprise con sus features
-- **23 settings** globales con defaults sensatos
-- **Roles del sistema** (super / admin / user / api) con sus permissions Spatie
-- **Workspaces demo** (Empresa 1, Empresa 2, Independiente, Estudio Pérez)
-- **Suscripciones demo** (cada workspace con un plan distinto para probar)
-- **9 usuarios demo** con credenciales (password: `123456`)
+- **Ajustes globales** con valores por defecto sensatos
+- **Roles del sistema** (super / admin / api) y los **cuatro perfiles globales** de obra: Supervisor de obra, Usuario de campo, Auditor HSE y Soporte
+- **Módulos del sistema** con sus 7 permisos cada uno
+- **Workspaces, suscripciones y usuarios de demostración**
+
+> El comando **se niega a correr con `APP_ENV=production`**. Es una protección
+> de día uno, no un parche puesto después de un accidente.
 
 Pasos para setup detallados: [README-DEV.md → Setup inicial](../README-DEV.md#1-setup-inicial-pc-nueva).
 
@@ -59,23 +61,27 @@ El plan vigente desbloquea las features del workspace según la matriz [plan × 
 
 ### Paso 4 — El admin se loguea y configura su equipo
 
-El admin recibe las credenciales que le pasaste (manualmente o por email):
+El admin recibe las credenciales que le pasaste:
 
 1. Entra a `/es/login`, se autentica
-2. **Mi perfil** → cambia su password inicial, agrega foto, ajusta idioma + timezone
-3. **Usuarios** → crea a sus empleados (workers)
-4. **Perfiles** (Roles) → crea roles custom para su equipo (ej. "Sales Editor" puede crear/editar Customers, "Sales Viewer" solo lee)
-5. Vuelve a Usuarios y asigna esos roles a cada worker
+2. **Mi perfil** → cambia su contraseña inicial, agrega foto y firma manuscrita, ajusta idioma y huso horario
+3. **Usuarios** → crea las cuentas de quienes van a usar el sistema
+4. **Perfiles** → normalmente **no hace falta crear ninguno**: los cuatro globales cubren los papeles reales de obra. Solo si necesita algo que no encaja
+5. Vuelve a Usuarios y asigna el perfil a cada uno
 
-### Paso 5 — Los workers usan los módulos de negocio
+> Ojo con la diferencia entre **usuario** y **persona**. Un usuario es una cuenta
+> que entra al sistema; una persona es un trabajador que aparece en el plan y
+> firma con la cara. La cuadrilla entera son personas, y casi ninguna tiene
+> usuario. Se dan de alta en **Maestros → Personas**, no en Usuarios.
 
-Los workers entran a los módulos que el admin les habilitó:
+### Paso 5 — El equipo empieza a documentar
 
-- **Customers** (y futuros módulos creados con `make:module`)
-- **Mi perfil** (siempre)
-- **Inbox** (siempre — para recibir mensajes del super)
+Con el workspace listo, el recorrido de un día de obra —dar de alta las empresas y
+personas, enrolar caras, definir los formatos, armar el plan, llenarlo, firmarlo y
+revisar lo que quedó pendiente— está contado paso a paso en
+[`FLUJO.md`](FLUJO.md).
 
-Pueden hacer las acciones que su rol/permisos custom les habiliten (crear, editar, eliminar, exportar, importar, etc.). Cada acción queda registrada en el audit log.
+Cada acción queda registrada en el registro de auditoría.
 
 ### Paso 6 — Comunicación super → cliente
 
@@ -118,7 +124,7 @@ El usuario lo recibe:
 
 5. **Ajustar comportamiento global del sistema**
    - Sidebar → System Management → **Configuración** (Settings)
-   - 23 settings editables sin redeploy: nombre de la app, email de soporte, threshold de bulk, frecuencia de polling, retención de audit, etc.
+   - Ajustes editables sin redeploy: nombre de la app, email de soporte, threshold de bulk, frecuencia de polling, retención de audit, etc.
 
 ### Lo que NO haces normalmente
 
@@ -149,17 +155,17 @@ El usuario lo recibe:
    - Sidebar → Usuarios → Nuevo
    - Le pone nombre, email, password inicial, locale, country
 
-2. **Crear roles custom** (solo en plan pro+)
+2. **Asignar perfiles a sus usuarios**
+   - Sidebar → Usuarios → abrir un usuario → Editar → campo "Perfil"
+   - Los cuatro perfiles globales (Supervisor de obra, Usuario de campo, Auditor HSE, Soporte) están publicados y listos; el admin los asigna pero no los edita
+
+3. **Crear perfiles propios** — solo si hace falta, y solo en plan pro+
    - Sidebar → Perfiles
-   - Ej. "Sales Editor" (puede crear/editar Customers), "Sales Viewer" (solo lee)
-   - Cada rol tiene un set de permissions Spatie que el admin elige
+   - Cada perfil es un conjunto de permisos que el admin elige
 
-3. **Asignar roles a usuarios**
-   - Sidebar → Usuarios → click en un usuario → Edit → cambiar el campo "Perfil"
-
-4. **Gestionar los módulos de negocio**
-   - Customers (y los módulos generados con `make:module` después)
-   - El admin puede hacer todo en estos módulos; los workers según lo que les asigne
+4. **Gestionar los maestros de obra**
+   - Empresas, Personas, Planes de trabajo, Plantillas de formato
+   - El admin puede hacer todo en estos módulos; el resto, según su perfil
 
 ### Lo que NO puede hacer
 
@@ -173,35 +179,46 @@ El usuario lo recibe:
 
 | Plan | Lo que el admin puede usar |
 |---|---|
-| **free** | Solo él mismo. Sin Users (ya que max_users=1), sin Roles, sin Automations, sin Imports, sin Exports avanzados |
-| **basic** | + Hasta 5 usuarios + Saved Views + Exports CSV/Excel + Audit log view |
-| **pro** | + Roles custom + Automations + Imports + Exports PDF/Word + Bulk operations |
-| **enterprise** | + API REST + Branded exports + sin límites de usuarios ni registros |
+| **free** | Solo él mismo (`max_users` = 1). Sin Usuarios, sin Perfiles, sin automatizaciones, sin importar, sin exportar más allá de CSV. Tope de 50 registros por módulo |
+| **basic** | + Vistas guardadas + exportar a Excel/PDF/Word. **Sigue siendo un solo usuario** |
+| **pro** | + Usuarios y Perfiles + automatizaciones + importar + masivas. 10 usuarios, 50.000 registros |
+| **enterprise** | + API REST + sin límite de usuarios ni de registros |
 
-El plan actual lo ve en el dropdown del avatar (top-right del header) → línea "Plan".
+**Para una obra real hace falta `pro` como mínimo.** Un plan de trabajo lo arma un
+supervisor y lo firma una cuadrilla: sin `team_management` no hay a quién dar de
+alta.
+
+El plan vigente se ve en el menú del avatar, arriba a la derecha, en la línea "Plan".
 
 ---
 
-## 4. Manual del user (worker)
+## 4. Manual del usuario con perfil
 
-> Empleado de un workspace con permisos específicos asignados por el admin.
+> Quien trabaja en el sistema con los permisos que le dio su admin. En obra, casi
+> siempre es un **Supervisor de obra** o un **Usuario de campo**.
 
-**Login**: con las credenciales que su admin le proporcionó.
+**Login**: con las credenciales que le dio su admin.
 
-### Sus responsabilidades
+### El supervisor de obra
 
-- **Acceder a los módulos** que el admin le habilitó vía rol custom o permisos directos
-- **Mantener su propio perfil** (Mi perfil): foto, password, idioma, timezone
+Arma el plan del día, registra a su cuadrilla, llena y firma los formatos, y
+resuelve la bandeja de firmas pendientes. No elimina registros ni toca las
+plantillas de formato.
 
-### Lo que ve
+### El usuario de campo
 
-- **Solo los módulos** donde su rol tiene `*.view` permission
-- **Dentro de cada módulo, solo los registros de su workspace** (multi-tenant scope automático)
-- **Las acciones** (crear / editar / eliminar / exportar) están condicionadas a permisos específicos:
-  - `customers.create` → puede crear nuevos customers
-  - `customers.edit` → puede editarlos
-  - `customers.delete` → puede eliminar (soft delete)
-  - `customers.view` → puede ver el listado y el detalle
+Llena y firma los formatos del plan al que está asignado. No crea planes ni da de
+alta personas. No ve la bandeja de revisión.
+
+### Lo que ve cualquiera de los dos
+
+- **Solo los módulos** donde su perfil tiene `.view`
+- **Dentro de cada módulo, solo los registros de su workspace** — el filtrado por tenant es automático, no depende de que nadie se acuerde
+- **Las acciones** dependen del permiso concreto:
+  - `work_plans.create` → armar el plan del día
+  - `form_submissions.edit` → llenar los formatos
+  - `form_submissions.sign` → firmar con la cámara
+  - `signature_events.review` → resolver la bandeja y ver las fotos de evidencia
 
 ### Lo que NO puede
 
@@ -209,8 +226,8 @@ El plan actual lo ve en el dropdown del avatar (top-right del header) → línea
 - ❌ Ver workspaces ajenos
 - ❌ Crear roles — solo el admin con plan pro+
 - ❌ Acceder a system management — es del super
-- ❌ Ver la papelera ni hacer force-delete — solo el super
-- ❌ Ver el audit log (a menos que el plan + permiso `audit_log_view` lo habiliten)
+- ❌ Ver la papelera ni borrar definitivamente — solo el super
+- ❌ Ver el registro de auditoría — está gateado por **rol** (`super` o `admin`), no por permiso ni por plan. Un perfil custom no entra nunca
 
 ---
 
@@ -229,7 +246,7 @@ Catálogo global que tú mantienes para todos los clientes.
 | **Países** | Catálogo de países con timezone, ISO code, region | `/system_management/countries` |
 | **Regiones** | Continentes / regiones geográficas (asociadas a países) | `/system_management/regions` |
 | **Módulos del sistema** | Lista de módulos registrados con sus permisos. Se actualiza automáticamente cuando creas un módulo nuevo con `make:module` | `/system_management/system_modules` |
-| **Configuración** (Settings) | 23 settings globales editables sin redeploy | `/system_management/settings` |
+| **Configuración** (Settings) | Ajustes globales editables sin redeploy | `/system_management/settings` |
 
 ### User Management (super + admin)
 
@@ -238,12 +255,35 @@ Catálogo global que tú mantienes para todos los clientes.
 | **Usuarios** | Super ve todos cross-tenant. Admin ve solo los de su workspace | `/user_management/users` |
 | **Perfiles** (Roles) | Roles custom por workspace + roles del sistema. Admin gestiona los de su workspace | `/user_management/roles` |
 
-### Business Management (super + admin + workers con permisos)
+### Business Management — los maestros de DOCUFIZ
 
-| Módulo | Estado | URL |
+Lo que se prepara en oficina, antes de que nadie salga a obra.
+
+| Módulo | Para qué | URL |
 |---|---|---|
-| **Customers** | Listo. Es el master template del scaffold `make:module` | `/business_management/customers` |
-| Products / Sales / Inventory / Categories / etc. | Por construir con `php artisan make:module {Name}` | — |
+| **Empresas** | Las contratistas que ejecutan el trabajo, con su RUC | `/business_management/companies` |
+| **Personas** | Trabajadores, supervisores y aprobadores. El alta **busca primero por documento**: si la persona ya existe en otra empresa, se reutiliza su identidad, su biometría y su firma en vez de duplicarla | `/business_management/people` |
+| **Planes de trabajo** | La tarea del día: empresa, tipo de trabajo, ubicación, cuadrilla y aprobadores | `/business_management/work_plans` |
+| **Plantillas de formato** | AST, PTF, EPP, IHM y las HOJA X del cliente. Un formato nuevo es configuración, no programación | `/business_management/form_templates` |
+| **Clientes** | Heredado de la base SaaS. Sigue ahí porque está entretejido con usuarios, permisos y automatizaciones | `/business_management/customers` |
+
+Catálogos de obra pendientes de tener módulo propio (sedes, puestos, áreas,
+cargos, nacionalidades, tipos de trabajo): se crean con
+`php artisan make:module`. Ver [`CREATE-MODULE.md`](CREATE-MODULE.md).
+
+### Trabajo en obra
+
+Lo que se usa desde la tablet, en el sitio. No son módulos CRUD: son pantallas de
+trabajo colgadas de un plan.
+
+| Pantalla | Para qué | URL |
+|---|---|---|
+| **Formatos del plan** | La lista de formatos con su estado: pendiente, borrador o confirmado | `/field_work/work_plans/{plan}/forms` |
+| **Firma** | Cada trabajador y cada aprobador firma con la cámara | `/field_work/work_plans/{plan}/sign` |
+| **Bandeja de revisión** | Las firmas que quedaron sin reconocer, con su foto, la distancia medida y el umbral aplicado. El supervisor acepta o rechaza | `/field_work/signatures/review` |
+
+La bandeja y las evidencias exigen `signature_events.review`. Las fotos **no son
+públicas**: se sirven autenticadas y solo a quien tiene ese permiso.
 
 ### Communication
 
@@ -313,7 +353,7 @@ Catálogo global que tú mantienes para todos los clientes.
 
 Para agregar un idioma nuevo:
 1. Agregar `'fr' => [...]` en [`config/laravellocalization.php`](../config/laravellocalization.php)
-2. Crear los 27 archivos en `resources/lang/fr/` traduciendo de `es/`
+2. Crear en `resources/lang/fr/` un archivo por cada uno de los de `es/` (hoy son unos 40)
 3. Agregar `'fr'` como `iso_code` de un `Language` activo en BD
 
 ---
@@ -363,7 +403,7 @@ curl -H "Authorization: Bearer <token>" \
 
 `https://midominio.com/docs` (Scribe) — accesible solo a super/admin logueados.
 
-Hoy hay un endpoint expuesto vía API como patrón de referencia. Los módulos core (Tenants, SystemModules, Settings, Languages, Countries, Locales) NO se exponen vía API — son super only desde la UI.
+El **único** módulo expuesto hoy es `customers`, como patrón de referencia. Ningún módulo del dominio de obra tiene API: ni planes, ni personas, ni formatos, ni firmas. Los módulos core (Tenants, SystemModules, Settings, Languages, Countries, Locales) tampoco se exponen, por decisión de diseño.
 
 ---
 
@@ -377,17 +417,24 @@ Hoy hay un endpoint expuesto vía API como patrón de referencia. Los módulos c
 | "Borré algo por error" | Tiene 60s para usar el botón **Deshacer** (toast). Pasados los 60s, solo el super lo puede recuperar desde la papelera |
 | "Quiero subir mi plan" | Tienes que comprarlo. Contactar al super (email del Setting `app.support_email`) |
 | "Mi suscripción venció" | Su tenant cayó automáticamente al plan `free`. Puede seguir usando lo que ese plan permite. Para volver al plan pago, renovar suscripción |
-| "Los emails no llegan" | Verificar spam. Si sigue sin llegar, super puede ver el setting `notifications.email_enabled` y los logs del sistema |
+| "Los emails no llegan" | Revisar el correo no deseado. Si sigue sin llegar, el super comprueba el ajuste `notifications.email_enabled` y los logs |
+| "La cámara no abre en la tablet" | Casi siempre es que entró por `http://` con la IP de la red local. `getUserMedia` solo existe en HTTPS o en `localhost`. Ver [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) |
+| "El sistema no me reconoce la cara" | No bloquea nada: pasados los segundos de espera toma la foto igual, deja firmar y manda esa firma a la bandeja de revisión del supervisor. Ver [`BIOMETRIA.md`](BIOMETRIA.md) |
+| "¿Puedo firmar por otro?" | No. La firma manual existe, pero exige motivo, deja constancia de quién la autorizó y solo la autoriza alguien con `signature_events.review` |
+| "Cambié el formato AST, ¿se me estropean los antiguos?" | No. Cada entrega guarda la **versión de la plantilla** con la que se llenó. Publicar una versión nueva no altera lo ya firmado |
 
 ---
 
 ## 11. Documentación relacionada
 
+- [`FLUJO.md`](FLUJO.md) — el día de obra de punta a punta, paso a paso
+- [`DOMINIO.md`](DOMINIO.md) — el modelo de datos en una página
+- [`BIOMETRIA.md`](BIOMETRIA.md) — cómo funciona la firma con la cara
 - [`../README.md`](../README.md) — portada general del sistema
 - [`MANUAL-CLIENTE.md`](MANUAL-CLIENTE.md) — versión sin jerga técnica para entregar al cliente final
 - [`PERMISSIONS.md`](PERMISSIONS.md) — detalle técnico de roles + Spatie + super bypass
 - [`plan-features.md`](plan-features.md) — matriz completa plan × feature
-- [`CRONS-AND-SETTINGS.md`](CRONS-AND-SETTINGS.md) — schedulers, los 23 settings y background tasks
+- [`CRONS-AND-SETTINGS.md`](CRONS-AND-SETTINGS.md) — schedulers, los ajustes y tareas de fondo
 - [`AUTOMATIONS.md`](AUTOMATIONS.md) — manual de las automatizaciones programadas
 - [`CREATE-MODULE.md`](CREATE-MODULE.md) — cómo crear módulos de negocio nuevos
 - [`MAIL-SETUP.md`](MAIL-SETUP.md) — configurar SMTP para envío de emails

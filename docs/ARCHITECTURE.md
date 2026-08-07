@@ -31,8 +31,8 @@ Cuando dudes en 6 meses por qué algo está hecho así, ven aquí primero.
 | **`unaccent` extension** | Búsquedas case + accent insensitive (`"Río"` matchea `"Rio"`). Crítico para nombres de personas/empresas. En MySQL solo es case-insensitive. La extensión se activa con `CREATE EXTENSION IF NOT EXISTS unaccent;` al crear la BD — paso obligatorio del setup. |
 | **Partial unique indexes** | `CREATE UNIQUE INDEX ... WHERE deleted_at IS NULL` permite re-crear un registro con el mismo nombre tras un soft-delete. En MySQL queda UNIQUE total. |
 | **`varchar_pattern_ops`** | Pattern index para `LIKE 'X%'` eficiente en queries de auto-complete. |
-| **JSONB con índices GIN** | Custom fields del proyecto van en columnas JSONB. PostgreSQL puede indexar todo el JSON con una línea (`CREATE INDEX ... USING GIN(metadata)`). En MySQL hay que crear "generated columns" + index para cada campo individual — más trabajo, menos flexible. |
-| **Reportes complejos** | Window functions y CTEs recursivas son más rápidas y maduras en PostgreSQL. Para el report builder futuro es ventaja. |
+| **JSON con índices GIN** | El motor de formatos guarda en JSON lo que no cabe en una columna: la configuración de cada campo (`form_fields.config`), su regla de visibilidad, y las respuestas compuestas como la matriz de riesgo (`form_answers.value_json`). PostgreSQL indexa todo el JSON con una línea; en MySQL hay que crear una columna generada e indexarla campo por campo. |
+| **Consultas de informe** | Window functions y CTEs recursivas son más rápidas y maduras en PostgreSQL. Cuenta para los listados agregados de planes y firmas por periodo. |
 | **Full-text search nativo** | `tsvector + GIN` con ranking y soporte multi-idioma. MySQL `FULLTEXT` es más rígido. |
 | **Tipos avanzados** | Arrays, ranges, UUID nativo, ENUM. Útil para datos no estándar. |
 | **Concurrent index creation** | Crear índices sin bloquear la tabla en producción. |
@@ -122,7 +122,7 @@ Cuando dudes en 6 meses por qué algo está hecho así, ven aquí primero.
 - API limpia: `$user->can('permission')`, `@can('permission')`, etc.
 - Se integra con `Gate::before` para super-admins.
 
-**Decisión propia**: usar la tabla `system_modules` con `permission_key` para gestionar permisos de forma **declarativa**. Cuando se crea un módulo nuevo, se generan automáticamente sus 4 permisos (`index`, `create`, `update`, `destroy`). Esto evita que el desarrollador olvide registrar permisos manualmente.
+**Decisión propia**: usar la tabla `system_modules` con `permission_key` para gestionar permisos de forma **declarativa**. Al insertar la fila de un módulo, `SystemModuleObserver` crea sus **7 permisos canónicos** (`view`, `show`, `create`, `edit`, `delete`, `export`, `import`). Así el desarrollador no puede olvidarse de registrarlos: registrar el módulo *es* registrar los permisos.
 
 Ver [`PERMISSIONS.md`](PERMISSIONS.md) para el detalle.
 
@@ -169,17 +169,16 @@ Ver [`PERMISSIONS.md`](PERMISSIONS.md) para el detalle.
 
 ---
 
-## 10. Storage: local en `storage/app/public` (por ahora)
+## 10. Storage: disco local (por ahora), y las evidencias en disco privado
 
 **Por qué local y no S3/Spaces inicialmente**:
-- Plan inicial: VPS de DigitalOcean 2GB ($12/mes). Sin servicios extra.
-- Spaces costaría +$5/mes y agregaría latencia de red.
-- Laravel filesystem es agnóstico: cuando llegue el momento, **una línea en `.env`** (`FILESYSTEM_DISK=spaces`) cambia todo el storage sin tocar código.
+- Plan inicial: un Droplet de DigitalOcean. Sin servicios extra.
+- Spaces costaría más y agregaría latencia de red.
+- El filesystem de Laravel es agnóstico: cuando llegue el momento, una línea en `.env` (`FILESYSTEM_DISK=spaces`) cambia el destino sin tocar código.
 
-**Cuándo migrar a Spaces/S3**:
-- Cuando el storage local supere ~30GB (SSD del Droplet se llena).
-- Cuando haya múltiples Droplets balanceados (no se puede compartir disco local).
-- Cuando se necesite CDN para archivos (videos, imágenes pesadas).
+**Lo que no es negociable**: las **fotos de firma nunca van al disco público**. Se sirven autenticadas y solo a quien tiene `signature_events.review`, y dentro del PDF se incrustan como data-uri leyéndolas del disco, no por URL. Una cara no puede quedar detrás de un enlace que se pueda reenviar.
+
+**Cuándo migrar a Spaces/S3**: en cuanto las evidencias empiecen a acumularse de verdad. Es lo único que crece solo, y en el disco de un droplet pequeño eso termina tumbando la aplicación. Los números están en [`BIOMETRIA.md`](BIOMETRIA.md). También hace falta si algún día hay más de un servidor: el disco local no se comparte.
 
 ---
 
@@ -206,36 +205,50 @@ Ver [`PERMISSIONS.md`](PERMISSIONS.md) para el detalle.
 
 ---
 
-## 13. Scaffold `make:module`: Customer como master template
+## 13. Scaffold `make:module`: Brand como master template
 
-**Decisión**: tener un comando que clone el módulo Customers entero (back + front + tests + config + i18n) hacia un módulo nuevo, con find-replace de identificadores.
+**Decisión**: tener un comando que clone un módulo entero (back + front + tests + config + i18n) hacia uno nuevo, con find-replace de identificadores.
 
-**Por qué Customer es el master**:
-- Tiene `BelongsToTenant` trait → cada workspace ve solo sus registros.
-- Rutas con `permission:X.action` por acción (granular).
-- `tenant_id` nullable + scope automático con super bypass.
-- Cubre toda la infraestructura del sistema: audit log polimórfico, soft-delete + trash + restore + force-delete, bulk ops auto-async, exports (CSV/Excel/PDF/Word), imports con preview/commit, favoritos polimórficos, recent items, saved views, column selector, plan gating.
+**Por qué `Brand` y no `Customer`**: Customer fue el primer patrón, pero acumuló dominio propio — código de cliente, jerarquía de ubicaciones, restricción por cartera asignada, capa de API. Clonarlo obligaba a *quitar* cosas en cada módulo nuevo. `Brand` es un master **limpio**: `name` + `code` + `is_active` + `sort_order`, con `BelongsToTenantOrGlobal` y `Lockable`, y nada más. El comando rechaza generar un módulo llamado `Brand` o `Customer`.
 
-Clonar Customer garantiza que el módulo nuevo herede todas estas capacidades sin tener que reimplementarlas.
+Por eso `Brand` sigue en el repositorio pese a no ser un módulo del dominio de DOCUFIZ: borrarlo deja el generador inservible. Ver `docs/PURGA.md`.
+
+Lo que se hereda al clonar: audit log polimórfico, soft-delete con papelera, restaurar y borrado definitivo, masivas con paso a cola automático, exportaciones (CSV/Excel/PDF/Word), importación con vista previa, favoritos, vistas recientes, vistas guardadas, selector de columnas y gateo por plan.
 
 **Uso**:
 ```bash
-php artisan make:module Product --group=BusinessManagement
+php artisan make:module WorkType --group=BusinessManagement --fields="code:string?, sort_order:integer"
 ```
 
-Genera ~51 archivos con 2 campos base (`name` + `description`). Las columnas custom del dominio (price, stock, FKs) se agregan a mano post-scaffold editando la migration.
+Genera del orden de 50 archivos. Con `--fields` los campos del dominio se inyectan en la migración, el modelo, los FormRequests, la factory, las traducciones, `Form.vue`, `Show.vue` y `columns.js`; sin `--fields`, el módulo arranca solo con `name` y se completa a mano.
 
 **Lo que el scaffold SÍ automatiza**:
-- Routes append a `routes/business_management.php`
+- Añade el bloque de rutas a `routes/{group}.php`
 - Registro en `config/polymorphic.php` + `config/purge.php`
-- Fila en tabla `system_modules` con `permission_key`
+- Fila en `system_modules` — y de ahí salen los 7 permisos, vía observer
 
-**Lo que NO automatiza (manual post-scaffold)**:
-- Entrada en sidebar (`AppLayout.vue` + `lang/sidebar.php`)
-- Permisos en `RolesAndPermissionsSeeder`
-- Plan features específicos en `config/features.php`
+**Lo que NO automatiza (manual después)**:
+- Entrada en el sidebar (`AppLayout.vue` + `lang/{es,en}/sidebar.php`)
+- Asignar los permisos nuevos a los perfiles en `RolesAndPermissionsSeeder`
+- Plan features específicos, si el módulo es de pago
 
-Detalle completo en [README-DEV.md](../README-DEV.md#3-crear-módulos-nuevos-con-el-scaffold).
+Detalle completo en [`CREATE-MODULE.md`](CREATE-MODULE.md).
+
+---
+
+## 14. Reconocimiento facial: `face-api.js` en el navegador, decisión en el servidor
+
+**Decisión**: la cámara y el cálculo del descriptor viven en el navegador con `@vladmandic/face-api`; **la comparación que decide vive en el servidor**.
+
+**Por qué en el navegador**: el vídeo no sale del dispositivo. Lo que viaja es un vector de 128 números y una foto, no un flujo de cámara. Además no hace falta ni GPU ni servicio externo: los tres modelos (~7 MB) están versionados en `public/models/` y no se descargan en tiempo de ejecución.
+
+**Por qué la decisión en el servidor**: en el sistema anterior el navegador calculaba y mandaba `is_approved=1` en un campo oculto. Bastaba abrir las herramientas de desarrollo para firmar como cualquiera. Ahora el navegador manda el descriptor y la foto; el servidor recalcula la distancia contra la biometría enrolada, guarda `match_distance` y `threshold_used`, y decide. El navegador solo sirve para dar retroalimentación en vivo.
+
+**Trade-off**: verificación **1:1**, no 1:N. La persona escribe su documento y el servidor devuelve solo los descriptores de esa persona. Es menos cómodo que un "ponte delante y te reconozco", y a cambio no hay ningún momento en que el navegador tenga la biometría de toda la plantilla.
+
+**Cuándo revisar**: si aparece un requisito de identificación 1:N (marcación de asistencia sin escribir documento), esto ya no alcanza y hay que llevar la comparación entera al servidor con un motor nativo.
+
+Detalle completo en [`BIOMETRIA.md`](BIOMETRIA.md).
 
 ---
 
@@ -247,9 +260,10 @@ Cosas que sabemos que no son ideales pero no son urgentes:
 |---|---|---|
 | CI/CD | Solo, sin equipo, deploy manual es más rápido | Cuando entre el primer dev al equipo |
 | Logs centralizados | `storage/logs/laravel.log` alcanza con 1 servidor | Cuando haya 2+ Droplets |
-| Monitoreo (Sentry, etc.) | Sin clientes en producción aún. `.env.example` ya tiene claves listas, falta integrar el SDK | Antes del primer go-live con clientes |
-| API REST en módulos de negocio | Hoy solo hay un módulo de catálogo expuesto vía API como patrón de referencia. Replicar en otros cuando se necesite | Cuando haya app móvil o integración con terceros |
-| Login rate-limiting | Settings `security.max_login_attempts` y `security.lockout_minutes` ya sembrados pero sin wire-up | Antes del primer go-live público |
+| Monitoreo (Sentry, etc.) | Sin clientes en producción aún. `.env.example` ya tiene las claves, pero el SDK **no está instalado**: `sentry/sentry-laravel` no figura en `composer.json` | Antes del primer go-live con clientes |
+| API REST en módulos de negocio | Hoy solo `customers` está expuesto en `/api/v1`, como patrón de referencia. Ningún módulo del dominio de obra tiene API | Cuando haya app móvil o integración con terceros |
+| Login rate-limiting | Settings `security.max_login_attempts` y `security.lockout_minutes` sembrados pero sin conectar a nada | Antes del primer go-live público |
+| Almacenamiento de evidencias | Las fotos de firma van al disco del droplet. Crecen solas y no se comparten entre servidores | Cuando el disco apriete o entre un segundo servidor. Ver `BIOMETRIA.md` |
 
 ---
 
@@ -275,4 +289,6 @@ Cuando tomes una decisión técnica importante:
 - [`STRUCTURE.md`](STRUCTURE.md) — cómo se organiza el código bajo estas decisiones
 - [`PERMISSIONS.md`](PERMISSIONS.md) — cómo se implementa el modelo de acceso multi-rol
 - [`plan-features.md`](plan-features.md) — cómo se gatean las features por plan
-- [`CREATE-MODULE.md`](CREATE-MODULE.md) — cómo se aplica el patrón Customer al crear módulos nuevos
+- [`CREATE-MODULE.md`](CREATE-MODULE.md) — cómo se clona `Brand` al crear módulos nuevos
+- [`BIOMETRIA.md`](BIOMETRIA.md) — el detalle del reconocimiento facial y lo que cuesta guardar la evidencia
+- [`DOMINIO.md`](DOMINIO.md) — el dominio de DOCUFIZ en una página

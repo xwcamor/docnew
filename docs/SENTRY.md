@@ -40,6 +40,18 @@ SENTRY_SEND_DEFAULT_PII=false     # no enviar IP/email/headers por defecto
 
 > **En dev**: dejar `SENTRY_LARAVEL_DSN` vacío. Sentry se ignora silenciosamente y no envía nada.
 
+> **`SENTRY_SEND_DEFAULT_PII` se queda en `false`, y aquí no es una preferencia.**
+> Con `true`, Sentry adjunta a cada error los datos de la petición: cabeceras,
+> cuerpo, usuario. En DOCUFIZ eso significa mandar a un tercero documentos de
+> identidad de trabajadores y, en la ruta de firma, **el descriptor facial y la
+> foto** que viajan en el cuerpo. Un descriptor biométrico en un servicio de
+> terceros es un problema legal, no un detalle de configuración.
+>
+> Si algún día hace falta más contexto para depurar, el camino es adjuntar solo el
+> identificador interno del usuario a mano (`Sentry\configureScope`), nunca activar
+> el volcado automático. Y conviene además excluir del reporte el cuerpo de
+> `POST field_work/signatures`.
+
 ## 4. Decidir qué excepciones se reportan
 
 Por default Sentry captura todas las excepciones no-manejadas. Para excluir las que no aportan signal (ValidationException, 404, etc.):
@@ -127,9 +139,10 @@ Agregar `VITE_SENTRY_DSN` al `.env` (mismo DSN o uno separado para el proyecto J
 
 ## Estado actual del proyecto
 
-- `.env.example` tiene las claves `SENTRY_*` listas
-- El código NO está pegado a Sentry — funciona sin él
-- Cuando llegues a producción, solo hay que ejecutar los pasos 1-4 indicados arriba
+- **El SDK no está instalado**: `sentry/sentry-laravel` no figura en `composer.json` y no existe `config/sentry.php`.
+- `.env.example` sí tiene las claves `SENTRY_*`, pero hoy **no las lee nadie**.
+- El código no depende de Sentry en ninguna parte: funciona igual sin él.
+- Cuando llegues a producción, los pasos 1-4 de arriba lo activan.
 
 ---
 

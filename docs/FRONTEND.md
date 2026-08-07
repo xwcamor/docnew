@@ -17,8 +17,9 @@
 | **Vite** | Bundler (HMR ultra rápido) |
 | **Tailwind CSS 4** | Utilidades de estilo |
 | **Ant Design Vue 4** | Componentes UI enterprise (botones, forms, modales, etc.) |
-| **AG Grid Community** | Tablas tipo Excel (sortable, filterable, virtualizadas) |
+| **AG Grid Community** | Tablas tipo Excel (ordenables, filtrables, virtualizadas) |
 | **Ziggy** | Acceso a `route()` de Laravel desde JS |
+| **@vladmandic/face-api** | Cámara, 68 puntos faciales y descriptor de 128 números para la firma |
 
 ---
 
@@ -334,12 +335,59 @@ defineOptions({ layout: AppLayout });
 
 | Convención | Ejemplo |
 |---|---|
-| Páginas en PascalCase | `Pages/Users/Index.vue`, `Pages/Reports/Builder.vue` |
-| Componentes reusables | `Components/DataTable.vue` |
+| Páginas en PascalCase | `Pages/People/Index.vue`, `Pages/FieldWork/Sign.vue` |
+| Componentes reutilizables | `Components/Common/ResponsiveTable.vue` |
 | Layouts | `Layouts/AppLayout.vue`, `Layouts/AuthLayout.vue` |
-| Composables (lógica reusable) | `Composables/useFilters.js` |
-| Llamar a `route()` no a strings literales | `route('users.show', user.id)` no `/users/${user.id}` |
-| Imports de Ant Design Vue por componente | `import { Button } from 'ant-design-vue'` (NO el `Antd` global aunque está disponible) |
+| Composables (lógica reutilizable) | `Composables/useModuleFilters.js` |
+| Llamar a `route()`, nunca a una cadena literal | `route('business_management.people.show', person.slug)`, no `/people/${id}` |
+| Importar los componentes de Ant Design uno a uno | `import { Button } from 'ant-design-vue'` (no el `Antd` global, aunque esté disponible) |
+| Permisos con `useAuth`, no leyendo `page.props` | `const { can } = useAuth()` — así se respeta el bypass del super |
+
+---
+
+## Antes de escribir un componente, mira si ya existe
+
+`Components/Common/` es la parte más rentable de la base heredada. Un listado
+nuevo no debería escribir su propia tabla, su propia barra de filtros ni su
+propio diálogo de exportación:
+
+| Componente | Para qué |
+|---|---|
+| `ResponsiveTable` | Tabla en escritorio, tarjetas en móvil, con el mismo `columns.js` |
+| `FilterBar` + `FilterChips` + `AdvancedFilterDrawer` | Filtros simples, chips de lo aplicado y el constructor de condiciones |
+| `ExportDialog` / `ImportDialog` | Exportar por formato (con su gateo de plan) e importar con vista previa |
+| `SavedViews` | Guardar una combinación de filtros y columnas |
+| `ColumnSelector` | Qué columnas se ven, con preferencia por usuario |
+| `RecordHistory` / `ActivityTimeline` | El historial de auditoría de un registro |
+| `EntityShowActions` / `EntityShowTabs` | La cabecera y las pestañas de una ficha |
+| `RotatePortraitOverlay` | Pide girar el dispositivo. Existe por las tablets en obra |
+
+Y en `Components/FormFields/` viven los tipos compuestos del motor de formatos
+—`RiskMatrixField` (la matriz severidad × probabilidad de AST y PTF),
+`PersonChecklistField` (el EPP por trabajador), `CatalogSelect`—. Un tipo de
+campo nuevo se añade ahí, no dentro de la página que lo usa.
+
+---
+
+## La cámara de firma
+
+La lógica de reconocimiento no vive en la página, vive en el composable
+[`useFaceVerify`](../resources/js/Composables/useFaceVerify.js): carga los
+modelos, detecta la cara, mide el gesto del reto de vida a partir de los 68
+puntos y calcula el descriptor.
+
+Dos cosas que hay que tener claras al tocar `Pages/FieldWork/Sign.vue`:
+
+1. **El navegador no decide.** Manda el descriptor y la foto; el servidor recalcula
+   la distancia y decide. La retroalimentación en vivo es para el usuario, no una
+   autorización. En el sistema anterior el navegador enviaba `is_approved=1` en un
+   campo oculto y bastaba abrir las herramientas de desarrollo para firmar como
+   cualquiera.
+2. **`getUserMedia()` solo existe en contextos seguros**: HTTPS o `localhost`.
+   Probar desde una tablet contra `http://192.168.x.x` no abre la cámara, y el
+   error no dice eso con claridad.
+
+El detalle del flujo está en [`BIOMETRIA.md`](BIOMETRIA.md).
 
 ---
 
@@ -372,3 +420,4 @@ defineOptions({ layout: AppLayout });
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) — por qué Inertia en vez de SPA con API REST
 - [`CREATE-MODULE.md`](CREATE-MODULE.md) — qué páginas Vue genera el scaffold (Index/Show/Form/Delete/Trash/EditAll)
 - [`PERMISSIONS.md`](PERMISSIONS.md) — cómo se usan `can()` y `canUsePlanFeature()` en el frontend
+- [`BIOMETRIA.md`](BIOMETRIA.md) — qué hace exactamente la pantalla de firma y por qué

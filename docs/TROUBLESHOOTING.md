@@ -45,7 +45,7 @@ extension=pgsql
 
 **Causa**: PostgreSQL 15+ requiere que los nuevos roles tengan permisos explícitos sobre el schema `public`.
 
-**Solución**: en pgAdmin → Query Tool sobre `trafodex`, ejecuta:
+**Solución**: en pgAdmin → Query Tool sobre `docufiz`, ejecuta:
 ```sql
 GRANT ALL ON SCHEMA public TO laravel;
 ALTER SCHEMA public OWNER TO laravel;
@@ -53,11 +53,11 @@ ALTER SCHEMA public OWNER TO laravel;
 
 ---
 
-### `database "trafodex" does not exist`
+### `database "docufiz" does not exist`
 
 **Causa**: La BD no fue creada en PostgreSQL.
 
-**Solución**: en pgAdmin → click derecho en **Databases** → **Create** → **Database…** con nombre `trafodex`. Después corre los GRANTs del paso anterior.
+**Solución**: en pgAdmin → click derecho en **Databases** → **Create** → **Database…** con nombre `docufiz`. Después corre los GRANTs del paso anterior.
 
 ---
 
@@ -251,6 +251,32 @@ extension=zip
 ```
 
 Reiniciar Laragon.
+
+---
+
+## Cámara y reconocimiento facial
+
+### La cámara no abre en la pantalla de firma
+
+**Causa**: `getUserMedia()` solo existe en contextos seguros. El navegador lo da
+en `https://` y en `http://localhost`, y **no** en una IP de red local por HTTP
+(`http://192.168.1.50:8000`) — que es justo como se prueba en una tablet.
+
+**Solución**: entrar desde la tablet por HTTPS, o usar un túnel que termine en
+HTTPS. No hay ajuste de Laravel que lo arregle: es política del navegador.
+
+---
+
+### La verificación nunca arranca / el navegador no carga los modelos
+
+**Causa**: faltan los pesos de face-api. Viven en `public/models/` (unos 7 MB en
+tres modelos: `tiny_face_detector`, `face_landmark_68` y `face_recognition`) y
+están versionados en el repositorio a propósito — no se descargan en tiempo de
+ejecución.
+
+**Solución**: comprobar que `public/models/` tiene los seis archivos
+(`*-weights_manifest.json` + `*.bin`). Si el despliegue los excluyó, copiarlos
+del repositorio.
 
 ---
 

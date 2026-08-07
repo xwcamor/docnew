@@ -1,8 +1,10 @@
-# Manual de uso para el cliente
+# Manual de uso de DOCUFIZ
 
-Guía paso a paso para usar el sistema desde la perspectiva del cliente final. Pensada para imprimir, compartir o adaptar al onboarding de cada empresa.
+Guía paso a paso para usar el sistema. Pensada para imprimir, compartir o adaptar a la puesta en marcha de cada empresa.
 
-> Este manual es para el **usuario final del sistema** (administrador de la empresa o sus empleados). No tiene términos técnicos como Laravel, controllers, etc. Si eres developer trabajando en el proyecto, revisa [`USAGE.md`](USAGE.md) en su lugar.
+**DOCUFIZ es donde se llena y se firma la documentación diaria de seguridad en obra**: el AST, el Pare y Tome 5, la inspección de EPP, la de herramientas manuales y cualquier otro formato que use la empresa. Sustituye al papel: cada firma se hace con la cámara y queda guardada con la foto de quien firmó.
+
+> Este manual es para el **usuario final** — administrador de la empresa, supervisor o trabajador. No tiene términos técnicos. Si eres desarrollador, revisa [`USAGE.md`](USAGE.md).
 
 ---
 
@@ -10,7 +12,7 @@ Guía paso a paso para usar el sistema desde la perspectiva del cliente final. P
 
 1. [Primeros pasos](#1-primeros-pasos)
 2. [Si eres administrador de la empresa](#2-si-eres-administrador-de-la-empresa)
-3. [Si eres empleado (usuario)](#3-si-eres-empleado-usuario)
+3. [Un día de obra, paso a paso](#3-un-día-de-obra-paso-a-paso)
 4. [Funcionalidades que todos pueden usar](#4-funcionalidades-que-todos-pueden-usar)
 5. [Preguntas frecuentes](#5-preguntas-frecuentes)
 6. [Resolución de problemas comunes](#6-resolución-de-problemas-comunes)
@@ -34,27 +36,26 @@ El soporte de la plataforma te envía un correo con:
 3. Verás la pantalla de inicio de sesión. Introduce tu correo y contraseña.
 4. Haz clic en **Iniciar sesión**.
 
-> 💡 Si te equivocas más de 5 veces, el sistema bloquea temporalmente tu cuenta por 15 minutos. Esto protege contra intentos malintencionados de adivinar contraseñas.
-
 ### 1.3. Cambiar tu contraseña inicial
 
 **Esto es lo primero que tienes que hacer.** La contraseña inicial es solo para el primer acceso.
 
 1. Una vez dentro, busca tu avatar (círculo con tu inicial) en la esquina superior derecha.
 2. Haz clic en él → **Mi perfil**.
-3. Ve a la pestaña **Cambiar contraseña**.
-4. Introduce tu contraseña actual y la nueva (mínimo 8 caracteres, debe incluir letras y números).
+3. Ve a la pestaña de contraseña.
+4. Introduce tu contraseña actual y la nueva.
 5. Guarda.
 
 ### 1.4. Completar tu perfil
 
 En la misma sección **Mi perfil** puedes:
-- Subir una foto de perfil (JPG/PNG, máximo 2 MB).
+- Subir una foto de perfil (JPG/PNG, hasta 2 MB).
+- **Registrar tu firma manuscrita**, que es la que se imprime en los documentos.
 - Cambiar tu nombre visible.
-- Elegir el idioma de la interfaz: español o inglés.
-- Definir tu zona horaria (las fechas del sistema se mostrarán en ese huso).
+- Elegir el idioma: español o inglés.
+- Definir tu zona horaria (las fechas se muestran en ese huso).
 
-Los cambios se aplican inmediatamente.
+Los cambios se aplican de inmediato.
 
 ---
 
@@ -70,38 +71,54 @@ Como administrador eres el responsable principal de la cuenta de tu empresa. Te 
    - Correo electrónico (será el usuario para iniciar sesión)
    - Contraseña inicial (puedes generar una al azar, el empleado la cambiará en su primer ingreso)
    - País e idioma
-3. Asigna un **perfil** (rol) — por ejemplo "Editor de clientes" o "Visualizador".
-4. Guarda. El empleado ya puede iniciar sesión.
+3. Asigna un **perfil**. Casi siempre uno de los cuatro que ya vienen listos (ver 2.2).
+4. Guarda. La persona ya puede iniciar sesión.
 
-**Importante**: comparte las credenciales con tu empleado por un medio seguro (no por correo público).
+**Importante**: comparte las credenciales por un medio seguro.
 
-> El número máximo de usuarios que puedes crear depende de tu plan:
-> - Plan **Free**: solo tú (1 usuario)
-> - Plan **Basic**: hasta 5 usuarios
-> - Plan **Pro**: hasta 25 usuarios
-> - Plan **Enterprise**: sin límite
+> **Un usuario no es lo mismo que un trabajador.** Un usuario es una cuenta que entra al sistema — normalmente los supervisores y poco más. Los trabajadores de la cuadrilla se registran en **Personas** (ver 2.3) y no necesitan cuenta: aparecen en el plan y firman con la cámara.
 
-### 2.2. Crear perfiles (roles) personalizados
+> El número máximo de usuarios depende de tu plan:
+> - **Free** y **Basic**: 1 usuario
+> - **Pro**: hasta 10 usuarios
+> - **Enterprise**: sin límite
+>
+> Para una obra real necesitas plan **Pro** como mínimo: sin él no puedes dar de alta a tus supervisores.
 
-Los perfiles definen **qué puede hacer cada empleado**. Por ejemplo, puedes crear un perfil "Editor de clientes" que pueda crear y editar clientes pero no eliminarlos.
+### 2.2. Los perfiles que ya vienen listos
 
-> Solo disponible en plan **Pro** o **Enterprise**.
+Un perfil define **qué puede hacer cada quien**. No hace falta inventarlos: el sistema trae cuatro, pensados para los papeles reales de una obra.
 
-1. En el menú lateral: **Perfiles** → **Nuevo perfil**.
-2. Nombre del perfil (ej. "Editor de clientes").
-3. Descripción (opcional).
-4. Marca los **permisos** que tendrá:
-   - `clientes.ver` — puede ver el listado y los detalles
-   - `clientes.crear` — puede crear nuevos
-   - `clientes.editar` — puede modificar
-   - `clientes.eliminar` — puede eliminar (con motivo obligatorio)
-5. Guarda.
+| Perfil | Para quién | Qué puede |
+|---|---|---|
+| **Supervisor de obra** | El que arma el plan del día | Crea el plan, registra a su cuadrilla, llena y firma los formatos, y revisa las firmas que quedaron dudosas. No elimina nada. |
+| **Usuario de campo** | El trabajador que llena formatos | Llena y firma los formatos del plan al que está asignado. No crea planes ni da de alta personas. |
+| **Auditor HSE (solo lectura)** | Quien audita | Ve y exporta todo, incluidas las fotos de firma. No modifica nada. |
+| **Soporte (editor)** | Quien mantiene los datos | Crea y edita cualquier dato. No elimina y no firma. |
 
-Después, en el módulo **Usuarios**, edita a cada empleado y asígnale el perfil que corresponda.
+Si necesitas algo distinto puedes crear un perfil propio desde **Perfiles → Nuevo perfil**, marcando permiso a permiso. Solo en plan **Pro** o superior.
 
-### 2.3. Gestionar los registros de negocio (clientes, productos, etc.)
+### 2.3. Preparar los maestros (una vez, en oficina)
 
-Tu empresa tiene un módulo principal de negocio (clientes) y posiblemente otros que te haya configurado el soporte (productos, ventas, inventario, etc.).
+Antes de que nadie salga a obra hay que dejar cuatro cosas cargadas:
+
+**Empresas.** Las contratistas que ejecutan el trabajo, con su RUC.
+
+**Personas.** Cada trabajador y cada supervisor. El alta **busca primero por documento**: si esa persona ya está registrada porque trabajó antes con otra contratista, el sistema **no crea otra ficha**, solo añade el vínculo con la empresa nueva. Así una persona que rota de contratista conserva su identidad, su enrolamiento facial y su firma.
+
+**Enrolamiento facial.** Con la cámara, guiado por un círculo que se pone verde cuando la cara está bien encuadrada. Se toman tres muestras. **No se guarda ninguna foto**: solo una lista de números con la que después se compara. Requiere el consentimiento del trabajador, y queda registrado con fecha.
+
+**Plantillas de formato.** Aquí se define cada formato: sus campos, sus secciones, su matriz de riesgo, sus listas de verificación. Un formato puede ser de tres tipos:
+
+| Tipo | Para qué |
+|---|---|
+| Con campos | AST, Pare y Tome 5, EPP, IHM: se llena en pantalla |
+| Solo foto | La "HOJA X": el papel existe y solo se le toma una foto |
+| Mixto | Unos campos, más la foto del papel |
+
+Y se indica **qué formatos exige cada tipo de trabajo**. Un formato nuevo es configuración: no hay que programar nada ni esperar a una actualización del sistema.
+
+### 2.4. Trabajar con los listados
 
 En cada módulo puedes:
 
@@ -115,7 +132,7 @@ En cada módulo puedes:
 | **Exportar** | Botón **Exportar** → elige formato (CSV / Excel / PDF / Word según tu plan). El export se procesa en segundo plano y recibirás una notificación cuando esté listo. |
 | **Importar** | Botón **Importar** → descarga la plantilla → llénala → súbela. El sistema te muestra un preview antes de confirmar (disponible en plan Pro+). |
 
-### 2.4. Recuperar registros eliminados
+### 2.5. Recuperar registros eliminados
 
 Cuando un usuario elimina un registro, **tiene 60 segundos para deshacer la acción** mediante el botón "Deshacer" del aviso que aparece arriba.
 
@@ -124,9 +141,9 @@ Pasados los 60 segundos, el registro queda en la papelera del sistema. **Solo el
 - Cuándo se eliminó (fecha aproximada)
 - Quién lo eliminó (si lo sabes)
 
-### 2.5. Ver el historial de cambios (auditoría)
+### 2.6. Ver el historial de cambios (auditoría)
 
-> Solo disponible en plan **Basic** o superior.
+> Solo el administrador de tu empresa entra aquí, en cualquier plan.
 
 En el menú lateral: **Auditoría**. Allí ves un historial inmutable de cada acción realizada:
 - Quién hizo qué cambio
@@ -136,7 +153,7 @@ En el menú lateral: **Auditoría**. Allí ves un historial inmutable de cada ac
 
 Útil para investigar un cambio o auditar el uso del sistema.
 
-### 2.6. Ver y cambiar tu plan
+### 2.7. Ver y cambiar tu plan
 
 En el dropdown de tu avatar (esquina superior derecha) ves:
 - **Plan actual** de tu empresa
@@ -144,7 +161,7 @@ En el dropdown de tu avatar (esquina superior derecha) ves:
 
 Para cambiar de plan (subir o bajar), **contacta al soporte** indicando qué plan quieres. La plataforma no permite cambiar el plan directamente desde la interfaz (es por seguridad y para coordinar facturación).
 
-### 2.7. Recibir mensajes del soporte
+### 2.8. Recibir mensajes del soporte
 
 El sistema tiene una **bandeja de entrada** (icono de sobre en el header) donde llegan mensajes del soporte:
 - Anuncios de mantenimiento programado
@@ -155,33 +172,54 @@ Si el mensaje permite respuestas, puedes contestar y dialogar con el equipo de s
 
 ---
 
-## 3. Si eres empleado (usuario)
+## 3. Un día de obra, paso a paso
 
-Trabajas dentro de tu empresa con permisos específicos que tu administrador te asignó.
+Esta es la parte que de verdad se usa todos los días.
 
-### 3.1. Tu acceso
+### 3.1. Por la mañana — armar el plan (el supervisor, desde la tablet)
 
-- Solo ves los **módulos que tu administrador habilitó para tu perfil**.
-- Dentro de cada módulo, solo ves los **registros de tu empresa** (no de otras).
-- Las acciones disponibles (crear, editar, eliminar) dependen de tus permisos.
+**Planes de trabajo → Nuevo.**
 
-### 3.2. Día a día
+Se elige la empresa, el tipo de trabajo, la sede y el puesto, y se describe la tarea. Al guardar, el sistema **ya sabe qué formatos son obligatorios**, porque los trae el tipo de trabajo. No hay que acordarse de ninguno.
 
-1. **Iniciar sesión** con tu correo y contraseña.
-2. Trabajar en los módulos que te corresponden (típicamente clientes, productos, ventas, etc.).
-3. **Mantener tu perfil al día**: foto, contraseña, idioma, zona horaria.
-4. **Revisar la bandeja de entrada** por si hay mensajes del soporte.
+Después se añade la cuadrilla. Si alguien no está registrado, se le da de alta ahí mismo — y si esa persona ya existe porque trabajó con otra contratista, se reutiliza su ficha en vez de duplicarla.
 
-### 3.3. Lo que NO puedes hacer
+### 3.2. Durante el trabajo — llenar los formatos
 
-- Crear nuevos usuarios (es función del administrador de tu empresa).
-- Ver registros de otras empresas (cada empresa está aislada).
-- Cambiar el plan de tu empresa.
-- Recuperar registros eliminados pasados los 60 segundos (contacta a tu administrador o al soporte).
+En el plan, la lista de formatos con su estado: **pendiente**, **borrador** o **confirmado**.
 
-### 3.4. Si necesitas más permisos
+- **Formato con campos**: se llena en pantalla. Se puede guardar a medias y seguir después.
+- **HOJA X**: se toma la foto del papel y se adjunta.
 
-Habla con el administrador de tu empresa. Él decide qué permisos asignar a tu perfil.
+**Al confirmar, el sistema comprueba que no falte nada.** Si falta un campo obligatorio, o falta la foto en un formato de solo foto, no deja cerrar y dice exactamente qué falta.
+
+Si más adelante la empresa publica una versión nueva de ese formato, **lo que ya está firmado no cambia**: cada entrega guarda la versión con la que se llenó.
+
+### 3.3. La firma
+
+Cada trabajador de la cuadrilla y cada aprobador firma desde la misma tablet.
+
+1. La persona escribe su documento de identidad.
+2. Se pone frente a la cámara. El sistema compara en vivo y avisa de cómo va.
+3. Si reconoce, la firma queda hecha y verificada.
+
+**¿Y si no reconoce?** Pasados unos segundos, el sistema **toma la foto igual, deja firmar y marca esa firma para que el supervisor la revise**. El trabajo en obra no se detiene nunca por un problema de cámara o de luz.
+
+Solo hay una cosa que no ocurre jamás: **si no hay ninguna cara delante de la cámara, no se registra nada**. Ni firma ni foto.
+
+También existe la firma manual, para casos excepcionales. Exige escribir un motivo, deja constancia de quién la autorizó, y solo la puede autorizar alguien con permiso de revisión.
+
+### 3.4. Después — revisar lo que quedó dudoso
+
+**Firmas → Bandeja de revisión.**
+
+Lista las firmas que quedaron sin reconocer, con la foto que se capturó. El supervisor mira la foto y acepta o rechaza. Si rechaza, la aprobación se revierte.
+
+Estas fotos **no son públicas**: solo las ve quien tiene permiso de revisión, y nunca hay un enlace que se pueda reenviar.
+
+### 3.5. El resultado
+
+El plan queda completo cuando todos sus formatos están confirmados y todas las aprobaciones obligatorias, aprobadas. De ahí sale el **PDF firmado** con las fotos de quienes participaron: el documento que la empresa conserva.
 
 ---
 
@@ -222,10 +260,10 @@ Botón **Exportar** → elige formato según tu plan:
 
 | Formato | Disponible en | Para qué |
 |---|---|---|
-| **CSV** | Todos los planes | Mejor opción para datasets grandes (sin límite de filas) |
-| **Excel** | Basic+ | Hasta 25.000 filas. Conserva colores y formato |
-| **PDF** | Basic+ | Hasta 5.000 filas. Ideal para imprimir o adjuntar |
-| **Word** | Basic+ | Hasta 10.000 filas. Editable después |
+| **CSV** | Todos los planes | La mejor opción para volúmenes grandes: no tiene límite de filas |
+| **Excel** | Basic+ | Hasta 25.000 filas |
+| **PDF** | Basic+ | Hasta 500 filas. Es formato presentable, no volcado de datos |
+| **Word** | Basic+ | Hasta 1.000 filas. Editable después |
 
 > El export se procesa en **segundo plano**. Verás una notificación en la campanita 🔔 del header cuando esté listo, y también recibirás un correo con el enlace de descarga. El archivo está disponible por 24 horas; después se elimina automáticamente.
 
@@ -278,18 +316,14 @@ Icono monitor (header) → cicla entre **claro**, **oscuro** y **automático** (
 **No puedo iniciar sesión, dice "credenciales incorrectas"**
 - Verifica que estés escribiendo el correo correcto (sin espacios al principio o final).
 - Asegúrate de que la contraseña esté bien escrita (mayúsculas y minúsculas importan).
-- Si tienes 5 intentos fallidos, espera 15 minutos.
 - Si sigue sin funcionar, usa el enlace **¿Olvidaste tu contraseña?** del login.
 
 **Olvidé mi contraseña**
 - En la pantalla de login, clic en **¿Olvidaste tu contraseña?**
 - Te pide tu correo electrónico.
 - Recibirás un correo con un enlace para restablecerla (válido 60 minutos).
-- Si no llega, revisa la carpeta de spam.
-
-**Estoy bloqueado por intentos fallidos**
-- Espera 15 minutos y vuelve a intentar.
-- O bien usa el reset por correo.
+- Si no llega, revisa la carpeta de correo no deseado.
+- Ese formulario admite pocos intentos por minuto. Si insistes muy seguido te dirá que esperes.
 
 ### Sobre permisos y módulos
 
@@ -312,9 +346,26 @@ Icono monitor (header) → cicla entre **claro**, **oscuro** y **automático** (
 - Pasados los 60 segundos, contacta al soporte indicando qué registro recuperar.
 
 **El export está tardando mucho**
-- Los exports grandes (> 5.000 registros en PDF, > 25.000 en Excel) pueden tardar varios minutos.
-- Recibirás un correo y verás la campanita 🔔 cuando esté listo.
-- Si ya pasó 1 hora y no llega, contacta al soporte.
+- Los archivos grandes pueden tardar varios minutos. Recibirás un correo y verás la campanita cuando esté listo.
+- Si ya pasó una hora y no llega, contacta al soporte.
+
+### Sobre la firma con la cámara
+
+**La cámara no abre en la tablet**
+- Casi siempre es porque se entró por una dirección que empieza en `http://`. Los navegadores solo dan acceso a la cámara si la dirección empieza en `https://`.
+- Habla con el soporte para que te dé la dirección correcta.
+
+**El sistema no me reconoce la cara**
+- No pasa nada: pasados unos segundos toma la foto igual, te deja firmar y avisa a tu supervisor para que lo revise. **El trabajo no se detiene.**
+- Si te ocurre siempre, pide que te vuelvan a enrolar: quizá el enrolamiento se hizo con muy poca luz.
+
+**¿Guardan mi foto?**
+- Del enrolamiento **no**: solo se guarda una lista de números con la que se compara. Con esos números no se puede reconstruir tu cara.
+- De cada firma **sí** se guarda la foto del momento, porque es la prueba de quién firmó ese documento. Solo la ve tu supervisor o un auditor, y no hay ningún enlace que se pueda reenviar.
+- Antes de enrolarte se te pide tu consentimiento, y queda registrado con la fecha.
+
+**Cambiamos el formato AST. ¿Se estropean los que ya firmamos?**
+- No. Cada documento guarda la versión del formato con la que se llenó. Lo firmado no cambia nunca.
 
 **Recibí un mensaje en la bandeja de entrada, ¿cómo respondo?**
 - Abre el mensaje en la **Bandeja de entrada** (icono sobre del header).
@@ -364,10 +415,18 @@ Icono monitor (header) → cicla entre **claro**, **oscuro** y **automático** (
 
 | Término | Significado |
 |---|---|
-| **Administrador** | Usuario principal de tu empresa. Gestiona empleados, perfiles y los registros de negocio. |
-| **Empleado** o **Usuario** | Persona dentro de tu empresa con permisos específicos. |
-| **Perfil** (o **Rol**) | Conjunto de permisos. Por ejemplo "Editor de clientes" puede crear y editar, pero no eliminar. |
-| **Permiso** | Acción concreta que un perfil puede ejecutar. Ejemplo: `clientes.editar`. |
+| **Administrador** | Usuario principal de tu empresa. Gestiona cuentas, perfiles y los maestros. |
+| **Usuario** | Una cuenta que entra al sistema. Normalmente los supervisores. |
+| **Persona** (o **trabajador**) | Alguien que aparece en el plan y firma. **No necesita cuenta.** Una persona conserva su identidad aunque cambie de contratista. |
+| **Perfil** (o **Rol**) | Conjunto de permisos. Por ejemplo "Usuario de campo" llena y firma, pero no crea planes. |
+| **Permiso** | Acción concreta que un perfil puede ejecutar. Por ejemplo, firmar un formato. |
+| **Plan de trabajo** | La tarea de un día concreto: empresa, tipo de trabajo, ubicación, cuadrilla y aprobadores. De él cuelgan los formatos. |
+| **Formato** | Un documento de seguridad: AST, Pare y Tome 5, EPP, IHM o el que use tu empresa. |
+| **Plantilla de formato** | La definición de un formato: sus campos y sus listas. Se configura una vez y se usa cada día. |
+| **HOJA X** | Un formato del que solo se toma una foto del papel, porque no vale la pena pasarlo a campos. |
+| **Enrolamiento** | Registrar tu cara una vez, para poder firmar después. No guarda ninguna foto, solo números. |
+| **Bandeja de revisión** | Donde caen las firmas que el sistema no logró reconocer, para que el supervisor las mire. |
+| **Evidencia** | La foto que se toma en el momento de firmar. Es la prueba de quién estuvo ahí. |
 | **Plan** | El nivel de servicio contratado por tu empresa. Define qué features están disponibles y cuántos usuarios admites. |
 | **Workspace** | El espacio aislado de tu empresa dentro del sistema. Tu empresa no comparte datos con ninguna otra. |
 | **Papelera** | Donde van los registros eliminados. Solo el soporte puede acceder a ella. |
@@ -390,18 +449,19 @@ Este sistema está diseñado para ser **fácil de usar** sin necesidad de capaci
 
 **Recuerda**:
 - Cambia tu contraseña inicial en el primer ingreso.
-- Mantén tu perfil al día (foto, idioma, zona horaria).
-- Si va a eliminar algo, hágalo con cuidado — el motivo es obligatorio para auditoría.
-- Si quieres recuperar algo eliminado hace más de 1 minuto, contacta al soporte.
-- El soporte está para ayudarte — no dudes en escribirnos.
+- Mantén tu perfil al día: foto, firma manuscrita, idioma y zona horaria.
+- Si el sistema no te reconoce la cara, **no te detengas**: firma igual, queda marcado y tu supervisor lo revisa.
+- Si vas a eliminar algo, hazlo con cuidado — el motivo es obligatorio y queda en la auditoría.
+- Si quieres recuperar algo eliminado hace más de un minuto, contacta al soporte.
 
-**Gracias por usar la plataforma.**
+**Gracias por usar DOCUFIZ.**
 
 ---
 
 ## Documentación relacionada (para el equipo técnico)
 
-- [`USAGE.md`](USAGE.md) — versión con jerga técnica de este mismo manual (para developers)
-- [`PERMISSIONS.md`](PERMISSIONS.md) — cómo se gestionan los roles internamente
-- [`AUTOMATIONS.md`](AUTOMATIONS.md) — referencia técnica de las automatizaciones del workspace
+- [`FLUJO.md`](FLUJO.md) — el mismo día de obra, con el detalle de qué hace el sistema en cada paso
+- [`BIOMETRIA.md`](BIOMETRIA.md) — qué se guarda de la cara, cuándo y por qué
+- [`USAGE.md`](USAGE.md) — versión técnica de este manual
+- [`ACCESS-MODEL.md`](ACCESS-MODEL.md) — qué habilita cada permiso, en detalle
 - [`plan-features.md`](plan-features.md) — qué se desbloquea en cada plan

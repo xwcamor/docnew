@@ -240,9 +240,20 @@ y es la razón por la que el checklist de §7 no es burocracia.
    workspace. En un SaaS multi-tenant es la falla más costosa: no se pierde una
    cuenta, se pierde la confianza de todos. Mitigado con doble capa
    (`BelongsToTenant` + FormRequests) — [`HARDENING.md` §1-2](HARDENING.md).
-10. **Autenticación**: sin throttle → credential stuffing con contraseñas
-    filtradas de otros sitios; tokens de API con `['*']` → un token de lectura
-    escribe. Ambos ya cerrados ([`HARDENING.md` §4](HARDENING.md)).
+10. **Autenticación.** Los tokens de API ya no nacen con `['*']`
+    ([`HARDENING.md` §4](HARDENING.md)), y `POST password/email` y
+    `POST password/reset` llevan `throttle:5,1`.
+    `POST login` **no** lleva el middleware `throttle`, pero eso no significa que
+    esté abierto: el freno está dentro de
+    [`LoginController::loginAccess`](../app/Http/Controllers/AuthManagement/Auth/LoginController.php),
+    con `RateLimiter` sobre una clave de **email + IP** y los ajustes
+    `security.max_login_attempts` (5) y `security.lockout_minutes` (15) que el super
+    puede cambiar. Al superarlos devuelve `auth.locked` con los minutos que faltan,
+    y un acierto limpia el contador.
+    Esa clave por email+IP frena el ataque a **una** cuenta. Lo que no frena es el
+    reparto: una contraseña común probada contra muchos correos distintos usa una
+    clave distinta cada vez. Para eso hace falta un límite por IP a secas, y no lo
+    hay. **2FA** sigue siendo la defensa de verdad, y tampoco está.
 11. **SQL injection**: rara con Eloquent, y aparece en dos lugares concretos:
     `whereRaw`/`DB::raw` concatenando input, y **`orderBy` con un nombre de columna
     que viene del request** (el más común de verdad, porque las tablas ordenables
@@ -253,17 +264,33 @@ y es la razón por la que el checklist de §7 no es burocracia.
     lista blanca.** No hay forma de "escapar" un identificador de columna.
 12. **Dependencias con CVE** → `composer audit` y `npm audit` antes de cada
     deploy. Es la vía que no depende de que tú escribas mal nada.
-13. **Superficie pública sin auth.** En esta app son el portal de informes
-    compartidos (`/r/{token}`) y la verificación (`/verify/{code}`). Revisados:
-    token + OTP al correo + vencimiento (410) + `throttle` + el drill-down por
-    trafo resuelve con `transformerInScope($share, $id)`, así que un token válido
-    no alcanza para leer trafos fuera de su alcance. **Es el código que hay que
-    auditar primero cuando se toque**: es lo único que un desconocido puede llamar.
-14. **dompdf**: `isRemoteEnabled => false` en los 30+ jobs de PDF. Importa más de
-    lo que parece — con remoto habilitado, un `<img src="file:///var/www/.../.env">`
-    dentro del HTML renderizado **lee archivos locales del servidor** y los estampa
-    en el PDF. Es una vía de lectura del `.env` que no pasa por el web root.
-    **No cambiar ese flag a `true`.**
+13. **Superficie pública sin auth.** Hoy **no hay ninguna**, y es un buen sitio
+    donde estar. El portal de informes compartidos por token (`/r/{token}`) se fue
+    con la purga del dominio de diagnóstico; todo lo que responde exige sesión.
+    **Es la propiedad que hay que defender**: el día que alguien pida un enlace
+    público —"que el cliente descargue su AST sin registrarse"— eso pasa a ser lo
+    primero que se audita en cada cambio, porque será lo único que un desconocido
+    pueda llamar.
+14. **dompdf**: `isRemoteEnabled => false` en todos los jobs de PDF (unos 17
+    archivos lo declaran). Importa más de lo que parece — con remoto habilitado,
+    un `<img src="file:///var/www/.../.env">` dentro del HTML renderizado **lee
+    archivos locales del servidor** y los estampa en el PDF. Es una vía de lectura
+    del `.env` que no pasa por el web root. **No cambiar ese flag a `true`.**
+15. **La evidencia biométrica.** Es lo más sensible que guarda DOCUFIZ:
+    - Del rostro **no se guarda ninguna imagen de referencia**. Se guarda el
+      descriptor: 128 números con los que se compara, pero con los que no se
+      reconstruye la cara.
+    - Las **fotos de firma** sí son imágenes. Viven en disco privado y se sirven
+      por una ruta que exige `signature_events.review`. Nunca por `/storage/`.
+    - En el PDF se incrustan como data-uri leyéndolas del disco. No se genera una
+      URL de una cara dentro de un documento que después se manda por correo.
+    - El consentimiento del trabajador se registra con fecha y **es obligatorio
+      antes de enrolar**. No es una cortesía: es el requisito de tratar un dato
+      biométrico.
+
+    La regla de fondo: **la foto de la cara de un trabajador nunca puede salir del
+    sistema por un enlace que se reenvíe.** Cualquier cambio que introduzca una URL
+    pública a `evidence_files` rompe esto.
 
 ### Hallazgo pendiente (2026-07-27)
 
@@ -298,18 +325,28 @@ y es la razón por la que el checklist de §7 no es burocracia.
    FormRequests ([`HARDENING.md`](HARDENING.md)).
 2. **Autorización de *acción*, no de objeto**: el endpoint existe y olvidaron el
    `permission:x.action`. El objeto es tuyo, la operación no debería serlo.
-   **Es el agujero típico de un módulo nuevo**: el scaffold genera las rutas con su
-   middleware, pero una ruta agregada a mano después queda sin gate.
-3. **Rutas que deben ser solo-super y quedan abiertas a admin.** En esta app es
-   concreto y sensible: los **pesos del HI**, los **params fiqui** y las tablas
-   **IEEE 2019** son estándar normativo GLOBAL. Si una ruta del editor de reglas
-   pierde su `role:super`, un admin de un workspace edita la norma de todos. El gate
-   central es `assertCanEditSet` — cualquier endpoint nuevo del editor pasa por ahí.
+   **Es el agujero típico de un módulo nuevo**, y no es hipotético: en
+   `companies`, `people`, `work_plans` y `form_templates` las rutas de exportación
+   solo exigen `.view`, no `.export`, así que quien puede ver puede exportar aunque
+   su perfil diga lo contrario. Detalle en
+   [`ACCESS-MODEL.md` §2](ACCESS-MODEL.md#aviso-export--import-no-gatean-en-los-módulos-de-docufiz).
+3. **Rutas que deben ser solo-super y quedan abiertas a admin.** El caso sensible
+   aquí es la **evidencia de firma**: `signature_events.review` habilita ver las
+   fotos de las caras y autorizar una firma sin reconocimiento. Si una ruta nueva
+   de la bandeja o del servidor de evidencias pierde ese middleware, cualquiera con
+   acceso al módulo ve la biometría de la plantilla. Toda ruta que toque
+   `evidence_files` o `signature_events` pasa por ese permiso, sin excepciones.
 4. **Mass assignment**: mandar campos extra en el POST (`role_id`, `is_active`,
    `tenant_id`, `plan`, `auto_sign_reports`) y que el modelo los acepte por estar en
-   `$fillable`. `tenant_id` ya tiene doble capa; **la regla para campos nuevos**: si
-   otorga permisos, cambia de plan o registra un consentimiento, no se asigna desde
-   el request — se setea en el servicio.
+   `$fillable`. `tenant_id` ya tiene doble capa. **La regla para campos nuevos**: si
+   otorga permisos, cambia de plan, **registra un consentimiento** o **declara una
+   firma como verificada**, no se asigna desde el request — lo pone el servicio.
+   Los campos que dicen si una firma vale —`method`, `match_distance`,
+   `threshold_used`, `pending_review` en `signature_events`, y el `is_approved` de
+   la aprobación— son exactamente ese caso: los escribe `SignatureService` tras
+   recalcular la distancia en el servidor, nunca el formulario. En el sistema
+   anterior el navegador mandaba `is_approved=1` en un campo oculto, y bastaba
+   abrir las herramientas de desarrollo para firmar como cualquiera.
 5. **Escalada horizontal entre tenants con usuario legítimo**: un admin de un
    workspace es un atacante autenticado y con contrato. No es paranoia: es el modelo
    de amenaza normal de un SaaS multi-tenant.
@@ -370,20 +407,40 @@ y es la razón por la que el checklist de §7 no es burocracia.
 ### F. Abuso y disponibilidad (sin vulnerabilidad de por medio)
 
 21. **Agotar el servidor con operaciones caras y legítimas.** Es la categoría más
-    subestimada, y en esta app la superficie es real: generar PDFs con dompdf,
-    encolar 33 tipos de export, y `diagnose:fleet-cache`. Un droplet de 1-2 GB no
-    aguanta un bucle de generación de informes. Ver el hallazgo del portal público.
-22. **Costo/correo**: usar los envíos de la app como relay de spam o quemar la cuota
+    subestimada, y aquí la superficie es real: generar PDFs con dompdf y encolar
+    decenas de exportaciones. Un droplet de 1-2 GB no aguanta un bucle de
+    generación de documentos. Mitigado con `throttle:5,1` en cada ruta de
+    exportación y con los topes de `exports.max_*_rows`.
+22. **Costo/correo**: usar los envíos de la app como relé de spam o quemar la cuota
     del proveedor de SMTP.
+23. **Llenar el disco con evidencias.** No hace falta atacar nada: 500 firmas
+    diarias con una foto cada una llenan el disco de un droplet pequeño en un año.
+    Mitigado reduciendo la captura a 320 px en WebP, reutilizando la foto entre los
+    formatos del mismo plan y el mismo día, y deduplicando por `sha256`. Los
+    números están en [`BIOMETRIA.md`](BIOMETRIA.md), y las pruebas que los fijan en
+    `tests/Feature/FieldWork/SignatureEvidenceTest.php`. Un disco lleno tumba la
+    aplicación igual que un ataque, y llega solo.
 
 ### G. Lógica de negocio
 
-23. **Preguntas que ninguna herramienta automática hace**: ¿puede un firmante
-    aprobar la solicitud que él mismo envió? ¿puede un admin compartir un informe de
-    un cliente que no le fue asignado? ¿se puede saltar el `FeatureGate` de plan
-    llamando el endpoint directo en vez de la UI? Son las fallas que se explotan sin
-    romper nada técnicamente. **El plan gating se valida en el servidor o no vale**:
-    esconder el botón en Vue no es control de acceso.
+24. **Preguntas que ninguna herramienta automática hace.** Son las fallas que se
+    explotan sin romper nada técnicamente. En DOCUFIZ las que importan:
+    - ¿Puede alguien **firmar por otro**? La firma manual existe, exige motivo y
+      solo la autoriza quien tenga `signature_events.review`. Pero un supervisor
+      con ese permiso puede autorizarse a sí mismo: eso es una decisión de
+      producto, no un descuido, y conviene tenerlo escrito.
+    - ¿Puede **confirmarse un formato incompleto**? No: el servidor comprueba los
+      campos obligatorios y el archivo en los formatos de solo subida. Esa
+      comprobación no puede migrar al formulario nunca.
+    - ¿Puede **cambiar lo ya firmado** publicando una versión nueva de la
+      plantilla? No: cada entrega guarda la versión con la que se llenó, y el PDF
+      pinta esa versión congelada.
+    - ¿Se puede saltar el gateo de plan llamando al endpoint directo en vez de usar
+      la interfaz? **En `edit_all`, sí**: la ruta no lleva middleware de plan, solo
+      se esconde el botón. Ver [`plan-features.md`](plan-features.md).
+
+    **El gateo se valida en el servidor o no vale.** Esconder el botón en Vue es
+    cortesía, no control de acceso.
 
 ### H. Cadena de suministro y factor humano
 
@@ -394,33 +451,35 @@ y es la razón por la que el checklist de §7 no es burocracia.
 26. **Insider / equipo**: acceso mínimo, y que la auditoría registre quién vio qué
     (el audit log de la app + `log_connections` de Postgres).
 
-### Hallazgos de esta revisión (2026-07-27)
+### Hallazgos abiertos
 
-1. **`/r/{token}/pdf/{transformer}` sin `throttle`** —
-   [`routes/web.php`](../routes/web.php). Sus hermanas sí lo tienen (`/code` con
-   `share-otp`, `/verify` con `throttle:10,1`), pero la ruta que **más cuesta** no.
-   Ese endpoint **renderiza el informe completo con dompdf en vivo** en cada llamada
-   (decisión documentada en `CLAUDE.md`), así que un bucle sobre esa URL consume CPU
-   y memoria hasta tumbar un droplet chico. Y en los shares **link-only** el token
-   ES la credencial: basta que un correo compartido se reenvíe. Acción: `throttle` en
-   `/pdf/{transformer}` (y conviene también en `/view` y `/t/{transformer}`).
-2. **`sanctum.expiration => null`** — [`config/sanctum.php`](../config/sanctum.php).
+> El hallazgo de 2026-07-27 sobre `/r/{token}/pdf/{transformer}` **quedó resuelto
+> por eliminación**: esa ruta y el portal público entero desaparecieron con la
+> purga del dominio de diagnóstico.
+
+1. **`sanctum.expiration => null`** — [`config/sanctum.php`](../config/sanctum.php).
    Los tokens de API **no caducan nunca**: uno filtrado en 2026 sigue sirviendo en
    2030. Acción: poner un vencimiento (ej. `60 * 24 * 30`) y programar
    `sanctum:prune-expired`. Cuidado: es un cambio con impacto en clientes que ya
    usen la API de Customer — hay que avisar, no soltarlo en un deploy.
-3. **CSV injection en los exports** — los `Generate*CsvJob` escriben con `fputcsv`
-   sin neutralizar el primer carácter. Un valor que empieza con `=`, `+`, `-` o `@`
-   (ej. un nombre de cliente escrito con mala intención) **Excel lo interpreta como
-   fórmula** al abrir el archivo. Severidad honesta: baja — el daño ocurre en la
-   máquina de **quien abre el CSV**, no en el servidor. Pero es hallazgo estándar de
-   cuestionario de seguridad y el arreglo es una línea: prefijar `'` cuando el valor
-   empiece con esos caracteres.
+2. **Inyección de fórmulas en los CSV exportados** — los `Generate*CsvJob` escriben
+   con `fputcsv` sin neutralizar el primer carácter. Un valor que empieza con `=`,
+   `+`, `-` o `@` (por ejemplo, el nombre de una empresa escrito con mala
+   intención) **Excel lo interpreta como fórmula** al abrir el archivo. Severidad
+   honesta: baja — el daño ocurre en la máquina de **quien abre el CSV**, no en el
+   servidor. Pero es hallazgo estándar de cuestionario de seguridad y el arreglo es
+   una línea: prefijar `'` cuando el valor empiece con esos caracteres.
+3. **`export` / `import` sin gate en los módulos de obra** — las rutas de
+   exportación de `companies`, `people`, `work_plans` y `form_templates` exigen
+   `.view` en lugar de `.export`. Un perfil de solo lectura puede sacar el listado
+   completo de personas, con nombres y documentos de identidad. Acción: añadir
+   `permission:{modulo}.export` a esas rutas, como ya lo tienen `customers` y
+   `brands`.
 
-**Verificado correcto en esta revisión** (para no re-auditarlo): descargas de
-exports con disco privado + filtro por `user_id` + vencimiento; `sort` contra lista
-blanca; `whereRaw` con parámetros ligados; dompdf sin remoto; drill-down del portal
-público con `transformerInScope`.
+**Verificado correcto** (para no volver a auditarlo): descargas con disco privado,
+filtro por `user_id` y vencimiento; `sort` contra lista blanca; `whereRaw` con
+parámetros ligados; dompdf sin remoto; evidencias de firma servidas solo tras
+`signature_events.review` y nunca desde el disco público.
 
 ---
 
@@ -434,9 +493,17 @@ público con `transformerInScope`.
 - [ ] BD gestionada con encryption at rest + TLS, o disco cifrado.
 - [ ] Backups automáticos de BD probados (restore real, no solo dump).
 - [ ] `APP_DEBUG=false`, `APP_ENV=production`.
-- [ ] Logs sin secretos; `config:cache` y `route:cache` en deploy.
+- [ ] Logs sin secretos; `config:cache` y `view:cache` en el deploy (`route:cache`
+      **no**: los archivos de rutas tienen closures y el comando falla — ver
+      [`DEPLOY.md`](DEPLOY.md)).
 - [ ] El directorio de subidas (`storage/app/public`) **no ejecuta PHP** (regla de
       Nginx que deniegue `\.php$` bajo `/storage`).
 - [ ] `composer audit` y `npm audit` sin vulnerabilidades altas.
 - [ ] Probado como atacante: `/.env`, `/.git/config`, `/storage/logs/laravel.log`
       → 404 (§6.5), y una página de error sin stack trace.
+- [ ] **Ninguna evidencia de firma es alcanzable sin sesión.** Copiar la URL de una
+      foto de la bandeja de revisión, abrirla en una ventana privada y comprobar
+      que responde 403 o redirige al login. Si se ve la imagen, hay una foto de la
+      cara de un trabajador colgando de internet.
+- [ ] El consentimiento biométrico está registrado para todas las personas
+      enroladas.

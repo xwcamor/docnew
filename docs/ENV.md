@@ -14,13 +14,23 @@
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `APP_NAME` | `Laravel` | Nombre que se ve en títulos, emails, etc. |
+| `APP_NAME` | `DOCUFIZ` | Nombre de arranque. **No es la fuente de verdad**: el setting `app.name` de la BD lo pisa al boot (ver [`CRONS-AND-SETTINGS.md`](CRONS-AND-SETTINGS.md#5b-cómo-funciona-el-settingsserviceprovider)) |
 | `APP_ENV` | `local` | Entorno actual: `local`, `staging`, `production` |
 | `APP_KEY` | — | Generado con `php artisan key:generate`. Usado para cifrado |
-| `APP_DEBUG` | `true` | En producción debe ser `false` |
+| `APP_DEBUG` | `false` en el ejemplo | `true` solo en local, y activa la DebugBar. En producción, `false` |
 | `APP_URL` | `http://localhost` | URL pública de la app |
 | `APP_LOCALE` | `en` | Idioma por defecto |
 | `APP_FALLBACK_LOCALE` | `en` | Idioma de respaldo si falta una traducción |
+
+---
+
+## Logs
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `LOG_CHANNEL` | `stack` | Canal principal |
+| `LOG_STACK` | `daily` | Un archivo por día con rotación. Sin esto `laravel.log` crece sin tope y termina llenando el disco del droplet |
+| `LOG_LEVEL` | `debug` | En producción conviene `warning` o `error` |
 
 ---
 
@@ -31,9 +41,25 @@
 | `DB_CONNECTION` | `pgsql` | Driver: `pgsql`, `mysql`, `sqlite` |
 | `DB_HOST` | `127.0.0.1` | Host de la BD |
 | `DB_PORT` | `5432` | Puerto (PG: 5432, MySQL: 3306) |
-| `DB_DATABASE` | `trafodex` | Nombre de la BD |
+| `DB_DATABASE` | `docufiz` | Nombre de la BD |
 | `DB_USERNAME` | `laravel` | Usuario |
 | `DB_PASSWORD` | — | Password |
+
+### La base del sistema anterior (solo en tu máquina)
+
+Los comandos de migración leen el MySQL del sistema v1 por la conexión `legacy`,
+declarada en [`config/database.php`](../config/database.php). Es de **solo
+lectura** y solo hace falta mientras migras; en producción no se define.
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `LEGACY_DB_HOST` | `127.0.0.1` | Host del MySQL con el volcado del sistema viejo |
+| `LEGACY_DB_PORT` | `3306` | |
+| `LEGACY_DB_DATABASE` | `doc_app_development` | Base importada del volcado |
+| `LEGACY_DB_USERNAME` | `root` | |
+| `LEGACY_DB_PASSWORD` | (vacío) | |
+
+El procedimiento completo está en [`BASE-DE-DATOS-LOCAL.md`](BASE-DE-DATOS-LOCAL.md).
 
 ---
 
@@ -83,6 +109,10 @@ Pasos para configurar Google OAuth:
 5. **Authorized redirect URIs**: `http://localhost:8000/auth/google/callback` (y la de producción).
 6. Copia `Client ID` y `Client Secret` al `.env`.
 
+Con las credenciales no basta: el botón "Continuar con Google" solo aparece si el
+setting `features.google_login_enabled` está en `true` (se edita desde la UI del
+super, sin redeploy).
+
 ---
 
 ## Storage / Filesystem
@@ -108,8 +138,11 @@ AWS_ENDPOINT=https://nyc3.digitaloceanspaces.com
 | Variable | Default | Descripción |
 |---|---|---|
 | `VITE_APP_NAME` | `${APP_NAME}` | Nombre disponible en JS via `import.meta.env.VITE_APP_NAME` |
+| `VITE_AMCHARTS_LICENSE` | (vacío) | Licencia de amCharts 5, aplicada del lado del cliente en [`AmGauge.vue`](../resources/js/Components/Common/AmGauge.vue). Vacío = marca de agua |
 
 > Solo las variables prefijadas con `VITE_` son accesibles desde el código JS.
+> Cambiarlas exige **volver a compilar** (`npm run build`): quedan horneadas en el
+> bundle, no se leen en tiempo de ejecución.
 
 ---
 
@@ -119,40 +152,30 @@ AWS_ENDPOINT=https://nyc3.digitaloceanspaces.com
 |---|---|---|
 | `SENTRY_LARAVEL_DSN` | (vacío) | DSN del proyecto en sentry.io. Sin esto, el SDK no envía nada |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | Porcentaje de transacciones que se capturan (0 = ninguno, 1 = todas) |
+| `SENTRY_PROFILES_SAMPLE_RATE` | `0.0` | Profiling, opcional |
 | `SENTRY_SEND_DEFAULT_PII` | `false` | Si `true` envía info del user (email, IP). Cuidado con GDPR |
-| `VITE_SENTRY_DSN_PUBLIC` | (vacío) | DSN para el frontend Vue (separado del backend, usa Sentry browser SDK) |
 
-Detalle de cómo activar Sentry: [`SENTRY.md`](SENTRY.md).
-
----
-
-## Google OAuth (opcional)
-
-| Variable | Default | Descripción |
-|---|---|---|
-| `GOOGLE_CLIENT_ID` | (vacío) | Client ID de Google Cloud Console |
-| `GOOGLE_CLIENT_SECRET` | (vacío) | Secret correspondiente |
-| `GOOGLE_REDIRECT_URI` | `http://localhost:8000/auth/google/callback` | URL de callback registrada en Google |
-
-Adicionalmente, activar el setting `features.google_login_enabled = true` en la UI para mostrar el botón "Continuar con Google" en el login.
+El SDK **no está instalado** (`sentry/sentry-laravel` no está en `composer.json`).
+Estas variables están en `.env.example` para cuando se instale; hoy no las lee
+nadie. Detalle en [`SENTRY.md`](SENTRY.md).
 
 ---
 
 ## Plantilla mínima (`.env` para desarrollo)
 
 ```env
-APP_NAME="Base App"
+APP_NAME="DOCUFIZ"
 APP_ENV=local
 APP_KEY=                          # Generar con: php artisan key:generate
 APP_DEBUG=true
-APP_URL=http://trafodex-main.test
+APP_URL=http://docufiz.test
 APP_LOCALE=es
 APP_FALLBACK_LOCALE=es
 
 DB_CONNECTION=pgsql
 DB_HOST=127.0.0.1
 DB_PORT=5432
-DB_DATABASE=trafodex
+DB_DATABASE=docufiz
 DB_USERNAME=laravel
 DB_PASSWORD=secret
 

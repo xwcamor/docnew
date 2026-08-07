@@ -16,15 +16,6 @@ Schedule::command('app:purge-soft-deleted')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/purge.log'));
 
-// Purga semanal del caché de gráficos de informes huérfanos (trafos borrados
-// definitivamente). El borrado normal ya limpia en el momento; esto barre
-// restos. Bajo costo (solo I/O), domingo 03:30.
-Schedule::command('reports:purge-chart-cache')
-    ->weeklyOn(0, '03:30')
-    ->withoutOverlapping()
-    ->onOneServer()
-    ->appendOutputTo(storage_path('logs/purge.log'));
-
 // Limpieza de archivos físicos de exports expirados o descargados (>24h).
 // Corre cada hora — el costo es bajo (solo I/O del disco) y mantiene
 // `storage/app/downloads/` chico sin acumular MBs de reportes viejos.
@@ -33,14 +24,6 @@ Schedule::command('app:cleanup-expired-downloads')
     ->withoutOverlapping()
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/cleanup-downloads.log'));
-
-// Purga por retención de los ARCHIVOS de informes congelados (diario: el
-// costo es una query + unlinks). Conserva snapshot + hash (auditoría).
-Schedule::command('reports:purge-frozen')
-    ->daily()
-    ->withoutOverlapping()
-    ->onOneServer()
-    ->appendOutputTo(storage_path('logs/purge.log'));
 
 // Purga las claves de idempotencia de la API vencidas (30 días). Es registro
 // técnico de la integración con el laboratorio, no dato de negocio: pasada esa

@@ -19,25 +19,29 @@ Una automatización tiene 3 piezas:
 └─────────────────────────────────────────────────────────┘
                          ↓
 ┌─ DATA SOURCE (qué datos consulta) ─────────────────────┐
-│  Customers / Users / Subscriptions                      │
-│  + filtros: where condiciones + limit                   │
-│  Ej: "customers con is_active=true creados hace >7 días"│
+│  Clientes / Suscripciones                               │
+│  + filtros: condiciones where + límite                  │
+│  Ej: "clientes con is_active=true creados hace >7 días" │
 └─────────────────────────────────────────────────────────┘
                          ↓
 ┌─ ACTION (qué hacer con esos datos) ────────────────────┐
 │  Email — manda mensaje a una lista de destinatarios     │
-│  In-app notification — envía notificación al bell       │
+│  Notificación en la app — llega a la campana del header │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Ejemplos prácticos
 
-| Caso de uso | Trigger | Data source + filtro | Action |
+| Caso de uso | Trigger | Data source + filtro | Acción |
 |---|---|---|---|
-| "Reporte semanal de nuevos clientes" | Lunes 09:00 | Customers creados últimos 7 días | Email al admin con lista |
-| "Avisar usuarios inactivos" | Diario 08:00 | Users con `last_login_at < hace 30 días` | Email al admin |
-| "Alerta de suscripciones por vencer" | Diario 09:00 | Subscriptions con `ends_at < hoy+7d` | Email + In-app notification |
-| "Recordatorio de productos sin stock" | Diario 07:00 | Products con `stock = 0` | Email al admin |
+| "Resumen semanal de clientes nuevos" | Lunes 09:00 | Clientes creados en los últimos 7 días | Email al admin con la lista |
+| "Alerta de suscripciones por vencer" | Diario 09:00 | Suscripciones con `ends_at < hoy+7d` | Email + notificación en la app |
+| "Aviso de fin de mes" | Último día, 18:00 | sin data source (mensaje fijo) | Notificación a todo el workspace |
+
+> **Ojo con lo que se puede automatizar hoy.** Los casos que de verdad querría un
+> supervisor de HSE —"avísame de los planes del día que quedaron sin firmar",
+> "manda las firmas pendientes de revisión"— **no se pueden armar todavía**: no
+> hay data source de planes ni de firmas. Ver el paso 8 para añadirlos.
 
 ---
 
@@ -92,15 +96,21 @@ Sigue el formato cron estándar. Ejemplos útiles:
 
 ### Paso 4 — Data source (opcional)
 
-Si tu acción necesita una lista de registros (ej. "todos los customers nuevos"), elige una fuente:
+Si tu acción necesita una lista de registros (ej. "todos los clientes nuevos"), elige una fuente:
 
-| Data source | De qué tabla saca datos |
-|---|---|
-| **Customers** | Tabla `customers` del workspace |
-| **Users** | Tabla `users` del workspace |
-| **Subscriptions** | Tabla `subscriptions` del workspace |
+Hay **dos**, y se registran en
+[`AutomationServiceProvider`](../app/Providers/AutomationServiceProvider.php):
 
-Si tu acción es solo un mensaje fijo (sin datos), puedes **dejar el data source vacío**. En ese caso, el email se enviará con el texto literal sin ningún registro.
+| Data source | De qué saca datos | Quién lo ve |
+|---|---|---|
+| **Clientes** | Tabla `customers` del workspace | admin y super |
+| **Suscripciones** | Tabla `subscriptions` | **solo super** — es dato de facturación cruzado entre workspaces, y `DataSourceRegistry::catalog()` lo filtra por rol |
+
+No hay data source de usuarios, y es deliberado: el admin ya ve a su equipo en el
+listado de Usuarios, y automatizar sobre esa lista no aporta nada que no se pueda
+mirar.
+
+Si tu acción es solo un mensaje fijo (sin datos), puedes **dejar el data source vacío**. En ese caso el email se envía con el texto literal, sin ningún registro.
 
 ### Paso 5 — Filtros del data source (opcional)
 
@@ -204,7 +214,12 @@ En el detalle de cada automatización, tab **Ejecuciones**:
 | Records | Cuántos registros encontró el filtro |
 | Resultado | Mensaje de éxito o error |
 
-Si una ejecución falla, el `failures_count` del registro aumenta. Tras 5 fallos consecutivos la automation se **auto-desactiva** (`is_active=false`) para evitar spam, y se notifica al admin del workspace.
+Si una ejecución falla, `failures_count` sube. **La automatización no se desactiva
+sola**: sigue intentándolo en cada corrida hasta que alguien la pause. Es una
+decisión, no un olvido — una regla que falla tres veces por un SMTP caído no
+debería quedar apagada cuando el correo vuelva. El precio es que hay que mirar
+`failures_count` de vez en cuando; una que acumula fallos es una que nadie ha
+revisado.
 
 ---
 
@@ -257,9 +272,9 @@ Esto ejecuta la automatización inmediatamente, ignorando el `next_run_at`. Úti
 
 | Limitación | Workaround / Notas |
 |---|---|
-| Solo trigger `schedule` | No hay event-driven (ej. "cuando se crea un Customer") ni webhook todavía. Feature futura. |
-| Solo 3 data sources | Customers, Users, Subscriptions. Para sumar Products / Sales / etc., agregar la clase al `DataSourceRegistry`. |
-| Solo 2 actions | Email + In-app notification. No hay webhook out, no hay export-to-file. |
+| Solo trigger `schedule` | No hay disparo por evento ("cuando se confirma un formato") ni webhook. Es la limitación que más pesa en obra: lo interesante pasa **cuando** algo ocurre, no a una hora fija. |
+| Solo 2 data sources | Clientes y Suscripciones. Nada del dominio de obra. Ver el paso 8. |
+| Solo 2 actions | Email + notificación en la app. No hay webhook de salida ni exportación a archivo. |
 | Filtros AND solamente | No hay OR ni grupos. Si lo necesitas, crea 2 automatizaciones separadas. |
 | Sin "Ejecutar ahora" en UI | Workaround vía tinker (super only). |
 | Sin "Dry-run preview" en UI | No puedes ver qué registros matchearán antes de ejecutar. Probar con un email a ti mismo primero. |
@@ -269,49 +284,58 @@ Esto ejecuta la automatización inmediatamente, ignorando el `next_run_at`. Úti
 
 ## 8. Cómo agregar un data source / action nuevo (técnico)
 
-### Data source nuevo (ej. Products)
+### Data source nuevo (el caso real: planes de trabajo)
 
-1. Crear `app/Services/Automations/DataSources/ProductsDataSource.php` que implemente `DataSourceContract`:
+Es lo que falta para que las automatizaciones sirvan de algo en obra.
+
+1. Crear `app/Services/Automations/DataSources/WorkPlansDataSource.php` que implemente `DataSourceContract`:
 
 ```php
 namespace App\Services\Automations\DataSources;
 
-use App\Models\Product;
+use App\Models\WorkPlan;
 use App\Services\Automations\Contracts\DataSourceContract;
 use Illuminate\Support\Collection;
 
-class ProductsDataSource implements DataSourceContract
+class WorkPlansDataSource implements DataSourceContract
 {
-    public function key(): string { return 'products'; }
-    public function label(): string { return __('automations.ds_products'); }
+    public function key(): string { return 'work_plans'; }
+    public function label(): string { return __('automations.source_work_plans'); }
 
     public function fields(): array
     {
         return [
-            'name'       => ['type' => 'string', 'label' => 'Nombre'],
-            'price'      => ['type' => 'number', 'label' => 'Precio'],
-            'stock'      => ['type' => 'number', 'label' => 'Stock'],
-            'is_active'  => ['type' => 'bool',   'label' => 'Activo'],
-            'created_at' => ['type' => 'date',   'label' => 'Fecha de creación'],
+            'code'        => ['type' => 'string', 'label' => 'Código'],
+            'plan_date'   => ['type' => 'date',   'label' => 'Fecha del plan'],
+            'company_id'  => ['type' => 'enum',   'label' => 'Empresa', 'options' => 'companies'],
+            'created_at'  => ['type' => 'date',   'label' => 'Fecha de creación'],
         ];
     }
 
     public function fetch(?array $filter): Collection
     {
-        $query = Product::query();
-        // Aplicar filtro (FilterApplier ya maneja where + limit)
-        return $query->get();
+        // FilterApplier ya resuelve where + limit sobre la query.
+        return WorkPlan::query()->get();
     }
 }
 ```
 
-2. Registrarlo en `DataSourceRegistry::register()`.
+2. Registrarlo en el `singleton` de `DataSourceRegistry` dentro de
+   [`AutomationServiceProvider`](../app/Providers/AutomationServiceProvider.php).
+   No hay descubrimiento automático: si no se registra ahí, no existe.
 
-### Action nueva (ej. Slack webhook)
+3. Añadir la etiqueta `source_work_plans` en `resources/lang/{es,en}/automations.php`,
+   siguiendo la convención de `source_customers`.
 
-Igual que arriba, implementando `ActionContract` con `key()`, `label()`, `configSchema()`, `execute()`.
+Si el data source solo debe verlo el super, declara `allowedRoles()` como hace
+`SubscriptionsDataSource`; `catalog()` lo filtra por rol antes de mandarlo a la
+interfaz.
 
-Detalle de la API en [`app/Services/Automations/Contracts/`](../app/Services/Automations/Contracts/).
+### Action nueva
+
+Igual que arriba, implementando `ActionContract` con `key()`, `label()`, `configSchema()` y `execute()`, y registrándola en el mismo provider.
+
+Detalle de los contratos en [`app/Services/Automations/Contracts/`](../app/Services/Automations/Contracts/).
 
 ---
 
