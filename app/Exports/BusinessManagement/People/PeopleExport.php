@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\BusinessManagement\Persons;
+namespace App\Exports\BusinessManagement\People;
 
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;

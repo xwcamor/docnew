@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs\BusinessManagement\Companys;
+namespace App\Jobs\BusinessManagement\Companies;
 
 use App\Exports\BusinessManagement\Companies\CompaniesExport;
 use App\Models\Download;

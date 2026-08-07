@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs\BusinessManagement\Persons;
+namespace App\Jobs\BusinessManagement\People;
 
 use App\Models\Download;
 use Illuminate\Support\Facades\Storage;

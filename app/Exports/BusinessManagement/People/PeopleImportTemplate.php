@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Exports\BusinessManagement\Persons;
+namespace App\Exports\BusinessManagement\People;
 
 use Maatwebsite\Excel\Concerns\FromArray;
 use Maatwebsite\Excel\Concerns\WithEvents;

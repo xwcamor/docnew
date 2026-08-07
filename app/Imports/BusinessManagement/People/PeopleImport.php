@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Imports\BusinessManagement\Persons;
+namespace App\Imports\BusinessManagement\People;
 
 use App\Models\Person;
 use Illuminate\Support\Collection;
