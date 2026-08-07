@@ -10,26 +10,33 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
- * Plantilla XLSX descargable para imports de work_plans.
+ * Plantilla XLSX descargable para imports de planes de trabajo.
  *
  * Columnas:
- *   - name (obligatorio, max 255, unico per-tenant)
- *   - code (opcional, max 40, identificador tecnico unico per-tenant)
+ *   - code          (obligatorio, identifica el plan — unico per-tenant)
+ *   - num_os        (opcional, orden de servicio del cliente)
+ *   - description   (obligatorio al crear)
+ *   - company       (RUC o nombre exacto de la empresa contratista)
+ *   - work_type     (codigo del tipo de trabajo)
+ *   - work_location (nombre de la sede)
+ *   - date_start    (YYYY-MM-DD, opcional)
  *
- * No incluye is_active: toda alta importada nace activa (el estado se gestiona desde la UI).
+ * No incluye estado: un plan importado nace pendiente — las firmas se levantan
+ * en obra, nunca desde un Excel.
  *
- * No ponemos help-text como filas porque el importer las leeria como datos â€”
+ * No ponemos help-text como filas porque el importer las leeria como datos —
  * los tips van en cell comments.
  */
 class WorkPlansImportTemplate implements FromArray, WithEvents
 {
-        public function array(): array
+    /** Ultima columna de la plantilla (7 campos: A..G). */
+    private const LAST_COL = 'G';
+
+    public function array(): array
     {
         return [
-            ['name', 'code'],
-            ['Acme', 'acme'],
-            ['Globex', 'globex'],
-            ['Contoso', 'contoso'],
+            ['code', 'num_os', 'description', 'company', 'work_type', 'work_location', 'date_start'],
+            ['PE24-0412-0458', 'OS-2024-1187', 'Mantenimiento preventivo de celda de media tensión', '20512345678', 'ELECTRICO', 'Sede Lima Norte', '2024-04-12'],
         ];
     }
 
@@ -40,7 +47,7 @@ class WorkPlansImportTemplate implements FromArray, WithEvents
                 $sheet = $event->sheet->getDelegate();
 
                 // Header SAP-blue
-                $sheet->getStyle('A1:B1')->applyFromArray([
+                $sheet->getStyle('A1:' . self::LAST_COL . '1')->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0A6ED1']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -48,18 +55,24 @@ class WorkPlansImportTemplate implements FromArray, WithEvents
                 ]);
                 $sheet->getRowDimension(1)->setRowHeight(26);
 
-                foreach (['A', 'B'] as $col) {
+                foreach (range('A', self::LAST_COL) as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }
 
-                // Tooltip en el header de code (triangulo rojo, no pollutea datos).
-                $commentCode = $sheet->getComment('B1');
-                $commentCode->setAuthor(__('imports.template_author'));
-                $commentCode->getText()->createTextRun(
-                    __('work_plans.code_help')
-                );
-                $commentCode->setWidth('260pt');
-                $commentCode->setHeight('60pt');
+                // Tooltips en los headers que se prestan a confusion (triangulo
+                // rojo, no ensucia los datos).
+                foreach ([
+                    'A1' => __('work_plans.code_help'),
+                    'D1' => __('work_plans.company_help'),
+                    'E1' => __('work_plans.work_type_help'),
+                    'F1' => __('work_plans.work_location_help'),
+                ] as $cell => $text) {
+                    $comment = $sheet->getComment($cell);
+                    $comment->setAuthor(__('imports.template_author'));
+                    $comment->getText()->createTextRun($text);
+                    $comment->setWidth('260pt');
+                    $comment->setHeight('60pt');
+                }
             },
         ];
     }

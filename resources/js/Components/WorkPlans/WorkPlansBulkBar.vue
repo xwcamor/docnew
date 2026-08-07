@@ -1,5 +1,9 @@
 <script setup>
-/** Barra de acciones masivas para WorkPlans (seleccion multiple). Mobile: sticky al pie. */
+/**
+ * Barra de acciones masivas para WorkPlans (seleccion multiple). Mobile: sticky
+ * al pie. En un plan el estado masivo es el avance: se marca como terminado o
+ * se reabre; no hay "activar/desactivar" de catalogo.
+ */
 import { Button, Space } from 'ant-design-vue';
 import {
     CheckCircleOutlined, StopOutlined, DeleteOutlined,
@@ -33,7 +37,7 @@ defineEmits(['cancel', 'set-active', 'delete']);
                 :loading="bulkActivating"
                 @click="$emit('set-active', true)"
             >
-                <CheckCircleOutlined /> {{ $t('global.bulk_activate') }}
+                <CheckCircleOutlined /> {{ $t('work_plans.bulk_mark_done') }}
             </Button>
             <Button
                 v-if="canEdit"
@@ -41,7 +45,7 @@ defineEmits(['cancel', 'set-active', 'delete']);
                 :loading="bulkActivating"
                 @click="$emit('set-active', false)"
             >
-                <StopOutlined /> {{ $t('global.bulk_deactivate') }}
+                <StopOutlined /> {{ $t('work_plans.bulk_reopen') }}
             </Button>
             <Button
                 v-if="canDelete"

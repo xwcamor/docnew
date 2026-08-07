@@ -132,7 +132,7 @@ const subtitle = computed(() => {
         <div class="trash-toolbar">
             <Input
                 v-model:value="searchTerm"
-                :placeholder="$t('global.search') + '...'"
+                :placeholder="$t('people.trash_search_placeholder')"
                 allow-clear
                 class="trash-search"
             >
@@ -153,7 +153,11 @@ const subtitle = computed(() => {
                 @change="onTableChange"
             >
                 <template #bodyCell="{ column, record }">
-                    <template v-if="column.key === 'deleter'">
+                    <template v-if="column.key === 'document'">
+                        {{ record.doc_type }} <code>{{ record.num_doc }}</code>
+                    </template>
+
+                    <template v-else-if="column.key === 'deleter'">
                         <span v-if="record.deleter">{{ record.deleter.name }}</span>
                         <span v-else class="text-muted">—</span>
                     </template>

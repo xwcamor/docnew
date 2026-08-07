@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { Button, Card, Pagination, Alert } from 'ant-design-vue';
-import { SaveOutlined, UndoOutlined, EditOutlined, TagsOutlined } from '@ant-design/icons-vue';
+import { Button, Card, Pagination } from 'ant-design-vue';
+import { SaveOutlined, UndoOutlined, EditOutlined, IdcardOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -29,8 +29,10 @@ const props = defineProps({
 const source = computed(() => props.people.data);
 const { draft, isDirty, dirtyCount, dirtyChanges, duplicateRows, discardAll } = useEditAllDraft({
     source,
-    editableFields: ['name', 'is_active'],
-    uniqueField:    'name',
+    // El documento no se edita aquí (identifica a la persona), así que no hay
+    // campo único que vigilar intra-batch.
+    editableFields: ['name', 'lastname', 'is_active'],
+    uniqueField:    null,
 });
 
 const submitting = ref(false);
@@ -65,16 +67,8 @@ const onPageChange = (page, pageSize) => {
             :title="$t('global.edit_all') + ' — ' + $t('people.plural')"
             :subtitle="$t('people.edit_all_subtitle')"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><IdcardOutlined /></template>
         </SectionHeader>
-
-        <Alert
-            v-if="duplicateRows.size > 0"
-            type="error"
-            show-icon
-            :message="$t('people.name_unique')"
-            class="status-bar"
-        />
 
         <Card :bodyStyle="{ padding: 0 }" class="edit-table-card">
             <PeopleEditAllTable

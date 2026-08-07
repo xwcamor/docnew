@@ -167,6 +167,23 @@ abstract class BaseWorkPlanExportJob implements ShouldQueue
         if (in_array('creator', $columns)) {
             $base->with('creator:id,name');
         }
+        // Relaciones que piden las columnas de obra: sin esto el export dispara
+        // una query por fila, y son miles de planes.
+        foreach ([
+            'company'       => 'company:id,name',
+            'work_type'     => 'workType:id,code',
+            'work_location' => 'workLocation:id,name',
+            'workstation'   => 'workstation:id,name',
+            'work_area'     => 'workArea:id,name',
+            'registered_by' => 'user:id,name',
+        ] as $col => $relation) {
+            if (in_array($col, $columns, true)) {
+                $base->with($relation);
+            }
+        }
+        if (in_array('people_count', $columns, true)) {
+            $base->withCount('people');
+        }
 
         if ($scope === 'selected' && !empty($this->options['selected_ids'])) {
             return $base->whereIn('work_plans.id', $this->options['selected_ids']);
@@ -191,16 +208,22 @@ abstract class BaseWorkPlanExportJob implements ShouldQueue
         $f = $this->options['filters'] ?? [];
         $out = [];
 
-        if (!empty($f['name'])) {
-            $names = is_array($f['name']) ? $f['name'] : [$f['name']];
-            $out[] = ['label' => __('work_plans.name'), 'value' => implode(', ', $names)];
+        if (!empty($f['search'])) {
+            $terms = is_array($f['search']) ? $f['search'] : [$f['search']];
+            $out[] = ['label' => __('work_plans.filter_search'), 'value' => implode(', ', $terms)];
         }
         if (!empty($f['code'])) {
             $out[] = ['label' => __('work_plans.code'), 'value' => (string) $f['code']];
         }
-        if (isset($f['is_active']) && $f['is_active'] !== '' && $f['is_active'] !== null) {
-            $bool = filter_var($f['is_active'], FILTER_VALIDATE_BOOLEAN);
-            $out[] = ['label' => __('work_plans.is_active'), 'value' => $bool ? __('global.active') : __('global.inactive')];
+        if (!empty($f['num_os'])) {
+            $out[] = ['label' => __('work_plans.num_os'), 'value' => (string) $f['num_os']];
+        }
+        if (isset($f['is_done']) && $f['is_done'] !== '' && $f['is_done'] !== null) {
+            $bool = filter_var($f['is_done'], FILTER_VALIDATE_BOOLEAN);
+            $out[] = ['label' => __('work_plans.is_done'), 'value' => $bool ? __('work_plans.state_done') : __('work_plans.state_pending')];
+        }
+        if (!empty($f['date_from']) || !empty($f['date_to'])) {
+            $out[] = ['label' => __('work_plans.date_start'), 'value' => ($f['date_from'] ?? '…') . ' → ' . ($f['date_to'] ?? '…')];
         }
         if (!empty($f['created_from']) || !empty($f['created_to'])) {
             $out[] = ['label' => __('global.created_at'), 'value' => ($f['created_from'] ?? 'â€¦') . ' â†’ ' . ($f['created_to'] ?? 'â€¦')];

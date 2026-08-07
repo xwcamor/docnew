@@ -1,7 +1,8 @@
 <script setup>
 /**
  * Force-delete modal con triple guarda:
- *  1) Confirmacion de nombre (deben tipear el name exacto).
+ *  1) Confirmacion por codigo (deben tipear el code exacto del plan — no hay
+ *     nombre que tipear en un plan de trabajo).
  *  2) Motivo obligatorio (min 10 chars).
  *  3) Solo super llega aquí (gated en backend + UI).
  */
@@ -20,7 +21,7 @@ const openModel = defineModel('open', { type: Boolean, required: true });
 const form      = defineModel('form',  { type: Object,  required: true });
 
 const okDisabled = (target) => !target
-    || form.value.name_confirmation !== target.name
+    || form.value.name_confirmation !== target.code
     || (form.value.reason?.length ?? 0) < 10;
 </script>
 
@@ -44,11 +45,11 @@ const okDisabled = (target) => !target
         </Alert>
 
         <p class="force-msg">
-            {{ $t('global.force_delete_name_prompt', { name: target?.name }) }}
+            {{ $t('global.force_delete_name_prompt', { name: target?.code }) }}
         </p>
         <Input
             v-model:value="form.name_confirmation"
-            :placeholder="target?.name"
+            :placeholder="target?.code"
             :status="errors.name_confirmation ? 'error' : ''"
             size="large"
             class="mb-3"

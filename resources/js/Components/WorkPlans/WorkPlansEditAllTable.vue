@@ -2,6 +2,10 @@
 /**
  * Tabla editable in-line del flujo Edit-All de WorkPlans. Recibe `draft` por
  * v-model y predicados isDirty/isDuplicate del composable useEditAllDraft.
+ *
+ * El codigo del plan se muestra pero NO se edita: identifica el registro y es
+ * la referencia contra el sistema v1. Aqui solo se corrigen la orden de
+ * servicio y el avance.
  */
 import { Input, Switch } from 'ant-design-vue';
 
@@ -18,8 +22,8 @@ const draft = defineModel('draft', { type: Array, required: true });
         <thead>
             <tr>
                 <th class="col-id">ID</th>
-                <th class="col-name">{{ $t('work_plans.table_headers.editable_name') }}</th>
                 <th class="col-cod">{{ $t('work_plans.code') }}</th>
+                <th class="col-name">{{ $t('work_plans.table_headers.editable_num_os') }}</th>
                 <th class="col-status">{{ $t('work_plans.table_headers.editable_status') }}</th>
             </tr>
         </thead>
@@ -33,22 +37,22 @@ const draft = defineModel('draft', { type: Array, required: true });
                 }"
             >
                 <td class="col-id">{{ row.id }}</td>
-                <td class="col-name">
-                    <Input
-                        v-model:value="row.name"
-                        :status="duplicateRows.has(i) ? 'error' : (props.isDirty(i) ? 'warning' : '')"
-                        size="small"
-                    />
-                </td>
                 <td class="col-cod">
                     <code v-if="row.code">{{ row.code }}</code>
                     <span v-else class="muted">—</span>
                 </td>
+                <td class="col-name">
+                    <Input
+                        v-model:value="row.num_os"
+                        :status="props.isDirty(i) ? 'warning' : ''"
+                        size="small"
+                    />
+                </td>
                 <td class="col-status">
                     <Switch
-                        v-model:checked="row.is_active"
-                        :checked-children="$t('global.active')"
-                        :un-checked-children="$t('global.inactive')"
+                        v-model:checked="row.is_done"
+                        :checked-children="$t('work_plans.state_done')"
+                        :un-checked-children="$t('work_plans.state_pending')"
                     />
                 </td>
             </tr>
@@ -84,7 +88,7 @@ const draft = defineModel('draft', { type: Array, required: true });
 }
 .edit-table tbody tr:last-child td { border-bottom: 0; }
 .edit-table .col-id     { width: 80px;  color: var(--color-text-muted); }
-.edit-table .col-cod    { width: 150px; font-family: ui-monospace, Consolas, monospace; font-size: 0.8125rem; }
+.edit-table .col-cod    { width: 190px; font-family: ui-monospace, Consolas, monospace; font-size: 0.8125rem; }
 .edit-table .col-status { width: 160px; }
 .edit-table tbody tr.is-dirty     { background: var(--tint-dirty); }
 .edit-table tbody tr.is-duplicate { background: var(--tint-duplicate); }
@@ -98,7 +102,7 @@ const draft = defineModel('draft', { type: Array, required: true });
 }
 
 @media (max-width: 768px) {
-    .edit-table .col-id, .edit-table .col-cod { display: none; }
+    .edit-table .col-id { display: none; }
     .edit-table thead th:first-child,
     .edit-table tbody td:first-child { display: none; }
 }

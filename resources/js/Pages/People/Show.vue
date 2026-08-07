@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import {
     Card, Tag, Space, Alert,
 } from 'ant-design-vue';
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -34,15 +34,15 @@ const fmt = (d) => formatDateTimeFull(d);
 </script>
 
 <template>
-    <Head :title="person.name" />
+    <Head :title="person.full_name" />
 
     <div class="show-page sap-show">
         <SectionHeader
             :back-href="route('business_management.people.index')"
-            :title="person.name"
+            :title="person.full_name"
             :icon-bg="iconBg"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><IdcardOutlined /></template>
             <template #subtitle>
                 <Space :size="6">
                     <Tag v-if="isDeleted" color="red" :bordered="false">{{ $t('global.deleted') }}</Tag>
@@ -87,7 +87,7 @@ const fmt = (d) => formatDateTimeFull(d);
         <EntityShowTabs :show-history="canSeeAudit" :history-count="activity.length">
             <template #general>
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
-                    <template #title><TagsOutlined /> {{ $t('global.general_info') }}</template>
+                    <template #title><IdcardOutlined /> {{ $t('global.general_info') }}</template>
                     <div class="spec-grid">
                         <!-- ID y slug: solo el super (datos técnicos), y van primero. -->
                         <div v-if="isSuper" class="spec-cell">
@@ -102,9 +102,54 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__label">{{ $t('people.name') }}</span>
                             <span class="spec-cell__value">{{ person.name }}</span>
                         </div>
-                        <div v-if="person.num_doc" class="spec-cell">
-                            <span class="spec-cell__label">{{ $t('people.num_doc') }}</span>
-                            <span class="spec-cell__value"><code>{{ person.num_doc }}</code></span>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.lastname') }}</span>
+                            <span class="spec-cell__value">{{ person.lastname }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.document') }}</span>
+                            <span class="spec-cell__value">{{ person.doc_type }} <code>{{ person.num_doc }}</code></span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.country') }}</span>
+                            <span class="spec-cell__value">{{ person.country?.name || '—' }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.birthdate') }}</span>
+                            <span class="spec-cell__value">{{ person.birthdate || '—' }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.roles') }}</span>
+                            <span class="spec-cell__value">
+                                <template v-if="person.roles?.length">
+                                    <Tag v-for="r in person.roles" :key="r" color="geekblue" :bordered="false">{{ $t('people.role_' + r) }}</Tag>
+                                </template>
+                                <template v-else>—</template>
+                            </span>
+                        </div>
+                        <!-- Sin cara enrolada la persona no puede firmar en obra. -->
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.biometric') }}</span>
+                            <span class="spec-cell__value">
+                                <Tag :color="person.has_biometric ? 'success' : 'error'" :bordered="false">
+                                    {{ person.has_biometric ? $t('people.biometric_yes') : $t('people.biometric_no') }}
+                                </Tag>
+                            </span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.signatures') }}</span>
+                            <span class="spec-cell__value">{{ person.signatures_count ?? 0 }}</span>
+                        </div>
+                        <div class="spec-cell spec-cell--wide">
+                            <span class="spec-cell__label">{{ $t('people.companies') }}</span>
+                            <span class="spec-cell__value">
+                                <template v-if="person.companies?.length">
+                                    <Tag v-for="c in person.companies" :key="c.company_id" :color="c.is_active ? 'blue' : 'default'" :bordered="false">
+                                        {{ c.name }}<template v-if="c.position"> · {{ c.position }}</template>
+                                    </Tag>
+                                </template>
+                                <template v-else>—</template>
+                            </span>
                         </div>
                         <!-- Estado: siempre al final. -->
                         <div class="spec-cell">

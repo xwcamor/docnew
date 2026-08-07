@@ -17,7 +17,7 @@ class GenerateCompaniesCsvJob extends BaseCompanyExportJob
 
     protected function executeExport(Download $download): void
     {
-        $columns = $this->options['columns'] ?? ['id', 'name', 'code', 'is_active', 'created_at'];
+        $columns = $this->options['columns'] ?? ['id', 'name', 'num_doc', 'complete_name', 'country', 'is_active', 'created_at'];
 
         $tempFile = tempnam(sys_get_temp_dir(), 'companies_csv') . '.csv';
         $handle   = fopen($tempFile, 'w');
@@ -31,8 +31,11 @@ class GenerateCompaniesCsvJob extends BaseCompanyExportJob
             $headings = [
                 'id'         => __('companies.id'),
                 'name'       => __('companies.name'),
-                'code'       => __('companies.code'),
-                'sort_order' => __('companies.sort_order'),
+                'num_doc'       => __('companies.num_doc'),
+                'complete_name' => __('companies.complete_name'),
+                'country'       => __('companies.country'),
+                'people_count'  => __('companies.people_count'),
+                'work_plans_count' => __('companies.plans_count'),
                 'is_active'  => __('companies.is_active'),
                 'slug'       => 'Slug',
                 'created_at' => __('global.created_at'),
@@ -48,8 +51,11 @@ class GenerateCompaniesCsvJob extends BaseCompanyExportJob
                     $row = array_map(fn ($col) => match ($col) {
                         'id'         => $company->id,
                         'name'       => $company->name,
-                        'code'       => $company->code ?? '',
-                        'sort_order' => $company->sort_order ?? '',
+                        'num_doc'       => $company->num_doc ?? '',
+                        'complete_name' => $company->complete_name ?? '',
+                        'country'       => $company->country?->name ?? '',
+                        'people_count'  => $company->people_count ?? '',
+                        'work_plans_count' => $company->work_plans_count ?? '',
                         'is_active'  => $company->is_active ? '1' : '0',
                         'slug'       => $company->slug,
                         'created_at' => $company->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT),

@@ -17,7 +17,7 @@ class GeneratePeopleCsvJob extends BasePersonExportJob
 
     protected function executeExport(Download $download): void
     {
-        $columns = $this->options['columns'] ?? ['id', 'name', 'code', 'is_active', 'created_at'];
+        $columns = $this->options['columns'] ?? ['id', 'lastname', 'name', 'doc_type', 'num_doc', 'is_active', 'created_at'];
 
         $tempFile = tempnam(sys_get_temp_dir(), 'people_csv') . '.csv';
         $handle   = fopen($tempFile, 'w');
@@ -31,8 +31,14 @@ class GeneratePeopleCsvJob extends BasePersonExportJob
             $headings = [
                 'id'         => __('people.id'),
                 'name'       => __('people.name'),
-                'code'       => __('people.code'),
-                'sort_order' => __('people.sort_order'),
+                'lastname'      => __('people.lastname'),
+                'doc_type'      => __('people.doc_type'),
+                'num_doc'       => __('people.num_doc'),
+                'country'       => __('people.country'),
+                'roles'         => __('people.roles'),
+                'companies'     => __('people.companies'),
+                'companies_count' => __('people.companies_count'),
+                'has_biometric' => __('people.biometric'),
                 'is_active'  => __('people.is_active'),
                 'slug'       => 'Slug',
                 'created_at' => __('global.created_at'),
@@ -48,8 +54,14 @@ class GeneratePeopleCsvJob extends BasePersonExportJob
                     $row = array_map(fn ($col) => match ($col) {
                         'id'         => $person->id,
                         'name'       => $person->name,
-                        'code'       => $person->code ?? '',
-                        'sort_order' => $person->sort_order ?? '',
+                        'lastname'      => $person->lastname ?? '',
+                        'doc_type'      => $person->doc_type ?? '',
+                        'num_doc'       => $person->num_doc ?? '',
+                        'country'       => $person->country?->name ?? '',
+                        'roles'         => $person->roles->where('is_active', true)->map(fn ($r) => __('people.role_' . $r->role))->join(', '),
+                        'companies'     => $person->companyLinks->map(fn ($l) => $l->company?->name)->filter()->join(', '),
+                        'companies_count' => $person->company_links_count ?? '',
+                        'has_biometric' => ($person->active_biometrics_count ?? 0) > 0 ? '1' : '0',
                         'is_active'  => $person->is_active ? '1' : '0',
                         'slug'       => $person->slug,
                         'created_at' => $person->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT),

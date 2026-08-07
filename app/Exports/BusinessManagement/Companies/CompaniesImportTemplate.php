@@ -10,11 +10,11 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
- * Plantilla XLSX descargable para imports de companies.
+ * Plantilla XLSX descargable para imports de empresas contratistas.
  *
  * Columnas:
- *   - name (obligatorio, max 255, unico per-tenant)
- *   - code (opcional, max 40, identificador tecnico unico per-tenant)
+ *   - name    (obligatorio, max 255, nombre corto — unico per-tenant)
+ *   - num_doc (RUC, unico por pais dentro del workspace)
  *
  * No incluye is_active: toda alta importada nace activa (el estado se gestiona desde la UI).
  *
@@ -27,9 +27,8 @@ class CompaniesImportTemplate implements FromArray, WithEvents
     {
         return [
             ['name', 'num_doc'],
-            ['Acme', 'acme'],
-            ['Globex', 'globex'],
-            ['Contoso', 'contoso'],
+            ['HITACHI', '20512345678'],
+            ['LIMTEK', '20487654321'],
         ];
     }
 
@@ -52,7 +51,7 @@ class CompaniesImportTemplate implements FromArray, WithEvents
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }
 
-                // Tooltip en el header de code (triangulo rojo, no pollutea datos).
+                // Tooltip en el header del RUC (triangulo rojo, no pollutea datos).
                 $commentCode = $sheet->getComment('B1');
                 $commentCode->setAuthor(__('imports.template_author'));
                 $commentCode->getText()->createTextRun(

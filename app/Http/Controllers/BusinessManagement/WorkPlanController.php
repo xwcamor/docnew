@@ -52,9 +52,18 @@ class WorkPlanController extends Controller
         $userId  = $request->user()?->id;
         $isSuper = $request->user()?->hasRole('super') ?? false;
 
-        // work_plans es per-tenant (BelongsToTenant lo scopea solo) — eager-load creator.
-        // El super ve cross-tenant: carga el tenant para mostrarlo en el drawer.
-        $with = ['creator:id,name,email'];
+        // El listado muestra empresa, tipo de trabajo y sede: sin eager-load
+        // serían 3 queries por fila (y son 3.7k planes). Solo se traen las
+        // columnas que la tabla pinta.
+        $with = [
+            'creator:id,name,email',
+            'company:id,name,num_doc',
+            'workType:id,code',
+            'workLocation:id,name',
+            'workstation:id,name',
+            'workArea:id,name',
+            'user:id,name,email',
+        ];
         if ($isSuper) {
             $with[] = 'tenant:id,name';
         }
@@ -62,6 +71,9 @@ class WorkPlanController extends Controller
         $work_plans = WorkPlan::query()
             ->select('work_plans.*')
             ->with($with)
+            // Cuántos trabajadores tiene la cuadrilla y cuántos formatos se
+            // levantaron: es lo que distingue un plan cargado de uno vacío.
+            ->withCount(['people', 'submissions'])
             ->orderByFavoriteFirst($userId)
             ->filter($request)
             ->paginate($perPage)
@@ -69,8 +81,8 @@ class WorkPlanController extends Controller
 
         $totalUnfiltered = WorkPlan::count();
 
-        $names = $request->get('name', []);
-        if (is_string($names)) $names = $names === '' ? [] : [$names];
+        $search = $request->get('search', []);
+        if (is_string($search)) $search = $search === '' ? [] : [$search];
 
         return inertia('WorkPlans/Index', [
             'work_plans' => array_merge($work_plans->toArray(), [
@@ -80,10 +92,18 @@ class WorkPlanController extends Controller
             // que exceden su limite. CSV con 0 = sin limite (streaming).
             'exportLimits' => \App\Models\Setting::getExportLimits('work_plans'),
             'filters' => [
-                'name'         => array_values($names),
-                'is_active'    => $request->filled('is_active')
-                    ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
+                'search'       => array_values($search),
+                'company_id'       => $request->get('company_id', []),
+                'work_type_id'     => $request->get('work_type_id', []),
+                'work_location_id' => $request->get('work_location_id', []),
+                'is_done'      => $request->filled('is_done')
+                    ? filter_var($request->is_done, FILTER_VALIDATE_BOOLEAN)
                     : null,
+                'is_locked'    => $request->filled('is_locked')
+                    ? filter_var($request->is_locked, FILTER_VALIDATE_BOOLEAN)
+                    : null,
+                'date_from'    => $request->get('date_from', ''),
+                'date_to'      => $request->get('date_to', ''),
                 'created_from' => $request->get('created_from', ''),
                 'created_to'   => $request->get('created_to', ''),
                 'only_favorites' => $request->boolean('only_favorites'),
@@ -96,11 +116,55 @@ class WorkPlanController extends Controller
                 'advanced_where' => $this->parseAdvancedWhere($request),
             ],
             'isSuper'        => $isSuper,
+            ...$this->catalogOptions(),
             // Schema de campos filtrables â€” alimenta el drawer "Filtros
             // avanzados" del frontend (selects de field/op + control tipado
             // del valor). Cada modulo declara el suyo en su modelo.
-            'filterSchema'   => WorkPlan::filterSchema(),
+            'filterSchema'   => WorkPlan::filterSchema($this->filterSchemaOptions()),
         ]);
+    }
+
+    /**
+     * Catálogos de obra para los selectores del listado y del formulario.
+     * Van juntos porque el formulario encadena sede → puesto y necesita las
+     * dos listas de una sola vez.
+     *
+     * @return array<string, array<int, array{value: int, label: string}>>
+     */
+    protected function catalogOptions(): array
+    {
+        $opts = fn ($query, string $label) => $query
+            ->orderBy($label)
+            ->get(['id', $label])
+            ->map(fn ($r) => ['value' => $r->id, 'label' => $r->{$label}])
+            ->all();
+
+        return [
+            'companyOptions'      => \App\Models\Company::query()->where('is_active', true)->orderBy('name')
+                ->get(['id', 'name', 'num_doc'])
+                ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name])
+                ->all(),
+            'workTypeOptions'     => $opts(\App\Models\WorkType::query()->where('is_active', true), 'code'),
+            'workLocationOptions' => $opts(\App\Models\WorkLocation::query()->where('is_active', true), 'name'),
+            'workAreaOptions'     => $opts(\App\Models\WorkArea::query()->where('is_active', true), 'name'),
+            // El puesto depende de la sede: el front filtra por work_location_id.
+            'workstationOptions'  => \App\Models\Workstation::query()->where('is_active', true)->orderBy('name')
+                ->get(['id', 'name', 'work_location_id'])
+                ->map(fn ($w) => ['value' => $w->id, 'label' => $w->name, 'work_location_id' => $w->work_location_id])
+                ->all(),
+        ];
+    }
+
+    /** Subconjunto de catálogos que consume el builder de filtros avanzados. */
+    protected function filterSchemaOptions(): array
+    {
+        $o = $this->catalogOptions();
+
+        return [
+            'companies'      => $o['companyOptions'],
+            'work_types'     => $o['workTypeOptions'],
+            'work_locations' => $o['workLocationOptions'],
+        ];
     }
 
     /**
@@ -123,7 +187,11 @@ class WorkPlanController extends Controller
 
     public function show(Request $request, WorkPlan $workPlan)
     {
-        $workPlan->load(['creator:id,name,email', 'deleter:id,name,email', 'locker:id,name']);
+        $workPlan->load([
+            'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
+            'company:id,name,num_doc', 'workType:id,code', 'workLocation:id,name',
+            'workstation:id,name', 'workArea:id,name', 'user:id,name,email',
+        ])->loadCount(['people', 'submissions']);
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
@@ -151,7 +219,8 @@ class WorkPlanController extends Controller
     public function create()
     {
         return inertia('WorkPlans/Form', [
-            'workPlan'        => null,
+            'workPlan' => null,
+            ...$this->catalogOptions(),
         ]);
     }
 
@@ -193,7 +262,7 @@ class WorkPlanController extends Controller
 
         $workPlan = $service->create($request->validated());
 
-        return response()->json(['id' => $workPlan->id, 'name' => $workPlan->name], 201);
+        return response()->json(['id' => $workPlan->id, 'name' => $workPlan->code], 201);
     }
 
     public function edit(WorkPlan $workPlan)
@@ -202,7 +271,8 @@ class WorkPlanController extends Controller
         abort_if($workPlan->is_locked, 403, __('locks.cannot_edit_locked'));
 
         return inertia('WorkPlans/Form', [
-            'workPlan'        => $this->payload($workPlan),
+            'workPlan' => $this->payload($workPlan),
+            ...$this->catalogOptions(),
         ]);
     }
 
@@ -220,6 +290,10 @@ class WorkPlanController extends Controller
     {
         // Registro bloqueado (Lockable): ni se abre la confirmación de borrado.
         abort_if($workPlan->is_locked, 403, __('locks.cannot_delete_locked'));
+
+        // La confirmación muestra empresa y trabajo: borrar un plan por su
+        // código a secas es fácil de equivocar.
+        $workPlan->load(['company:id,name,num_doc', 'workType:id,code', 'workLocation:id,name']);
 
         return inertia('WorkPlans/Delete', [
             'workPlan' => $this->payload($workPlan),
@@ -260,13 +334,17 @@ class WorkPlanController extends Controller
     {
         abort_unless($request->user()?->hasRole('super'), 403);
 
-        $name    = $request->get('name', '');
+        // En la papelera se busca por código de plan: es lo único que el
+        // usuario recuerda de un plan que ya no está en el listado.
+        $search  = $request->get('search', '');
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
 
         $work_plans = WorkPlan::onlyTrashed()
-            ->with('deleter:id,name,email')
-            ->when($name !== '', fn ($q) => $q->where('name', 'like', "%{$name}%"))
+            ->with(['deleter:id,name,email', 'company:id,name'])
+            ->when($search !== '', fn ($q) => $q->where(fn ($qq) => $qq
+                ->where('code', 'like', "%{$search}%")
+                ->orWhere('num_os', 'like', "%{$search}%")))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -274,7 +352,7 @@ class WorkPlanController extends Controller
         return inertia('WorkPlans/Trash', [
             'work_plans' => $work_plans,
             'filters'   => [
-                'name'     => $name,
+                'search'   => $search,
                 'per_page' => $perPage,
             ],
         ]);
@@ -292,8 +370,9 @@ class WorkPlanController extends Controller
     }
 
     /**
-     * Edit All â€” pagina con tabla editable in-line de name + is_active.
-     * El submit hace batch update en transaccion (editAllUpdate).
+     * Edit All â€” pagina con tabla editable in-line. En planes lo que se corrige
+     * en lote es la orden de servicio y el estado de avance; el código es
+     * inmutable (identifica el plan) y por eso viaja solo como referencia.
      */
     public function editAll(Request $request)
     {
@@ -306,16 +385,16 @@ class WorkPlanController extends Controller
 
         $work_plans = WorkPlan::query()
             ->filter($request)
-            ->select('work_plans.id', 'work_plans.slug', 'work_plans.name', 'work_plans.code', 'work_plans.is_active')
+            ->select('work_plans.id', 'work_plans.slug', 'work_plans.code', 'work_plans.num_os', 'work_plans.is_done')
             ->paginate($perPage)
             ->withQueryString();
 
         return inertia('WorkPlans/EditAll', [
             'work_plans' => $work_plans,
             'filters'   => [
-                'name'      => $request->get('name', ''),
-                'is_active' => $request->filled('is_active')
-                    ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
+                'search'    => $request->get('search', ''),
+                'is_done'   => $request->filled('is_done')
+                    ? filter_var($request->is_done, FILTER_VALIDATE_BOOLEAN)
                     : null,
                 'sort'      => $request->get('sort', 'id'),
                 'direction' => $request->get('direction', 'asc'),
@@ -393,7 +472,8 @@ class WorkPlanController extends Controller
         $model = WorkPlan::onlyTrashed()->where('slug', $slug)->firstOrFail();
         $data  = $request->validated();
 
-        if (trim($data['name_confirmation']) !== $model->name) {
+        // Se confirma tipeando el código del plan (no hay nombre que tipear).
+        if (trim($data['name_confirmation']) !== $model->code) {
             return back()->withErrors(['name_confirmation' => __('global.force_delete_name_mismatch')]);
         }
 
@@ -409,10 +489,28 @@ class WorkPlanController extends Controller
         $base = [
             'id'         => $m->id,
             'slug'       => $m->slug,
-            'name'       => $m->name,
             'code'       => $m->code,
-            'num_os' => $m->sort_order,
-            'is_active'  => $m->is_active,
+            'num_os'     => $m->num_os,
+            'description'=> $m->description,
+            'company_id'       => $m->company_id,
+            'work_type_id'     => $m->work_type_id,
+            'work_location_id' => $m->work_location_id,
+            'workstation_id'   => $m->workstation_id,
+            'work_area_id'     => $m->work_area_id,
+            'country_id' => $m->country_id,
+            'user_id'    => $m->user_id,
+            // Nombres resueltos: la ficha los muestra tal cual, sin más queries.
+            'company'       => $m->relationLoaded('company') && $m->company ? ['id' => $m->company->id, 'name' => $m->company->name, 'num_doc' => $m->company->num_doc] : null,
+            'work_type'     => $m->relationLoaded('workType') && $m->workType ? ['id' => $m->workType->id, 'code' => $m->workType->code] : null,
+            'work_location' => $m->relationLoaded('workLocation') && $m->workLocation ? ['id' => $m->workLocation->id, 'name' => $m->workLocation->name] : null,
+            'workstation'   => $m->relationLoaded('workstation') && $m->workstation ? ['id' => $m->workstation->id, 'name' => $m->workstation->name] : null,
+            'work_area'     => $m->relationLoaded('workArea') && $m->workArea ? ['id' => $m->workArea->id, 'name' => $m->workArea->name] : null,
+            'registered_by' => $m->relationLoaded('user') && $m->user ? ['id' => $m->user->id, 'name' => $m->user->name, 'email' => $m->user->email] : null,
+            'date_start' => $m->date_start?->format('Y-m-d'),
+            'date_end'   => $m->date_end?->format('Y-m-d'),
+            'is_done'    => (bool) $m->is_done,
+            'people_count'      => $m->people_count,
+            'submissions_count' => $m->submissions_count,
             'tenant_id'  => $m->tenant_id,
             'is_locked'  => $m->is_locked,
             'lock_scope' => $m->lock_scope,
@@ -684,11 +782,13 @@ class WorkPlanController extends Controller
     protected function buildExportOptions(Request $request, string $format): array
     {
         // Sin 'id' (no se exporta). La columna `tenant` (workspace) SOLO es
-        // exportable por super: el resto ve únicamente marcas de su propio
+        // exportable por super: el resto ve únicamente planes de su propio
         // tenant. Gate de seguridad real (no basta ocultarla en el front).
         $isSuper = $request->user()?->hasRole('super') ?? false;
         $allowedColumns = array_values(array_filter([
-            'name', 'code', 'num_os', 'is_active',
+            'code', 'num_os', 'description', 'company', 'work_type', 'work_location',
+            'workstation', 'work_area', 'date_start', 'date_end', 'is_done', 'is_locked',
+            'people_count', 'registered_by',
             $isSuper ? 'tenant' : null,
             'created_at', 'updated_at', 'creator',
         ]));

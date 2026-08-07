@@ -10,31 +10,35 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 /**
- * Imports People from .xlsx/.csv.
+ * Importa personas desde .xlsx/.csv.
  *
- * Columns:
- *   - name  (required, max 255, unico per-tenant case/accent-insensitive)
- *   - code  (optional, max 40, identificador tecnico unico per-tenant)
+ * Columnas:
+ *   - doc_type (opcional — DNI si no viene)
+ *   - num_doc  (obligatorio: identifica a la persona)
+ *   - name     (obligatorio)
+ *   - lastname (obligatorio)
  *
- * El import NO maneja is_active: toda alta nace activa (coherente con clientes). El estado se gestiona desde la UI / bulk actions.
+ * La identidad es el DOCUMENTO, no el nombre: en el sistema v1 el match por
+ * nombre fusionaba homónimos y partía en dos a la misma persona escrita de dos
+ * formas. Aquí una fila actualiza a alguien solo si coincide el documento.
+ *
+ * El import NO maneja is_active: toda alta nace activa. Tampoco enrola la cara
+ * ni carga firmas: eso se hace en obra, con la persona delante.
  *
  * Modes: 'create_only' | 'update_or_create'
  *
  * people es PER-TENANT: el import scope-a por tenant_id via el global scope de
  * BelongsToTenant (Person::create autorellena el tenant del actor).
  *
- * 3-layer duplicate protection (per-tenant):
- *   1. In-file: normalizado (trim+lower+iconv) catchea dupes en el mismo upload
- *   2. App: lookup case + accent insensitive contra toda la tabla
- *   3. DB: unique constraint de `slug` (auto-generado en el modelo)
+ * 3 capas contra duplicados (per-tenant):
+ *   1. En el archivo: documento normalizado catchea dupes del mismo upload
+ *   2. App: lookup por doc_type + num_doc contra toda la tabla
+ *   3. DB: indice unico parcial (tenant, pais, doc_type, num_doc)
  *
- * Enforce `Tenant::maxRecordsPerModule()`:
- *   - Si el plan del usuario tiene limite, contamos cuantos people hay HOY +
- *     cuantos vamos a CREAR. Si supera, marcamos las filas excedentes como
- *     errores (no se crean). Las filas que actualizan existentes no cuentan
- *     contra el limite. El conteo es global (catalogo unico).
+ * Enforce `Tenant::maxRecordsPerModule()`: las filas que crean cuentan contra
+ * el limite del plan; las que actualizan, no.
  *
- * Todo va en transaccion. dryRun=true â†’ rollback al final (preview UI).
+ * Todo va en transaccion. dryRun=true → rollback al final (preview UI).
  */
 class PeopleImport implements ToCollection, WithHeadingRow
 {
@@ -47,11 +51,15 @@ class PeopleImport implements ToCollection, WithHeadingRow
 
     /** @var array<int, array{row:int, name:string, is_active:bool, action:string}> */
     public array $preview = [];
+
     /** Limite de records del plan (>0 = aplica; 0 o PHP_INT_MAX = ilimitado). */
     protected int $maxRecords;
 
     /** Count de people del tenant del actor (pre-import). */
     protected int $currentCount;
+
+    /** Tipos de documento admitidos — mismo enum que el formulario. */
+    protected const DOC_TYPES = ['DNI', 'CE', 'PASAPORTE'];
 
     public function __construct(
         protected string $mode = 'update_or_create',
@@ -59,7 +67,7 @@ class PeopleImport implements ToCollection, WithHeadingRow
     ) {
         $user = Auth::user();
 
-        // Limite del plan del usuario. Sin tenant/plan â†’ sin limite.
+        // Limite del plan del usuario. Sin tenant/plan → sin limite.
         if ($user && $user->tenant) {
             $this->maxRecords = $user->tenant->maxRecordsPerModule();
         } else {
@@ -75,155 +83,136 @@ class PeopleImport implements ToCollection, WithHeadingRow
         DB::beginTransaction();
 
         try {
-            // Layer 1: dedup in-file por nombre y por code normalizados.
-            $seenInFileByName = [];
-            $seenInFileByCode = [];
-            $newRecordsCount = 0; // contador de filas que crearian un nuevo person
+            $seenInFile = [];
+            $newRecordsCount = 0;
 
             foreach ($rows as $i => $row) {
                 $absoluteRow = $i + 2; // +2 = header (1) + indexacion desde 0.
 
-                $name = $this->normalizeName($row['name'] ?? null);
-                if ($name === null) {
-                    $this->errors[] = [
-                        'row'     => $absoluteRow,
-                        'message' => __('imports.err_name_required'),
-                        'value'   => 'â€”',
-                    ];
-                    continue;
+                $numDoc = $this->trimOrNull($row['num_doc'] ?? null);
+                if ($numDoc !== null) {
+                    $numDoc = preg_replace('/[\s-]/', '', $numDoc);
                 }
-                if (mb_strlen($name) > 255) {
+                if ($numDoc === null || $numDoc === '') {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('imports.err_name_too_long'),
-                        'value'   => mb_substr($name, 0, 60) . 'â€¦',
+                        'message' => __('people.num_doc_required'),
+                        'value'   => '—',
                     ];
                     continue;
                 }
 
-                $normNameKey = $this->normalizeKey($name);
-                if (isset($seenInFileByName[$normNameKey])) {
+                $docType = strtoupper((string) ($this->trimOrNull($row['doc_type'] ?? null) ?? 'DNI'));
+                if (! in_array($docType, self::DOC_TYPES, true)) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFileByName[$normNameKey]]),
-                        'value'   => $name,
+                        'message' => __('people.doc_type_invalid'),
+                        'value'   => $docType,
                     ];
                     continue;
                 }
-                $seenInFileByName[$normNameKey] = $absoluteRow;
 
-                // code (opcional): identificador tecnico unico per-tenant.
-                $code = $this->normalizeCode($row['num_doc'] ?? null);
-                if ($code !== null && mb_strlen($code) > 40) {
+                $clave = $docType . '|' . mb_strtolower($numDoc);
+                if (isset($seenInFile[$clave])) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('imports.err_code_too_long'),
-                        'value'   => mb_substr($code, 0, 30) . '…',
+                        'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFile[$clave]]),
+                        'value'   => $numDoc,
                     ];
                     continue;
                 }
-                if ($code !== null) {
-                    $codeKey = mb_strtolower($code);
-                    if (isset($seenInFileByCode[$codeKey])) {
-                        $this->errors[] = [
-                            'row'     => $absoluteRow,
-                            'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFileByCode[$codeKey]]),
-                            'value'   => $code,
-                        ];
-                        continue;
-                    }
-                    $seenInFileByCode[$codeKey] = $absoluteRow;
-                }
+                $seenInFile[$clave] = $absoluteRow;
 
-                // Layer 2: DB lookup case + accent insensitive (per-tenant).
-                $existing = $this->findExistingByNameInsensitive($name);
+                $name     = $this->trimOrNull($row['name'] ?? null);
+                $lastname = $this->trimOrNull($row['lastname'] ?? null);
 
-                // code unico per-tenant: si choca con OTRO registro (no el matcheado
-                // por name), se rechaza la fila.
-                if ($code !== null && $this->codeTakenByOther($code, $existing?->id)) {
-                    $this->errors[] = [
-                        'row'     => $absoluteRow,
-                        'message' => __('imports.err_code_duplicate', ['value' => $code]),
-                        'value'   => $code,
-                    ];
-                    continue;
-                }
+                $existing = Person::query()
+                    ->where('doc_type', $docType)
+                    ->where('num_doc', $numDoc)
+                    ->first();
 
                 if ($existing) {
-                    // Registro BLOQUEADO (Lockable): el import no lo pisa. Se reporta
-                    // como saltado para que el usuario sepa que existe pero está
-                    // congelado (hay que desbloquearlo para actualizarlo).
+                    // Registro BLOQUEADO (Lockable): el import no lo pisa.
                     if ($existing->is_locked) {
                         $this->skipped++;
                         $this->preview[] = [
-                            'row'         => $absoluteRow,
-                            'name'        => $name,
-                            'is_active'   => (bool) $existing->is_active,
-                            'action'      => 'skipped',
-                            'reason'      => 'locked',
+                            'row' => $absoluteRow, 'name' => $existing->full_name,
+                            'is_active' => (bool) $existing->is_active, 'action' => 'skipped', 'reason' => 'locked',
                         ];
                         continue;
                     }
-
                     if ($this->mode === 'create_only') {
                         $this->skipped++;
                         $this->preview[] = [
-                            'row'         => $absoluteRow,
-                            'name'        => $name,
-                            'is_active'   => (bool) $existing->is_active,
-                            'action'      => 'skipped',
+                            'row' => $absoluteRow, 'name' => $existing->full_name,
+                            'is_active' => (bool) $existing->is_active, 'action' => 'skipped',
                         ];
                         continue;
                     }
 
-                    // Solo tocar campos que cambian (evita audit logs vacios). El
-                    // import NO gestiona el estado (eso va por la UI / bulk); solo
-                    // refresca el code técnico si cambió.
+                    // Solo se tocan los campos que cambian: evita audit logs vacios.
                     $patch = [];
-                    if ($code !== null && (string) $existing->code !== $code) $patch['num_doc'] = $code;
+                    if ($name !== null && $existing->name !== $name)         $patch['name'] = $name;
+                    if ($lastname !== null && $existing->lastname !== $lastname) $patch['lastname'] = $lastname;
                     if (!empty($patch)) {
                         $existing->fill($patch)->save();
                     }
 
                     $this->updated++;
                     $this->preview[] = [
-                        'row'         => $absoluteRow,
-                        'name'        => $name,
-                        'is_active'   => (bool) $existing->is_active,
-                        'action'      => 'updated',
+                        'row' => $absoluteRow, 'name' => $existing->full_name,
+                        'is_active' => (bool) $existing->is_active, 'action' => 'updated',
                     ];
-                } else {
-                    // Antes de crear, validar limite del plan.
-                    if ($this->maxRecords > 0 && $this->maxRecords !== PHP_INT_MAX) {
-                        if (($this->currentCount + $newRecordsCount) >= $this->maxRecords) {
-                            $this->errors[] = [
-                                'row'     => $absoluteRow,
-                                'message' => __('plans.limit_records_reached', ['max' => $this->maxRecords]),
-                                'value'   => $name,
-                            ];
-                            continue;
-                        }
-                    }
-
-                    // Las altas nacen activas. El import no importa registros inactivos (coherente con clientes/oil_types): el estado se gestiona desde la UI / bulk actions.
-                    Person::create([
-                        'name'        => $name,
-                        'num_doc'        => $code,
-                        'is_active'   => true,
-                        'created_by'  => Auth::id(),
-                        // tenant_id lo autorellena BelongsToTenant (tenant del actor);
-                        // el slug lo auto-genera el modelo en `creating`.
-                    ]);
-
-                    $newRecordsCount++;
-                    $this->created++;
-                    $this->preview[] = [
-                        'row'         => $absoluteRow,
-                        'name'        => $name,
-                        'is_active'   => true,
-                        'action'      => 'created',
-                    ];
+                    continue;
                 }
+
+                // ── Alta ────────────────────────────────────────────────────
+                if ($name === null || $lastname === null) {
+                    $this->errors[] = [
+                        'row'     => $absoluteRow,
+                        'message' => __('people.name_and_lastname_required'),
+                        'value'   => $numDoc,
+                    ];
+                    continue;
+                }
+                if (mb_strlen($name) > 255 || mb_strlen($lastname) > 255) {
+                    $this->errors[] = [
+                        'row'     => $absoluteRow,
+                        'message' => __('imports.err_name_too_long'),
+                        'value'   => mb_substr($name . ' ' . $lastname, 0, 60) . '…',
+                    ];
+                    continue;
+                }
+
+                if ($this->maxRecords > 0 && $this->maxRecords !== PHP_INT_MAX) {
+                    if (($this->currentCount + $newRecordsCount) >= $this->maxRecords) {
+                        $this->errors[] = [
+                            'row'     => $absoluteRow,
+                            'message' => __('plans.limit_records_reached', ['max' => $this->maxRecords]),
+                            'value'   => $numDoc,
+                        ];
+                        continue;
+                    }
+                }
+
+                Person::create([
+                    'name'       => $name,
+                    'lastname'   => $lastname,
+                    'doc_type'   => $docType,
+                    'num_doc'    => $numDoc,
+                    'country_id' => Auth::user()?->country_id,
+                    'is_active'  => true,
+                    'created_by' => Auth::id(),
+                    // tenant_id lo autorellena BelongsToTenant (tenant del actor);
+                    // el slug lo auto-genera el modelo en `creating`.
+                ]);
+
+                $newRecordsCount++;
+                $this->created++;
+                $this->preview[] = [
+                    'row' => $absoluteRow, 'name' => trim("$name $lastname"),
+                    'is_active' => true, 'action' => 'created',
+                ];
             }
 
             if ($this->dryRun) {
@@ -251,55 +240,10 @@ class PeopleImport implements ToCollection, WithHeadingRow
         ];
     }
 
-    protected function normalizeName(mixed $value): ?string
+    protected function trimOrNull(mixed $value): ?string
     {
         if ($value === null) return null;
-        $name = trim((string) $value);
-        return $name === '' ? null : $name;
-    }
-
-    /** Trim → null si vacío. El code es el identificador técnico. */
-    protected function normalizeCode(mixed $value): ?string
-    {
-        if ($value === null) return null;
-        $code = trim((string) $value);
-        return $code === '' ? null : $code;
-    }
-
-    /**
-     * ¿El code ya existe en OTRO registro (no $exceptId)? Case-insensitive,
-     * per-tenant (el global scope de BelongsToTenant limita al tenant del actor).
-     */
-    protected function codeTakenByOther(string $code, ?int $exceptId): bool
-    {
-        return Person::query()
-            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
-            ->whereRaw('LOWER(code) = LOWER(?)', [trim($code)])
-            ->exists();
-    }
-    /** Lowercase + strip accents (iconv) â€” mismo pattern que el DB-level layer 2. */
-    protected function normalizeKey(string $name): string
-    {
-        $lower    = mb_strtolower(trim($name));
-        $stripped = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $lower);
-        return $stripped !== false ? $stripped : $lower;
-    }
-
-    /**
-     * Lookup case + accent insensitive (Postgres unaccent / fallback LOWER).
-     * Per-tenant: el global scope de BelongsToTenant limita al tenant del actor.
-     */
-    protected function findExistingByNameInsensitive(string $name): ?Person
-    {
-        $isPgsql = DB::getDriverName() === 'pgsql';
-        $query   = Person::query();
-
-        if ($isPgsql) {
-            $query->whereRaw('unaccent(LOWER(people.name)) = unaccent(LOWER(?))', [$name]);
-        } else {
-            $query->whereRaw('LOWER(people.name) = LOWER(?)', [$name]);
-        }
-
-        return $query->first();
+        $v = trim((string) $value);
+        return $v === '' ? null : $v;
     }
 }

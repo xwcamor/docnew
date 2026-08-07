@@ -14,13 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * Person — catálogo de marcas/fabricantes de transformadores (ABB, Siemens…).
+ * Person — la identidad de quien trabaja en obra.
  *
- * Metadato descriptivo del transformador (NO es eje de diagnóstico). Es un
- * catálogo PER-TENANT: cada workspace tiene su propio catálogo de marcas, por
- * eso usa BelongsToTenantOrGlobal (con bypass de super). Mantiene SoftDeletes + Auditable
- * + HasFavorites. Campos: `name`, `code` (slug técnico), `sort_order`, `is_active`,
- * `tenant_id`.
+ * En el sistema v1 una misma persona aparecía repetida una vez por cada empresa
+ * en la que trabajaba. Aquí la identidad es única (documento + país) y lo que
+ * cambia por empresa es el vínculo (`companyLinks`). La cara enrolada
+ * (`activeBiometric`) y la firma de referencia también cuelgan de la persona,
+ * no del vínculo. Es PER-TENANT, por eso usa BelongsToTenantOrGlobal.
  */
 class Person extends Model
 {
@@ -72,6 +72,8 @@ class Person extends Model
         $isPgsql = config('database.default') === 'pgsql';
         $tbl = 'people';
 
+        // Se busca por nombre O apellido indistintamente: nadie recuerda en qué
+        // orden se cargó "Juan Carlos Pérez Gómez".
         $query->when($request->filled('name'), function ($q) use ($request, $isPgsql, $tbl) {
             $names = is_array($request->name) ? $request->name : [$request->name];
             $names = array_filter($names, fn ($n) => $n !== '');
@@ -79,17 +81,50 @@ class Person extends Model
             $q->where(function ($qq) use ($names, $isPgsql, $tbl) {
                 foreach ($names as $name) {
                     $needle = LikeQuery::contains((string) $name);
-                    if ($isPgsql) {
-                        $qq->orWhereRaw("unaccent(lower({$tbl}.name)) LIKE unaccent(lower(?))", [$needle]);
-                    } else {
-                        $qq->orWhereRaw("{$tbl}.name LIKE ? ESCAPE '\\'", [$needle]);
+                    foreach (['name', 'lastname'] as $col) {
+                        if ($isPgsql) {
+                            $qq->orWhereRaw("unaccent(lower({$tbl}.{$col})) LIKE unaccent(lower(?))", [$needle]);
+                        } else {
+                            $qq->orWhereRaw("{$tbl}.{$col} LIKE ? ESCAPE '\\'", [$needle]);
+                        }
                     }
                 }
             });
         });
 
         $query->when($request->filled('num_doc'), function ($q) use ($request, $tbl) {
-            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.code LIKE ?" : "{$tbl}.code LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->code)]);
+            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->num_doc)]);
+        });
+
+        $query->when($request->filled('doc_type'), function ($q) use ($request, $tbl) {
+            $q->where("{$tbl}.doc_type", (string) $request->doc_type);
+        });
+
+        $query->when($request->filled('country_id'), function ($q) use ($request, $tbl) {
+            $ids = array_filter((array) $request->input('country_id'), fn ($v) => $v !== '' && $v !== null);
+            if (empty($ids)) return;
+            $q->whereIn("{$tbl}.country_id", array_map('intval', $ids));
+        });
+
+        // Rol en obra: trabajador, supervisor o supervisor HSE.
+        $query->when($request->filled('role'), function ($q) use ($request) {
+            $roles = array_filter((array) $request->input('role'), fn ($v) => $v !== '' && $v !== null);
+            if (empty($roles)) return;
+            $q->whereHas('roles', fn ($r) => $r->whereIn('role', $roles)->where('is_active', true));
+        });
+
+        // Empresa en la que trabaja hoy (el vínculo, no la identidad).
+        $query->when($request->filled('company_id'), function ($q) use ($request) {
+            $ids = array_filter((array) $request->input('company_id'), fn ($v) => $v !== '' && $v !== null);
+            if (empty($ids)) return;
+            $q->whereHas('companyLinks', fn ($l) => $l->whereIn('company_id', array_map('intval', $ids)));
+        });
+
+        // Cara enrolada: sin biometría vigente la persona no puede firmar en obra.
+        $query->when($request->filled('has_biometric'), function ($q) use ($request) {
+            $tiene = filter_var($request->has_biometric, FILTER_VALIDATE_BOOLEAN);
+            $existe = fn ($b) => $b->where('is_active', true);
+            $tiene ? $q->whereHas('biometrics', $existe) : $q->whereDoesntHave('biometrics', $existe);
         });
 
         $query->when($request->filled('is_active'), function ($q) use ($request, $tbl) {
@@ -130,11 +165,20 @@ class Person extends Model
 
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');
-        if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'])) {
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'desc';
+        }
+        if ($sort === 'tenant') {
             // Orden por workspace: nombre vía left join (nulls = global).
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'is_active', 'lastname', 'created_at', 'updated_at']) && in_array($direction, ['asc', 'desc'])) {
+        } elseif ($sort === 'country') {
+            $query->leftJoin('countries', "{$tbl}.country_id", '=', 'countries.id')
+                  ->orderBy('countries.name', $direction);
+        } elseif (in_array($sort, ['companies_count', 'company_links_count', 'signatures_count'], true)) {
+            // Alias del withCount del controller — sin prefijo de tabla.
+            $query->orderBy($sort === 'companies_count' ? 'company_links_count' : $sort, $direction);
+        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'doc_type', 'is_active', 'lastname', 'created_at', 'updated_at'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 
@@ -144,11 +188,14 @@ class Person extends Model
     /**
      * @return array<int, array{key: string, label: string, type: string, operators: array<int, string>}>
      */
-    public static function filterSchema(): array
+    public static function filterSchema(array $opts = []): array
     {
         return [
-            ['key' => 'name',       'label' => __('people.name'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'num_doc',       'label' => __('people.code'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'name',       'label' => __('people.name'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'lastname',   'label' => __('people.lastname'),  'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'num_doc',    'label' => __('people.num_doc'),   'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'doc_type',   'label' => __('people.doc_type'),  'type' => 'enum',    'operators' => ['=', '!='], 'options' => $opts['doc_types'] ?? []],
+            ['key' => 'country_id', 'label' => __('people.country'),   'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['countries'] ?? []],
             ['key' => 'is_active',  'label' => __('people.is_active'), 'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],

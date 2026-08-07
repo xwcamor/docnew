@@ -156,8 +156,10 @@ class BulkWorkPlansActionJob implements ShouldQueue, ShouldBeUnique
 
     protected function setActive(WorkPlanService $service, WorkPlan $workPlan): void
     {
+        // El payload conserva la clave `is_active` (la emite el bulk compartido)
+        // pero en un plan el estado que existe es `is_done`.
         $target = (bool) ($this->payload['is_active'] ?? true);
-        if ((bool) $workPlan->is_active === $target) return;
-        $service->update($workPlan, ['is_active' => $target]);
+        if ((bool) $workPlan->is_done === $target) return;
+        $service->update($workPlan, ['is_done' => $target]);
     }
 }

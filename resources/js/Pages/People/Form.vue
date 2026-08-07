@@ -2,9 +2,10 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
+    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker,
 } from 'ant-design-vue';
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined } from '@ant-design/icons-vue';
+import dayjs from 'dayjs';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -13,15 +14,34 @@ import FormFooter from '@/Components/Common/FormFooter.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    person:       { type: Object, default: null },
+    person:             { type: Object, default: null },
+    countryOptions:     { type: Array,  default: () => [] },
+    docTypeOptions:     { type: Array,  default: () => [] },
+    nationalityOptions: { type: Array,  default: () => [] },
+    defaultCountryId:   { type: Number, default: null },
 });
 
 const isEdit = computed(() => !!props.person);
 
 const form = useForm({
-    name:       props.person?.name ?? '',
-    num_doc:       props.person?.num_doc ?? '',
-    is_active:  props.person?.is_active ?? true,
+    name:           props.person?.name ?? '',
+    lastname:       props.person?.lastname ?? '',
+    doc_type:       props.person?.doc_type ?? 'DNI',
+    num_doc:        props.person?.num_doc ?? '',
+    // Al crear, por defecto el país del usuario; al editar, el de la persona.
+    country_id:     props.person?.country_id ?? props.defaultCountryId ?? null,
+    nationality_id: props.person?.nationality_id ?? null,
+    birthdate:      props.person?.birthdate ?? null,
+    is_active:      props.person?.is_active ?? true,
+});
+
+const filterOption = (input, option) =>
+    String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase());
+
+// DatePicker trabaja con dayjs; el backend espera y devuelve 'YYYY-MM-DD'.
+const birthdate = computed({
+    get: () => (form.birthdate ? dayjs(form.birthdate) : null),
+    set: (v) => { form.birthdate = v ? v.format('YYYY-MM-DD') : null; },
 });
 
 const submit = () => {
@@ -40,9 +60,9 @@ const submit = () => {
         <SectionHeader
             :back-href="route('business_management.people.index')"
             :title="isEdit ? $t('global.edit') + ' ' + $t('people.record') : $t('people.new')"
-            :subtitle="isEdit ? person.name : $t('people.create_subtitle')"
+            :subtitle="isEdit ? person.full_name : $t('people.create_subtitle')"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><IdcardOutlined /></template>
         </SectionHeader>
 
         <div class="form-body">
@@ -83,17 +103,98 @@ const submit = () => {
                 </FormItem>
 
                 <FormItem
-                    :label="$t('people.num_doc')"
-                    :tooltip="$t('people.num_doc_help')"
-                    :validate-status="form.errors.num_doc ? 'error' : ''"
-                    :help="form.errors.num_doc"
+                    :label="$t('people.lastname')"
+                    :tooltip="$t('people.lastname_help')"
+                    required
+                    :validate-status="form.errors.lastname ? 'error' : ''"
+                    :help="form.errors.lastname"
                 >
                     <Input
-                        v-model:value="form.num_doc"
+                        v-model:value="form.lastname"
                         size="large"
-                        :maxlength="40"
-                        :placeholder="$t('people.num_doc')"
+                        :maxlength="255"
+                        showCount
+                        :placeholder="$t('people.lastname_placeholder')"
                     />
+                </FormItem>
+
+                <h2 class="form-section-title">{{ $t('people.section_identity') }}</h2>
+
+                <Row :gutter="[20, 0]">
+                    <Col :xs="24" :md="10">
+                        <FormItem
+                            :label="$t('people.doc_type')"
+                            :label-col="{ xs: 24, sm: 10 }"
+                            :wrapper-col="{ xs: 24, sm: 14 }"
+                            required
+                            :validate-status="form.errors.doc_type ? 'error' : ''"
+                            :help="form.errors.doc_type"
+                        >
+                            <Select v-model:value="form.doc_type" size="large" :options="docTypeOptions" />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :md="14">
+                        <FormItem
+                            :label="$t('people.num_doc')"
+                            :tooltip="$t('people.num_doc_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.num_doc ? 'error' : ''"
+                            :help="form.errors.num_doc"
+                        >
+                            <Input
+                                v-model:value="form.num_doc"
+                                size="large"
+                                :maxlength="20"
+                                :placeholder="$t('people.num_doc_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
+
+                <FormItem
+                    :label="$t('people.country')"
+                    :tooltip="$t('people.country_help')"
+                    required
+                    :validate-status="form.errors.country_id ? 'error' : ''"
+                    :help="form.errors.country_id"
+                >
+                    <Select
+                        v-model:value="form.country_id"
+                        size="large"
+                        show-search
+                        :options="countryOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    v-if="nationalityOptions.length"
+                    :label="$t('people.nationality')"
+                    :tooltip="$t('people.nationality_help')"
+                    :validate-status="form.errors.nationality_id ? 'error' : ''"
+                    :help="form.errors.nationality_id"
+                >
+                    <Select
+                        v-model:value="form.nationality_id"
+                        size="large"
+                        show-search
+                        allow-clear
+                        :options="nationalityOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.birthdate')"
+                    :tooltip="$t('people.birthdate_help')"
+                    :validate-status="form.errors.birthdate ? 'error' : ''"
+                    :help="form.errors.birthdate"
+                >
+                    <DatePicker v-model:value="birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
                 </FormItem>
 
                 <FormItem

@@ -57,8 +57,13 @@
 
     @php
         $headings = [
-            'id'         => __('companies.id'),
-            'name'       => __('companies.name'),
+            'id'            => __('companies.id'),
+            'name'          => __('companies.name'),
+            'num_doc'       => __('companies.num_doc'),
+            'complete_name' => __('companies.complete_name'),
+            'country'       => __('companies.country'),
+            'people_count'  => __('companies.people_count'),
+            'work_plans_count' => __('companies.plans_count'),
             'is_active'  => __('companies.is_active'),
             'slug'       => 'Slug',
             'created_at' => __('global.created_at'),
@@ -86,6 +91,11 @@
                                 @switch($col)
                                     @case('id')         {{ $item->id }} @break
                                     @case('name')       {{ $item->name }} @break
+                                    @case('num_doc')       {{ $item->num_doc }} @break
+                                    @case('complete_name') {{ $item->complete_name }} @break
+                                    @case('country')       {{ $item->country?->name ?? '—' }} @break
+                                    @case('people_count')  {{ $item->people_count ?? 0 }} @break
+                                    @case('work_plans_count') {{ $item->work_plans_count ?? 0 }} @break
                                     @case('is_active')
                                         <span class="{{ $item->is_active ? 'status-active' : 'status-inactive' }}">
                                             {{ $item->state_text }}

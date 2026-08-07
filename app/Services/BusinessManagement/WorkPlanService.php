@@ -23,6 +23,9 @@ class WorkPlanService
     public function create(array $data): WorkPlan
     {
         $workPlan = new WorkPlan($data);
+        // user_id = quien registra el plan. Es NOT NULL y no se pide en el
+        // formulario: siempre es el usuario de la sesión.
+        $workPlan->user_id    = $data['user_id'] ?? auth()->id();
         $workPlan->created_by = auth()->id();
         $workPlan->save();
         return $workPlan;
@@ -40,9 +43,10 @@ class WorkPlanService
      */
     public function delete(WorkPlan $workPlan, string $reason): void
     {
+        // Un plan no se "desactiva" al borrarlo: no tiene is_active, pasa a
+        // papelera con su motivo y nada más.
         $workPlan->deleted_description = $reason;
         $workPlan->deleted_by          = auth()->id();
-        $workPlan->is_active           = false;
         $workPlan->saveQuietly();
         $workPlan->delete();
     }
@@ -73,9 +77,9 @@ class WorkPlanService
                 'auditable_id'   => $locked->id,
                 'event'          => 'force_deleted',
                 'old_values'     => [
-                    'name' => $locked->name,
-                    'code' => $locked->code,
-                    'slug' => $locked->slug,
+                    'code'   => $locked->code,
+                    'num_os' => $locked->num_os,
+                    'slug'   => $locked->slug,
                 ],
                 'new_values'     => null,
                 'url'            => request()?->fullUrl(),
@@ -91,37 +95,42 @@ class WorkPlanService
     }
 
     /**
-     * Clona el workPlan. Sufijo "(copia)" con sanity guard de 100 intentos.
-     * El `cod` no se copia (es unique por tenant â€” se deja en null para que
-     * el usuario lo ajuste manualmente al editar el clon).
+     * Clona el plan para volver a levantar el mismo trabajo otro día: copia
+     * empresa, tipo, sede y descripción, pero NACE PENDIENTE y sin candado —
+     * las firmas y los formatos del original no se heredan.
+     *
+     * El código es único por tenant, así que se le agrega sufijo "-COPIA" (y
+     * -COPIA-2, -3…) con sanity guard de 100 intentos.
      */
     public function duplicate(WorkPlan $workPlan): ?WorkPlan
     {
-        $base    = $workPlan->name . ' (' . __('global.duplicate_suffix') . ')';
-        $isPgsql = DB::getDriverName() === 'pgsql';
+        $base = $workPlan->code . '-' . strtoupper(__('global.duplicate_suffix'));
 
-        return DB::transaction(function () use ($workPlan, $base, $isPgsql) {
+        return DB::transaction(function () use ($workPlan, $base) {
             $candidate = $base;
             $i = 2;
 
             while (true) {
                 $exists = WorkPlan::query()
-                    ->when($isPgsql,
-                        fn ($q) => $q->whereRaw('unaccent(LOWER(name)) = unaccent(LOWER(?))', [$candidate]),
-                        fn ($q) => $q->whereRaw('LOWER(name) = LOWER(?)', [$candidate]),
-                    )
+                    ->whereRaw('UPPER(code) = UPPER(?)', [$candidate])
                     ->lockForUpdate()
                     ->exists();
 
                 if (!$exists) break;
-                $candidate = $base . ' ' . $i;
+                $candidate = $base . '-' . $i;
                 $i++;
                 if ($i > 100) return null;
             }
 
-            $clone = new WorkPlan($workPlan->only(['is_active', 'num_os']));
-            $clone->name       = $candidate;
-            $clone->code       = null;
+            $clone = new WorkPlan($workPlan->only([
+                'country_id', 'company_id', 'work_type_id', 'work_location_id',
+                'workstation_id', 'work_area_id', 'num_os', 'description',
+                'date_start', 'date_end',
+            ]));
+            $clone->code       = $candidate;
+            $clone->user_id    = auth()->id() ?? $workPlan->user_id;
+            $clone->is_done    = false;
+            $clone->is_locked  = false;
             $clone->created_by = auth()->id();
             $clone->save();
 
@@ -170,9 +179,14 @@ class WorkPlanService
     }
 
     /**
+     * Marca/desmarca planes como terminados. El parámetro sigue llamándose
+     * `is_active` en el request porque lo emite el composable de bulk que
+     * comparten todos los módulos; aquí se traduce a `is_done`, que es el
+     * estado que sí existe en un plan.
+     *
      * @return array{queued: bool, count: int, changed?: int}
      */
-    public function bulkSetActive(array $ids, bool $isActive): array
+    public function bulkSetActive(array $ids, bool $isDone): array
     {
         $count = count($ids);
 
@@ -181,17 +195,17 @@ class WorkPlanService
                 (int) auth()->id(),
                 'set_active',
                 $ids,
-                ['is_active' => $isActive],
+                ['is_active' => $isDone],
             );
             return ['queued' => true, 'count' => $count];
         }
 
-        return DB::transaction(function () use ($ids, $isActive, $count) {
+        return DB::transaction(function () use ($ids, $isDone, $count) {
             $work_plans = WorkPlan::whereIn('id', $ids)->get();
             $changed   = 0;
             foreach ($work_plans as $workPlan) {
-                if ((bool) $workPlan->is_active === $isActive) continue;
-                $workPlan->update(['is_active' => $isActive]);
+                if ((bool) $workPlan->is_done === $isDone) continue;
+                $workPlan->update(['is_done' => $isDone]);
                 $changed++;
             }
             return ['queued' => false, 'count' => $count, 'changed' => $changed];
@@ -247,7 +261,7 @@ class WorkPlanService
     }
 
     /**
-     * Batch update de name + is_active. Persistencia en transaccion para
+     * Batch update de num_os + is_done. Persistencia en transaccion para
      * atomicidad. Skip filas sin cambio real para evitar audit log noise.
      *
      * @return int touched count
@@ -265,7 +279,7 @@ class WorkPlanService
                 if (!$workPlan) continue;
 
                 $patch = array_filter(
-                    array_intersect_key($change, array_flip(['name', 'is_active'])),
+                    array_intersect_key($change, array_flip(['num_os', 'is_done'])),
                     fn ($v) => $v !== null,
                 );
                 if (empty($patch)) continue;

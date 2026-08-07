@@ -178,9 +178,9 @@ class CompaniesImport implements ToCollection, WithHeadingRow
 
                     // Solo tocar campos que cambian (evita audit logs vacios). El
                     // import NO gestiona el estado (eso va por la UI / bulk); solo
-                    // refresca el code técnico si cambió.
+                    // refresca el RUC si cambió.
                     $patch = [];
-                    if ($code !== null && (string) $existing->code !== $code) $patch['num_doc'] = $code;
+                    if ($code !== null && (string) $existing->num_doc !== $code) $patch['num_doc'] = $code;
                     if (!empty($patch)) {
                         $existing->fill($patch)->save();
                     }
@@ -207,8 +207,12 @@ class CompaniesImport implements ToCollection, WithHeadingRow
 
                     // Las altas nacen activas. El import no importa registros inactivos (coherente con clientes/oil_types): el estado se gestiona desde la UI / bulk actions.
                     Company::create([
-                        'name'        => $name,
-                        'num_doc'        => $code,
+                        'name'          => $name,
+                        'num_doc'       => $code,
+                        // La razon social del documento: si no viene en el Excel
+                        // se usa el nombre corto hasta que alguien la complete.
+                        'complete_name' => $name,
+                        'country_id'    => Auth::user()?->country_id,
                         'is_active'   => true,
                         'created_by'  => Auth::id(),
                         // tenant_id lo autorellena BelongsToTenant (tenant del actor);
@@ -267,14 +271,14 @@ class CompaniesImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * ¿El code ya existe en OTRO registro (no $exceptId)? Case-insensitive,
-     * per-tenant (el global scope de BelongsToTenant limita al tenant del actor).
+     * ¿El RUC ya está en OTRO registro (no $exceptId)? Per-tenant (el global
+     * scope de BelongsToTenant limita al tenant del actor).
      */
     protected function codeTakenByOther(string $code, ?int $exceptId): bool
     {
         return Company::query()
             ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
-            ->whereRaw('LOWER(code) = LOWER(?)', [trim($code)])
+            ->where('num_doc', trim($code))
             ->exists();
     }
     /** Lowercase + strip accents (iconv) â€” mismo pattern que el DB-level layer 2. */

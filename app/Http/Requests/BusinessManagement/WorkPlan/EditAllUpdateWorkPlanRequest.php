@@ -19,12 +19,11 @@ class EditAllUpdateWorkPlanRequest extends FormRequest
         return [
             'changes'             => "required|array|min:1|max:{$max}",
             'changes.*.id'        => 'required|integer',
-            // name aceptado como sometimes (cliente puede mandar solo is_active),
-            // pero si viene, NO puede ser empty string ni null. Sin min:1 antes
-            // un cliente podÃ­a mandar name:"" y el workPlan quedaba sin nombre
-            // (rompÃ­a unicidad y bÃºsqueda).
-            'changes.*.name'      => 'sometimes|required|string|min:1|max:255',
-            'changes.*.is_active' => 'sometimes|nullable|boolean',
+            // El código del plan NO se edita en lote: identifica el registro y
+            // es la referencia contra el sistema v1. Solo la orden de servicio
+            // y el avance se corrigen en masa.
+            'changes.*.num_os'    => 'sometimes|nullable|string|max:255',
+            'changes.*.is_done'   => 'sometimes|nullable|boolean',
         ];
     }
 }

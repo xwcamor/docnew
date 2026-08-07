@@ -2,7 +2,10 @@
 
 namespace App\Imports\BusinessManagement\WorkPlans;
 
+use App\Models\Company;
+use App\Models\WorkLocation;
 use App\Models\WorkPlan;
+use App\Models\WorkType;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -10,31 +13,31 @@ use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 
 /**
- * Imports WorkPlans from .xlsx/.csv.
+ * Importa planes de trabajo desde .xlsx/.csv.
  *
- * Columns:
- *   - name  (required, max 255, unico per-tenant case/accent-insensitive)
- *   - code  (optional, max 40, identificador tecnico unico per-tenant)
+ * Columnas:
+ *   - code           (obligatorio, identifica el plan — unico per-tenant)
+ *   - num_os         (opcional)
+ *   - description    (obligatorio al crear)
+ *   - company        (RUC o nombre exacto de la empresa contratista)
+ *   - work_type      (codigo del tipo de trabajo)
+ *   - work_location  (nombre de la sede)
+ *   - date_start     (YYYY-MM-DD, opcional)
  *
- * El import NO maneja is_active: toda alta nace activa (coherente con clientes). El estado se gestiona desde la UI / bulk actions.
+ * Un plan NO nace terminado: is_done queda en false y las firmas se levantan
+ * desde la app. Por eso el import no acepta esa columna.
  *
  * Modes: 'create_only' | 'update_or_create'
  *
- * work_plans es PER-TENANT: el import scope-a por tenant_id via el global scope de
- * BelongsToTenant (WorkPlan::create autorellena el tenant del actor).
+ * work_plans es PER-TENANT: el import scope-a por tenant_id via el global scope
+ * de BelongsToTenant (WorkPlan::create autorellena el tenant del actor).
  *
- * 3-layer duplicate protection (per-tenant):
- *   1. In-file: normalizado (trim+lower+iconv) catchea dupes en el mismo upload
- *   2. App: lookup case + accent insensitive contra toda la tabla
- *   3. DB: unique constraint de `slug` (auto-generado en el modelo)
+ * 3 capas de proteccion contra duplicados (per-tenant):
+ *   1. En el archivo: el codigo normalizado catchea dupes del mismo upload
+ *   2. App: lookup case-insensitive contra toda la tabla
+ *   3. DB: indice unico parcial UPPER(code) + unique de `slug`
  *
- * Enforce `Tenant::maxRecordsPerModule()`:
- *   - Si el plan del usuario tiene limite, contamos cuantos work_plans hay HOY +
- *     cuantos vamos a CREAR. Si supera, marcamos las filas excedentes como
- *     errores (no se crean). Las filas que actualizan existentes no cuentan
- *     contra el limite. El conteo es global (catalogo unico).
- *
- * Todo va en transaccion. dryRun=true â†’ rollback al final (preview UI).
+ * Todo va en transaccion. dryRun=true → rollback al final (preview UI).
  */
 class WorkPlansImport implements ToCollection, WithHeadingRow
 {
@@ -45,13 +48,19 @@ class WorkPlansImport implements ToCollection, WithHeadingRow
     /** @var array<int, array{row:int, message:string, value?:string}> */
     public array $errors = [];
 
-    /** @var array<int, array{row:int, name:string, is_active:bool, action:string}> */
+    /** @var array<int, array{row:int, name:string, action:string}> */
     public array $preview = [];
+
     /** Limite de records del plan (>0 = aplica; 0 o PHP_INT_MAX = ilimitado). */
     protected int $maxRecords;
 
-    /** Count de work_plans del tenant del actor (pre-import). */
+    /** Count de planes del tenant del actor (pre-import). */
     protected int $currentCount;
+
+    /** Catalogos cacheados: resolver por fila seria una query por celda. */
+    protected array $companiesByKey = [];
+    protected array $workTypesByCode = [];
+    protected array $workLocationsByName = [];
 
     public function __construct(
         protected string $mode = 'update_or_create',
@@ -59,15 +68,26 @@ class WorkPlansImport implements ToCollection, WithHeadingRow
     ) {
         $user = Auth::user();
 
-        // Limite del plan del usuario. Sin tenant/plan â†’ sin limite.
         if ($user && $user->tenant) {
             $this->maxRecords = $user->tenant->maxRecordsPerModule();
         } else {
             $this->maxRecords = PHP_INT_MAX;
         }
 
-        // Snapshot del count actual del tenant (global scope de BelongsToTenant).
         $this->currentCount = WorkPlan::count();
+
+        // Una empresa se identifica por RUC o por nombre: en los Excel de obra
+        // aparecen las dos formas indistintamente.
+        foreach (Company::query()->get(['id', 'name', 'num_doc']) as $c) {
+            $this->companiesByKey[$this->key($c->num_doc)] = $c->id;
+            $this->companiesByKey[$this->key($c->name)]    = $c->id;
+        }
+        foreach (WorkType::query()->get(['id', 'code']) as $wt) {
+            $this->workTypesByCode[$this->key($wt->code)] = $wt->id;
+        }
+        foreach (WorkLocation::query()->get(['id', 'name']) as $wl) {
+            $this->workLocationsByName[$this->key($wl->name)] = $wl->id;
+        }
     }
 
     public function collection(Collection $rows): void
@@ -75,46 +95,22 @@ class WorkPlansImport implements ToCollection, WithHeadingRow
         DB::beginTransaction();
 
         try {
-            // Layer 1: dedup in-file por nombre y por code normalizados.
-            $seenInFileByName = [];
-            $seenInFileByCode = [];
-            $newRecordsCount = 0; // contador de filas que crearian un nuevo workPlan
+            $seenInFile = [];
+            $newRecordsCount = 0;
 
             foreach ($rows as $i => $row) {
                 $absoluteRow = $i + 2; // +2 = header (1) + indexacion desde 0.
 
-                $name = $this->normalizeName($row['name'] ?? null);
-                if ($name === null) {
+                $code = $this->trimOrNull($row['code'] ?? null);
+                if ($code === null) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('imports.err_name_required'),
-                        'value'   => 'â€”',
+                        'message' => __('work_plans.code_required'),
+                        'value'   => '—',
                     ];
                     continue;
                 }
-                if (mb_strlen($name) > 255) {
-                    $this->errors[] = [
-                        'row'     => $absoluteRow,
-                        'message' => __('imports.err_name_too_long'),
-                        'value'   => mb_substr($name, 0, 60) . 'â€¦',
-                    ];
-                    continue;
-                }
-
-                $normNameKey = $this->normalizeKey($name);
-                if (isset($seenInFileByName[$normNameKey])) {
-                    $this->errors[] = [
-                        'row'     => $absoluteRow,
-                        'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFileByName[$normNameKey]]),
-                        'value'   => $name,
-                    ];
-                    continue;
-                }
-                $seenInFileByName[$normNameKey] = $absoluteRow;
-
-                // code (opcional): identificador tecnico unico per-tenant.
-                $code = $this->normalizeCode($row['code'] ?? null);
-                if ($code !== null && mb_strlen($code) > 40) {
+                if (mb_strlen($code) > 255) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
                         'message' => __('imports.err_code_too_long'),
@@ -122,108 +118,111 @@ class WorkPlansImport implements ToCollection, WithHeadingRow
                     ];
                     continue;
                 }
-                if ($code !== null) {
-                    $codeKey = mb_strtolower($code);
-                    if (isset($seenInFileByCode[$codeKey])) {
-                        $this->errors[] = [
-                            'row'     => $absoluteRow,
-                            'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFileByCode[$codeKey]]),
-                            'value'   => $code,
-                        ];
-                        continue;
-                    }
-                    $seenInFileByCode[$codeKey] = $absoluteRow;
-                }
 
-                // Layer 2: DB lookup case + accent insensitive (per-tenant).
-                $existing = $this->findExistingByNameInsensitive($name);
-
-                // code unico per-tenant: si choca con OTRO registro (no el matcheado
-                // por name), se rechaza la fila.
-                if ($code !== null && $this->codeTakenByOther($code, $existing?->id)) {
+                $codeKey = $this->key($code);
+                if (isset($seenInFile[$codeKey])) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('imports.err_code_duplicate', ['value' => $code]),
+                        'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFile[$codeKey]]),
                         'value'   => $code,
                     ];
                     continue;
                 }
+                $seenInFile[$codeKey] = $absoluteRow;
+
+                $existing = WorkPlan::query()
+                    ->whereRaw('UPPER(work_plans.code) = UPPER(?)', [$code])
+                    ->first();
 
                 if ($existing) {
-                    // Registro BLOQUEADO (Lockable): el import no lo pisa. Se reporta
-                    // como saltado para que el usuario sepa que existe pero está
-                    // congelado (hay que desbloquearlo para actualizarlo).
+                    // Registro BLOQUEADO (Lockable): el import no lo pisa.
                     if ($existing->is_locked) {
                         $this->skipped++;
-                        $this->preview[] = [
-                            'row'         => $absoluteRow,
-                            'name'        => $name,
-                            'is_active'   => (bool) $existing->is_active,
-                            'action'      => 'skipped',
-                            'reason'      => 'locked',
-                        ];
+                        $this->preview[] = ['row' => $absoluteRow, 'name' => $code, 'action' => 'skipped', 'reason' => 'locked'];
                         continue;
                     }
-
                     if ($this->mode === 'create_only') {
                         $this->skipped++;
-                        $this->preview[] = [
-                            'row'         => $absoluteRow,
-                            'name'        => $name,
-                            'is_active'   => (bool) $existing->is_active,
-                            'action'      => 'skipped',
-                        ];
+                        $this->preview[] = ['row' => $absoluteRow, 'name' => $code, 'action' => 'skipped'];
                         continue;
                     }
 
-                    // Solo tocar campos que cambian (evita audit logs vacios). El
-                    // import NO gestiona el estado (eso va por la UI / bulk); solo
-                    // refresca el code técnico si cambió.
+                    // Solo se tocan los campos que cambian: evita audit logs vacios.
                     $patch = [];
-                    if ($code !== null && (string) $existing->code !== $code) $patch['code'] = $code;
+                    foreach (['num_os', 'description'] as $field) {
+                        $value = $this->trimOrNull($row[$field] ?? null);
+                        if ($value !== null && (string) $existing->{$field} !== $value) {
+                            $patch[$field] = $value;
+                        }
+                    }
+                    $dateStart = $this->trimOrNull($row['date_start'] ?? null);
+                    if ($dateStart !== null && optional($existing->date_start)->format('Y-m-d') !== $dateStart) {
+                        $patch['date_start'] = $dateStart;
+                    }
                     if (!empty($patch)) {
                         $existing->fill($patch)->save();
                     }
 
                     $this->updated++;
-                    $this->preview[] = [
-                        'row'         => $absoluteRow,
-                        'name'        => $name,
-                        'is_active'   => (bool) $existing->is_active,
-                        'action'      => 'updated',
-                    ];
-                } else {
-                    // Antes de crear, validar limite del plan.
-                    if ($this->maxRecords > 0 && $this->maxRecords !== PHP_INT_MAX) {
-                        if (($this->currentCount + $newRecordsCount) >= $this->maxRecords) {
-                            $this->errors[] = [
-                                'row'     => $absoluteRow,
-                                'message' => __('plans.limit_records_reached', ['max' => $this->maxRecords]),
-                                'value'   => $name,
-                            ];
-                            continue;
-                        }
-                    }
-
-                    // Las altas nacen activas. El import no importa registros inactivos (coherente con clientes/oil_types): el estado se gestiona desde la UI / bulk actions.
-                    WorkPlan::create([
-                        'name'        => $name,
-                        'code'        => $code,
-                        'is_active'   => true,
-                        'created_by'  => Auth::id(),
-                        // tenant_id lo autorellena BelongsToTenant (tenant del actor);
-                        // el slug lo auto-genera el modelo en `creating`.
-                    ]);
-
-                    $newRecordsCount++;
-                    $this->created++;
-                    $this->preview[] = [
-                        'row'         => $absoluteRow,
-                        'name'        => $name,
-                        'is_active'   => true,
-                        'action'      => 'created',
-                    ];
+                    $this->preview[] = ['row' => $absoluteRow, 'name' => $code, 'action' => 'updated'];
+                    continue;
                 }
+
+                // ── Alta: hacen falta empresa, tipo de trabajo y sede ────────
+                $description = $this->trimOrNull($row['description'] ?? null);
+                if ($description === null) {
+                    $this->errors[] = ['row' => $absoluteRow, 'message' => __('work_plans.description_required'), 'value' => $code];
+                    continue;
+                }
+
+                $companyId = $this->companiesByKey[$this->key($row['company'] ?? '')] ?? null;
+                if ($companyId === null) {
+                    $this->errors[] = ['row' => $absoluteRow, 'message' => __('work_plans.company_required'), 'value' => (string) ($row['company'] ?? '')];
+                    continue;
+                }
+                $workTypeId = $this->workTypesByCode[$this->key($row['work_type'] ?? '')] ?? null;
+                if ($workTypeId === null) {
+                    $this->errors[] = ['row' => $absoluteRow, 'message' => __('work_plans.work_type_required'), 'value' => (string) ($row['work_type'] ?? '')];
+                    continue;
+                }
+                $workLocationId = $this->workLocationsByName[$this->key($row['work_location'] ?? '')] ?? null;
+                if ($workLocationId === null) {
+                    $this->errors[] = ['row' => $absoluteRow, 'message' => __('work_plans.work_location_required'), 'value' => (string) ($row['work_location'] ?? '')];
+                    continue;
+                }
+
+                if ($this->maxRecords > 0 && $this->maxRecords !== PHP_INT_MAX) {
+                    if (($this->currentCount + $newRecordsCount) >= $this->maxRecords) {
+                        $this->errors[] = [
+                            'row'     => $absoluteRow,
+                            'message' => __('plans.limit_records_reached', ['max' => $this->maxRecords]),
+                            'value'   => $code,
+                        ];
+                        continue;
+                    }
+                }
+
+                WorkPlan::create([
+                    'code'             => $code,
+                    'num_os'           => $this->trimOrNull($row['num_os'] ?? null),
+                    'description'      => $description,
+                    'country_id'       => Auth::user()?->country_id,
+                    'company_id'       => $companyId,
+                    'work_type_id'     => $workTypeId,
+                    'work_location_id' => $workLocationId,
+                    'date_start'       => $this->trimOrNull($row['date_start'] ?? null),
+                    // Un plan importado nace pendiente: las firmas se levantan
+                    // en obra, nunca desde un Excel.
+                    'is_done'          => false,
+                    'user_id'          => Auth::id(),
+                    'created_by'       => Auth::id(),
+                    // tenant_id lo autorellena BelongsToTenant; el slug lo
+                    // auto-genera el modelo en `creating`.
+                ]);
+
+                $newRecordsCount++;
+                $this->created++;
+                $this->preview[] = ['row' => $absoluteRow, 'name' => $code, 'action' => 'created'];
             }
 
             if ($this->dryRun) {
@@ -251,55 +250,18 @@ class WorkPlansImport implements ToCollection, WithHeadingRow
         ];
     }
 
-    protected function normalizeName(mixed $value): ?string
+    protected function trimOrNull(mixed $value): ?string
     {
         if ($value === null) return null;
-        $name = trim((string) $value);
-        return $name === '' ? null : $name;
+        $v = trim((string) $value);
+        return $v === '' ? null : $v;
     }
 
-    /** Trim → null si vacío. El code es el identificador técnico. */
-    protected function normalizeCode(mixed $value): ?string
+    /** Lowercase + sin tildes: los catalogos de obra vienen escritos a mano. */
+    protected function key(mixed $value): string
     {
-        if ($value === null) return null;
-        $code = trim((string) $value);
-        return $code === '' ? null : $code;
-    }
-
-    /**
-     * ¿El code ya existe en OTRO registro (no $exceptId)? Case-insensitive,
-     * per-tenant (el global scope de BelongsToTenant limita al tenant del actor).
-     */
-    protected function codeTakenByOther(string $code, ?int $exceptId): bool
-    {
-        return WorkPlan::query()
-            ->when($exceptId, fn ($q) => $q->where('id', '!=', $exceptId))
-            ->whereRaw('LOWER(code) = LOWER(?)', [trim($code)])
-            ->exists();
-    }
-    /** Lowercase + strip accents (iconv) â€” mismo pattern que el DB-level layer 2. */
-    protected function normalizeKey(string $name): string
-    {
-        $lower    = mb_strtolower(trim($name));
+        $lower    = mb_strtolower(trim((string) $value));
         $stripped = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $lower);
         return $stripped !== false ? $stripped : $lower;
-    }
-
-    /**
-     * Lookup case + accent insensitive (Postgres unaccent / fallback LOWER).
-     * Per-tenant: el global scope de BelongsToTenant limita al tenant del actor.
-     */
-    protected function findExistingByNameInsensitive(string $name): ?WorkPlan
-    {
-        $isPgsql = DB::getDriverName() === 'pgsql';
-        $query   = WorkPlan::query();
-
-        if ($isPgsql) {
-            $query->whereRaw('unaccent(LOWER(work_plans.name)) = unaccent(LOWER(?))', [$name]);
-        } else {
-            $query->whereRaw('LOWER(work_plans.name) = LOWER(?)', [$name]);
-        }
-
-        return $query->first();
     }
 }

@@ -51,8 +51,11 @@ class CompaniesExport implements FromCollection, WithEvents, WithTitle
         $this->columnDefs = [
             'id'         => ['heading' => __('companies.id'),        'value' => fn($c, $i) => $c->id],
             'name'       => ['heading' => __('companies.name'),      'value' => fn($c, $i) => $c->name],
-            'num_doc'       => ['heading' => __('companies.num_doc'),      'value' => fn($c, $i) => $c->code],
-            'complete_name' => ['heading' => __('companies.complete_name'), 'value' => fn($c, $i) => $c->sort_order ?? ''],
+            'num_doc'       => ['heading' => __('companies.num_doc'),      'value' => fn($c, $i) => (string) $c->num_doc],
+            'complete_name' => ['heading' => __('companies.complete_name'), 'value' => fn($c, $i) => (string) ($c->complete_name ?? '')],
+            'country'       => ['heading' => __('companies.country'),      'value' => fn($c, $i) => (string) ($c->country?->name ?? '—')],
+            'people_count'  => ['heading' => __('companies.people_count'), 'value' => fn($c, $i) => (string) ($c->people_count ?? 0)],
+            'work_plans_count' => ['heading' => __('companies.plans_count'), 'value' => fn($c, $i) => (string) ($c->work_plans_count ?? 0)],
             'is_active'  => ['heading' => __('companies.is_active'), 'value' => fn($c, $i) => $c->state_text],
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c, $i) => $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c, $i) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT)],

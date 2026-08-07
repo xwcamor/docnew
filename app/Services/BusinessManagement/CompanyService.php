@@ -92,8 +92,8 @@ class CompanyService
 
     /**
      * Clona el company. Sufijo "(copia)" con sanity guard de 100 intentos.
-     * El `cod` no se copia (es unique por tenant â€” se deja en null para que
-     * el usuario lo ajuste manualmente al editar el clon).
+     * El RUC NO se copia (es unico por pais y workspace): el clon nace con un
+     * marcador que el usuario debe reemplazar al editarlo.
      */
     public function duplicate(Company $company): ?Company
     {
@@ -119,9 +119,10 @@ class CompanyService
                 if ($i > 100) return null;
             }
 
-            $clone = new Company($company->only(['is_active', 'complete_name']));
+            $clone = new Company($company->only(['is_active', 'complete_name', 'country_id']));
             $clone->name       = $candidate;
-            $clone->code       = null;
+            // RUC provisional unico: la tabla lo exige NOT NULL y unico.
+            $clone->num_doc    = 'COPIA-' . strtoupper(\Illuminate\Support\Str::random(8));
             $clone->created_by = auth()->id();
             $clone->save();
 

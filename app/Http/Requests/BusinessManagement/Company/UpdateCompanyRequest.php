@@ -5,11 +5,25 @@ namespace App\Http\Requests\BusinessManagement\Company;
 use App\Http\Requests\Concerns\DerivesAttributesFromLang;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+
 class UpdateCompanyRequest extends FormRequest
 {
     use DerivesAttributesFromLang;
 
     protected $attributeNamespace = 'companies';
+
+    protected $attributeOverrides = [
+        'country_id' => 'companies.country',
+    ];
+
+    protected function prepareForValidation(): void
+    {
+        // El RUC se guarda sin espacios ni guiones: así se compara y así se busca.
+        if ($this->filled('num_doc')) {
+            $this->merge(['num_doc' => preg_replace('/[\s-]/', '', (string) $this->num_doc)]);
+        }
+    }
 
     public function authorize(): bool
     {
@@ -49,21 +63,27 @@ class UpdateCompanyRequest extends FormRequest
                     }
                 },
             ],
-            'num_doc'       => [
-                'nullable', 'string', 'max:40',
-                function ($attribute, $value, $fail) use ($companyId) {
-                    if ($value === null || $value === '') return;
+            'complete_name' => ['required', 'string', 'max:255'],
+            // El RUC no se repite dentro del mismo país y workspace — mismo
+            // criterio que el índice único parcial de la tabla.
+            'num_doc' => [
+                'required', 'string', 'max:20',
+                function ($attribute, $value, $fail) use ($companyId, $company) {
+                    $countryId = $this->input('country_id')
+                        ?? (is_object($company) ? $company->country_id : null);
                     $exists = DB::table('companies')
                         ->whereNull('deleted_at')
                         ->where('tenant_id', auth()->user()?->tenant_id)
+                        ->where('country_id', $countryId)
                         ->when($companyId, fn ($qq) => $qq->where('id', '!=', $companyId))
-                        ->whereRaw('LOWER(code) = LOWER(?)', [trim((string) $value)])
+                        ->where('num_doc', trim((string) $value))
                         ->exists();
                     if ($exists) {
                         $fail(__('companies.num_doc_unique'));
                     }
                 },
             ],
+            'country_id' => ['required', 'integer', Rule::exists('countries', 'id')],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

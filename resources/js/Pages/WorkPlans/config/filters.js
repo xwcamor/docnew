@@ -1,34 +1,58 @@
 import dayjs from 'dayjs';
 
 /**
- * Schema de filtros del módulo WorkPlans (catálogo global de marcas).
- * Campos de dominio: name + code + is_active. Mismo patrón que Regions/Tenants.
+ * Schema de filtros del módulo WorkPlans.
+ *
+ * El campo libre se llama `search` y no `name` a propósito: un plan no tiene
+ * nombre, se lo busca por código, orden de servicio o un pedazo de la
+ * descripción del trabajo (el backend consulta las tres columnas).
+ *
+ * Las opciones de empresa / tipo de trabajo / sede las inyecta el controller.
  */
-export const workPlansFilterFields = (t) => [
-    { key: 'name',           label: t('work_plans.filter_name'), type: 'tags' },
-    { key: 'code',           label: t('work_plans.code'),        type: 'text' },
-    { key: 'is_active',      label: t('work_plans.is_active'),   type: 'select', options: [
-        { value: true,  label: t('global.active')   },
-        { value: false, label: t('global.inactive') },
+export const workPlansFilterFields = (t, {
+    companyOptions = [], workTypeOptions = [], workLocationOptions = [],
+} = {}) => [
+    { key: 'search',           label: t('work_plans.filter_search'),  type: 'tags' },
+    { key: 'company_id',       label: t('work_plans.company'),        type: 'multiselect', options: companyOptions },
+    { key: 'work_type_id',     label: t('work_plans.work_type'),      type: 'multiselect', options: workTypeOptions },
+    { key: 'work_location_id', label: t('work_plans.work_location'),  type: 'multiselect', options: workLocationOptions },
+    { key: 'is_done',          label: t('work_plans.is_done'),        type: 'select', options: [
+        { value: true,  label: t('work_plans.state_done')    },
+        { value: false, label: t('work_plans.state_pending') },
     ]},
-    { key: 'created_at',     label: t('global.created_at'),     type: 'date_range' },
-    { key: 'only_favorites', label: t('global.only_favorites'), type: 'switch' },
+    { key: 'is_locked',        label: t('work_plans.is_locked'),      type: 'select', options: [
+        { value: true,  label: t('work_plans.state_locked')   },
+        { value: false, label: t('work_plans.state_unlocked') },
+    ]},
+    { key: 'work_date',        label: t('work_plans.date_start'),     type: 'date_range' },
+    { key: 'created_at',       label: t('global.created_at'),         type: 'date_range' },
+    { key: 'only_favorites',   label: t('global.only_favorites'),     type: 'switch' },
 ];
 
 /** Estado vacío del form de filtros (también usado por clearFilters). */
 export const workPlansEmptyFilters = () => ({
-    name: [],
-    code: '',
-    is_active: null,
+    search: [],
+    company_id: [],
+    work_type_id: [],
+    work_location_id: [],
+    is_done: null,
+    is_locked: null,
+    work_date: null,
     created_at: null,
     only_favorites: false,
 });
 
 /** Backend payload → form local (dates ISO → dayjs). */
 export const hydrateWorkPlansFilters = (server) => ({
-    name:       Array.isArray(server.name) ? server.name : [],
-    code:       server.code || '',
-    is_active:  server.is_active ?? null,
+    search:           Array.isArray(server.search) ? server.search : [],
+    company_id:       Array.isArray(server.company_id) ? server.company_id : [],
+    work_type_id:     Array.isArray(server.work_type_id) ? server.work_type_id : [],
+    work_location_id: Array.isArray(server.work_location_id) ? server.work_location_id : [],
+    is_done:          server.is_done ?? null,
+    is_locked:        server.is_locked ?? null,
+    work_date: (server.date_from && server.date_to)
+        ? [dayjs(server.date_from), dayjs(server.date_to)]
+        : null,
     created_at: (server.created_from && server.created_to)
         ? [dayjs(server.created_from), dayjs(server.created_to)]
         : null,
@@ -37,23 +61,34 @@ export const hydrateWorkPlansFilters = (server) => ({
 
 /** Form local → request params para Inertia reload. */
 export const workPlansFiltersToQuery = (f) => ({
-    name:           f.name?.length ? f.name : undefined,
-    code:           f.code || undefined,
-    is_active:      f.is_active ?? undefined,
-    created_from:   f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
-    created_to:     f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
-    only_favorites: f.only_favorites ? 1 : undefined,
+    search:           f.search?.length ? f.search : undefined,
+    company_id:       f.company_id?.length ? f.company_id : undefined,
+    work_type_id:     f.work_type_id?.length ? f.work_type_id : undefined,
+    work_location_id: f.work_location_id?.length ? f.work_location_id : undefined,
+    is_done:          f.is_done ?? undefined,
+    is_locked:        f.is_locked ?? undefined,
+    date_from:        f.work_date?.[0]?.format('YYYY-MM-DD') ?? undefined,
+    date_to:          f.work_date?.[1]?.format('YYYY-MM-DD') ?? undefined,
+    created_from:     f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
+    created_to:       f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
+    only_favorites:   f.only_favorites ? 1 : undefined,
 });
 
 /** Resumen legible para la portada del export PDF/Word. */
 export const workPlansFiltersSummary = (f, t) => {
     const parts = [];
-    if (f.name?.length)        parts.push(`${t('work_plans.filter_name')}: ${f.name.join(', ')}`);
-    if (f.code)                parts.push(`${t('work_plans.code')}: ${f.code}`);
-    if (f.is_active !== null && f.is_active !== undefined) {
-        parts.push(`${t('work_plans.is_active')}: ${f.is_active ? t('global.active') : t('global.inactive')}`);
+    if (f.search?.length)           parts.push(`${t('work_plans.filter_search')}: ${f.search.join(', ')}`);
+    if (f.company_id?.length)       parts.push(`${t('work_plans.company')}: ${f.company_id.length}`);
+    if (f.work_type_id?.length)     parts.push(`${t('work_plans.work_type')}: ${f.work_type_id.length}`);
+    if (f.work_location_id?.length) parts.push(`${t('work_plans.work_location')}: ${f.work_location_id.length}`);
+    if (f.is_done !== null && f.is_done !== undefined) {
+        parts.push(`${t('work_plans.is_done')}: ${f.is_done ? t('work_plans.state_done') : t('work_plans.state_pending')}`);
     }
-    if (f.created_at)          parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
+    if (f.is_locked !== null && f.is_locked !== undefined) {
+        parts.push(`${t('work_plans.is_locked')}: ${f.is_locked ? t('work_plans.state_locked') : t('work_plans.state_unlocked')}`);
+    }
+    if (f.work_date)  parts.push(`${t('work_plans.date_start')}: ${f.work_date[0]?.format('YYYY-MM-DD')} → ${f.work_date[1]?.format('YYYY-MM-DD')}`);
+    if (f.created_at) parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
     return parts.join(' · ');
 };
 
@@ -62,19 +97,29 @@ export const workPlansFiltersSummary = (f, t) => {
  * Round-trip con `deserializeSavedFilters`.
  */
 export const serializeSavedFilters = (f) => ({
-    name:           f.name ?? [],
-    code:           f.code ?? '',
-    is_active:      f.is_active ?? null,
-    created_at:     f.created_at?.[0]
+    search:           f.search ?? [],
+    company_id:       f.company_id ?? [],
+    work_type_id:     f.work_type_id ?? [],
+    work_location_id: f.work_location_id ?? [],
+    is_done:          f.is_done ?? null,
+    is_locked:        f.is_locked ?? null,
+    work_date:  f.work_date?.[0]
+        ? [f.work_date[0].format('YYYY-MM-DD'), f.work_date[1]?.format('YYYY-MM-DD')]
+        : null,
+    created_at: f.created_at?.[0]
         ? [f.created_at[0].format('YYYY-MM-DD'), f.created_at[1]?.format('YYYY-MM-DD')]
         : null,
     only_favorites: !!f.only_favorites,
 });
 
 export const deserializeSavedFilters = (f = {}) => ({
-    name:           Array.isArray(f.name) ? f.name : [],
-    code:           f.code ?? '',
-    is_active:      f.is_active ?? null,
-    created_at:     f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
+    search:           Array.isArray(f.search) ? f.search : [],
+    company_id:       Array.isArray(f.company_id) ? f.company_id : [],
+    work_type_id:     Array.isArray(f.work_type_id) ? f.work_type_id : [],
+    work_location_id: Array.isArray(f.work_location_id) ? f.work_location_id : [],
+    is_done:          f.is_done ?? null,
+    is_locked:        f.is_locked ?? null,
+    work_date:  f.work_date?.[0]  ? [dayjs(f.work_date[0]),  dayjs(f.work_date[1])]  : null,
+    created_at: f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
     only_favorites: f.only_favorites ?? false,
 });

@@ -32,7 +32,7 @@ const submit = () => {
     <DeletePage
         :back-href="route('business_management.people.index')"
         :title="$t('global.delete') + ' ' + $t('people.record')"
-        :subtitle="person.name"
+        :subtitle="person.full_name"
         v-model="form.deleted_description"
         :error="form.errors.deleted_description"
         :processing="form.processing"
@@ -54,10 +54,12 @@ const submit = () => {
         </template>
 
         <template #summary>
-            <DeleteSummaryRow :label="$t('people.name')">{{ person.name }}</DeleteSummaryRow>
-            <DeleteSummaryRow v-if="person.num_doc" :label="$t('people.num_doc')">
-                <code>{{ person.num_doc }}</code>
+            <DeleteSummaryRow :label="$t('people.full_name')">{{ person.full_name }}</DeleteSummaryRow>
+            <DeleteSummaryRow :label="$t('people.document')">
+                {{ person.doc_type }} <code>{{ person.num_doc }}</code>
             </DeleteSummaryRow>
+            <DeleteSummaryRow v-if="person.country" :label="$t('people.country')">{{ person.country.name }}</DeleteSummaryRow>
+            <DeleteSummaryRow :label="$t('people.companies')">{{ person.companies_count ?? 0 }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('people.is_active')">
                 <Tag :color="person.is_active ? 'success' : 'error'" :bordered="false">
                     {{ person.is_active ? $t('global.active') : $t('global.inactive') }}

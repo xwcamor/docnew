@@ -10,11 +10,13 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 /**
- * Plantilla XLSX descargable para imports de people.
+ * Plantilla XLSX descargable para imports de personas.
  *
  * Columnas:
- *   - name (obligatorio, max 255, unico per-tenant)
- *   - code (opcional, max 40, identificador tecnico unico per-tenant)
+ *   - doc_type (opcional — DNI si no viene)
+ *   - num_doc  (obligatorio: es lo que identifica a la persona)
+ *   - name     (obligatorio)
+ *   - lastname (obligatorio)
  *
  * No incluye is_active: toda alta importada nace activa (el estado se gestiona desde la UI).
  *
@@ -26,10 +28,9 @@ class PeopleImportTemplate implements FromArray, WithEvents
         public function array(): array
     {
         return [
-            ['name', 'num_doc'],
-            ['Acme', 'acme'],
-            ['Globex', 'globex'],
-            ['Contoso', 'contoso'],
+            ['doc_type', 'num_doc', 'name', 'lastname'],
+            ['DNI', '45871236', 'Juan Carlos', 'Pérez Gómez'],
+            ['CE', '001234567', 'María', 'Salazar Ríos'],
         ];
     }
 
@@ -40,7 +41,7 @@ class PeopleImportTemplate implements FromArray, WithEvents
                 $sheet = $event->sheet->getDelegate();
 
                 // Header SAP-blue
-                $sheet->getStyle('A1:B1')->applyFromArray([
+                $sheet->getStyle('A1:D1')->applyFromArray([
                     'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF'], 'size' => 11],
                     'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => '0A6ED1']],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_LEFT, 'vertical' => Alignment::VERTICAL_CENTER],
@@ -48,11 +49,13 @@ class PeopleImportTemplate implements FromArray, WithEvents
                 ]);
                 $sheet->getRowDimension(1)->setRowHeight(26);
 
-                foreach (['A', 'B'] as $col) {
+                foreach (['A', 'B', 'C', 'D'] as $col) {
                     $sheet->getColumnDimension($col)->setAutoSize(true);
                 }
 
-                // Tooltip en el header de code (triangulo rojo, no pollutea datos).
+                // Tooltip en el header del documento (triangulo rojo, no
+                // pollutea datos): es la columna que decide si la fila crea o
+                // actualiza a alguien.
                 $commentCode = $sheet->getComment('B1');
                 $commentCode->setAuthor(__('imports.template_author'));
                 $commentCode->getText()->createTextRun(

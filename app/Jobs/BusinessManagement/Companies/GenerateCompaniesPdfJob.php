@@ -20,7 +20,7 @@ class GenerateCompaniesPdfJob extends BaseCompanyExportJob
         $title          = $this->options['title']                   ?? __('companies.export_title');
         $orientation    = $this->options['orientation']             ?? 'portrait';
         $paperSize      = $this->options['paper_size']              ?? 'a4';
-        $columns        = $this->options['columns']                 ?? ['id', 'name', 'code', 'is_active', 'created_at', 'creator'];
+        $columns        = $this->options['columns']                 ?? ['id', 'name', 'num_doc', 'complete_name', 'country', 'is_active', 'created_at', 'creator'];
         $includeFilters = $this->options['include_filters_summary'] ?? true;
         $filtersSummary = $includeFilters ? $this->buildFiltersSummary() : [];
         $generatedBy    = optional(\App\Models\User::find($this->userId))->name ?? 'â€”';

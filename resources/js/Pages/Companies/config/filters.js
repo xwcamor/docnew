@@ -1,13 +1,16 @@
 import dayjs from 'dayjs';
 
 /**
- * Schema de filtros del módulo Companies (catálogo global de marcas).
- * Campos de dominio: name + code + is_active. Mismo patrón que Regions/Tenants.
+ * Schema de filtros del módulo Companies (empresas contratistas).
+ * Campos de dominio: nombre, RUC, razón social, país y estado.
+ * Las opciones de país las inyecta el controller.
  */
-export const companiesFilterFields = (t) => [
-    { key: 'name',           label: t('companies.filter_name'), type: 'tags' },
-    { key: 'num_doc',           label: t('companies.num_doc'),        type: 'text' },
-    { key: 'is_active',      label: t('companies.is_active'),   type: 'select', options: [
+export const companiesFilterFields = (t, { countryOptions = [] } = {}) => [
+    { key: 'name',           label: t('companies.filter_name'),    type: 'tags' },
+    { key: 'num_doc',        label: t('companies.num_doc'),        type: 'text' },
+    { key: 'complete_name',  label: t('companies.complete_name'),  type: 'text' },
+    { key: 'country_id',     label: t('companies.country'),        type: 'multiselect', options: countryOptions },
+    { key: 'is_active',      label: t('companies.is_active'),      type: 'select', options: [
         { value: true,  label: t('global.active')   },
         { value: false, label: t('global.inactive') },
     ]},
@@ -19,6 +22,8 @@ export const companiesFilterFields = (t) => [
 export const companiesEmptyFilters = () => ({
     name: [],
     num_doc: '',
+    complete_name: '',
+    country_id: [],
     is_active: null,
     created_at: null,
     only_favorites: false,
@@ -26,9 +31,11 @@ export const companiesEmptyFilters = () => ({
 
 /** Backend payload → form local (dates ISO → dayjs). */
 export const hydrateCompaniesFilters = (server) => ({
-    name:       Array.isArray(server.name) ? server.name : [],
+    name:          Array.isArray(server.name) ? server.name : [],
     num_doc:       server.num_doc || '',
-    is_active:  server.is_active ?? null,
+    complete_name: server.complete_name || '',
+    country_id:    Array.isArray(server.country_id) ? server.country_id : [],
+    is_active:     server.is_active ?? null,
     created_at: (server.created_from && server.created_to)
         ? [dayjs(server.created_from), dayjs(server.created_to)]
         : null,
@@ -38,7 +45,9 @@ export const hydrateCompaniesFilters = (server) => ({
 /** Form local → request params para Inertia reload. */
 export const companiesFiltersToQuery = (f) => ({
     name:           f.name?.length ? f.name : undefined,
-    num_doc:           f.num_doc || undefined,
+    num_doc:        f.num_doc || undefined,
+    complete_name:  f.complete_name || undefined,
+    country_id:     f.country_id?.length ? f.country_id : undefined,
     is_active:      f.is_active ?? undefined,
     created_from:   f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
     created_to:     f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
@@ -48,12 +57,14 @@ export const companiesFiltersToQuery = (f) => ({
 /** Resumen legible para la portada del export PDF/Word. */
 export const companiesFiltersSummary = (f, t) => {
     const parts = [];
-    if (f.name?.length)        parts.push(`${t('companies.filter_name')}: ${f.name.join(', ')}`);
-    if (f.num_doc)                parts.push(`${t('companies.num_doc')}: ${f.num_doc}`);
+    if (f.name?.length)       parts.push(`${t('companies.filter_name')}: ${f.name.join(', ')}`);
+    if (f.num_doc)            parts.push(`${t('companies.num_doc')}: ${f.num_doc}`);
+    if (f.complete_name)      parts.push(`${t('companies.complete_name')}: ${f.complete_name}`);
+    if (f.country_id?.length) parts.push(`${t('companies.country')}: ${f.country_id.length}`);
     if (f.is_active !== null && f.is_active !== undefined) {
         parts.push(`${t('companies.is_active')}: ${f.is_active ? t('global.active') : t('global.inactive')}`);
     }
-    if (f.created_at)          parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
+    if (f.created_at)         parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
     return parts.join(' · ');
 };
 
@@ -62,19 +73,23 @@ export const companiesFiltersSummary = (f, t) => {
  * Round-trip con `deserializeSavedFilters`.
  */
 export const serializeSavedFilters = (f) => ({
-    name:           f.name ?? [],
-    num_doc:           f.num_doc ?? '',
-    is_active:      f.is_active ?? null,
-    created_at:     f.created_at?.[0]
+    name:          f.name ?? [],
+    num_doc:       f.num_doc ?? '',
+    complete_name: f.complete_name ?? '',
+    country_id:    f.country_id ?? [],
+    is_active:     f.is_active ?? null,
+    created_at:    f.created_at?.[0]
         ? [f.created_at[0].format('YYYY-MM-DD'), f.created_at[1]?.format('YYYY-MM-DD')]
         : null,
     only_favorites: !!f.only_favorites,
 });
 
 export const deserializeSavedFilters = (f = {}) => ({
-    name:           Array.isArray(f.name) ? f.name : [],
-    num_doc:           f.num_doc ?? '',
-    is_active:      f.is_active ?? null,
-    created_at:     f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
+    name:          Array.isArray(f.name) ? f.name : [],
+    num_doc:       f.num_doc ?? '',
+    complete_name: f.complete_name ?? '',
+    country_id:    Array.isArray(f.country_id) ? f.country_id : [],
+    is_active:     f.is_active ?? null,
+    created_at:    f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
     only_favorites: f.only_favorites ?? false,
 });

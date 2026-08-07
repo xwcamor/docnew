@@ -167,6 +167,17 @@ abstract class BaseCompanyExportJob implements ShouldQueue
         if (in_array('creator', $columns)) {
             $base->with('creator:id,name');
         }
+        // El nombre del país y los conteos solo se traen si se van a exportar:
+        // un join de más sobre 22 empresas da igual, sobre 3.7k planes no.
+        if (in_array('country', $columns, true)) {
+            $base->with('country:id,name');
+        }
+        if (in_array('people_count', $columns, true)) {
+            $base->withCount('people');
+        }
+        if (in_array('work_plans_count', $columns, true)) {
+            $base->withCount('workPlans');
+        }
 
         if ($scope === 'selected' && !empty($this->options['selected_ids'])) {
             return $base->whereIn('companies.id', $this->options['selected_ids']);
@@ -195,8 +206,11 @@ abstract class BaseCompanyExportJob implements ShouldQueue
             $names = is_array($f['name']) ? $f['name'] : [$f['name']];
             $out[] = ['label' => __('companies.name'), 'value' => implode(', ', $names)];
         }
-        if (!empty($f['code'])) {
-            $out[] = ['label' => __('companies.code'), 'value' => (string) $f['code']];
+        if (!empty($f['num_doc'])) {
+            $out[] = ['label' => __('companies.num_doc'), 'value' => (string) $f['num_doc']];
+        }
+        if (!empty($f['complete_name'])) {
+            $out[] = ['label' => __('companies.complete_name'), 'value' => (string) $f['complete_name']];
         }
         if (isset($f['is_active']) && $f['is_active'] !== '' && $f['is_active'] !== null) {
             $bool = filter_var($f['is_active'], FILTER_VALIDATE_BOOLEAN);

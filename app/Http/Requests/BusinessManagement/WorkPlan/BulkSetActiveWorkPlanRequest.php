@@ -16,6 +16,8 @@ class BulkSetActiveWorkPlanRequest extends FormRequest
         return [
             'ids'       => 'required|array|min:1|max:500',
             'ids.*'     => 'integer',
+            // El parametro se llama is_active porque lo emite el bulk compartido;
+            // el service lo aplica sobre is_done, que es el estado de un plan.
             'is_active' => 'required|boolean',
         ];
     }
@@ -24,7 +26,7 @@ class BulkSetActiveWorkPlanRequest extends FormRequest
     {
         return [
             'ids.required'       => __('global.bulk_no_selection'),
-            'is_active.required' => __('work_plans.is_active_required'),
+            'is_active.required' => __('work_plans.is_done_required'),
         ];
     }
 }

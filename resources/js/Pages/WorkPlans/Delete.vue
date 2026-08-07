@@ -32,7 +32,7 @@ const submit = () => {
     <DeletePage
         :back-href="route('business_management.work_plans.index')"
         :title="$t('global.delete') + ' ' + $t('work_plans.record')"
-        :subtitle="workPlan.name"
+        :subtitle="workPlan.code"
         v-model="form.deleted_description"
         :error="form.errors.deleted_description"
         :processing="form.processing"
@@ -54,13 +54,15 @@ const submit = () => {
         </template>
 
         <template #summary>
-            <DeleteSummaryRow :label="$t('work_plans.name')">{{ workPlan.name }}</DeleteSummaryRow>
-            <DeleteSummaryRow v-if="workPlan.code" :label="$t('work_plans.code')">
+            <DeleteSummaryRow :label="$t('work_plans.code')">
                 <code>{{ workPlan.code }}</code>
             </DeleteSummaryRow>
-            <DeleteSummaryRow :label="$t('work_plans.is_active')">
-                <Tag :color="workPlan.is_active ? 'success' : 'error'" :bordered="false">
-                    {{ workPlan.is_active ? $t('global.active') : $t('global.inactive') }}
+            <DeleteSummaryRow v-if="workPlan.num_os" :label="$t('work_plans.num_os')">{{ workPlan.num_os }}</DeleteSummaryRow>
+            <DeleteSummaryRow v-if="workPlan.company" :label="$t('work_plans.company')">{{ workPlan.company.name }}</DeleteSummaryRow>
+            <DeleteSummaryRow v-if="workPlan.description" :label="$t('work_plans.description')">{{ workPlan.description }}</DeleteSummaryRow>
+            <DeleteSummaryRow :label="$t('work_plans.is_done')">
+                <Tag :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
+                    {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
                 </Tag>
             </DeleteSummaryRow>
         </template>

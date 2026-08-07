@@ -10,7 +10,7 @@ import {
     ControlOutlined, FormOutlined, ClearOutlined, SaveOutlined,
     SortAscendingOutlined, SortDescendingOutlined,
     StarOutlined, StarFilled, BarsOutlined, AppstoreOutlined,
-    AudioOutlined,
+    AudioOutlined, LockOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -65,12 +65,12 @@ const { t } = useI18n();
 const { can, isSuper, canSeeAudit } = useAuth();
 const { formatDateTime } = useDateFormat();
 
-// Avatar de iniciales con color estable (para la celda principal de la tabla).
-const initials = (name) => (name || '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '—';
-const avaStyle = (name) => {
-    let h = 0;
-    for (const c of (name || '')) h = (h * 31 + c.charCodeAt(0)) % 360;
-    return { background: `hsl(${h} 58% 52%)` };
+// Las fechas del plan llegan ya como Y-m-d (son días de calendario, no
+// instantes): se muestran dd-mm-aaaa sin pasarlas por ninguna zona horaria.
+const plainDate = (v) => {
+    if (!v) return '—';
+    const [y, m, d] = String(v).slice(0, 10).split('-');
+    return d ? `${d}-${m}-${y}` : String(v);
 };
 
 const props = defineProps({
@@ -78,11 +78,19 @@ const props = defineProps({
     filters:        { type: Object, default: () => ({}) },
     filterSchema:   { type: Array,  default: () => [] },
     exportLimits:    { type: Object, default: () => ({}) },
+    // Catálogos de obra para los selectores de filtro (los arma el controller).
+    companyOptions:      { type: Array, default: () => [] },
+    workTypeOptions:     { type: Array, default: () => [] },
+    workLocationOptions: { type: Array, default: () => [] },
 });
 
 // ─── Filtros (schema + (de)serialización en config/filters.js) ──────────────
 const filterFields = computed(() =>
-    workPlansFilterFields(t),
+    workPlansFilterFields(t, {
+        companyOptions:      props.companyOptions,
+        workTypeOptions:     props.workTypeOptions,
+        workLocationOptions: props.workLocationOptions,
+    }),
 );
 
 const {
@@ -98,13 +106,13 @@ const {
 });
 
 // ─── Remaster: filtros colapsados en drawer + buscador inline ───────────────
-// El campo `name` es de tipo tags (multi-valor); el buscador inline maneja el
+// El campo `search` es de tipo tags (multi-valor); el buscador inline maneja el
 // término principal (primer tag) para no saturar el bar. El resto de filtros
 // vive en el drawer "Filtros".
 const filtersOpen = ref(false);
 const quickSearch = computed({
-    get: () => (filters.value.name?.[0]) ?? '',
-    set: (v) => { filters.value.name = v ? [v] : []; },
+    get: () => (filters.value.search?.[0]) ?? '',
+    set: (v) => { filters.value.search = v ? [v] : []; },
 });
 const { micSupported, listening, startVoiceSearch } = useVoiceSearch(quickSearch);
 
@@ -182,7 +190,9 @@ const tablePagination = computed(() => ({
 }));
 
 const onTableChange = (pag, _f, sorter) => {
-    const sort = sorter?.field || props.filters.sort;
+    // Las columnas de relación (empresa, tipo, sede) no tienen dataIndex: su
+    // clave de orden es la `key` de la columna, que el modelo sabe resolver.
+    const sort = sorter?.field || sorter?.columnKey || props.filters.sort;
     const direction = sorter?.order === 'ascend' ? 'asc'
                     : sorter?.order === 'descend' ? 'desc'
                     : props.filters.direction;
@@ -245,7 +255,7 @@ const normField = (di) => Array.isArray(di) ? di[0] : (typeof di === 'string' &&
 const sortOptions = computed(() =>
     allColumns.value
         .filter((c) => c.sorter)
-        .map((c) => ({ value: normField(c.dataIndex), label: typeof c.title === 'string' ? c.title : c.key }))
+        .map((c) => ({ value: normField(c.dataIndex) ?? c.key, label: typeof c.title === 'string' ? c.title : c.key }))
         .filter((o) => o.value),
 );
 const currentSort = computed(() => props.filters?.sort ?? 'id');
@@ -406,7 +416,7 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
             <div class="mi-tabletoolbar__right">
                 <label class="mi-bar mi-bar--toolbar" :class="{ 'is-active': quickSearch }">
                     <SearchOutlined class="mi-bar__icon" />
-                    <input v-model="quickSearch" class="mi-bar__input" :placeholder="$t('global.search_in', { item: $t('work_plans.singular').toLowerCase() })" autocomplete="off" spellcheck="false" type="text" />
+                    <input v-model="quickSearch" class="mi-bar__input" :placeholder="$t('work_plans.search_placeholder')" autocomplete="off" spellcheck="false" type="text" />
                     <button v-if="quickSearch" type="button" class="mi-bar__act" :title="$t('global.clear')" @click="quickSearch = ''"><CloseOutlined /></button>
                     <Tooltip v-if="micSupported" :title="$t('global.voice_search')">
                         <button type="button" class="mi-bar__act mi-bar__mic" :class="{ 'mi-bar__mic--on': listening }" @click="startVoiceSearch"><AudioOutlined /></button>
@@ -522,13 +532,45 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                         @toggle="toggleFavorite"
                     />
 
-                    <template v-else-if="column.key === 'name'">
+                    <!-- Celda principal: el código identifica el plan; la orden
+                         de servicio va debajo porque es lo segundo que se busca. -->
+                    <template v-else-if="column.key === 'code'">
                         <div class="lead">
                             <div class="lead__txt">
-                                <Link :href="route('business_management.work_plans.show', record.slug)" class="lead__name lead__link">{{ record.name }}</Link>
-                                <span v-if="record.code" class="lead__sub">{{ record.code }}</span>
+                                <Link :href="route('business_management.work_plans.show', record.slug)" class="lead__name lead__link mono">{{ record.code }}</Link>
+                                <span v-if="record.num_os" class="lead__sub">{{ $t('work_plans.num_os') }}: {{ record.num_os }}</span>
                             </div>
                         </div>
+                    </template>
+
+                    <template v-else-if="column.key === 'company'">
+                        <span v-if="record.company">{{ record.company.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'work_type'">
+                        <Tag v-if="record.work_type" color="geekblue" :bordered="false">{{ record.work_type.code }}</Tag>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'work_location'">
+                        <span v-if="record.work_location">{{ record.work_location.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'work_area'">
+                        <span v-if="record.work_area">{{ record.work_area.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'workstation'">
+                        <span v-if="record.workstation">{{ record.workstation.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'registered_by'">
+                        <span v-if="record.user">{{ record.user.name }}</span>
+                        <span v-else class="muted">—</span>
                     </template>
 
                     <template v-else-if="column.key === 'tenant'">
@@ -538,13 +580,23 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                         <Tag v-else color="purple" :bordered="false">{{ $t('global.platform') }}</Tag>
                     </template>
 
+                    <!-- Estado de avance + candado: en obra lo que importa es si
+                         el plan ya está firmado y si sigue abierto. -->
                     <template v-else-if="column.key === 'status'">
-                        <span class="pill" :class="record.is_active ? 'pill--ok' : 'pill--off'">
-                            <span class="pill__dot" />
-                            {{ record.is_active ? $t('global.active') : $t('global.inactive') }}
-                        </span>
+                        <Space :size="4" wrap>
+                            <span class="pill" :class="record.is_done ? 'pill--ok' : 'pill--warn'">
+                                <span class="pill__dot" />
+                                {{ record.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
+                            </span>
+                            <Tooltip v-if="record.is_locked" :title="$t('work_plans.state_locked')">
+                                <Tag color="gold" :bordered="false"><LockOutlined /></Tag>
+                            </Tooltip>
+                        </Space>
                     </template>
 
+                    <template v-else-if="column.key === 'date_start' || column.key === 'date_end'">
+                        {{ plainDate(record[column.dataIndex]) }}
+                    </template>
 
                     <template v-else-if="column.key === 'created_at'">
                         {{ formatDateTime(record.created_at) }}
@@ -664,6 +716,9 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
 .pill--ok  .pill__dot { background: #1d7a44; box-shadow: 0 0 0 3px rgba(29,122,68,0.12); }
 .pill--off { color: #6a6d70; background: var(--color-surface-alt, #f3f4f6); border-color: var(--color-border, #e5e7eb); }
 .pill--off .pill__dot { background: #9aa0a6; }
+/* Pendiente: ámbar. Un plan sin terminar no es un error, es trabajo en curso. */
+.pill--warn { color: #8a5a00; background: rgba(224,150,0,0.10); border-color: rgba(224,150,0,0.22); }
+.pill--warn .pill__dot { background: #e09600; box-shadow: 0 0 0 3px rgba(224,150,0,0.12); }
 
 /* Cabecera minimal + filas aireadas + hover suave. */
 .grid-card :deep(.ant-table-thead > tr > th) {

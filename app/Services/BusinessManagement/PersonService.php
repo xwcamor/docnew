@@ -75,8 +75,8 @@ class PersonService
                 'auditable_id'   => $locked->id,
                 'event'          => 'force_deleted',
                 'old_values'     => [
-                    'name' => $locked->name,
-                    'num_doc' => $locked->code,
+                    'name'    => $locked->full_name,
+                    'num_doc' => $locked->num_doc,
                     'slug' => $locked->slug,
                 ],
                 'new_values'     => null,
@@ -93,37 +93,32 @@ class PersonService
     }
 
     /**
-     * Clona el person. Sufijo "(copia)" con sanity guard de 100 intentos.
-     * El `cod` no se copia (es unique por tenant â€” se deja en null para que
-     * el usuario lo ajuste manualmente al editar el clon).
+     * Clona la persona para dar de alta a alguien con los mismos datos de
+     * contexto (mismo país y nacionalidad). El DOCUMENTO no se copia: es lo que
+     * identifica a la persona y dos personas nunca comparten uno. El clon nace
+     * con un documento provisional que hay que reemplazar al editarlo.
      */
     public function duplicate(Person $person): ?Person
     {
-        $base    = $person->name . ' (' . __('global.duplicate_suffix') . ')';
-        $isPgsql = DB::getDriverName() === 'pgsql';
+        return DB::transaction(function () use ($person) {
+            $candidato = null;
 
-        return DB::transaction(function () use ($person, $base, $isPgsql) {
-            $candidate = $base;
-            $i = 2;
-
-            while (true) {
-                $exists = Person::query()
-                    ->when($isPgsql,
-                        fn ($q) => $q->whereRaw('unaccent(LOWER(name)) = unaccent(LOWER(?))', [$candidate]),
-                        fn ($q) => $q->whereRaw('LOWER(name) = LOWER(?)', [$candidate]),
-                    )
+            for ($i = 0; $i < 100; $i++) {
+                $intento = 'COPIA-' . strtoupper(\Illuminate\Support\Str::random(8));
+                $existe  = Person::query()
+                    ->where('doc_type', $person->doc_type)
+                    ->where('num_doc', $intento)
                     ->lockForUpdate()
                     ->exists();
-
-                if (!$exists) break;
-                $candidate = $base . ' ' . $i;
-                $i++;
-                if ($i > 100) return null;
+                if (! $existe) { $candidato = $intento; break; }
             }
+            if ($candidato === null) return null;
 
-            $clone = new Person($person->only(['is_active', 'lastname']));
-            $clone->name       = $candidate;
-            $clone->code       = null;
+            $clone = new Person($person->only([
+                'is_active', 'name', 'lastname', 'doc_type', 'country_id',
+                'nationality_id', 'birthdate',
+            ]));
+            $clone->num_doc    = $candidato;
             $clone->created_by = auth()->id();
             $clone->save();
 
@@ -267,7 +262,7 @@ class PersonService
                 if (!$person) continue;
 
                 $patch = array_filter(
-                    array_intersect_key($change, array_flip(['name', 'is_active'])),
+                    array_intersect_key($change, array_flip(['name', 'lastname', 'is_active'])),
                     fn ($v) => $v !== null,
                 );
                 if (empty($patch)) continue;

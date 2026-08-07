@@ -4,7 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
 } from 'ant-design-vue';
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { BankOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -13,16 +13,25 @@ import FormFooter from '@/Components/Common/FormFooter.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    company:       { type: Object, default: null },
+    company:          { type: Object, default: null },
+    countryOptions:   { type: Array,  default: () => [] },
+    defaultCountryId: { type: Number, default: null },
 });
 
 const isEdit = computed(() => !!props.company);
 
 const form = useForm({
-    name:       props.company?.name ?? '',
+    name:          props.company?.name ?? '',
+    complete_name: props.company?.complete_name ?? '',
     num_doc:       props.company?.num_doc ?? '',
-    is_active:  props.company?.is_active ?? true,
+    // Al crear, por defecto el país del usuario; al editar, el de la empresa.
+    country_id:    props.company?.country_id ?? props.defaultCountryId ?? null,
+    is_active:     props.company?.is_active ?? true,
 });
+
+// El selector de país se escribe, no se scrollea.
+const filterOption = (input, option) =>
+    String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase());
 
 const submit = () => {
     if (isEdit.value) {
@@ -42,7 +51,7 @@ const submit = () => {
             :title="isEdit ? $t('global.edit') + ' ' + $t('companies.record') : $t('companies.new')"
             :subtitle="isEdit ? company.name : $t('companies.create_subtitle')"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><BankOutlined /></template>
         </SectionHeader>
 
         <div class="form-body">
@@ -83,16 +92,50 @@ const submit = () => {
                 </FormItem>
 
                 <FormItem
+                    :label="$t('companies.complete_name')"
+                    :tooltip="$t('companies.complete_name_help')"
+                    required
+                    :validate-status="form.errors.complete_name ? 'error' : ''"
+                    :help="form.errors.complete_name"
+                >
+                    <Input
+                        v-model:value="form.complete_name"
+                        size="large"
+                        :maxlength="255"
+                        showCount
+                        :placeholder="$t('companies.complete_name_placeholder')"
+                    />
+                </FormItem>
+
+                <FormItem
                     :label="$t('companies.num_doc')"
                     :tooltip="$t('companies.num_doc_help')"
+                    required
                     :validate-status="form.errors.num_doc ? 'error' : ''"
                     :help="form.errors.num_doc"
                 >
                     <Input
                         v-model:value="form.num_doc"
                         size="large"
-                        :maxlength="40"
-                        :placeholder="$t('companies.num_doc')"
+                        :maxlength="20"
+                        :placeholder="$t('companies.num_doc_placeholder')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('companies.country')"
+                    :tooltip="$t('companies.country_help')"
+                    required
+                    :validate-status="form.errors.country_id ? 'error' : ''"
+                    :help="form.errors.country_id"
+                >
+                    <Select
+                        v-model:value="form.country_id"
+                        size="large"
+                        show-search
+                        :options="countryOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
                     />
                 </FormItem>
 

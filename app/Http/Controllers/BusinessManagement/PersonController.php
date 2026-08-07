@@ -54,7 +54,7 @@ class PersonController extends Controller
 
         // people es per-tenant (BelongsToTenant lo scopea solo) — eager-load creator.
         // El super ve cross-tenant: carga el tenant para mostrarlo en el drawer.
-        $with = ['creator:id,name,email'];
+        $with = ['creator:id,name,email', 'country:id,name,iso_code', 'roles:id,person_id,role,is_active'];
         if ($isSuper) {
             $with[] = 'tenant:id,name';
         }
@@ -62,6 +62,13 @@ class PersonController extends Controller
         $people = Person::query()
             ->select('people.*')
             ->with($with)
+            // En cuántas empresas trabaja y si tiene la cara enrolada: son las
+            // dos cosas que se miran de una persona antes de mandarla a obra.
+            ->withCount([
+                'companyLinks',
+                'biometrics as active_biometrics_count' => fn ($q) => $q->where('is_active', true),
+                'signatures',
+            ])
             ->orderByFavoriteFirst($userId)
             ->filter($request)
             ->paginate($perPage)
@@ -81,6 +88,14 @@ class PersonController extends Controller
             'exportLimits' => \App\Models\Setting::getExportLimits('people'),
             'filters' => [
                 'name'         => array_values($names),
+                'num_doc'      => $request->get('num_doc', ''),
+                'doc_type'     => $request->get('doc_type', ''),
+                'country_id'   => $request->get('country_id', []),
+                'company_id'   => $request->get('company_id', []),
+                'role'         => $request->get('role', []),
+                'has_biometric'=> $request->filled('has_biometric')
+                    ? filter_var($request->has_biometric, FILTER_VALIDATE_BOOLEAN)
+                    : null,
                 'is_active'    => $request->filled('is_active')
                     ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
                     : null,
@@ -99,8 +114,63 @@ class PersonController extends Controller
             // Schema de campos filtrables â€” alimenta el drawer "Filtros
             // avanzados" del frontend (selects de field/op + control tipado
             // del valor). Cada modulo declara el suyo en su modelo.
-            'filterSchema'   => Person::filterSchema(),
+            ...$this->personOptions(),
+            'filterSchema'   => Person::filterSchema([
+                'countries' => $this->countryOptions(),
+                'doc_types' => $this->docTypeOptions(),
+            ]),
         ]);
+    }
+
+    /** Catálogos que alimentan los selectores de filtro y del formulario. */
+    protected function personOptions(): array
+    {
+        return [
+            'countryOptions' => $this->countryOptions(),
+            'docTypeOptions' => $this->docTypeOptions(),
+            'roleOptions'    => $this->roleOptions(),
+            'companyOptions' => \App\Models\Company::query()->where('is_active', true)->orderBy('name')
+                ->get(['id', 'name'])
+                ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name])
+                ->all(),
+            'nationalityOptions' => \App\Models\Nationality::query()->where('is_active', true)->orderBy('code')
+                ->get(['id', 'code'])
+                ->map(fn ($n) => ['value' => $n->id, 'label' => $n->code])
+                ->all(),
+        ];
+    }
+
+    /** Países activos como Select options. */
+    protected function countryOptions(): array
+    {
+        return \App\Models\Country::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'iso_code'])
+            ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name . ' (' . $c->iso_code . ')'])
+            ->all();
+    }
+
+    /**
+     * Tipos de documento admitidos. No hay tabla para esto: son los tres que
+     * usa la operación en Perú y viven en el mismo campo `doc_type`.
+     */
+    protected function docTypeOptions(): array
+    {
+        return array_map(
+            fn ($t) => ['value' => $t, 'label' => $t],
+            ['DNI', 'CE', 'PASAPORTE'],
+        );
+    }
+
+    /** Roles en obra — el enum de `person_roles.role`. */
+    protected function roleOptions(): array
+    {
+        return [
+            ['value' => 'worker',         'label' => __('people.role_worker')],
+            ['value' => 'supervisor',     'label' => __('people.role_supervisor')],
+            ['value' => 'hse_supervisor', 'label' => __('people.role_hse_supervisor')],
+        ];
     }
 
     /**
@@ -123,7 +193,14 @@ class PersonController extends Controller
 
     public function show(Request $request, Person $person)
     {
-        $person->load(['creator:id,name,email', 'deleter:id,name,email', 'locker:id,name']);
+        $person->load([
+            'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
+            'country:id,name,iso_code', 'roles', 'companyLinks.company:id,name', 'companyLinks.position:id,code',
+        ])->loadCount([
+            'companyLinks',
+            'biometrics as active_biometrics_count' => fn ($q) => $q->where('is_active', true),
+            'signatures',
+        ]);
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
@@ -151,7 +228,9 @@ class PersonController extends Controller
     public function create()
     {
         return inertia('People/Form', [
-            'person'        => null,
+            'person'           => null,
+            'defaultCountryId' => request()->user()?->country_id,
+            ...$this->personOptions(),
         ]);
     }
 
@@ -193,7 +272,7 @@ class PersonController extends Controller
 
         $person = $service->create($request->validated());
 
-        return response()->json(['id' => $person->id, 'name' => $person->name], 201);
+        return response()->json(['id' => $person->id, 'name' => $person->full_name], 201);
     }
 
     public function edit(Person $person)
@@ -201,8 +280,12 @@ class PersonController extends Controller
         // Registro bloqueado (Lockable): ni se abre el formulario de edición.
         abort_if($person->is_locked, 403, __('locks.cannot_edit_locked'));
 
+        $person->load(['country:id,name,iso_code', 'roles']);
+
         return inertia('People/Form', [
-            'person'        => $this->payload($person),
+            'person'           => $this->payload($person),
+            'defaultCountryId' => request()->user()?->country_id,
+            ...$this->personOptions(),
         ]);
     }
 
@@ -220,6 +303,10 @@ class PersonController extends Controller
     {
         // Registro bloqueado (Lockable): ni se abre la confirmación de borrado.
         abort_if($person->is_locked, 403, __('locks.cannot_delete_locked'));
+
+        // La confirmación muestra documento y empresas: hay homónimos.
+        $person->load(['country:id,name,iso_code', 'companyLinks.company:id,name'])
+               ->loadCount('companyLinks');
 
         return inertia('People/Delete', [
             'person' => $this->payload($person),
@@ -264,9 +351,14 @@ class PersonController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
 
+        // En la papelera se busca por nombre, apellido o documento: es lo que
+        // se recuerda de alguien que ya no está en el listado.
         $people = Person::onlyTrashed()
             ->with('deleter:id,name,email')
-            ->when($name !== '', fn ($q) => $q->where('name', 'like', "%{$name}%"))
+            ->when($name !== '', fn ($q) => $q->where(fn ($qq) => $qq
+                ->where('name', 'like', "%{$name}%")
+                ->orWhere('lastname', 'like', "%{$name}%")
+                ->orWhere('num_doc', 'like', "%{$name}%")))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -306,7 +398,7 @@ class PersonController extends Controller
 
         $people = Person::query()
             ->filter($request)
-            ->select('people.id', 'people.slug', 'people.name', 'people.num_doc', 'people.is_active')
+            ->select('people.id', 'people.slug', 'people.name', 'people.lastname', 'people.doc_type', 'people.num_doc', 'people.is_active')
             ->paginate($perPage)
             ->withQueryString();
 
@@ -393,7 +485,8 @@ class PersonController extends Controller
         $model = Person::onlyTrashed()->where('slug', $slug)->firstOrFail();
         $data  = $request->validated();
 
-        if (trim($data['name_confirmation']) !== $model->name) {
+        // Se confirma tipeando el documento: dos personas pueden llamarse igual.
+        if (trim($data['name_confirmation']) !== $model->num_doc) {
             return back()->withErrors(['name_confirmation' => __('global.force_delete_name_mismatch')]);
         }
 
@@ -410,8 +503,30 @@ class PersonController extends Controller
             'id'         => $m->id,
             'slug'       => $m->slug,
             'name'       => $m->name,
-            'num_doc'       => $m->code,
-            'lastname' => $m->sort_order,
+            'lastname'   => $m->lastname,
+            'full_name'  => $m->full_name,
+            'doc_type'   => $m->doc_type,
+            'num_doc'    => $m->num_doc,
+            'birthdate'  => $m->birthdate?->format('Y-m-d'),
+            'country_id' => $m->country_id,
+            'country'    => $m->relationLoaded('country') && $m->country
+                ? ['id' => $m->country->id, 'name' => $m->country->name, 'iso_code' => $m->country->iso_code]
+                : null,
+            'nationality_id' => $m->nationality_id,
+            'roles'      => $m->relationLoaded('roles')
+                ? $m->roles->where('is_active', true)->pluck('role')->values()->all()
+                : null,
+            'companies'  => $m->relationLoaded('companyLinks')
+                ? $m->companyLinks->map(fn ($l) => [
+                    'company_id' => $l->company_id,
+                    'name'       => $l->company?->name,
+                    'position'   => $l->position?->code,
+                    'is_active'  => (bool) $l->is_active,
+                ])->values()->all()
+                : null,
+            'companies_count'  => $m->company_links_count,
+            'has_biometric'    => $m->active_biometrics_count !== null ? $m->active_biometrics_count > 0 : null,
+            'signatures_count' => $m->signatures_count,
             'is_active'  => $m->is_active,
             'tenant_id'  => $m->tenant_id,
             'is_locked'  => $m->is_locked,
@@ -688,7 +803,8 @@ class PersonController extends Controller
         // tenant. Gate de seguridad real (no basta ocultarla en el front).
         $isSuper = $request->user()?->hasRole('super') ?? false;
         $allowedColumns = array_values(array_filter([
-            'name', 'num_doc', 'lastname', 'is_active',
+            'name', 'lastname', 'doc_type', 'num_doc', 'country', 'roles',
+            'companies', 'companies_count', 'has_biometric', 'is_active',
             $isSuper ? 'tenant' : null,
             'created_at', 'updated_at', 'creator',
         ]));

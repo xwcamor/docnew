@@ -1,5 +1,5 @@
 <script setup>
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { ScheduleOutlined } from '@ant-design/icons-vue';
 
 defineProps({
     title:        { type: String, required: true },
@@ -9,7 +9,7 @@ defineProps({
 <template>
     <div class="page-header__title">
         <div class="page-header__icon">
-            <TagsOutlined />
+            <ScheduleOutlined />
         </div>
         <div class="page-header__heading">
             <h1>{{ title }}</h1>

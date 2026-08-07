@@ -14,13 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * WorkPlan — catálogo de marcas/fabricantes de transformadores (ABB, Siemens…).
+ * WorkPlan — el plan de trabajo del día: la tarea que una empresa contratista
+ * ejecuta en una sede, con su cuadrilla y sus formatos de seguridad.
  *
- * Metadato descriptivo del transformador (NO es eje de diagnóstico). Es un
- * catálogo PER-TENANT: cada workspace tiene su propio catálogo de marcas, por
- * eso usa BelongsToTenantOrGlobal (con bypass de super). Mantiene SoftDeletes + Auditable
- * + HasFavorites. Campos: `name`, `code` (slug técnico), `sort_order`, `is_active`,
- * `tenant_id`.
+ * NO tiene `name` ni `is_active`: se identifica por `code` (PE24-0412-0458) y su
+ * estado es de avance, no de catálogo — `is_done` (todo firmado y confirmado) e
+ * `is_locked` (cerrado, ya no se toca). Es PER-TENANT, por eso usa
+ * BelongsToTenantOrGlobal. Mantiene SoftDeletes + Auditable + HasFavorites.
  */
 class WorkPlan extends Model
 {
@@ -56,33 +56,40 @@ class WorkPlan extends Model
         return $this->belongsTo(User::class, 'deleted_by')->withTrashed();
     }
 
-    /** Texto traducido del estado — consumido por exports (CSV/Excel/PDF/Word). */
+    /**
+     * Texto traducido del estado — consumido por exports (CSV/Excel/PDF/Word).
+     * En un plan "estado" significa avance, no si el catálogo está habilitado.
+     */
     public function getStateTextAttribute(): string
     {
-        return $this->is_active ? __('global.active') : __('global.inactive');
+        return $this->is_done ? __('work_plans.state_done') : __('work_plans.state_pending');
     }
 
     /**
      * scopeFilter — mismo patrón que Customer, sobre la tabla work_plans.
-     * Soporta name (multi-tag accent-insensitive), code (substring),
-     * is_active (bool), rangos de fecha/id, filtros avanzados y favoritos.
+     *
+     * El buscador rápido va por `search` y no por `name`: un plan no tiene
+     * nombre, se lo busca por su código (PE24-0412-0458), por la orden de
+     * servicio o por un pedazo de la descripción del trabajo.
      */
     public function scopeFilter($query, $request)
     {
         $isPgsql = config('database.default') === 'pgsql';
         $tbl = 'work_plans';
 
-        $query->when($request->filled('name'), function ($q) use ($request, $isPgsql, $tbl) {
-            $names = is_array($request->name) ? $request->name : [$request->name];
-            $names = array_filter($names, fn ($n) => $n !== '');
-            if (empty($names)) return;
-            $q->where(function ($qq) use ($names, $isPgsql, $tbl) {
-                foreach ($names as $name) {
-                    $needle = LikeQuery::contains((string) $name);
-                    if ($isPgsql) {
-                        $qq->orWhereRaw("unaccent(lower({$tbl}.name)) LIKE unaccent(lower(?))", [$needle]);
-                    } else {
-                        $qq->orWhereRaw("{$tbl}.name LIKE ? ESCAPE '\\'", [$needle]);
+        $query->when($request->filled('search'), function ($q) use ($request, $isPgsql, $tbl) {
+            $terms = is_array($request->search) ? $request->search : [$request->search];
+            $terms = array_filter($terms, fn ($n) => $n !== '');
+            if (empty($terms)) return;
+            $q->where(function ($qq) use ($terms, $isPgsql, $tbl) {
+                foreach ($terms as $term) {
+                    $needle = LikeQuery::contains((string) $term);
+                    foreach (['code', 'num_os', 'description'] as $col) {
+                        if ($isPgsql) {
+                            $qq->orWhereRaw("unaccent(lower({$tbl}.{$col})) LIKE unaccent(lower(?))", [$needle]);
+                        } else {
+                            $qq->orWhereRaw("{$tbl}.{$col} LIKE ? ESCAPE '\\'", [$needle]);
+                        }
                     }
                 }
             });
@@ -92,9 +99,31 @@ class WorkPlan extends Model
             $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.code LIKE ?" : "{$tbl}.code LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->code)]);
         });
 
-        $query->when($request->filled('is_active'), function ($q) use ($request, $tbl) {
-            $q->where("{$tbl}.is_active", filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
+        $query->when($request->filled('num_os'), function ($q) use ($request, $tbl) {
+            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.num_os LIKE ?" : "{$tbl}.num_os LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->num_os)]);
         });
+
+        // Selectores de obra: llegan como array (multiselect) o valor suelto.
+        foreach (['company_id', 'work_type_id', 'work_location_id', 'work_area_id', 'workstation_id'] as $fk) {
+            $query->when($request->filled($fk), function ($q) use ($request, $tbl, $fk) {
+                $ids = array_filter((array) $request->input($fk), fn ($v) => $v !== '' && $v !== null);
+                if (empty($ids)) return;
+                $q->whereIn("{$tbl}.{$fk}", array_map('intval', $ids));
+            });
+        }
+
+        $query->when($request->filled('is_done'), function ($q) use ($request, $tbl) {
+            $q->where("{$tbl}.is_done", filter_var($request->is_done, FILTER_VALIDATE_BOOLEAN));
+        });
+
+        $query->when($request->filled('is_locked'), function ($q) use ($request, $tbl) {
+            $q->where("{$tbl}.is_locked", filter_var($request->is_locked, FILTER_VALIDATE_BOOLEAN));
+        });
+
+        // Fecha del trabajo (no la de alta del registro): es la que usa el
+        // supervisor para encontrar "los planes de esta semana".
+        $query->when($request->filled('date_from'), fn ($q) => $q->where("{$tbl}.date_start", '>=', $request->date_from));
+        $query->when($request->filled('date_to'),   fn ($q) => $q->where("{$tbl}.date_start", '<=', $request->date_to));
 
         $query->when($request->filled('created_from'), fn ($q) => $q->where("{$tbl}.created_at", '>=', $request->created_from . ' 00:00:00'));
         $query->when($request->filled('created_to'),   fn ($q) => $q->where("{$tbl}.created_at", '<=', $request->created_to . ' 23:59:59'));
@@ -130,11 +159,23 @@ class WorkPlan extends Model
 
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');
-        if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'])) {
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'desc';
+        }
+        if ($sort === 'tenant') {
             // Orden por workspace: nombre vía left join (nulls = global).
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'name', 'code', 'is_active', 'num_os', 'created_at', 'updated_at']) && in_array($direction, ['asc', 'desc'])) {
+        } elseif ($sort === 'company') {
+            $query->leftJoin('companies', "{$tbl}.company_id", '=', 'companies.id')
+                  ->orderBy('companies.name', $direction);
+        } elseif ($sort === 'work_type') {
+            $query->leftJoin('work_types', "{$tbl}.work_type_id", '=', 'work_types.id')
+                  ->orderBy('work_types.code', $direction);
+        } elseif ($sort === 'work_location') {
+            $query->leftJoin('work_locations', "{$tbl}.work_location_id", '=', 'work_locations.id')
+                  ->orderBy('work_locations.name', $direction);
+        } elseif (in_array($sort, ['id', 'code', 'num_os', 'description', 'date_start', 'date_end', 'is_done', 'is_locked', 'created_at', 'updated_at'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 
@@ -142,16 +183,27 @@ class WorkPlan extends Model
     }
 
     /**
+     * Campos que el builder de filtros avanzados ofrece. Las opciones de los
+     * selectores (empresa, tipo de trabajo, sede) las inyecta el controller
+     * porque dependen del tenant del usuario.
+     *
      * @return array<int, array{key: string, label: string, type: string, operators: array<int, string>}>
      */
-    public static function filterSchema(): array
+    public static function filterSchema(array $opts = []): array
     {
         return [
-            ['key' => 'name',       'label' => __('work_plans.name'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'code',       'label' => __('work_plans.code'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'is_active',  'label' => __('work_plans.is_active'), 'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
-            ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'code',             'label' => __('work_plans.code'),          'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'num_os',           'label' => __('work_plans.num_os'),        'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'description',      'label' => __('work_plans.description'),   'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'company_id',       'label' => __('work_plans.company'),       'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['companies'] ?? []],
+            ['key' => 'work_type_id',     'label' => __('work_plans.work_type'),     'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['work_types'] ?? []],
+            ['key' => 'work_location_id', 'label' => __('work_plans.work_location'), 'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['work_locations'] ?? []],
+            ['key' => 'is_done',          'label' => __('work_plans.is_done'),       'type' => 'boolean', 'operators' => ['=']],
+            ['key' => 'is_locked',        'label' => __('work_plans.is_locked'),     'type' => 'boolean', 'operators' => ['=']],
+            ['key' => 'date_start',       'label' => __('work_plans.date_start'),    'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'date_end',         'label' => __('work_plans.date_end'),      'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'created_at',       'label' => __('global.created_at'),        'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'updated_at',       'label' => __('global.updated_at'),        'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 
@@ -164,12 +216,18 @@ class WorkPlan extends Model
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
+    // Las fechas del plan son días de calendario, no instantes: se serializan
+    // como Y-m-d para que el navegador no las corra un día al aplicar su zona.
     protected $casts = ['is_locked' => 'boolean', 'is_done' => 'boolean',
-                        'date_start' => 'date', 'date_end' => 'date'];
+                        'date_start' => 'date:Y-m-d', 'date_end' => 'date:Y-m-d'];
 
+    public function country() { return $this->belongsTo(Country::class); }
     public function company() { return $this->belongsTo(Company::class); }
     public function workType() { return $this->belongsTo(WorkType::class); }
     public function workLocation() { return $this->belongsTo(WorkLocation::class); }
+    public function workstation() { return $this->belongsTo(Workstation::class); }
+    public function workArea() { return $this->belongsTo(WorkArea::class); }
+    /** Quien registró el plan (usuario del sistema, no persona de la cuadrilla). */
     public function user() { return $this->belongsTo(User::class); }
     public function people() { return $this->hasMany(WorkPlanPerson::class); }
     public function approvals() { return $this->hasMany(WorkPlanApproval::class); }

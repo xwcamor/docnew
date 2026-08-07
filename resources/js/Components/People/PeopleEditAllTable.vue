@@ -18,8 +18,9 @@ const draft = defineModel('draft', { type: Array, required: true });
         <thead>
             <tr>
                 <th class="col-id">ID</th>
-                <th class="col-name">{{ $t('people.table_headers.editable_name') }}</th>
                 <th class="col-cod">{{ $t('people.num_doc') }}</th>
+                <th class="col-name">{{ $t('people.table_headers.editable_lastname') }}</th>
+                <th class="col-name">{{ $t('people.table_headers.editable_name') }}</th>
                 <th class="col-status">{{ $t('people.table_headers.editable_status') }}</th>
             </tr>
         </thead>
@@ -33,16 +34,23 @@ const draft = defineModel('draft', { type: Array, required: true });
                 }"
             >
                 <td class="col-id">{{ row.id }}</td>
+                <td class="col-cod">
+                    <code v-if="row.num_doc">{{ row.doc_type }} {{ row.num_doc }}</code>
+                    <span v-else class="muted">—</span>
+                </td>
                 <td class="col-name">
                     <Input
-                        v-model:value="row.name"
-                        :status="duplicateRows.has(i) ? 'error' : (props.isDirty(i) ? 'warning' : '')"
+                        v-model:value="row.lastname"
+                        :status="props.isDirty(i) ? 'warning' : ''"
                         size="small"
                     />
                 </td>
-                <td class="col-cod">
-                    <code v-if="row.num_doc">{{ row.num_doc }}</code>
-                    <span v-else class="muted">—</span>
+                <td class="col-name">
+                    <Input
+                        v-model:value="row.name"
+                        :status="props.isDirty(i) ? 'warning' : ''"
+                        size="small"
+                    />
                 </td>
                 <td class="col-status">
                     <Switch
@@ -84,7 +92,7 @@ const draft = defineModel('draft', { type: Array, required: true });
 }
 .edit-table tbody tr:last-child td { border-bottom: 0; }
 .edit-table .col-id     { width: 80px;  color: var(--color-text-muted); }
-.edit-table .col-cod    { width: 150px; font-family: ui-monospace, Consolas, monospace; font-size: 0.8125rem; }
+.edit-table .col-cod    { width: 170px; font-family: ui-monospace, Consolas, monospace; font-size: 0.8125rem; }
 .edit-table .col-status { width: 160px; }
 .edit-table tbody tr.is-dirty     { background: var(--tint-dirty); }
 .edit-table tbody tr.is-duplicate { background: var(--tint-duplicate); }

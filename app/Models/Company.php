@@ -14,13 +14,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * Company — catálogo de marcas/fabricantes de transformadores (ABB, Siemens…).
+ * Company — empresa contratista: la que ejecuta los trabajos y a la que
+ * pertenece la gente que firma en obra.
  *
- * Metadato descriptivo del transformador (NO es eje de diagnóstico). Es un
- * catálogo PER-TENANT: cada workspace tiene su propio catálogo de marcas, por
- * eso usa BelongsToTenantOrGlobal (con bypass de super). Mantiene SoftDeletes + Auditable
- * + HasFavorites. Campos: `name`, `code` (slug técnico), `sort_order`, `is_active`,
- * `tenant_id`.
+ * Se identifica por su RUC (`num_doc`, único por país dentro del workspace);
+ * `name` es el nombre corto con el que se la conoce en obra y `complete_name`
+ * la razón social del documento. Es PER-TENANT, por eso usa
+ * BelongsToTenantOrGlobal. Mantiene SoftDeletes + Auditable + HasFavorites.
  */
 class Company extends Model
 {
@@ -39,12 +39,12 @@ class Company extends Model
         
     ];
 
-    /** Transformadores de esta marca (FK directa company_id). */
     public function country()
     {
         return $this->belongsTo(Country::class);
     }
 
+    /** Vínculos con personas: una persona puede trabajar en varias empresas. */
     public function people()
     {
         return $this->hasMany(PersonCompanyLink::class);
@@ -116,7 +116,19 @@ class Company extends Model
         });
 
         $query->when($request->filled('num_doc'), function ($q) use ($request, $tbl) {
-            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->code)]);
+            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->num_doc)]);
+        });
+
+        // El nombre corto y la razon social se buscan juntos: en obra se escribe
+        // uno u otro indistintamente.
+        $query->when($request->filled('complete_name'), function ($q) use ($request, $tbl) {
+            $q->whereRaw(config('database.default') === 'pgsql' ? "unaccent(lower({$tbl}.complete_name)) LIKE unaccent(lower(?))" : "{$tbl}.complete_name LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->complete_name)]);
+        });
+
+        $query->when($request->filled('country_id'), function ($q) use ($request, $tbl) {
+            $ids = array_filter((array) $request->input('country_id'), fn ($v) => $v !== '' && $v !== null);
+            if (empty($ids)) return;
+            $q->whereIn("{$tbl}.country_id", array_map('intval', $ids));
         });
 
         $query->when($request->filled('is_active'), function ($q) use ($request, $tbl) {
@@ -157,11 +169,20 @@ class Company extends Model
 
         $sort = $request->get('sort', 'id');
         $direction = $request->get('direction', 'desc');
-        if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'])) {
+        if (! in_array($direction, ['asc', 'desc'], true)) {
+            $direction = 'desc';
+        }
+        if ($sort === 'tenant') {
             // Orden por workspace: nombre vía left join (nulls = global).
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'is_active', 'complete_name', 'created_at', 'updated_at']) && in_array($direction, ['asc', 'desc'])) {
+        } elseif ($sort === 'country') {
+            $query->leftJoin('countries', "{$tbl}.country_id", '=', 'countries.id')
+                  ->orderBy('countries.name', $direction);
+        } elseif (in_array($sort, ['people_count', 'work_plans_count'], true)) {
+            // Alias del withCount del controller — sin prefijo de tabla.
+            $query->orderBy($sort, $direction);
+        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'is_active', 'complete_name', 'created_at', 'updated_at'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 
@@ -171,14 +192,16 @@ class Company extends Model
     /**
      * @return array<int, array{key: string, label: string, type: string, operators: array<int, string>}>
      */
-    public static function filterSchema(): array
+    public static function filterSchema(array $opts = []): array
     {
         return [
-            ['key' => 'name',       'label' => __('companies.name'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'num_doc',       'label' => __('companies.num_doc'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'is_active',  'label' => __('companies.is_active'), 'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
-            ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'name',          'label' => __('companies.name'),          'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'num_doc',       'label' => __('companies.num_doc'),       'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'complete_name', 'label' => __('companies.complete_name'), 'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'country_id',    'label' => __('companies.country'),       'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['countries'] ?? []],
+            ['key' => 'is_active',     'label' => __('companies.is_active'),     'type' => 'boolean', 'operators' => ['=']],
+            ['key' => 'created_at',    'label' => __('global.created_at'),       'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'updated_at',    'label' => __('global.updated_at'),       'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 }

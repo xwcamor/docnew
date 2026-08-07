@@ -24,6 +24,9 @@ class EditAllUpdatePersonRequest extends FormRequest
             // un cliente podÃ­a mandar name:"" y el person quedaba sin nombre
             // (rompÃ­a unicidad y bÃºsqueda).
             'changes.*.name'      => 'sometimes|required|string|min:1|max:255',
+            // El apellido también se corrige en lote: en la migración del v1
+            // llegaron muchos nombres y apellidos cruzados.
+            'changes.*.lastname'  => 'sometimes|required|string|min:1|max:255',
             'changes.*.is_active' => 'sometimes|nullable|boolean',
         ];
     }

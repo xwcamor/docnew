@@ -58,7 +58,15 @@
     @php
         $headings = [
             'id'         => __('people.id'),
-            'name'       => __('people.name'),
+            'name'          => __('people.name'),
+            'lastname'      => __('people.lastname'),
+            'doc_type'      => __('people.doc_type'),
+            'num_doc'       => __('people.num_doc'),
+            'country'       => __('people.country'),
+            'roles'         => __('people.roles'),
+            'companies'     => __('people.companies'),
+            'companies_count' => __('people.companies_count'),
+            'has_biometric' => __('people.biometric'),
             'is_active'  => __('people.is_active'),
             'slug'       => 'Slug',
             'created_at' => __('global.created_at'),
@@ -86,6 +94,14 @@
                                 @switch($col)
                                     @case('id')         {{ $item->id }} @break
                                     @case('name')       {{ $item->name }} @break
+                                    @case('lastname')   {{ $item->lastname }} @break
+                                    @case('doc_type')   {{ $item->doc_type }} @break
+                                    @case('num_doc')    {{ $item->num_doc }} @break
+                                    @case('country')    {{ $item->country?->name ?? '—' }} @break
+                                    @case('roles')      {{ $item->roles->where('is_active', true)->map(fn ($r) => __('people.role_' . $r->role))->join(', ') }} @break
+                                    @case('companies')  {{ $item->companyLinks->map(fn ($l) => $l->company?->name)->filter()->join(', ') }} @break
+                                    @case('companies_count') {{ $item->company_links_count ?? 0 }} @break
+                                    @case('has_biometric') {{ ($item->active_biometrics_count ?? 0) > 0 ? __('people.biometric_yes') : __('people.biometric_no') }} @break
                                     @case('is_active')
                                         <span class="{{ $item->is_active ? 'status-active' : 'status-inactive' }}">
                                             {{ $item->state_text }}

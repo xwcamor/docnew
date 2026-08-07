@@ -78,11 +78,21 @@ const props = defineProps({
     filters:        { type: Object, default: () => ({}) },
     filterSchema:   { type: Array,  default: () => [] },
     exportLimits:    { type: Object, default: () => ({}) },
+    // Catálogos para los selectores de filtro (los arma el controller).
+    countryOptions:  { type: Array, default: () => [] },
+    docTypeOptions:  { type: Array, default: () => [] },
+    companyOptions:  { type: Array, default: () => [] },
+    roleOptions:     { type: Array, default: () => [] },
 });
 
 // ─── Filtros (schema + (de)serialización en config/filters.js) ──────────────
 const filterFields = computed(() =>
-    peopleFilterFields(t),
+    peopleFilterFields(t, {
+        countryOptions: props.countryOptions,
+        docTypeOptions: props.docTypeOptions,
+        companyOptions: props.companyOptions,
+        roleOptions:    props.roleOptions,
+    }),
 );
 
 const {
@@ -182,7 +192,8 @@ const tablePagination = computed(() => ({
 }));
 
 const onTableChange = (pag, _f, sorter) => {
-    const sort = sorter?.field || props.filters.sort;
+    // Documento y país no tienen dataIndex: su clave de orden es la `key`.
+    const sort = sorter?.field || sorter?.columnKey || props.filters.sort;
     const direction = sorter?.order === 'ascend' ? 'asc'
                     : sorter?.order === 'descend' ? 'desc'
                     : props.filters.direction;
@@ -245,7 +256,7 @@ const normField = (di) => Array.isArray(di) ? di[0] : (typeof di === 'string' &&
 const sortOptions = computed(() =>
     allColumns.value
         .filter((c) => c.sorter)
-        .map((c) => ({ value: normField(c.dataIndex), label: typeof c.title === 'string' ? c.title : c.key }))
+        .map((c) => ({ value: normField(c.dataIndex) ?? c.key, label: typeof c.title === 'string' ? c.title : c.key }))
         .filter((o) => o.value),
 );
 const currentSort = computed(() => props.filters?.sort ?? 'id');
@@ -406,7 +417,7 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
             <div class="mi-tabletoolbar__right">
                 <label class="mi-bar mi-bar--toolbar" :class="{ 'is-active': quickSearch }">
                     <SearchOutlined class="mi-bar__icon" />
-                    <input v-model="quickSearch" class="mi-bar__input" :placeholder="$t('global.search_in', { item: $t('people.singular').toLowerCase() })" autocomplete="off" spellcheck="false" type="text" />
+                    <input v-model="quickSearch" class="mi-bar__input" :placeholder="$t('people.search_placeholder')" autocomplete="off" spellcheck="false" type="text" />
                     <button v-if="quickSearch" type="button" class="mi-bar__act" :title="$t('global.clear')" @click="quickSearch = ''"><CloseOutlined /></button>
                     <Tooltip v-if="micSupported" :title="$t('global.voice_search')">
                         <button type="button" class="mi-bar__act mi-bar__mic" :class="{ 'mi-bar__mic--on': listening }" @click="startVoiceSearch"><AudioOutlined /></button>
@@ -522,13 +533,41 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
                         @toggle="toggleFavorite"
                     />
 
-                    <template v-else-if="column.key === 'name'">
+                    <!-- APELLIDO, Nombre: es como se busca a alguien en una
+                         lista de asistencia. -->
+                    <template v-else-if="column.key === 'person'">
                         <div class="lead">
                             <div class="lead__txt">
-                                <Link :href="route('business_management.people.show', record.slug)" class="lead__name lead__link">{{ record.name }}</Link>
-                                <span v-if="record.num_doc" class="lead__sub">{{ record.num_doc }}</span>
+                                <Link :href="route('business_management.people.show', record.slug)" class="lead__name lead__link">
+                                    {{ record.lastname }}<template v-if="record.name">, {{ record.name }}</template>
+                                </Link>
                             </div>
                         </div>
+                    </template>
+
+                    <template v-else-if="column.key === 'document'">
+                        <span class="doc"><span class="doc__type">{{ record.doc_type }}</span> <code class="mono">{{ record.num_doc }}</code></span>
+                    </template>
+
+                    <template v-else-if="column.key === 'country'">
+                        <span v-if="record.country">{{ record.country.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <!-- Sin biometría vigente la persona no puede firmar en obra:
+                         se marca en rojo para que salte a la vista. -->
+                    <template v-else-if="column.key === 'biometric'">
+                        <span class="pill" :class="record.active_biometrics_count > 0 ? 'pill--ok' : 'pill--none'">
+                            <span class="pill__dot" />
+                            {{ record.active_biometrics_count > 0 ? $t('people.biometric_yes') : $t('people.biometric_no') }}
+                        </span>
+                    </template>
+
+                    <template v-else-if="column.key === 'roles'">
+                        <template v-if="record.roles?.length">
+                            <Tag v-for="r in record.roles" :key="r.id ?? r" color="geekblue" :bordered="false">{{ $t('people.role_' + (r.role ?? r)) }}</Tag>
+                        </template>
+                        <span v-else class="muted">—</span>
                     </template>
 
                     <template v-else-if="column.key === 'tenant'">
@@ -664,6 +703,10 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
 .pill--ok  .pill__dot { background: #1d7a44; box-shadow: 0 0 0 3px rgba(29,122,68,0.12); }
 .pill--off { color: #6a6d70; background: var(--color-surface-alt, #f3f4f6); border-color: var(--color-border, #e5e7eb); }
 .pill--off .pill__dot { background: #9aa0a6; }
+/* Sin cara enrolada: no es un estado neutro, es un bloqueo para firmar. */
+.pill--none { color: #a8261c; background: rgba(200,40,29,0.08); border-color: rgba(200,40,29,0.20); }
+.pill--none .pill__dot { background: #c8281d; }
+.doc__type { font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.04em; }
 
 /* Cabecera minimal + filas aireadas + hover suave. */
 .grid-card :deep(.ant-table-thead > tr > th) {

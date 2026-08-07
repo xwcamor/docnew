@@ -1,8 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { Button, Card, Pagination, Alert } from 'ant-design-vue';
-import { SaveOutlined, UndoOutlined, EditOutlined, TagsOutlined } from '@ant-design/icons-vue';
+import { Button, Card, Pagination } from 'ant-design-vue';
+import { SaveOutlined, UndoOutlined, EditOutlined, ScheduleOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -29,8 +29,9 @@ const props = defineProps({
 const source = computed(() => props.work_plans.data);
 const { draft, isDirty, dirtyCount, dirtyChanges, duplicateRows, discardAll } = useEditAllDraft({
     source,
-    editableFields: ['name', 'is_active'],
-    uniqueField:    'name',
+    // El codigo no se edita aqui, asi que no hay campo unico que vigilar.
+    editableFields: ['num_os', 'is_done'],
+    uniqueField:    null,
 });
 
 const submitting = ref(false);
@@ -65,16 +66,8 @@ const onPageChange = (page, pageSize) => {
             :title="$t('global.edit_all') + ' — ' + $t('work_plans.plural')"
             :subtitle="$t('work_plans.edit_all_subtitle')"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><ScheduleOutlined /></template>
         </SectionHeader>
-
-        <Alert
-            v-if="duplicateRows.size > 0"
-            type="error"
-            show-icon
-            :message="$t('work_plans.name_unique')"
-            class="status-bar"
-        />
 
         <Card :bodyStyle="{ padding: 0 }" class="edit-table-card">
             <WorkPlansEditAllTable

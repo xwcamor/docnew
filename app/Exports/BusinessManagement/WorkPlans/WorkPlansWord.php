@@ -52,11 +52,21 @@ class WorkPlansWord
             : (is_countable($work_plans) ? count($work_plans) : iterator_count($work_plans));
 
         $this->columnDefs = [
-            'id'         => ['heading' => __('work_plans.id'),        'value' => fn($c) => (string) $c->id],
-            'name'       => ['heading' => __('work_plans.name'),      'value' => fn($c) => (string) $c->name],
-            'code'       => ['heading' => __('work_plans.code'),      'value' => fn($c) => (string) $c->code],
-            'num_os' => ['heading' => __('work_plans.num_os'), 'value' => fn($c) => (string) ($c->sort_order ?? '')],
-            'is_active'  => ['heading' => __('work_plans.is_active'), 'value' => fn($c) => $c->state_text],
+            'id'            => ['heading' => __('work_plans.id'),            'value' => fn($c) => (string) $c->id],
+            'code'          => ['heading' => __('work_plans.code'),          'value' => fn($c) => (string) $c->code],
+            'num_os'        => ['heading' => __('work_plans.num_os'),        'value' => fn($c) => (string) ($c->num_os ?? '')],
+            'description'   => ['heading' => __('work_plans.description'),   'value' => fn($c) => (string) $c->description],
+            'company'       => ['heading' => __('work_plans.company'),       'value' => fn($c) => (string) ($c->company?->name ?? '—')],
+            'work_type'     => ['heading' => __('work_plans.work_type'),     'value' => fn($c) => (string) ($c->workType?->code ?? '—')],
+            'work_location' => ['heading' => __('work_plans.work_location'), 'value' => fn($c) => (string) ($c->workLocation?->name ?? '—')],
+            'workstation'   => ['heading' => __('work_plans.workstation'),   'value' => fn($c) => (string) ($c->workstation?->name ?? '—')],
+            'work_area'     => ['heading' => __('work_plans.work_area'),     'value' => fn($c) => (string) ($c->workArea?->name ?? '—')],
+            'date_start'    => ['heading' => __('work_plans.date_start'),    'value' => fn($c) => (string) ($c->date_start?->format('Y-m-d') ?? '')],
+            'date_end'      => ['heading' => __('work_plans.date_end'),      'value' => fn($c) => (string) ($c->date_end?->format('Y-m-d') ?? '')],
+            'is_done'       => ['heading' => __('work_plans.is_done'),       'value' => fn($c) => $c->state_text],
+            'is_locked'     => ['heading' => __('work_plans.is_locked'),     'value' => fn($c) => $c->is_locked ? __('global.yes') : __('global.no')],
+            'people_count'  => ['heading' => __('work_plans.people_count'),  'value' => fn($c) => (string) ($c->people_count ?? 0)],
+            'registered_by' => ['heading' => __('work_plans.registered_by'), 'value' => fn($c) => (string) ($c->user?->name ?? '—')],
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c) => (string) $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) ?? ''],
             'updated_at' => ['heading' => __('global.updated_at'),   'value' => fn($c) => $c->updated_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) ?? ''],
@@ -206,8 +216,9 @@ class WorkPlansWord
                     ]);
                     $value = $this->columnDefs[$col]['value']($workPlan);
 
-                    if ($col === 'is_active') {
-                        $color = $workPlan->is_active ? '1D7044' : 'C8281D';
+                    // Verde si el plan está terminado, rojo si sigue pendiente.
+                    if ($col === 'is_done') {
+                        $color = $workPlan->is_done ? '1D7044' : 'C8281D';
                         $cell->addText($value, ['size' => 9, 'bold' => true, 'color' => $color]);
                     } else {
                         $cell->addText((string) $value, ['size' => 9, 'color' => self::COLOR_TEXT]);

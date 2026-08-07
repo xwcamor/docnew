@@ -54,8 +54,11 @@ class CompaniesWord
         $this->columnDefs = [
             'id'         => ['heading' => __('companies.id'),        'value' => fn($c) => (string) $c->id],
             'name'       => ['heading' => __('companies.name'),      'value' => fn($c) => (string) $c->name],
-            'num_doc'       => ['heading' => __('companies.num_doc'),      'value' => fn($c) => (string) $c->code],
-            'complete_name' => ['heading' => __('companies.complete_name'), 'value' => fn($c) => (string) ($c->sort_order ?? '')],
+            'num_doc'       => ['heading' => __('companies.num_doc'),      'value' => fn($c) => (string) $c->num_doc],
+            'complete_name' => ['heading' => __('companies.complete_name'), 'value' => fn($c) => (string) ($c->complete_name ?? '')],
+            'country'       => ['heading' => __('companies.country'),      'value' => fn($c) => (string) ($c->country?->name ?? '—')],
+            'people_count'  => ['heading' => __('companies.people_count'), 'value' => fn($c) => (string) ($c->people_count ?? 0)],
+            'work_plans_count' => ['heading' => __('companies.plans_count'), 'value' => fn($c) => (string) ($c->work_plans_count ?? 0)],
             'is_active'  => ['heading' => __('companies.is_active'), 'value' => fn($c) => $c->state_text],
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c) => (string) $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) ?? ''],

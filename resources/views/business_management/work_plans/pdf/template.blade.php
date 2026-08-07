@@ -57,13 +57,26 @@
 
     @php
         $headings = [
-            'id'         => __('work_plans.id'),
-            'name'       => __('work_plans.name'),
-            'is_active'  => __('work_plans.is_active'),
+            'id'            => __('work_plans.id'),
+            'code'          => __('work_plans.code'),
+            'num_os'        => __('work_plans.num_os'),
+            'description'   => __('work_plans.description'),
+            'company'       => __('work_plans.company'),
+            'work_type'     => __('work_plans.work_type'),
+            'work_location' => __('work_plans.work_location'),
+            'workstation'   => __('work_plans.workstation'),
+            'work_area'     => __('work_plans.work_area'),
+            'date_start'    => __('work_plans.date_start'),
+            'date_end'      => __('work_plans.date_end'),
+            'is_done'       => __('work_plans.is_done'),
+            'is_locked'     => __('work_plans.is_locked'),
+            'people_count'  => __('work_plans.people_count'),
+            'registered_by' => __('work_plans.registered_by'),
             'slug'       => 'Slug',
             'created_at' => __('global.created_at'),
             'updated_at' => __('global.updated_at'),
             'creator'    => __('global.created_by'),
+            'tenant'     => __('tenants.singular'),
         ];
     @endphp
 
@@ -85,9 +98,22 @@
                             <td>
                                 @switch($col)
                                     @case('id')         {{ $item->id }} @break
-                                    @case('name')       {{ $item->name }} @break
-                                    @case('is_active')
-                                        <span class="{{ $item->is_active ? 'status-active' : 'status-inactive' }}">
+                                    @case('code')       {{ $item->code }} @break
+                                    @case('num_os')     {{ $item->num_os }} @break
+                                    @case('description'){{ $item->description }} @break
+                                    @case('company')       {{ $item->company?->name ?? '—' }} @break
+                                    @case('work_type')     {{ $item->workType?->code ?? '—' }} @break
+                                    @case('work_location') {{ $item->workLocation?->name ?? '—' }} @break
+                                    @case('workstation')   {{ $item->workstation?->name ?? '—' }} @break
+                                    @case('work_area')     {{ $item->workArea?->name ?? '—' }} @break
+                                    @case('date_start')    {{ $item->date_start?->format('Y-m-d') }} @break
+                                    @case('date_end')      {{ $item->date_end?->format('Y-m-d') }} @break
+                                    @case('people_count')  {{ $item->people_count ?? 0 }} @break
+                                    @case('registered_by') {{ $item->user?->name ?? '—' }} @break
+                                    @case('is_locked')     {{ $item->is_locked ? __('global.yes') : __('global.no') }} @break
+                                    @case('is_done')
+                                        {{-- Verde si el plan esta terminado, rojo si sigue pendiente. --}}
+                                        <span class="{{ $item->is_done ? 'status-active' : 'status-inactive' }}">
                                             {{ $item->state_text }}
                                         </span>
                                     @break
@@ -95,6 +121,7 @@
                                     @case('created_at') {{ $item->created_at?->copy()->setTimezone($tz ?? config('app.timezone'))->format(\App\Support\Tz::DATETIME_FORMAT) }} @break
                                     @case('updated_at') {{ $item->updated_at?->copy()->setTimezone($tz ?? config('app.timezone'))->format(\App\Support\Tz::DATETIME_FORMAT) }} @break
                                     @case('creator')    {{ $item->creator->name ?? '—' }} @break
+                                    @case('tenant')     {{ $item->tenant?->name ?? '—' }} @break
                                     @default {{ $item->{$col} ?? '' }}
                                 @endswitch
                             </td>

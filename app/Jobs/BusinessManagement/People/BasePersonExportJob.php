@@ -167,6 +167,23 @@ abstract class BasePersonExportJob implements ShouldQueue
         if (in_array('creator', $columns)) {
             $base->with('creator:id,name');
         }
+        // Relaciones y conteos solo si se van a exportar: sin esto cada fila
+        // dispara sus propias queries.
+        if (in_array('country', $columns, true)) {
+            $base->with('country:id,name');
+        }
+        if (in_array('roles', $columns, true)) {
+            $base->with('roles');
+        }
+        if (in_array('companies', $columns, true)) {
+            $base->with('companyLinks.company:id,name');
+        }
+        if (in_array('companies_count', $columns, true)) {
+            $base->withCount('companyLinks');
+        }
+        if (in_array('has_biometric', $columns, true)) {
+            $base->withCount(['biometrics as active_biometrics_count' => fn ($q) => $q->where('is_active', true)]);
+        }
 
         if ($scope === 'selected' && !empty($this->options['selected_ids'])) {
             return $base->whereIn('people.id', $this->options['selected_ids']);
@@ -195,8 +212,11 @@ abstract class BasePersonExportJob implements ShouldQueue
             $names = is_array($f['name']) ? $f['name'] : [$f['name']];
             $out[] = ['label' => __('people.name'), 'value' => implode(', ', $names)];
         }
-        if (!empty($f['code'])) {
-            $out[] = ['label' => __('people.code'), 'value' => (string) $f['code']];
+        if (!empty($f['num_doc'])) {
+            $out[] = ['label' => __('people.num_doc'), 'value' => (string) $f['num_doc']];
+        }
+        if (!empty($f['doc_type'])) {
+            $out[] = ['label' => __('people.doc_type'), 'value' => (string) $f['doc_type']];
         }
         if (isset($f['is_active']) && $f['is_active'] !== '' && $f['is_active'] !== null) {
             $bool = filter_var($f['is_active'], FILTER_VALIDATE_BOOLEAN);

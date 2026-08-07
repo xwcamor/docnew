@@ -54,7 +54,7 @@ class CompanyController extends Controller
 
         // companies es per-tenant (BelongsToTenant lo scopea solo) — eager-load creator.
         // El super ve cross-tenant: carga el tenant para mostrarlo en el drawer.
-        $with = ['creator:id,name,email'];
+        $with = ['creator:id,name,email', 'country:id,name,iso_code'];
         if ($isSuper) {
             $with[] = 'tenant:id,name';
         }
@@ -62,6 +62,9 @@ class CompanyController extends Controller
         $companies = Company::query()
             ->select('companies.*')
             ->with($with)
+            // Cuánta gente tiene vinculada y cuántos planes ha ejecutado: es lo
+            // que distingue una contratista activa de una dada de alta y olvidada.
+            ->withCount(['people', 'workPlans'])
             ->orderByFavoriteFirst($userId)
             ->filter($request)
             ->paginate($perPage)
@@ -81,6 +84,8 @@ class CompanyController extends Controller
             'exportLimits' => \App\Models\Setting::getExportLimits('companies'),
             'filters' => [
                 'name'         => array_values($names),
+                'num_doc'      => $request->get('num_doc', ''),
+                'country_id'   => $request->get('country_id', []),
                 'is_active'    => $request->filled('is_active')
                     ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
                     : null,
@@ -96,11 +101,23 @@ class CompanyController extends Controller
                 'advanced_where' => $this->parseAdvancedWhere($request),
             ],
             'isSuper'        => $isSuper,
+            'countryOptions' => $this->countryOptions(),
             // Schema de campos filtrables â€” alimenta el drawer "Filtros
             // avanzados" del frontend (selects de field/op + control tipado
             // del valor). Cada modulo declara el suyo en su modelo.
-            'filterSchema'   => Company::filterSchema(),
+            'filterSchema'   => Company::filterSchema(['countries' => $this->countryOptions()]),
         ]);
+    }
+
+    /** Países activos como Select options (filtros y formulario). */
+    protected function countryOptions(): array
+    {
+        return \App\Models\Country::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'iso_code'])
+            ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name . ' (' . $c->iso_code . ')'])
+            ->all();
     }
 
     /**
@@ -123,7 +140,8 @@ class CompanyController extends Controller
 
     public function show(Request $request, Company $company)
     {
-        $company->load(['creator:id,name,email', 'deleter:id,name,email', 'locker:id,name']);
+        $company->load(['creator:id,name,email', 'deleter:id,name,email', 'locker:id,name', 'country:id,name,iso_code'])
+                ->loadCount(['people', 'workPlans']);
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
@@ -151,7 +169,10 @@ class CompanyController extends Controller
     public function create()
     {
         return inertia('Companies/Form', [
-            'company'        => null,
+            'company'          => null,
+            'countryOptions'   => $this->countryOptions(),
+            // Al crear se propone el país del usuario: casi siempre es el suyo.
+            'defaultCountryId' => request()->user()?->country_id,
         ]);
     }
 
@@ -202,7 +223,9 @@ class CompanyController extends Controller
         abort_if($company->is_locked, 403, __('locks.cannot_edit_locked'));
 
         return inertia('Companies/Form', [
-            'company'        => $this->payload($company),
+            'company'          => $this->payload($company),
+            'countryOptions'   => $this->countryOptions(),
+            'defaultCountryId' => request()->user()?->country_id,
         ]);
     }
 
@@ -220,6 +243,10 @@ class CompanyController extends Controller
     {
         // Registro bloqueado (Lockable): ni se abre la confirmación de borrado.
         abort_if($company->is_locked, 403, __('locks.cannot_delete_locked'));
+
+        // La confirmación muestra razón social y país: hay contratistas con
+        // nombres cortos casi idénticos.
+        $company->load('country:id,name,iso_code');
 
         return inertia('Companies/Delete', [
             'company' => $this->payload($company),
@@ -410,8 +437,14 @@ class CompanyController extends Controller
             'id'         => $m->id,
             'slug'       => $m->slug,
             'name'       => $m->name,
-            'num_doc'       => $m->code,
-            'complete_name' => $m->sort_order,
+            'num_doc'       => $m->num_doc,
+            'complete_name' => $m->complete_name,
+            'country_id' => $m->country_id,
+            'country'    => $m->relationLoaded('country') && $m->country
+                ? ['id' => $m->country->id, 'name' => $m->country->name, 'iso_code' => $m->country->iso_code]
+                : null,
+            'people_count'     => $m->people_count,
+            'work_plans_count' => $m->work_plans_count,
             'is_active'  => $m->is_active,
             'tenant_id'  => $m->tenant_id,
             'is_locked'  => $m->is_locked,
@@ -688,7 +721,7 @@ class CompanyController extends Controller
         // tenant. Gate de seguridad real (no basta ocultarla en el front).
         $isSuper = $request->user()?->hasRole('super') ?? false;
         $allowedColumns = array_values(array_filter([
-            'name', 'num_doc', 'complete_name', 'is_active',
+            'name', 'num_doc', 'complete_name', 'country', 'people_count', 'work_plans_count', 'is_active',
             $isSuper ? 'tenant' : null,
             'created_at', 'updated_at', 'creator',
         ]));

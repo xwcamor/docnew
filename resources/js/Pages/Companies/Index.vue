@@ -78,11 +78,13 @@ const props = defineProps({
     filters:        { type: Object, default: () => ({}) },
     filterSchema:   { type: Array,  default: () => [] },
     exportLimits:    { type: Object, default: () => ({}) },
+    // Opciones del multiselect País — las arma el controller.
+    countryOptions:  { type: Array,  default: () => [] },
 });
 
 // ─── Filtros (schema + (de)serialización en config/filters.js) ──────────────
 const filterFields = computed(() =>
-    companiesFilterFields(t),
+    companiesFilterFields(t, { countryOptions: props.countryOptions }),
 );
 
 const {
@@ -182,7 +184,8 @@ const tablePagination = computed(() => ({
 }));
 
 const onTableChange = (pag, _f, sorter) => {
-    const sort = sorter?.field || props.filters.sort;
+    // La columna País no tiene dataIndex: su clave de orden es la `key`.
+    const sort = sorter?.field || sorter?.columnKey || props.filters.sort;
     const direction = sorter?.order === 'ascend' ? 'asc'
                     : sorter?.order === 'descend' ? 'desc'
                     : props.filters.direction;
@@ -245,7 +248,7 @@ const normField = (di) => Array.isArray(di) ? di[0] : (typeof di === 'string' &&
 const sortOptions = computed(() =>
     allColumns.value
         .filter((c) => c.sorter)
-        .map((c) => ({ value: normField(c.dataIndex), label: typeof c.title === 'string' ? c.title : c.key }))
+        .map((c) => ({ value: normField(c.dataIndex) ?? c.key, label: typeof c.title === 'string' ? c.title : c.key }))
         .filter((o) => o.value),
 );
 const currentSort = computed(() => props.filters?.sort ?? 'id');
@@ -406,7 +409,7 @@ const goDelete = (record) => router.visit(route('business_management.companies.d
             <div class="mi-tabletoolbar__right">
                 <label class="mi-bar mi-bar--toolbar" :class="{ 'is-active': quickSearch }">
                     <SearchOutlined class="mi-bar__icon" />
-                    <input v-model="quickSearch" class="mi-bar__input" :placeholder="$t('global.search_in', { item: $t('companies.singular').toLowerCase() })" autocomplete="off" spellcheck="false" type="text" />
+                    <input v-model="quickSearch" class="mi-bar__input" :placeholder="$t('companies.search_placeholder')" autocomplete="off" spellcheck="false" type="text" />
                     <button v-if="quickSearch" type="button" class="mi-bar__act" :title="$t('global.clear')" @click="quickSearch = ''"><CloseOutlined /></button>
                     <Tooltip v-if="micSupported" :title="$t('global.voice_search')">
                         <button type="button" class="mi-bar__act mi-bar__mic" :class="{ 'mi-bar__mic--on': listening }" @click="startVoiceSearch"><AudioOutlined /></button>
@@ -522,13 +525,24 @@ const goDelete = (record) => router.visit(route('business_management.companies.d
                         @toggle="toggleFavorite"
                     />
 
+                    <!-- Nombre corto arriba, razón social debajo: es como se
+                         reconoce a la contratista de un vistazo. -->
                     <template v-else-if="column.key === 'name'">
                         <div class="lead">
                             <div class="lead__txt">
                                 <Link :href="route('business_management.companies.show', record.slug)" class="lead__name lead__link">{{ record.name }}</Link>
-                                <span v-if="record.num_doc" class="lead__sub">{{ record.num_doc }}</span>
+                                <span v-if="record.complete_name && record.complete_name !== record.name" class="lead__sub">{{ record.complete_name }}</span>
                             </div>
                         </div>
+                    </template>
+
+                    <template v-else-if="column.key === 'num_doc'">
+                        <code class="mono">{{ record.num_doc }}</code>
+                    </template>
+
+                    <template v-else-if="column.key === 'country'">
+                        <span v-if="record.country">{{ record.country.name }}</span>
+                        <span v-else class="muted">—</span>
                     </template>
 
                     <template v-else-if="column.key === 'tenant'">

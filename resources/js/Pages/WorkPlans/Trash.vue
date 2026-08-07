@@ -36,14 +36,14 @@ if (!isSuper) {
     router.visit(route('business_management.work_plans.index'));
 }
 
-const searchTerm = ref(props.filters.name ?? '');
+const searchTerm = ref(props.filters.search ?? '');
 let searchTimer = null;
 watch(searchTerm, (val) => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
         router.reload({
             only: ['work_plans', 'filters'],
-            data: { name: val || undefined, page: 1 },
+            data: { search: val || undefined, page: 1 },
             preserveState: true,
             preserveScroll: true,
             replace: true,
@@ -103,7 +103,7 @@ const tablePagination = computed(() => ({
 const onTableChange = (pag) => {
     router.reload({
         only: ['work_plans', 'filters'],
-        data: { page: pag.current, per_page: pag.pageSize, name: searchTerm.value || undefined },
+        data: { page: pag.current, per_page: pag.pageSize, search: searchTerm.value || undefined },
         preserveState: true,
         preserveScroll: true,
         replace: true,
@@ -132,7 +132,7 @@ const subtitle = computed(() => {
         <div class="trash-toolbar">
             <Input
                 v-model:value="searchTerm"
-                :placeholder="$t('global.search') + '...'"
+                :placeholder="$t('work_plans.trash_search_placeholder')"
                 allow-clear
                 class="trash-search"
             >
@@ -153,7 +153,12 @@ const subtitle = computed(() => {
                 @change="onTableChange"
             >
                 <template #bodyCell="{ column, record }">
-                    <template v-if="column.key === 'deleter'">
+                    <template v-if="column.key === 'company'">
+                        <span v-if="record.company">{{ record.company.name }}</span>
+                        <span v-else class="text-muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'deleter'">
                         <span v-if="record.deleter">{{ record.deleter.name }}</span>
                         <span v-else class="text-muted">—</span>
                     </template>

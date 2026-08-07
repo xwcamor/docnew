@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import {
     Card, Tag, Space, Alert,
 } from 'ant-design-vue';
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { BankOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -42,7 +42,7 @@ const fmt = (d) => formatDateTimeFull(d);
             :title="company.name"
             :icon-bg="iconBg"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><BankOutlined /></template>
             <template #subtitle>
                 <Space :size="6">
                     <Tag v-if="isDeleted" color="red" :bordered="false">{{ $t('global.deleted') }}</Tag>
@@ -87,7 +87,7 @@ const fmt = (d) => formatDateTimeFull(d);
         <EntityShowTabs :show-history="canSeeAudit" :history-count="activity.length">
             <template #general>
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
-                    <template #title><TagsOutlined /> {{ $t('global.general_info') }}</template>
+                    <template #title><BankOutlined /> {{ $t('global.general_info') }}</template>
                     <div class="spec-grid">
                         <!-- ID y slug: solo el super (datos técnicos), y van primero. -->
                         <div v-if="isSuper" class="spec-cell">
@@ -102,9 +102,25 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__label">{{ $t('companies.name') }}</span>
                             <span class="spec-cell__value">{{ company.name }}</span>
                         </div>
-                        <div v-if="company.num_doc" class="spec-cell">
+                        <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('companies.num_doc') }}</span>
-                            <span class="spec-cell__value"><code>{{ company.num_doc }}</code></span>
+                            <span class="spec-cell__value"><code>{{ company.num_doc || '—' }}</code></span>
+                        </div>
+                        <div class="spec-cell spec-cell--wide">
+                            <span class="spec-cell__label">{{ $t('companies.complete_name') }}</span>
+                            <span class="spec-cell__value">{{ company.complete_name || '—' }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('companies.country') }}</span>
+                            <span class="spec-cell__value">{{ company.country?.name || '—' }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('companies.people_count') }}</span>
+                            <span class="spec-cell__value">{{ company.people_count ?? 0 }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('companies.plans_count') }}</span>
+                            <span class="spec-cell__value">{{ company.work_plans_count ?? 0 }}</span>
                         </div>
                         <!-- Estado: siempre al final. -->
                         <div class="spec-cell">

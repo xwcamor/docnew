@@ -55,9 +55,11 @@ const submit = () => {
 
         <template #summary>
             <DeleteSummaryRow :label="$t('companies.name')">{{ company.name }}</DeleteSummaryRow>
+            <DeleteSummaryRow v-if="company.complete_name" :label="$t('companies.complete_name')">{{ company.complete_name }}</DeleteSummaryRow>
             <DeleteSummaryRow v-if="company.num_doc" :label="$t('companies.num_doc')">
                 <code>{{ company.num_doc }}</code>
             </DeleteSummaryRow>
+            <DeleteSummaryRow v-if="company.country" :label="$t('companies.country')">{{ company.country.name }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('companies.is_active')">
                 <Tag :color="company.is_active ? 'success' : 'error'" :bordered="false">
                     {{ company.is_active ? $t('global.active') : $t('global.inactive') }}
