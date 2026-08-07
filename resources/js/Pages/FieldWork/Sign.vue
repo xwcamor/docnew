@@ -16,15 +16,33 @@ defineOptions({ layout: AppLayout });
 
 const video = ref(null);
 const activo = ref(null);       // a quien se esta firmando
-const fase = ref('');           // buscando · comparando · evidencia
+const fase = ref('');           // buscando · comparando · evidencia · reto
 const distancia = ref(null);
 const mensaje = ref('');
 const trabajando = ref(false);
+const reto = ref(null);         // { gesto, paso } mientras dura el reto de vida
 
 let stream = null;
 const cara = useFaceVerify({
     sinMatchSegundos: props.settings?.timeoutSeconds ?? 20,
+    retoDeVida: props.settings?.liveness ?? false,
 });
+
+/**
+ * Qué se le pide en pantalla durante el reto. Dos frases por gesto: primero el
+ * movimiento, después volver al centro, que es la mitad que descarta una foto.
+ */
+const INSTRUCCION = {
+    girar:   { gesto: 'Gira la cabeza hacia un lado', centro: 'Ahora vuelve a mirar al frente' },
+    asentir: { gesto: 'Asiente con la cabeza',        centro: 'Ahora vuelve a mirar al frente' },
+};
+
+const textoReto = () => {
+    if (!reto.value) return '';
+    if (reto.value.paso === 'encuadra') return 'Encuadra el rostro';
+
+    return INSTRUCCION[reto.value.gesto]?.[reto.value.paso] ?? '';
+};
 
 async function firmar(fila, tipo, rol) {
     activo.value = { ...fila, tipo, rol };
@@ -70,12 +88,21 @@ async function firmar(fila, tipo, rol) {
             video.value,
             data.descriptors,
             data.threshold,
-            (e) => { fase.value = e.fase; distancia.value = e.distancia ?? null; },
+            (e) => {
+                fase.value = e.fase;
+                distancia.value = e.distancia ?? null;
+                reto.value = e.fase === 'reto' ? { gesto: e.gesto, paso: e.paso } : null;
+            },
         );
 
         if (resultado.estado === 'cancelada') {
             mensaje.value = 'No se detecto a nadie frente a la camara. No se registro nada.';
             return;
+        }
+
+        if (resultado.retoFallido) {
+            mensaje.value = 'La cara coincide pero no se completo el gesto. '
+                + 'La firma queda registrada y pendiente de revision del supervisor.';
         }
 
         // El servidor vuelve a comparar y decide: aqui no se afirma nada.
@@ -96,6 +123,7 @@ async function firmar(fila, tipo, rol) {
         cara.cerrarCamara(stream);
         trabajando.value = false;
         fase.value = '';
+        reto.value = null;
         activo.value = null;
     }
 }
@@ -115,6 +143,7 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
                 <span v-else-if="fase === 'evidencia'">Sin coincidencia: tomando la foto para revision</span>
                 <span v-else-if="fase === 'encuadra'">Encuadra el rostro</span>
                 <span v-else-if="fase === 'muestra'">Registrando cara…</span>
+                <span v-else-if="fase === 'reto'" class="firma-reto">{{ textoReto() }}</span>
             </p>
         </div>
 
@@ -160,4 +189,7 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
 .firma-camara { text-align: center; margin-bottom: 16px; }
 .firma-camara video { width: 320px; height: 240px; border-radius: 12px; background: #000; }
 .firma-estado { color: var(--color-text-muted); margin-top: 8px; }
+/* El reto se lee de un vistazo y en movimiento: en obra nadie se acerca a leer
+   una línea gris de 13 px. */
+.firma-reto { display: block; font-size: 20px; font-weight: 700; color: var(--color-primary, #0A6ED1); }
 </style>

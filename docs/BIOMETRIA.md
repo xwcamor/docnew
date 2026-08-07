@@ -108,8 +108,27 @@ del supervisor.
 
 ## Reto de vida (liveness)
 
-Se pide un gesto aleatorio de cabeza (girar o asentir), calculado con los 68 puntos faciales. Una
-foto impresa o una pantalla no lo superan. Se puede desactivar por configuración.
+Se pide un gesto **al azar** —girar la cabeza o asentir— y se comprueba con los 68 puntos faciales.
+Lo que se mide no es la postura sino el **cambio**: hay que salir del centro **y volver**. Esa
+segunda mitad es la que importa, porque una foto sostenida en ángulo pasa la primera pero no la
+segunda.
+
+La medida va en «anchos entre ojos», así que no depende de lo cerca que esté la persona de la
+cámara. Y solo se mira la magnitud del movimiento, no el sentido: así no hay forma de equivocarse
+con el espejado de la vista previa, que es el fallo clásico de pedir «gira a la derecha» y que el
+usuario vea lo contrario en pantalla.
+
+**Qué para y qué no.** Para una foto impresa y una pantalla quieta —el atajo fácil: la foto del DNI,
+el compañero enseñando el móvil—. Un vídeo de la persona haciendo el gesto correcto lo pasaría. No
+se vende como más de lo que es: la barrera de verdad contra eso es que la evidencia queda guardada y
+un supervisor la mira.
+
+**Si no lo supera, no se bloquea el trabajo.** La cara ya coincidió; lo que falta es el gesto. La
+firma se registra por la vía de evidencia —foto guardada, `pending_review`— y cae en la bandeja del
+supervisor. Es la misma regla de todo el sistema: en obra nunca se deja a nadie parado, se deja
+rastro.
+
+Se activa por workspace con `docufiz.face_liveness`.
 
 ## Ajustes por empresa
 
