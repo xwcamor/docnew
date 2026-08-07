@@ -58,6 +58,20 @@ silencio.
 
 ## Corregido sobre la marcha
 
+- **La purga se llevó por delante dos archivos de rutas enteros.** `routes/system_management.php`
+  pasó de 289 líneas a 14 y `routes/api.php` de 92 a 34, porque el grupo exterior mencionaba un
+  controlador borrado y mi script eliminaba la sentencia completa. Resultado: 167 rutas dejaban de
+  existir, y `route('report.verify')` en la pantalla de login lanzaba un error de Ziggy que dejaba
+  **toda la aplicación en blanco**. Restaurados desde git y recortados solo en las rutas muertas.
+- El panel de flota del dashboard y el payload de aprobaciones seguían consultando modelos borrados.
+  El primero se reemplazó por el panel del día de DOCUFIZ; el segundo devuelve vacío.
+- Se retiraron los últimos enlaces al dominio viejo en el buscador global, la ficha de cliente y los
+  atajos de teclado.
+
+**Lección para la siguiente purga**: borrar por marcador de sección es seguro; borrar sentencias
+`Route::` que *contengan* un texto no lo es, porque un grupo entero es una sola sentencia.
+
+
 - `evidence_files.sha256` estaba declarado único, lo cual contradecía la propia deduplicación: si un
   archivo se guarda una vez y lo referencian varios eventos, el hash **se repite**. Ahora el hash va
   indexado y lo único es el par (evento, tipo).
@@ -67,3 +81,7 @@ silencio.
 `make:module` consulta la base al registrar el módulo en `system_modules`. Si PostgreSQL no está
 levantado, el comando **revierte todo lo generado** (lo hace bien: deja el proyecto limpio), pero hay
 que volver a ejecutarlo con la base arriba.
+
+- El nombre del producto vive en la tabla `settings` (`app.name`). El seeder ya dice DOCUFIZ, pero
+  en una base ya sembrada la fila conserva el valor anterior: se cambia desde Configuración o
+  volviendo a sembrar desde cero.

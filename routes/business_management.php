@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\BusinessManagement\CustomerHierarchyController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BusinessManagement\FormTemplateController;
 use App\Http\Controllers\BusinessManagement\WorkPlanController;
@@ -474,4 +475,27 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::post('form_templates/{formTemplate}/lock',   [FormTemplateController::class, 'lock'])->name('form_templates.lock');
         Route::post('form_templates/{formTemplate}/unlock', [FormTemplateController::class, 'unlock'])->name('form_templates.unlock');
     });
+    // ── Comentarios (polimórfico: transformer + muestras de cada prueba) ──
+    // Texto libre del usuario, con autor + fecha. Ver/crear/borrar se gatean por
+    // permiso (comments.*) para que el admin decida qué perfiles comentan.
+    Route::middleware('permission:comments.view')->group(function () {
+        // POST (no GET) para esquivar el redirect de localización en peticiones GET.
+        Route::post('comments/list', [CommentController::class, 'index'])->name('comments.index');
+    });
+    // Crear: la "Nota del diagnosticador" (commentable = transformer) exige
+    // diagnosis_notes.create; los comentarios POR MUESTRA exigen comments.create.
+    // El middleware deja pasar a quien tenga CUALQUIERA de los dos; el controller
+    // (store) hace valer el permiso correcto según el tipo de objeto comentado.
+    Route::middleware('permission:comments.create')->group(function () {
+        Route::post('comments', [CommentController::class, 'store'])->name('comments.store');
+    });
+    Route::middleware('permission:comments.delete')->group(function () {
+        Route::delete('comments/{comment}', [CommentController::class, 'destroy'])->name('comments.destroy');
+    });
+
+
+        Route::post('customers/{customer}/hierarchy', [CustomerHierarchyController::class, 'store'])->name('customers.hierarchy.store');
+        Route::put('customers/{customer}/hierarchy/{level}/{id}', [CustomerHierarchyController::class, 'update'])->name('customers.hierarchy.update');
+        Route::delete('customers/{customer}/hierarchy/{level}/{id}', [CustomerHierarchyController::class, 'destroy'])->name('customers.hierarchy.destroy');
+        Route::post('customers/{customer}/hierarchy/{level}/{id}/restore', [CustomerHierarchyController::class, 'restore'])->name('customers.hierarchy.restore');
 });

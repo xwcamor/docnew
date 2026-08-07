@@ -389,6 +389,11 @@ class HandleInertiaRequests extends Middleware
      */
     protected function buildApprovalsPayload(\App\Models\User $user): array
     {
+        // El flujo de aprobacion de informes venia del dominio de diagnostico y
+        // se retiro con la purga: sus modelos ya no existen. Si DOCUFIZ necesita
+        // aprobacion formal, se construye sobre work_plan_approvals.
+        return [];
+
         // require_approval gatea el botón "Enviar a aprobación" (lo ve cualquier
         // usuario del workspace, no solo firmantes).
         $requires = (bool) ($user->tenant?->require_report_approval ?? false);

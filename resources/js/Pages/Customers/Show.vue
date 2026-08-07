@@ -102,11 +102,6 @@ const fmt = (d) => formatDateTimeFull(d);
             </template>
             <template #actions>
                 <Space :size="8">
-                    <Tooltip v-if="!isDeleted && can('transformers.view') && totals.transformers > 0" :title="$t('comparison.compare_fleet_help')">
-                        <Link :href="route('business_management.comparison.patrones', { customer: customer.id })">
-                            <Button><template #icon><BarChartOutlined /></template><span class="btn-txt">{{ $t('comparison.compare_fleet') }}</span></Button>
-                        </Link>
-                    </Tooltip>
                     <EntityShowActions
                         module="customers"
                         route-prefix="business_management"

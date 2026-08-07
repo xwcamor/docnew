@@ -15,7 +15,7 @@
 | [x] | **`php artisan migrate:fresh` contra PostgreSQL 16** | **69 tablas creadas, 0 errores** |
 | [x] | **`php artisan db:seed`** | tenants, suscripciones y 175 clientes sembrados |
 | [x] | Menú lateral y traducciones sin módulos borrados | 0 rutas muertas en `AppLayout.vue` |
-| [x] | **La aplicación responde**: `/` redirige a login y `/es/login` devuelve 200 | probado con el servidor levantado |
+| [x] | **La aplicación responde y se navega** | probado en un Chromium real: login, dashboard, planes, personas, empresas, formatos y bandeja de firmas cargan **sin un solo error de JavaScript** |
 | [x] | **La base rechaza dos personas con el mismo documento** | probado: lanza la violación de índice único |
 | [x] | Flujo completo en base: empresa → cuadrilla → plan → formatos → firmas con evidencia | `DocufizDemoSeeder`: 1 plan, 2 formatos, 2 firmas, 1 pendiente de revisión |
 

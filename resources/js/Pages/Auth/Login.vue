@@ -332,7 +332,6 @@ const disclosureHtml = computed(() => {
                 <footer class="login-footer">
                     <p>© {{ new Date().getFullYear() }} {{ effectiveAppName }} · {{ $t('auth.all_rights_reserved') }}</p>
                     <p class="login-footer__links">
-                        <a :href="route('report.verify')" target="_blank" rel="noopener" class="link-sm">{{ $t('auth.verify_report') }}</a>
                         <span class="login-footer__sep">·</span>
                         <a :href="route('manual')" target="_blank" rel="noopener" class="link-sm">{{ $t('global.user_manual') }}</a>
                     </p>

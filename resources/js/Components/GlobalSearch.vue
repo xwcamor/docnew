@@ -51,13 +51,6 @@ const recentItems = computed(() => props.recentViews.slice(0, 6).map((r) => ({
 const searchFlat = computed(() => {
     const out = [];
     navMatches.value.forEach((i) => out.push({ type: 'nav', href: i.href, label: i.label }));
-    remote.value.transformers.forEach((tr) => out.push({
-        type: 'transformer',
-        href: route('business_management.transformers.show', tr.slug),
-        label: tr.serial || tr.tag,
-        sub: [tr.customer, tr.brand].filter(Boolean).join(' · '),
-        color: tr.color, condition: tr.condition,
-    }));
     remote.value.customers.forEach((c) => out.push({
         type: 'customer',
         href: route('business_management.customers.show', c.slug),

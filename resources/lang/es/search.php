@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'placeholder'      => 'Escribe para ir a un módulo o buscar un trafo…',
+    'placeholder'      => 'Escribe para ir a un módulo o buscar…',
     'empty'            => 'Sin resultados.',
     'start_hint'       => 'Escribe para buscar, o elige una opción.',
-    'type_transformer' => 'Transformador',
+    'type_record' => 'Transformador',
     'type_customer'    => 'Cliente',
     'type_nav'         => 'Módulo',
     'section_recent'   => 'Recientes',

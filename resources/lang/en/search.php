@@ -1,10 +1,10 @@
 <?php
 
 return [
-    'placeholder'      => 'Type to jump to a module or find a transformer…',
+    'placeholder'      => 'Type to jump to a module or find a record…',
     'empty'            => 'No results.',
     'start_hint'       => 'Type to search, or pick an option.',
-    'type_transformer' => 'Transformer',
+    'type_record' => 'Transformer',
     'type_customer'    => 'Customer',
     'type_nav'         => 'Module',
     'section_recent'   => 'Recent',
