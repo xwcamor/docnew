@@ -43,11 +43,11 @@ return [
     'user'      => 'No podemos encontrar un usuario con esa dirección de correo electrónico.',
 
     // Login page UI
-    'tagline'                  => 'Diagnóstico del estado de tus transformadores',
-    'feature_tests'            => 'Cromatografía, fisicoquímico, furanos y factor de potencia',
-    'feature_health'           => 'Índice de salud según normas IEC e IEEE',
-    'feature_methods'          => 'Duval, Rogers y Doernenburg para localizar fallas',
-    'feature_reports'          => 'Informes PDF verificables con código y QR',
+    'tagline'                  => 'Documentación diaria de seguridad en obra',
+    'feature_tests'            => 'AST, PTF, EPP, IHM y los formatos que tu empresa defina',
+    'feature_health'           => 'Firma con reconocimiento facial y evidencia guardada',
+    'feature_methods'          => 'Un trabajador, una identidad, aunque rote de contratista',
+    'feature_reports'          => 'Planes de trabajo firmados y auditables',
     'signin_subtitle'          => 'Ingresa tus credenciales para continuar',
     'verify_report'            => 'Verificación de informes',
     'email'                    => 'Correo electrónico',

@@ -43,11 +43,11 @@ return [
     'user'      => "We can't find a user with that email address.",
 
     // Login page UI
-    'tagline'                  => 'Transformer health diagnostics',
-    'feature_tests'            => 'Chromatography, physicochemical, furans and power factor',
-    'feature_health'           => 'Health index per IEC and IEEE standards',
-    'feature_methods'          => 'Duval, Rogers and Doernenburg fault location',
-    'feature_reports'          => 'Verifiable PDF reports with code and QR',
+    'tagline'                  => 'Daily safety documentation on site',
+    'feature_tests'            => 'AST, PTF, PPE, hand tools and any format your company defines',
+    'feature_health'           => 'Face-verified signatures with the evidence kept',
+    'feature_methods'          => 'One worker, one identity, across every contractor',
+    'feature_reports'          => 'Signed, auditable work plans',
     'signin_subtitle'          => 'Enter your credentials to continue',
     'verify_report'            => 'Report verification',
     'email'                    => 'Email',

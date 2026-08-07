@@ -52,10 +52,10 @@ const submit = () => {
 // llena en su color de semáforo: representa el estado de salud de la flota.
 const FCIRC = 94.25; // 2π·15
 const FLEET = [
-    { cx: 222, cy: 48, color: '#3FBF6F', target: 92 }, // muy bueno
-    { cx: 258, cy: 48, color: '#9BD64A', target: 76 }, // bueno
-    { cx: 222, cy: 92, color: '#F0A23C', target: 54 }, // medio
-    { cx: 258, cy: 92, color: '#F2554A', target: 28 }, // crítico
+    { cx: 222, cy: 48, color: '#3FBF6F', target: 96 }, // formatos confirmados
+    { cx: 258, cy: 48, color: '#9BD64A', target: 88 }, // firmas verificadas
+    { cx: 222, cy: 92, color: '#F0A23C', target: 42 }, // pendientes de revision
+    { cx: 258, cy: 92, color: '#F2554A', target: 12 }, // sin cerrar
 ];
 const fleetPct = ref(FLEET.map(() => 0));
 const fleetDash = (i) => `${(fleetPct.value[i] / 100 * FCIRC).toFixed(1)} ${FCIRC}`;
