@@ -115,6 +115,63 @@ class MigrateLegacyFormatsCommand extends Command
                                 ->orderBy('id')->pluck('name')->values()->all(),
             'probabilidades' => $viejo->table('probabilities')->where('is_deleted', 0)
                                 ->orderBy('id')->pluck('name')->values()->all(),
+            'matriz'        => $this->leerMatrizDeRiesgo(),
+        ];
+    }
+
+    /**
+     * La matriz de riesgo real, tal cual estaba en la base anterior.
+     *
+     * Y esto importa: el riesgo **no** es severidad × probabilidad. La tabla
+     * `risks` guarda un ranking del 1 al 25 en el que el 1 es lo peor
+     * (c1 = mas grave, p1 = mas probable) y el 25 lo mas leve. Doce de las
+     * veinticinco celdas caen en una banda distinta si se calcula con el
+     * producto: c2×p4 vale 12 en la tabla y 8 multiplicando, que es la
+     * diferencia entre «medio» y «alto» en un documento de seguridad.
+     *
+     * Las bandas salen de `Risk#level_name` del sistema anterior:
+     * 1-8 alto, 9-15 medio, 16-25 bajo.
+     *
+     * @return array{valores: array<int,array<int,int>>, niveles: array}
+     */
+    protected function leerMatrizDeRiesgo(): array
+    {
+        $viejo = DB::connection('legacy');
+
+        // Posicion en el catalogo, no id: es como la indexa la pantalla.
+        $posSeveridad = array_flip($viejo->table('severities')->where('is_deleted', 0)
+            ->orderBy('id')->pluck('id')->all());
+        $posProbabilidad = array_flip($viejo->table('probabilities')->where('is_deleted', 0)
+            ->orderBy('id')->pluck('id')->all());
+
+        $valores = [];
+
+        foreach ($viejo->table('risks')->where('is_deleted', 0)->get() as $r) {
+            $s = $posSeveridad[$r->severity_id] ?? null;
+            $p = $posProbabilidad[$r->probability_id] ?? null;
+
+            if ($s === null || $p === null) {
+                continue;
+            }
+
+            $valores[$s][$p] = (int) $r->risk_value;
+        }
+
+        ksort($valores);
+
+        foreach ($valores as &$fila) {
+            ksort($fila);
+            $fila = array_values($fila);
+        }
+        unset($fila);
+
+        return [
+            'valores' => array_values($valores),
+            'niveles' => [
+                ['hasta' => 8,  'clave' => 'alto'],
+                ['hasta' => 15, 'clave' => 'medio'],
+                ['hasta' => 25, 'clave' => 'bajo'],
+            ],
         ];
     }
 
@@ -139,8 +196,10 @@ class MigrateLegacyFormatsCommand extends Command
                 'controls'      => $cat['controles'],
                 'severities'    => $cat['severidades'],
                 'probabilities' => $cat['probabilidades'],
-                // El valor de riesgo es severidad × probabilidad, como en la matriz 5×5 original.
-                'formula'       => 'severidad * probabilidad',
+                // La matriz real del sistema anterior, no una formula: ver
+                // leerMatrizDeRiesgo().
+                'matrix'        => $cat['matriz']['valores'],
+                'levels'        => $cat['matriz']['niveles'],
             ],
         ]);
 
@@ -175,6 +234,7 @@ class MigrateLegacyFormatsCommand extends Command
                 'activities' => $cat['actividades'], 'dangers' => $cat['peligros'],
                 'controls' => $cat['controles'],
                 'severities' => $cat['severidades'], 'probabilities' => $cat['probabilidades'],
+                'matrix' => $cat['matriz']['valores'], 'levels' => $cat['matriz']['niveles'],
             ],
         ]);
         $c->agregarCampo($s2, ['code' => 'observaciones', 'field_type' => 'textarea']);

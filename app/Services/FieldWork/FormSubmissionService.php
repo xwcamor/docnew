@@ -2,6 +2,7 @@
 
 namespace App\Services\FieldWork;
 
+use App\Models\FormAnswer;
 use App\Models\FormAttachment;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
@@ -50,6 +51,12 @@ class FormSubmissionService
      * Guarda las respuestas. Cada valor va a la columna que corresponde a su
      * tipo de campo, no todo a texto.
      *
+     * Una respuesta con valor nulo **borra** la fila en vez de guardarla vacia.
+     * Importa en los campos de varias filas —la matriz de riesgo, los checklist—
+     * donde quitar una fila se manda como un hueco: si se guardara vacia
+     * quedaria una lapida, y `faltantes()` la contaria como respondida, con lo
+     * que un campo obligatorio vaciado del todo dejaria cerrar el formato.
+     *
      * @param  array  $respuestas  [['code' => 'actividad', 'value' => '...', 'row' => 0], ...]
      */
     public function responder(FormSubmission $entrega, array $respuestas): FormSubmission
@@ -67,19 +74,37 @@ class FormSubmissionService
                     throw new ModelNotFoundException("El formato no tiene el campo '{$respuesta['code']}'.");
                 }
 
-                $this->validarValor($campo->field_type, $respuesta['value'] ?? null, $campo->config ?? []);
+                $valor = $respuesta['value'] ?? null;
+                $clave = ['form_field_id' => $campo->id, 'row_index' => $respuesta['row'] ?? 0];
+
+                if ($this->esHueco($valor)) {
+                    $entrega->answers()->where($clave)->delete();
+
+                    continue;
+                }
+
+                $this->validarValor($campo->field_type, $valor, $campo->config ?? []);
 
                 $entrega->answers()->updateOrCreate(
-                    [
-                        'form_field_id' => $campo->id,
-                        'row_index'     => $respuesta['row'] ?? 0,
-                    ],
-                    $this->columnaSegunTipo($campo->field_type, $respuesta['value'] ?? null),
+                    $clave,
+                    $this->columnaSegunTipo($campo->field_type, $valor),
                 );
             }
 
             return $entrega->fresh('answers');
         });
+    }
+
+    /**
+     * Un hueco es una respuesta que no dice nada: nula, o una lista vacia.
+     *
+     * `false` y `0` NO son huecos: una casilla desmarcada y un cero son
+     * respuestas de pleno derecho. Una cadena vacia tampoco se borra aqui —
+     * `faltantes()` ya la trata como sin responder si el campo es obligatorio.
+     */
+    protected function esHueco(mixed $valor): bool
+    {
+        return $valor === null || (is_array($valor) && $valor === []);
     }
 
     /**
@@ -142,7 +167,14 @@ class FormSubmissionService
             return $entrega->attachments()->exists() ? [] : ['archivo del formato'];
         }
 
-        $respondidos = $entrega->answers()->pluck('form_field_id')->all();
+        // Solo cuentan las respuestas que dicen algo. Una fila con las cinco
+        // columnas en nulo, o con una lista vacia, no es una respuesta: puede
+        // venir de datos migrados o de una version anterior del guardado, y
+        // dejaria cerrar un formato al que le falta un campo obligatorio.
+        $respondidos = $entrega->answers()->get()
+            ->filter(fn ($r) => $this->respuestaConContenido($r))
+            ->pluck('form_field_id')
+            ->all();
 
         $faltantes = $plantilla->fields()
             ->where('is_required', true)
@@ -156,6 +188,31 @@ class FormSubmissionService
         }
 
         return $faltantes;
+    }
+
+    /**
+     * Si una fila de respuestas guarda algo o esta hueca.
+     *
+     * `false` cuenta: una casilla desmarcada es una respuesta. Una cadena
+     * vacia y una lista vacia, no.
+     */
+    protected function respuestaConContenido(FormAnswer $respuesta): bool
+    {
+        if ($respuesta->value_boolean !== null) {
+            return true;
+        }
+
+        if ($respuesta->value_number !== null || $respuesta->value_datetime !== null) {
+            return true;
+        }
+
+        if (filled($respuesta->value_text)) {
+            return true;
+        }
+
+        $json = $respuesta->value_json;
+
+        return is_array($json) ? $json !== [] : filled($json);
     }
 
     /** Cada tipo de campo se guarda en su columna, para poder consultarlo. */

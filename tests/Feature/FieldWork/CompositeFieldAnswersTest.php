@@ -1,0 +1,415 @@
+<?php
+
+namespace Tests\Feature\FieldWork;
+
+use App\Models\Company;
+use App\Models\FormAnswer;
+use App\Models\FormSubmission;
+use App\Models\FormTemplate;
+use App\Models\Person;
+use App\Models\User;
+use App\Models\WorkLocation;
+use App\Models\WorkPlan;
+use App\Models\WorkPlanPerson;
+use App\Models\WorkType;
+use App\Services\FieldWork\FormSubmissionService;
+use App\Services\FieldWork\FormTemplateBuilder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Tests\TestCase;
+
+/**
+ * El contrato entre la pantalla de llenado y el motor de formatos.
+ *
+ * Los cuatro tipos compuestos —matriz de riesgo (AST/PTF), EPP por trabajador,
+ * IHM por herramienta y banco de preguntas (PTF)— no se guardan como texto:
+ * tienen forma, y FormSubmissionService::validarValor() la exige. Esta prueba
+ * manda EXACTAMENTE lo que emiten los componentes de
+ * resources/js/Components/FormFields, para que un cambio en la interfaz que se
+ * salga del contrato se vea aqui y no en obra.
+ *
+ * Lo que se comprueba:
+ *   1. el valor de cada tipo pasa la validacion y cae en `value_json`;
+ *   2. los tipos por fila (matriz, EPP, IHM) usan `row_index`, uno por fila;
+ *   3. volver a guardar actualiza la fila, no la duplica;
+ *   4. quitar una fila la borra de verdad, no deja una fila vacia;
+ *   5. con todo respondido, la entrega se puede confirmar;
+ *   6. y un campo obligatorio que se vacie del todo impide cerrar el formato.
+ */
+class CompositeFieldAnswersTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_AR', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('regions')->insertOrIgnore([['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('countries')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+    }
+
+    public function test_la_matriz_de_riesgo_se_guarda_una_fila_por_peligro(): void
+    {
+        [$entrega, $plantilla] = $this->entregaAst();
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
+            ['code' => 'matriz_de_riesgo', 'row' => 1, 'value' => $this->filaRiesgo('c5', 'p4', 20, 'bajo')],
+        ]);
+
+        $filas = $this->respuestas($entrega, $plantilla, 'matriz_de_riesgo');
+
+        $this->assertCount(2, $filas);
+        $this->assertSame([0, 1], $filas->pluck('row_index')->all());
+
+        // La forma completa cae en value_json, no en value_text.
+        $this->assertNull($filas[0]->value_text);
+        $this->assertSame('Excavacion manual', $filas[0]->value_json['actividad']);
+        $this->assertSame('c2', $filas[0]->value_json['severidad']);
+        $this->assertSame('p3', $filas[0]->value_json['probabilidad']);
+        $this->assertSame(6, $filas[0]->value_json['riesgo']);
+        $this->assertSame('alto', $filas[0]->value_json['nivel']);
+        $this->assertSame('bajo', $filas[1]->value_json['nivel']);
+    }
+
+    public function test_volver_a_guardar_actualiza_la_fila_y_quitarla_la_borra(): void
+    {
+        [$entrega, $plantilla] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
+
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
+            ['code' => 'matriz_de_riesgo', 'row' => 1, 'value' => $this->filaRiesgo('c5', 'p4', 20, 'bajo')],
+        ]);
+
+        // El usuario quita la segunda fila: la pantalla reenvia lo que queda y
+        // manda el hueco en null. Eso borra la fila, no la deja vacia.
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c1', 'p1', 1, 'alto')],
+            ['code' => 'matriz_de_riesgo', 'row' => 1, 'value' => null],
+        ]);
+
+        $filas = $this->respuestas($entrega, $plantilla, 'matriz_de_riesgo');
+
+        $this->assertCount(1, $filas, 'la fila quitada tiene que desaparecer, no quedar en blanco');
+        $this->assertSame('c1', $filas[0]->value_json['severidad']);
+    }
+
+    /**
+     * El caso que se colaba: un campo obligatorio de varias filas al que se le
+     * quitan todas. Antes quedaba una fila vacia, `faltantes()` la contaba como
+     * respondida y el formato se cerraba sin matriz de riesgo.
+     */
+    public function test_vaciar_un_campo_obligatorio_impide_cerrar_el_formato(): void
+    {
+        [$entrega] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
+
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
+        ]);
+        $this->assertSame([], $servicio->faltantes($entrega));
+
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => null],
+        ]);
+
+        $this->assertContains('matriz_de_riesgo', $servicio->faltantes($entrega));
+
+        $this->expectException(\InvalidArgumentException::class);
+        $servicio->confirmar($entrega);
+    }
+
+    /** Una fila vacia guardada por una version anterior tampoco cuenta. */
+    public function test_una_fila_vacia_heredada_no_cuenta_como_respondida(): void
+    {
+        [$entrega, $plantilla] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
+
+        $campo = $plantilla->fields()->where('code', 'matriz_de_riesgo')->sole();
+
+        // Lo que dejaba el guardado anterior: la fila existe, sin contenido.
+        FormAnswer::create([
+            'form_submission_id' => $entrega->id,
+            'form_field_id'      => $campo->id,
+            'row_index'          => 0,
+        ]);
+
+        $this->assertContains('matriz_de_riesgo', $servicio->faltantes($entrega));
+    }
+
+    public function test_el_epp_guarda_una_fila_por_trabajador_con_su_correccion(): void
+    {
+        [$entrega, $plantilla, $personas] = $this->entregaEpp();
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'epp_por_trabajador', 'row' => 0, 'value' => [
+                'person_slug' => $personas[0]->slug,
+                'person_name' => 'Ana Quispe',
+                'person_doc'  => '40000001',
+                'items' => [
+                    ['item' => 'Casco', 'answer' => 'Conforme'],
+                    ['item' => 'Guantes', 'answer' => 'Conforme'],
+                ],
+                'conforme' => true,
+            ]],
+            ['code' => 'epp_por_trabajador', 'row' => 1, 'value' => [
+                'person_slug' => $personas[1]->slug,
+                'person_name' => 'Luis Mamani',
+                'person_doc'  => '40000002',
+                'items' => [
+                    ['item' => 'Casco', 'answer' => 'No conforme'],
+                    ['item' => 'Guantes', 'answer' => 'No aplica'],
+                ],
+                'conforme' => false,
+                // Los campos de `config.extra`, que solo se llenan si algo salio mal.
+                'correction_measure'      => 'Se entrega casco nuevo antes de iniciar',
+                'deadline_date'           => '2026-08-08',
+                'correction_verification' => 'Verificado por el supervisor',
+            ]],
+        ]);
+
+        $filas = $this->respuestas($entrega, $plantilla, 'epp_por_trabajador');
+
+        $this->assertCount(2, $filas);
+        $this->assertTrue($filas[0]->value_json['conforme']);
+        $this->assertSame('Conforme', $filas[0]->value_json['items'][0]['answer']);
+        $this->assertFalse($filas[1]->value_json['conforme']);
+        $this->assertSame('2026-08-08', $filas[1]->value_json['deadline_date']);
+    }
+
+    public function test_el_ihm_guarda_una_fila_por_herramienta(): void
+    {
+        [$entrega, $plantilla] = $this->entregaIhm();
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'inspeccion_de_herramientas', 'row' => 0, 'value' => [
+                'tool' => 'Martillo',
+                'items' => [
+                    ['item' => 'Condiciones generales de las herramientas.', 'answer' => 'Cumple'],
+                    ['item' => 'Empalmes y conexiones.', 'answer' => 'No aplica'],
+                ],
+                'conforme' => true,
+            ]],
+            ['code' => 'inspeccion_de_herramientas', 'row' => 1, 'value' => [
+                'tool' => 'Escalera',
+                'items' => [
+                    ['item' => 'Condiciones generales de las herramientas.', 'answer' => 'No cumple'],
+                    ['item' => 'Empalmes y conexiones.', 'answer' => 'Cumple'],
+                ],
+                'conforme' => false,
+            ]],
+        ]);
+
+        $filas = $this->respuestas($entrega, $plantilla, 'inspeccion_de_herramientas');
+
+        $this->assertCount(2, $filas);
+        $this->assertSame('Martillo', $filas[0]->value_json['tool']);
+        $this->assertSame('No cumple', $filas[1]->value_json['items'][0]['answer']);
+        $this->assertFalse($filas[1]->value_json['conforme']);
+    }
+
+    public function test_el_banco_de_preguntas_se_guarda_como_una_sola_lista(): void
+    {
+        [$entrega, $plantilla] = $this->entregaPtf();
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'preguntas', 'value' => [
+                ['question' => '¿DETENTE y piensa antes de actuar?', 'answer' => 'Si'],
+                ['question' => '¿El area esta señalizada?', 'answer' => 'No'],
+                ['question' => '¿Se requiere permiso de altura?', 'answer' => 'No aplica'],
+            ]],
+        ]);
+
+        $filas = $this->respuestas($entrega, $plantilla, 'preguntas');
+
+        // Una sola respuesta, en la fila 0, con la lista completa dentro.
+        $this->assertCount(1, $filas);
+        $this->assertSame(0, $filas[0]->row_index);
+        $this->assertCount(3, $filas[0]->value_json);
+        $this->assertSame('Si', $filas[0]->value_json[0]['answer']);
+        $this->assertSame('No aplica', $filas[0]->value_json[2]['answer']);
+    }
+
+    public function test_con_los_compuestos_respondidos_la_entrega_se_confirma(): void
+    {
+        [$entrega] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
+
+        $this->assertSame(['matriz_de_riesgo'], $servicio->faltantes($entrega));
+
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
+        ]);
+
+        $this->assertSame([], $servicio->faltantes($entrega));
+        $this->assertSame('confirmed', $servicio->confirmar($entrega)->status);
+    }
+
+    public function test_un_compuesto_sin_su_forma_no_se_guarda(): void
+    {
+        [$entrega] = $this->entregaAst();
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        // Sin severidad ni probabilidad no hay matriz de riesgo que valga.
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => ['actividad' => 'Excavacion manual']],
+        ]);
+    }
+
+    // ── apoyo ────────────────────────────────────────────────────────────────
+
+    /** Una fila de la matriz tal y como la emite RiskMatrixField.vue. */
+    protected function filaRiesgo(string $severidad, string $probabilidad, int $riesgo, string $nivel): array
+    {
+        return [
+            'actividad'    => 'Excavacion manual',
+            'peligro'      => 'Caida de personas al mismo nivel',
+            'control'      => 'Delimitar y señalizar el area',
+            'severidad'    => $severidad,
+            'probabilidad' => $probabilidad,
+            'riesgo'       => $riesgo,
+            'nivel'        => $nivel,
+        ];
+    }
+
+    /** @return array{0:FormSubmission,1:FormTemplate} */
+    protected function entregaAst(): array
+    {
+        return $this->entrega('AST', [
+            'code' => 'matriz_de_riesgo', 'field_type' => 'risk_matrix', 'is_required' => true,
+            'config' => [
+                'activities'    => ['Excavacion manual', 'Trabajo en altura'],
+                'dangers'       => ['Caida de personas al mismo nivel', 'Contacto electrico'],
+                'controls'      => ['Delimitar y señalizar el area', 'Bloqueo y etiquetado'],
+                'severities'    => ['c1', 'c2', 'c3', 'c4', 'c5'],
+                'probabilities' => ['p1', 'p2', 'p3', 'p4', 'p5'],
+                'formula'       => 'severidad * probabilidad',
+            ],
+        ]);
+    }
+
+    /** @return array{0:FormSubmission,1:FormTemplate,2:array<int,Person>} */
+    protected function entregaEpp(): array
+    {
+        [$entrega, $plantilla, $plan] = $this->entrega('EPP', [
+            'code' => 'epp_por_trabajador', 'field_type' => 'person_checklist', 'is_required' => true,
+            'config' => [
+                'items'   => ['Casco', 'Guantes'],
+                'answers' => ['Conforme', 'No conforme', 'No aplica'],
+                'extra'   => ['correction_measure', 'deadline_date', 'correction_verification'],
+            ],
+        ], conCuadrilla: true);
+
+        $personas = $plan->people()->with('person')->get()->map(fn ($p) => $p->person)->all();
+
+        return [$entrega, $plantilla, $personas];
+    }
+
+    /** @return array{0:FormSubmission,1:FormTemplate} */
+    protected function entregaIhm(): array
+    {
+        return $this->entrega('IHM', [
+            'code' => 'inspeccion_de_herramientas', 'field_type' => 'tool_checklist', 'is_required' => true,
+            'config' => [
+                'tools'   => ['Martillo', 'Escalera'],
+                'items'   => ['Condiciones generales de las herramientas.', 'Empalmes y conexiones.'],
+                'answers' => ['No cumple', 'Cumple', 'No aplica'],
+            ],
+        ]);
+    }
+
+    /** @return array{0:FormSubmission,1:FormTemplate} */
+    protected function entregaPtf(): array
+    {
+        return $this->entrega('PTF', [
+            'code' => 'preguntas', 'field_type' => 'question_bank', 'is_required' => true,
+            'config' => [
+                'questions' => [
+                    '¿DETENTE y piensa antes de actuar?',
+                    '¿El area esta señalizada?',
+                    '¿Se requiere permiso de altura?',
+                ],
+                'answers' => ['Si', 'No', 'No aplica'],
+            ],
+        ]);
+    }
+
+    /**
+     * Plantilla publicada con un solo campo compuesto, su plan y la entrega
+     * abierta. Se usa el constructor real para que la config pase por las
+     * mismas comprobaciones que en produccion.
+     *
+     * @return array{0:FormSubmission,1:FormTemplate,2:WorkPlan}
+     */
+    protected function entrega(string $codigo, array $campo, bool $conCuadrilla = false): array
+    {
+        $usuario = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $constructor = app(FormTemplateBuilder::class);
+
+        $plantilla = $constructor->crear([
+            'country_id' => 1, 'tenant_id' => 1, 'created_by' => $usuario->id, 'code' => $codigo,
+        ]);
+
+        $constructor->agregarCampo($constructor->agregarSeccion($plantilla), $campo);
+        $plantilla = $constructor->publicar($plantilla);
+
+        $plan = $this->plan($usuario);
+
+        if ($conCuadrilla) {
+            foreach ([['Ana', 'Quispe', '40000001'], ['Luis', 'Mamani', '40000002']] as [$nombre, $apellido, $doc]) {
+                $persona = Person::create([
+                    'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => $usuario->id,
+                    'doc_type' => 'DNI', 'num_doc' => $doc, 'name' => $nombre, 'lastname' => $apellido,
+                ]);
+
+                WorkPlanPerson::create([
+                    'slug' => Str::random(22), 'work_plan_id' => $plan->id, 'person_id' => $persona->id,
+                ]);
+            }
+        }
+
+        $entrega = app(FormSubmissionService::class)->abrir($plan, $plantilla, $usuario->id);
+
+        return [$entrega, $plantilla, $plan];
+    }
+
+    protected function plan(User $usuario): WorkPlan
+    {
+        $base = ['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => $usuario->id];
+
+        $empresa = Company::create($base + [
+            'num_doc' => (string) random_int(20000000000, 20999999999),
+            'name' => 'Contratista', 'complete_name' => 'Contratista SAC', 'is_active' => true,
+        ]);
+
+        $tipo = WorkType::create($base + ['code' => 'MTTO']);
+        $lugar = WorkLocation::create($base + ['name' => 'Planta']);
+
+        return WorkPlan::create($base + [
+            'company_id'       => $empresa->id,
+            'work_type_id'     => $tipo->id,
+            'work_location_id' => $lugar->id,
+            'user_id'          => $usuario->id,
+            'code'             => 'OT-' . random_int(1000, 9999),
+            'description'      => 'Mantenimiento programado',
+            'date_start'       => today(),
+        ]);
+    }
+
+    /** Las respuestas de un campo, ordenadas por fila. */
+    protected function respuestas(FormSubmission $entrega, FormTemplate $plantilla, string $code)
+    {
+        $campo = $plantilla->fields()->where('code', $code)->sole();
+
+        return FormAnswer::where('form_submission_id', $entrega->id)
+            ->where('form_field_id', $campo->id)
+            ->orderBy('row_index')
+            ->get();
+    }
+}

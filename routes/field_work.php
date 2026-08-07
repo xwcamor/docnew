@@ -19,6 +19,15 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
             ->name('forms.open');
     });
 
+    // El PDF firmado saca el documento del sistema, asi que pide el mismo
+    // permiso que el resto de exports: lo tienen el supervisor de obra y el
+    // auditor HSE, no el usuario de campo que solo llena el formato.
+    // Se enlaza por slug, que es el identificador que sale impreso en el pie.
+    Route::middleware('permission:form_submissions.export')->group(function () {
+        Route::get('submissions/{form_submission}/pdf', [FormSubmissionController::class, 'pdf'])
+            ->name('forms.pdf');
+    });
+
     Route::middleware('permission:form_submissions.edit')->group(function () {
         Route::post('submissions/{form_submission}/answers', [FormSubmissionController::class, 'answer'])
             ->name('forms.answer');
