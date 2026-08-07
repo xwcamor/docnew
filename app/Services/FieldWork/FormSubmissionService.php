@@ -67,6 +67,8 @@ class FormSubmissionService
                     throw new ModelNotFoundException("El formato no tiene el campo '{$respuesta['code']}'.");
                 }
 
+                $this->validarValor($campo->field_type, $respuesta['value'] ?? null, $campo->config ?? []);
+
                 $entrega->answers()->updateOrCreate(
                     [
                         'form_field_id' => $campo->id,
@@ -183,5 +185,49 @@ class FormSubmissionService
             'application/pdf' => '.pdf',
             default => '.bin',
         };
+    }
+
+    /**
+     * Los tipos compuestos tienen forma: si no se valida aqui, el PDF y los
+     * reportes reciben cualquier cosa. En el sistema viejo esta forma vivia en
+     * columnas fijas de cada tabla de formato; aqui vive en el tipo de campo.
+     */
+    protected function validarValor(string $tipo, mixed $valor, array $config): void
+    {
+        if ($valor === null) {
+            return;
+        }
+
+        match ($tipo) {
+            'risk_matrix' => $this->exigirClaves($valor, ['severidad', 'probabilidad'], $tipo),
+            'person_checklist', 'tool_checklist' => $this->exigirLista($valor, $tipo),
+            'question_bank' => $this->exigirLista($valor, $tipo),
+            'select', 'radio' => $this->exigirOpcion($valor, $config['options'] ?? [], $tipo),
+            'number' => is_numeric($valor) ?: throw new \InvalidArgumentException("El campo '{$tipo}' espera un numero."),
+            default => null,
+        };
+    }
+
+    protected function exigirClaves(mixed $valor, array $claves, string $tipo): void
+    {
+        if (! is_array($valor) || array_diff($claves, array_keys($valor)) !== []) {
+            throw new \InvalidArgumentException(
+                "El campo '{$tipo}' espera " . implode(' y ', $claves) . '.'
+            );
+        }
+    }
+
+    protected function exigirLista(mixed $valor, string $tipo): void
+    {
+        if (! is_array($valor) || $valor === []) {
+            throw new \InvalidArgumentException("El campo '{$tipo}' espera una lista de respuestas.");
+        }
+    }
+
+    protected function exigirOpcion(mixed $valor, array $opciones, string $tipo): void
+    {
+        if ($opciones !== [] && ! in_array($valor, $opciones, true)) {
+            throw new \InvalidArgumentException("El valor no es una opcion valida de '{$tipo}'.");
+        }
     }
 }

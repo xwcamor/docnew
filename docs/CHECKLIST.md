@@ -41,6 +41,10 @@
 | [x] | **Servicio de llenado de formatos** | probado: HOJA X no cierra sin la foto del papel; AST no cierra sin sus campos obligatorios; la matriz de riesgo se guarda como JSON |
 | [x] | Controladores y rutas de trabajo en obra | **11 rutas registradas**, cada una tras su permiso |
 | [x] | Pantallas Vue: lista de formatos, llenado, firma con cámara y bandeja de revisión | el front compila con face-api incluido |
+| [x] | **Editor de formatos** (`FormTemplateBuilder`) | probado: crear un formato con campos, publicar, versionar |
+| [x] | Tipos de campo compuestos declarados con su configuración obligatoria | probado: un `select` sin opciones no se acepta |
+| [x] | Validación del valor según el tipo | probado: una matriz de riesgo mal formada se rechaza |
+| [x] | Un formato publicado no se edita: se saca versión nueva | probado: la entrega firmada conserva su versión |
 | [x] | Modelos de face-api.js en el repositorio (6,8 MB) | no se descargan en tiempo de ejecución |
 | [x] | Verificación facial en el navegador con los dos relojes | portada a `useFaceVerify` |
 | [ ] | Reto de vida (gesto de cabeza) y enrolamiento desde la app | pendiente |

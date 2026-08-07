@@ -81,7 +81,7 @@ que son las plantillas que usa `make:module`.
 | 2 · Catálogos | ◐ | faltan los módulos de sedes, puestos, áreas, cargos, nacionalidades y tipos de trabajo |
 | 3 · Personas | ✅ | repasar las pantallas heredadas de la plantilla |
 | 4 · Planes | ✅ | ídem |
-| 5 · Formatos | ◐ | tipos de campo compuestos (matriz de riesgo, checklists) y el editor de plantillas |
+| 5 · Formatos | ◐ | el editor y los tipos ya están; falta pintar los compuestos en pantalla y el PDF |
 | 6 · Firmas | ◐ | reto de vida, enrolamiento desde la app y PDF firmado |
 | 7 · Migración | ○ | los 14 pasos de `docs/MIGRACION.md` |
 
