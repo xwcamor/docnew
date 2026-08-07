@@ -63,6 +63,10 @@ return [
             'model'      => \App\Models\Automation::class,
             'show_route' => 'automation_management.automations.show',
         ],
+        'companies' => [
+            'model'      => \App\Models\Company::class,
+            'show_route' => 'business_management.companies.show',
+        ],
         // Agrega modulos nuevos aqui cuando crees patients, doctors, etc.
     ],
 ];

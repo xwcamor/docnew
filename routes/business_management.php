@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BusinessManagement\CompanyController;
 use App\Http\Controllers\BusinessManagement\BrandController;
 use App\Http\Controllers\BusinessManagement\CustomerController;
 use App\Http\Controllers\BusinessManagement\CommentController;
@@ -173,5 +174,79 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('brands/{brand}/lock',   [BrandController::class, 'lock'])->name('brands.lock');
         Route::post('brands/{brand}/unlock', [BrandController::class, 'unlock'])->name('brands.unlock');
+    });
+
+
+    // ── Companies ──
+    // Bloque generado por make:module. Reordena o ajusta permisos según tu dominio.
+
+    // 1) Trash + restore + force_delete (super only — defense in depth)
+    Route::middleware('role:super')->group(function () {
+        Route::get('companies/trash',                  [CompanyController::class, 'trash'])->name('companies.trash');
+        Route::post('companies/bulk_restore',          [CompanyController::class, 'bulkRestore'])->name('companies.bulk_restore');
+        Route::post('companies/{slug}/restore',        [CompanyController::class, 'restore'])->name('companies.restore');
+        Route::get('companies/{slug}/restore',         fn () => redirect()->route('business_management.companies.trash'));
+        Route::delete('companies/{slug}/force_delete', [CompanyController::class, 'forceDelete'])->name('companies.force_delete');
+    });
+
+    // 2) Exports (gated por plan_feature por formato)
+    Route::middleware('permission:companies.view')->group(function () {
+        Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
+            ->post('companies/export_excel', [CompanyController::class, 'exportExcel'])->name('companies.export_excel');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
+            ->post('companies/export_pdf',   [CompanyController::class, 'exportPdf'])->name('companies.export_pdf');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_word'])
+            ->post('companies/export_word',  [CompanyController::class, 'exportWord'])->name('companies.export_word');
+        Route::middleware('throttle:5,1')
+            ->post('companies/export_csv',   [CompanyController::class, 'exportCsv'])->name('companies.export_csv');
+    });
+
+    // 3) Imports
+    Route::middleware(['permission:companies.create', 'plan_feature:bulk_operations'])->group(function () {
+        Route::post('companies/import',          [CompanyController::class, 'import'])->name('companies.import');
+        Route::get('companies/import_template',  [CompanyController::class, 'importTemplate'])->name('companies.import_template');
+    });
+
+    // 4) Bulk operations
+    Route::middleware(['permission:companies.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('companies/bulk_delete',     [CompanyController::class, 'bulkDelete'])->name('companies.bulk_delete');
+        Route::post('companies/bulk_set_active', [CompanyController::class, 'bulkSetActive'])->name('companies.bulk_set_active');
+    });
+
+    // Undo del ultimo borrado (60s window)
+    Route::middleware('permission:companies.delete')->group(function () {
+        Route::post('companies/undo_last_delete', [CompanyController::class, 'undoLastDelete'])->name('companies.undo_last_delete');
+    });
+
+    // Edit All
+    Route::middleware('permission:companies.edit')->group(function () {
+        Route::get('companies/edit_all',         [CompanyController::class, 'editAll'])->name('companies.edit_all');
+        Route::post('companies/edit_all/update', [CompanyController::class, 'editAllUpdate'])->name('companies.edit_all.update');
+    });
+
+    // 5) CRUD principal — paths estaticos PRIMERO.
+    Route::middleware('permission:companies.create')->group(function () {
+        Route::get('companies/create', [CompanyController::class, 'create'])->name('companies.create');
+        Route::post('companies',       [CompanyController::class, 'store'])->name('companies.store');
+        Route::post('companies/{company}/duplicate', [CompanyController::class, 'duplicate'])->name('companies.duplicate');
+    });
+
+    Route::middleware('permission:companies.view')->group(function () {
+        Route::get('companies',                [CompanyController::class, 'index'])->name('companies.index');
+        Route::get('companies/{company}',  [CompanyController::class, 'show'])->name('companies.show');
+    });
+    Route::middleware('permission:companies.edit')->group(function () {
+        Route::get('companies/{company}/edit', [CompanyController::class, 'edit'])->name('companies.edit');
+        Route::put('companies/{company}',      [CompanyController::class, 'update'])->name('companies.update');
+    });
+    Route::middleware('permission:companies.delete')->group(function () {
+        Route::get('companies/{company}/delete',        [CompanyController::class, 'delete'])->name('companies.delete');
+        Route::delete('companies/{company}/deleteSave', [CompanyController::class, 'deleteSave'])->name('companies.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('companies/{company}/lock',   [CompanyController::class, 'lock'])->name('companies.lock');
+        Route::post('companies/{company}/unlock', [CompanyController::class, 'unlock'])->name('companies.unlock');
     });
 });

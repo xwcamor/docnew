@@ -95,6 +95,10 @@ return [
             'model' => \App\Models\Setting::class,
             'days'  => 365,
         ],
+        'companies' => [
+            'model' => \App\Models\Company::class,
+            'days'  => 90,
+        ],
         // Suma modulos nuevos aqui:
         // 'patients' => [...],
         // 'doctors'  => [...],

@@ -16,6 +16,8 @@
 | [x] | **`php artisan db:seed`** | tenants, suscripciones y 175 clientes sembrados |
 | [x] | Menú lateral y traducciones sin módulos borrados | 0 rutas muertas en `AppLayout.vue` |
 | [x] | **La aplicación responde**: `/` redirige a login y `/es/login` devuelve 200 | probado con el servidor levantado |
+| [x] | **La base rechaza dos personas con el mismo documento** | probado: lanza la violación de índice único |
+| [x] | Flujo completo en base: empresa → cuadrilla → plan → formatos → firmas con evidencia | `DocufizDemoSeeder`: 1 plan, 2 formatos, 2 firmas, 1 pendiente de revisión |
 
 ## Dominio DOCUFIZ
 
@@ -28,8 +30,9 @@
 | [x] | `form_templates` … `form_attachments` (motor de formatos) | en base |
 | [x] | `signature_events` + `evidence_files` | en base |
 | [x] | Índice único real de identidad `(tenant, país, tipo doc, documento)` | índice parcial de PostgreSQL creado |
-| [ ] | Modelos Eloquent con sus traits | pendiente |
-| [ ] | Módulos con `make:module` (catálogos → personas → planes → formatos) | pendiente |
+| [x] | 23 modelos Eloquent del dominio, con relaciones, casts y constantes | **probados contra la base con un seeder de demostración** |
+| [x] | Primer módulo generado con `make:module`: **Companies** | rutas registradas, front compila |
+| [ ] | Resto de módulos (personas → planes → formatos) | pendiente, mismo patrón |
 | [ ] | Motor de formatos: editor y tipos de campo | pendiente |
 | [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |
