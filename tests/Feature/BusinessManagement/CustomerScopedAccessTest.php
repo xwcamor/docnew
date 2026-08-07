@@ -3,7 +3,6 @@
 namespace Tests\Feature\BusinessManagement;
 
 use App\Models\Customer;
-use App\Models\Transformer;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +12,8 @@ use Tests\TestCase;
 
 /**
  * 3ª capa de acceso: usuario restringido a ciertos clientes (customer_user).
- * - CON asignaciones → solo ve los trafos/clientes de esos clientes.
- * - SIN asignaciones → ve todo su tenant (comportamiento actual intacto).
+ * - CON asignaciones → solo ve esos clientes.
+ * - SIN asignaciones → ve todo su workspace.
  */
 class CustomerScopedAccessTest extends TestCase
 {
@@ -30,12 +29,9 @@ class CustomerScopedAccessTest extends TestCase
         DB::table('regions')->insert(['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]);
         DB::table('countries')->insert(['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
         DB::table('tenants')->insert(['id' => 1, 'slug' => Str::random(22), 'name' => 'E1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]);
-        // Dos clientes + un trafo en cada uno.
+        // Dos clientes en el mismo workspace.
         foreach ([['id' => 10, 'name' => 'Cliente A'], ['id' => 20, 'name' => 'Cliente B']] as $c) {
             DB::table('customers')->insert(['id' => $c['id'], 'slug' => Str::random(22), 'name' => $c['name'], 'is_active' => true, 'tenant_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
-        }
-        foreach ([['id' => 100, 'cid' => 10, 's' => 'TR-A'], ['id' => 200, 'cid' => 20, 's' => 'TR-B']] as $t) {
-            DB::table('transformers')->insert(['id' => $t['id'], 'slug' => Str::random(22), 'serial' => $t['s'], 'customer_id' => $t['cid'], 'tenant_id' => 1, 'created_at' => now(), 'updated_at' => now()]);
         }
     }
 
@@ -48,7 +44,6 @@ class CustomerScopedAccessTest extends TestCase
     {
         $this->actingAs($this->user());
 
-        $this->assertSame(2, Transformer::count());
         $this->assertSame(2, Customer::count());
     }
 
@@ -59,15 +54,9 @@ class CustomerScopedAccessTest extends TestCase
 
         $this->actingAs($u);
 
-        // Solo el trafo del cliente 10.
-        $serials = Transformer::pluck('serial')->all();
-        $this->assertSame(['TR-A'], $serials);
-
-        // Solo el cliente 10.
+        // Solo el cliente 10; el otro es invisible incluso por id.
         $this->assertSame([10], Customer::pluck('id')->map(fn ($i) => (int) $i)->all());
-
-        // El trafo del otro cliente es invisible (404 por route binding).
-        $this->assertNull(Transformer::find(200));
+        $this->assertNull(Customer::find(20));
     }
 
     public function test_dos_clientes_asignados_ve_ambos(): void
@@ -80,6 +69,6 @@ class CustomerScopedAccessTest extends TestCase
 
         $this->actingAs($u);
 
-        $this->assertSame(2, Transformer::count());
+        $this->assertSame(2, Customer::count());
     }
 }

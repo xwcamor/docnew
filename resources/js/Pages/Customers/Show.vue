@@ -4,7 +4,7 @@ import { Head, Link } from '@inertiajs/vue3';
 import {
     Card, Tag, Space, Descriptions, DescriptionsItem, Alert, Button, Tooltip,
 } from 'ant-design-vue';
-import { SolutionOutlined, EnvironmentOutlined, AppstoreOutlined, ClusterOutlined, ThunderboltOutlined, BarChartOutlined, TeamOutlined, ApartmentOutlined } from '@ant-design/icons-vue';
+import { SolutionOutlined, EnvironmentOutlined, AppstoreOutlined, ClusterOutlined, BarChartOutlined, TeamOutlined, ApartmentOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -27,7 +27,7 @@ const props = defineProps({
     customer: { type: Object, required: true },
     activity:   { type: Array,  default: () => [] },
     recordAudit: { type: Object, default: null },
-    hierarchy:  { type: Object, default: () => ({ nodes: [], totals: { locations: 0, areas: 0, substations: 0, transformers: 0 } }) },
+    hierarchy:  { type: Object, default: () => ({ nodes: [], totals: { locations: 0, areas: 0, substations: 0 } }) },
     // Usuario acotado a su cartera asignada: solo-lectura en Clientes.
     isCustomerRestricted: { type: Boolean, default: false },
 });
@@ -36,13 +36,13 @@ const props = defineProps({
 const canEditCustomer   = computed(() => can('customers.edit')   && !props.isCustomerRestricted);
 const canDeleteCustomer = computed(() => can('customers.delete') && !props.isCustomerRestricted);
 
-const totals = computed(() => props.hierarchy?.totals ?? { locations: 0, areas: 0, substations: 0, transformers: 0 });
+const totals = computed(() => props.hierarchy?.totals ?? { locations: 0, areas: 0, substations: 0 });
 
 // Conteo animado de los totales (rAF). OJO: es un watch (no onMounted) porque
 // al crear/borrar nodos de la jerarquía Inertia refresca los props SIN
 // remontar el componente — con onMounted los números quedaban congelados y
 // había que refrescar la página. Re-anima desde el valor visible actual.
-const animTotals = ref({ locations: 0, areas: 0, substations: 0, transformers: 0 });
+const animTotals = ref({ locations: 0, areas: 0, substations: 0 });
 watch(totals, (to) => {
     const from = { ...animTotals.value };
     const start = performance.now();
@@ -54,7 +54,6 @@ watch(totals, (to) => {
             locations:    Math.round(from.locations    + (to.locations    - from.locations) * e),
             areas:        Math.round(from.areas        + (to.areas        - from.areas) * e),
             substations:  Math.round(from.substations  + (to.substations  - from.substations) * e),
-            transformers: Math.round(from.transformers + (to.transformers - from.transformers) * e),
         };
         if (p < 1) requestAnimationFrame(tick);
     };
@@ -66,7 +65,6 @@ const totalCards = computed(() => [
     { key: 'locations',    icon: EnvironmentOutlined,  label: 'customers.locations' },
     { key: 'areas',        icon: AppstoreOutlined,     label: 'customers.areas' },
     { key: 'substations',  icon: ClusterOutlined,      label: 'customers.substations' },
-    { key: 'transformers', icon: ThunderboltOutlined,  label: 'customers.transformers', accent: true },
 ]);
 
 // Vista de la estructura: árbol editable o organigrama (solo lectura).

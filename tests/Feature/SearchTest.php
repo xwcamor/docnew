@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
-use App\Models\Transformer;
+use App\Models\Company;
+use App\Models\Person;
 use App\Models\User;
+use App\Models\WorkLocation;
+use App\Models\WorkPlan;
+use App\Models\WorkType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -13,6 +16,9 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
+/**
+ * Buscador global: planes de trabajo, empresas y personas del propio workspace.
+ */
 class SearchTest extends TestCase
 {
     use RefreshDatabase;
@@ -28,7 +34,7 @@ class SearchTest extends TestCase
         DB::table('tenants')->insertOrIgnore([['id' => 2, 'slug' => Str::random(22), 'name' => 'T2', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        foreach (['transformers.view', 'customers.view'] as $p) {
+        foreach (['work_plans.view', 'companies.view', 'people.view'] as $p) {
             Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
         }
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['description' => 'a']);
@@ -40,61 +46,91 @@ class SearchTest extends TestCase
         ]);
     }
 
+    public function test_encuentra_planes_empresas_y_personas_del_propio_workspace(): void
+    {
+        $empresa = $this->empresa('Minera Andina', '20100000001', 1);
+        $this->plan($empresa, 'OT-4521', 1);
+
+        // Otro workspace: no debe aparecer.
+        $ajena = $this->empresa('Minera Ajena', '20100000002', 2);
+        $this->plan($ajena, 'OT-9999', 2);
+
+        Person::create(['slug' => Str::random(22), 'country_id' => 1, 'doc_type' => 'DNI',
+            'num_doc' => '44556677', 'name' => 'Rosa', 'lastname' => 'Huaman', 'tenant_id' => 1, 'created_by' => 1]);
+
+        $this->actingAs($this->actor('admin', ['work_plans.view', 'companies.view', 'people.view']));
+
+        $this->getJson(route('search', ['q' => 'OT-']))->assertOk()
+            ->assertJsonCount(1, 'work_plans')
+            ->assertJsonPath('work_plans.0.label', 'OT-4521');
+
+        $this->getJson(route('search', ['q' => 'Andina']))->assertOk()
+            ->assertJsonPath('companies.0.label', 'Minera Andina');
+
+        // Una persona se encuentra por su documento, que es como la buscan en obra.
+        $this->getJson(route('search', ['q' => '4455']))->assertOk()
+            ->assertJsonPath('people.0.label', 'Rosa Huaman')
+            ->assertJsonPath('people.0.sub', 'DNI 44556677');
+    }
+
+    public function test_un_plan_se_encuentra_por_la_empresa_que_lo_ejecuta(): void
+    {
+        $empresa = $this->empresa('Servicios Delta', '20100000003', 1);
+        $this->plan($empresa, 'OT-7000', 1);
+
+        $this->actingAs($this->actor('admin', ['work_plans.view', 'companies.view']));
+
+        $this->getJson(route('search', ['q' => 'Delta']))->assertOk()
+            ->assertJsonPath('work_plans.0.label', 'OT-7000')
+            ->assertJsonPath('companies.0.label', 'Servicios Delta');
+    }
+
+    public function test_respeta_permisos_y_longitud_minima(): void
+    {
+        $empresa = $this->empresa('Contratista Uno', '20100000004', 1);
+        $this->plan($empresa, 'OT-1234', 1);
+
+        // Sin permiso de planes no se devuelve ninguno, aunque exista.
+        $this->actingAs($this->actor('user', []));
+        $this->getJson(route('search', ['q' => 'OT-1234']))->assertOk()->assertJsonCount(0, 'work_plans');
+
+        // Una sola letra no dispara la busqueda.
+        $this->actingAs($this->actor('admin', ['work_plans.view']));
+        $this->getJson(route('search', ['q' => 'O']))->assertOk()->assertJsonCount(0, 'work_plans');
+    }
+
+    // ── apoyo ────────────────────────────────────────────────────────────────
+
     private function actor(string $role, array $perms = [], int $tenant = 1): User
     {
         $u = User::factory()->create(['tenant_id' => $tenant, 'country_id' => 1, 'locale_id' => 1]);
         $u->assignRole($role);
         $u->givePermissionTo($perms);
+
         return $u;
     }
 
-    public function test_searches_transformers_and_customers_of_own_tenant(): void
+    private function empresa(string $nombre, string $ruc, int $tenant): Company
     {
-        $cust = Customer::create(['slug' => 'c1', 'name' => 'Minera Andina', 'tenant_id' => 1, 'created_by' => 1]);
-        Transformer::create(['slug' => 'tr1', 'serial' => 'ABC-123', 'tag' => 'T1', 'customer_id' => $cust->id, 'tenant_id' => 1, 'created_by' => 1]);
-        // Otro tenant: no debe aparecer.
-        Transformer::create(['slug' => 'tr2', 'serial' => 'ABC-999', 'tag' => 'T9', 'tenant_id' => 2, 'created_by' => 1]);
-
-        $this->actingAs($this->actor('admin', ['transformers.view', 'customers.view']));
-
-        $res = $this->getJson(route('search', ['q' => 'ABC']))->assertOk();
-        $res->assertJsonCount(1, 'transformers');
-        $res->assertJsonPath('transformers.0.serial', 'ABC-123');
-
-        $this->getJson(route('search', ['q' => 'Andina']))->assertOk()->assertJsonPath('customers.0.name', 'Minera Andina');
+        return Company::create([
+            'slug' => Str::random(22), 'country_id' => 1, 'num_doc' => $ruc,
+            'name' => $nombre, 'complete_name' => "{$nombre} SAC",
+            'tenant_id' => $tenant, 'created_by' => 1,
+        ]);
     }
 
-    public function test_finds_by_brand_substation_and_health_state(): void
+    private function plan(Company $empresa, string $codigo, int $tenant): WorkPlan
     {
-        $brand = \App\Models\Brand::create(['slug' => 'b1', 'name' => 'ABB', 'tenant_id' => 1, 'created_by' => 1]);
-        Transformer::create(['slug' => 'tr-abb', 'serial' => 'S-100', 'tag' => 'T', 'brand_id' => $brand->id, 'tenant_id' => 1, 'created_by' => 1]);
-        // health_rating lo setea el motor (1 = Malo). 4=Muy Bueno … 0=Muy Malo.
-        (new Transformer())->forceFill(['slug' => 'tr-bad', 'serial' => 'S-200', 'tag' => 'T', 'health_rating' => 1, 'health_index' => 40, 'tenant_id' => 1, 'created_by' => 1])->save();
+        $base = ['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => $tenant, 'created_by' => 1];
 
-        $this->actingAs($this->actor('admin', ['transformers.view', 'customers.view']));
-
-        // Por marca.
-        $this->getJson(route('search', ['q' => 'ABB']))->assertOk()
-            ->assertJsonPath('transformers.0.serial', 'S-100')
-            ->assertJsonPath('transformers.0.brand', 'ABB');
-
-        // Por estado de salud ("malo" → Crítico/Malo label) devuelve el trafo en Malo con color.
-        $res = $this->getJson(route('search', ['q' => 'malo']))->assertOk();
-        $serials = collect($res->json('transformers'))->pluck('serial');
-        $this->assertTrue($serials->contains('S-200'));
-        $this->assertSame('orange', collect($res->json('transformers'))->firstWhere('serial', 'S-200')['color']);
-    }
-
-    public function test_respects_permissions_and_min_length(): void
-    {
-        Transformer::create(['slug' => 'tr1', 'serial' => 'XYZ-1', 'tag' => 'T', 'tenant_id' => 1, 'created_by' => 1]);
-
-        // Sin permiso de transformers → no devuelve transformers.
-        $this->actingAs($this->actor('user', []));
-        $this->getJson(route('search', ['q' => 'XYZ']))->assertOk()->assertJsonCount(0, 'transformers');
-
-        // Query muy corta → vacío.
-        $this->actingAs($this->actor('admin', ['transformers.view']));
-        $this->getJson(route('search', ['q' => 'X']))->assertOk()->assertJsonCount(0, 'transformers');
+        return WorkPlan::create($base + [
+            'company_id'       => $empresa->id,
+            'work_type_id'     => WorkType::create($base + ['slug' => Str::random(22), 'code' => 'MTTO'])->id,
+            'work_location_id' => WorkLocation::create($base + ['slug' => Str::random(22), 'name' => 'Planta'])->id,
+            'user_id'          => User::factory()->create(['tenant_id' => $tenant, 'country_id' => 1, 'locale_id' => 1])->id,
+            'code'             => $codigo,
+            'description'      => 'Trabajo programado',
+            'date_start'       => today(),
+        ]);
     }
 }

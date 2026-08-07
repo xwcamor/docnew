@@ -30,8 +30,6 @@ class WorkspaceBrandingController extends Controller
                 'logo_url'          => $tenant->logo_url,
                 'address'           => $tenant->address,
                 'report_disclaimer' => $tenant->report_disclaimer,
-                'require_report_approval' => (bool) $tenant->require_report_approval,
-                'notify_approval_by_email' => (bool) $tenant->notify_approval_by_email,
             ],
             // Flujo de firmas del workspace (N slots con cargo). Cada fila trae
             // el estado de la firma para que el admin VEA si saldrá estampada.
@@ -65,8 +63,6 @@ class WorkspaceBrandingController extends Controller
         $data = $request->validate([
             'address'           => ['nullable', 'string', 'max:255'],
             'report_disclaimer' => ['nullable', 'string', 'max:2000'],
-            'require_report_approval' => ['nullable', 'boolean'],
-            'notify_approval_by_email' => ['nullable', 'boolean'],
             'signers'           => ['nullable', 'array', 'max:8'],
             'signers.*.user_id' => [
                 'nullable', 'integer',
@@ -76,10 +72,7 @@ class WorkspaceBrandingController extends Controller
             'signers.*.title'   => ['required', 'string', 'max:120'],
         ]);
 
-        $tenant->update(\Illuminate\Support\Arr::only($data, ['address', 'report_disclaimer']) + [
-            'require_report_approval'  => (bool) ($data['require_report_approval'] ?? false),
-            'notify_approval_by_email' => (bool) ($data['notify_approval_by_email'] ?? false),
-        ]);
+        $tenant->update(\Illuminate\Support\Arr::only($data, ['address', 'report_disclaimer']));
 
         // Sync de slots: se reemplaza la lista completa (orden = posición).
         $tenant->reportSigners()->delete();

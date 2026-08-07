@@ -1,6 +1,6 @@
 import {
     GlobalOutlined, ApartmentOutlined, EnvironmentOutlined,
-    BlockOutlined, ClusterOutlined, ThunderboltOutlined, CalendarOutlined,
+    BlockOutlined, ClusterOutlined, CalendarOutlined,
 } from '@ant-design/icons-vue';
 
 /**
@@ -22,7 +22,6 @@ export const customersTableColumns = (t, { isSuper = false, isMobile = false } =
     { title: t('customers.locations'),    dataIndex: 'locations_count',    key: 'locations_count',    width: 120, align: 'center', sorter: true, mobile: { role: 'meta', icon: EnvironmentOutlined, hideWhenZero: true } },
     { title: t('customers.areas'),        dataIndex: 'areas_count',        key: 'areas_count',        width: 100, align: 'center', sorter: true, mobile: { role: 'meta', icon: BlockOutlined, hideWhenZero: true } },
     { title: t('customers.substations'),  dataIndex: 'substations_count',  key: 'substations_count',  width: 130, align: 'center', sorter: true, mobile: { role: 'meta', icon: ClusterOutlined, hideWhenZero: true } },
-    { title: t('customers.transformers'), dataIndex: 'transformers_count', key: 'transformers_count', width: 140, align: 'center', sorter: true, mobile: { role: 'meta', icon: ThunderboltOutlined, hideWhenZero: true } },
     { title: t('customers.is_active'), dataIndex: 'is_active',   key: 'status',     width: 110, align: 'center', sorter: (a, b) => (a.is_active ? 1 : 0) - (b.is_active ? 1 : 0), mobile: { role: 'status' } },
     { title: t('global.created_at'),   dataIndex: 'created_at',  key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     // En pantalla chica (tabla) las acciones se colapsan en un kebab → columna angosta.

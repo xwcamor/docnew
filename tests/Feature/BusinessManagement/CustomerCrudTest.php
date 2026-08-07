@@ -239,11 +239,10 @@ class CustomerCrudTest extends CustomerTestCase
         $row = collect($response->viewData('page')['props']['customers']['data'])
             ->firstWhere('name', 'Counts Co');
 
-        // Jerarquía por defecto: 1 ubicación, 1 área, 1 subestación, 0 trafos.
+        // Jerarquía por defecto: 1 ubicación, 1 área, 1 subestación.
         $this->assertSame(1, $row['locations_count']);
         $this->assertSame(1, $row['areas_count']);
         $this->assertSame(1, (int) $row['substations_count']);
-        $this->assertSame(0, $row['transformers_count']);
     }
 
     public function test_cod_must_be_unique_within_tenant_and_country(): void

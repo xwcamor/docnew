@@ -103,8 +103,6 @@ const filterFields = computed(() =>
 const customerChips = computed(() => [
     { value: 'active',     label: t('customers.chip_active'),     color: '#1D7044' },
     { value: 'inactive',   label: t('customers.chip_inactive'),   color: '#9aa0a6' },
-    { value: 'with_tx',    label: t('customers.chip_with_tx'),    color: '#0A6ED1' },
-    { value: 'without_tx', label: t('customers.chip_without_tx'), color: '#E9A23B' },
 ]);
 
 const {
@@ -699,7 +697,7 @@ const goDelete = (record) => router.visit(route('business_management.customers.d
                         </div>
                     </template>
 
-                    <template v-else-if="['locations_count', 'areas_count', 'substations_count', 'transformers_count'].includes(column.key)">
+                    <template v-else-if="['locations_count', 'areas_count', 'substations_count'].includes(column.key)">
                         <span :class="{ muted: !(record[column.dataIndex] > 0) }">{{ record[column.dataIndex] ?? 0 }}</span>
                     </template>
 

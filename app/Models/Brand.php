@@ -38,11 +38,6 @@ class Brand extends Model
         'sort_order' => 'integer',
     ];
 
-    /** Transformadores de esta marca (FK directa brand_id). */
-    public function transformers(): HasMany
-    {
-        return $this->hasMany(Transformer::class);
-    }
 
     protected static function booted(): void
     {

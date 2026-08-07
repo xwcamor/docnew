@@ -28,11 +28,6 @@ class Person extends Model
 
     protected string $auditModule = 'people';
 
-    /** Transformadores de esta marca (FK directa person_id). */
-    public function transformers(): HasMany
-    {
-        return $this->hasMany(Transformer::class);
-    }
 
     protected static function booted(): void
     {

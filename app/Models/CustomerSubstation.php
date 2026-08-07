@@ -47,8 +47,4 @@ class CustomerSubstation extends Model
         return $this->belongsTo(CustomerArea::class, 'customer_area_id');
     }
 
-    public function transformers(): HasMany
-    {
-        return $this->hasMany(Transformer::class)->orderBy('serial');
-    }
 }

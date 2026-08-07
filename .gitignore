@@ -44,3 +44,6 @@ __pycache__/
 # Datos migrados del sistema anterior: contienen nombres y documentos reales.
 # Se entregan aparte y nunca se versionan en un repositorio publico.
 /database/seeders/data/legacy-docufiz.json
+
+# Artefactos temporales de las exportaciones a Excel.
+/storage/framework/cache/laravel-excel

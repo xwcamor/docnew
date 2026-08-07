@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { SearchOutlined, ThunderboltOutlined, TeamOutlined, AppstoreOutlined, LoadingOutlined, CloseOutlined, ClockCircleOutlined, AudioOutlined } from '@ant-design/icons-vue';
+import { SearchOutlined, FileTextOutlined, BankOutlined, TeamOutlined, AppstoreOutlined, LoadingOutlined, CloseOutlined, ClockCircleOutlined, AudioOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 
@@ -17,7 +17,8 @@ const props = defineProps({
 const modalOpen = ref(false);
 const q = ref('');
 const loading = ref(false);
-const remote = ref({ transformers: [], customers: [] });
+const VACIO = { work_plans: [], companies: [], people: [] };
+const remote = ref({ ...VACIO });
 const inputEl = ref(null);
 let debounce = null;
 
@@ -48,14 +49,25 @@ const recentItems = computed(() => props.recentViews.slice(0, 6).map((r) => ({
     type: 'recent', href: r.url, label: r.name, sub: r.module,
 })));
 
+// Cada grupo del backend con la ruta a la que lleva. El orden es el de la
+// respuesta: primero los planes, que es lo que más se busca en obra.
+const GRUPOS = [
+    { key: 'work_plans', type: 'work_plan', route: 'business_management.work_plans.show' },
+    { key: 'companies', type: 'company', route: 'business_management.companies.show' },
+    { key: 'people', type: 'person', route: 'business_management.people.show' },
+];
+
 const searchFlat = computed(() => {
     const out = [];
     navMatches.value.forEach((i) => out.push({ type: 'nav', href: i.href, label: i.label }));
-    remote.value.customers.forEach((c) => out.push({
-        type: 'customer',
-        href: route('business_management.customers.show', c.slug),
-        label: c.name,
-    }));
+    GRUPOS.forEach(({ key, type, route: name }) => {
+        (remote.value[key] ?? []).forEach((r) => out.push({
+            type,
+            href: route(name, r.slug),
+            label: r.label,
+            sub: r.sub,
+        }));
+    });
     return out;
 });
 
@@ -72,13 +84,13 @@ watch(q, () => {
     active.value = 0;
     clearTimeout(debounce);
     const s = q.value.trim();
-    if (s.length < 2) { remote.value = { transformers: [], customers: [] }; loading.value = false; return; }
+    if (s.length < 2) { remote.value = { ...VACIO }; loading.value = false; return; }
     loading.value = true;
     debounce = setTimeout(async () => {
         try {
             const { data } = await window.axios.get(route('search'), { params: { q: s } });
-            remote.value = data;
-        } catch (_) { remote.value = { transformers: [], customers: [] }; }
+            remote.value = { ...VACIO, ...data };
+        } catch (_) { remote.value = { ...VACIO }; }
         finally { loading.value = false; }
     }, 220);
 });
@@ -105,9 +117,13 @@ const onGlobalKey = (e) => {
 onMounted(() => document.addEventListener('keydown', onGlobalKey));
 onBeforeUnmount(() => { document.removeEventListener('keydown', onGlobalKey); document.body.style.overflow = ''; });
 
-const iconFor = (type) => (type === 'transformer' ? ThunderboltOutlined : type === 'customer' ? TeamOutlined : type === 'recent' ? ClockCircleOutlined : AppstoreOutlined);
-const HEX = { green: '#1D7044', lime: '#5AA82E', yellow: '#E9A23B', orange: '#E2661E', red: '#C8281D' };
-const hex = (c) => HEX[c] ?? '#9aa0a6';
+const ICONOS = {
+    work_plan: FileTextOutlined,
+    company: BankOutlined,
+    person: TeamOutlined,
+    recent: ClockCircleOutlined,
+};
+const iconFor = (type) => ICONOS[type] ?? AppstoreOutlined;
 
 const sectionFor = (type) => {
     if (type === 'recent') return t('search.section_recent');
@@ -168,7 +184,7 @@ const showSection = (items, i) => i === 0 || sectionFor(items[i].type) !== secti
                                     <component :is="iconFor(item.type)" class="gpalette__item-icon" />
                                     <div class="gpalette__item-body">
                                         <span class="gpalette__item-label">
-                                            <span v-if="item.color" class="gpalette__dot" :style="{ background: hex(item.color) }" :title="item.condition"></span>
+                                            <span v-if="item.closed" class="gpalette__dot" :title="t('search.closed')"></span>
                                             {{ item.label }}
                                         </span>
                                         <span v-if="item.sub" class="gpalette__item-sub">{{ item.sub }}</span>

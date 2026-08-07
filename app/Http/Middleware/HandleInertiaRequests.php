@@ -383,46 +383,13 @@ class HandleInertiaRequests extends Middleware
      * renderizar diferente según el tipo (download/task/alert).
      */
     /**
-     * Aprobaciones de informes del usuario (etapa 2 de firmas). is_signer gatea
-     * el menú "Aprobaciones"; pending alimenta el badge. Si no es firmante,
-     * cero queries extra (solo el exists barato).
+     * El flujo de aprobacion de informes venia del dominio de diagnostico y se
+     * retiro con la purga. La aprobacion de DOCUFIZ vive en work_plan_approvals
+     * y se firma con reconocimiento facial, no por correo.
      */
     protected function buildApprovalsPayload(\App\Models\User $user): array
     {
-        // El flujo de aprobacion de informes venia del dominio de diagnostico y
-        // se retiro con la purga: sus modelos ya no existen. Si DOCUFIZ necesita
-        // aprobacion formal, se construye sobre work_plan_approvals.
         return [];
-
-        // require_approval gatea el botón "Enviar a aprobación" (lo ve cualquier
-        // usuario del workspace, no solo firmantes).
-        $requires = (bool) ($user->tenant?->require_report_approval ?? false);
-
-        $isSigner = \App\Models\ReportSigner::where('tenant_id', $user->tenant_id)
-            ->where('user_id', $user->id)->exists();
-
-        // "Mis solicitudes": las que ESTE usuario envió a aprobación. Drive del
-        // menú propio (visible si tiene alguna) + badge de pendientes.
-        $myRequestsTotal   = \App\Models\ReportRequest::where('requester_id', $user->id)->count();
-        $myRequestsPending = \App\Models\ReportRequest::where('requester_id', $user->id)
-            ->where('status', 'in_review')->count();
-
-        $base = [
-            'requires_approval'   => $requires,
-            'my_requests_total'   => $myRequestsTotal,
-            'my_requests_pending' => $myRequestsPending,
-        ];
-
-        if (!$isSigner) {
-            return array_merge($base, ['is_signer' => false, 'pending' => 0]);
-        }
-
-        $pending = \App\Models\ReportApproval::where('user_id', $user->id)
-            ->where('status', 'pending')
-            ->whereHas('reportRequest', fn ($q) => $q->where('status', 'in_review'))
-            ->count();
-
-        return array_merge($base, ['is_signer' => true, 'pending' => $pending]);
     }
 
     protected function buildInboxPayload(int $userId): array

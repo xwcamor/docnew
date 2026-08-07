@@ -192,10 +192,10 @@ abstract class BaseCustomerExportJob implements ShouldQueue
         }
 
         // Conteos de la jerarquía solo si se piden (mismo patrón que el index):
-        // locations/areas/transformers por withCount, substations por subquery.
-        $countCols = ['locations_count', 'areas_count', 'substations_count', 'transformers_count'];
+        // locations/areas por withCount, substations por subquery.
+        $countCols = ['locations_count', 'areas_count', 'substations_count'];
         if (array_intersect($countCols, $columns)) {
-            $base->withCount(['locations', 'areas', 'transformers'])
+            $base->withCount(['locations', 'areas'])
                 ->addSelect(['substations_count' => \App\Models\CustomerSubstation::query()
                     ->selectRaw('count(*)')
                     ->whereIn('customer_area_id', \App\Models\CustomerArea::query()

@@ -28,11 +28,6 @@ class WorkPlan extends Model
 
     protected string $auditModule = 'work_plans';
 
-    /** Transformadores de esta marca (FK directa workPlan_id). */
-    public function transformers(): HasMany
-    {
-        return $this->hasMany(Transformer::class);
-    }
 
     protected static function booted(): void
     {

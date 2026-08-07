@@ -61,7 +61,6 @@ class CustomersWord
             'locations_count'    => ['heading' => __('customers.locations'),    'value' => fn($c) => (string) ((int) ($c->locations_count ?? 0))],
             'areas_count'        => ['heading' => __('customers.areas'),        'value' => fn($c) => (string) ((int) ($c->areas_count ?? 0))],
             'substations_count'  => ['heading' => __('customers.substations'),  'value' => fn($c) => (string) ((int) ($c->substations_count ?? 0))],
-            'transformers_count' => ['heading' => __('customers.transformers'), 'value' => fn($c) => (string) ((int) ($c->transformers_count ?? 0))],
             'slug'               => ['heading' => 'Slug',                      'value' => fn($c) => (string) $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) ?? ''],
             'updated_at' => ['heading' => __('global.updated_at'),   'value' => fn($c) => $c->updated_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) ?? ''],

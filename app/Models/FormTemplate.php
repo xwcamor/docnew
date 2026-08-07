@@ -28,11 +28,6 @@ class FormTemplate extends Model
 
     protected string $auditModule = 'form_templates';
 
-    /** Transformadores de esta marca (FK directa formTemplate_id). */
-    public function transformers(): HasMany
-    {
-        return $this->hasMany(Transformer::class);
-    }
 
     protected static function booted(): void
     {

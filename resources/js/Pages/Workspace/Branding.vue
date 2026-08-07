@@ -22,8 +22,6 @@ const props = defineProps({
 const form = useForm({
     address:           props.workspace.address ?? '',
     report_disclaimer: props.workspace.report_disclaimer ?? '',
-    require_report_approval: props.workspace.require_report_approval ?? false,
-    notify_approval_by_email: props.workspace.notify_approval_by_email ?? false,
     // Flujo de firmas: N slots con cargo (Supervisor, Auditor, …), en orden.
     signers: props.signers.map((s) => ({ user_id: s.user_id, name: s.name ?? '', title: s.title, relation: s.relation ?? 'approved' })),
 });
@@ -126,19 +124,6 @@ const onLogoPicked = (e) => {
                     :help="form.errors.report_disclaimer"
                 >
                     <Textarea v-model:value="form.report_disclaimer" :rows="4" :maxlength="2000" showCount />
-                </FormItem>
-
-                <!-- ── Exigir aprobación de informes (etapa 2 de firmas) ──── -->
-                <FormItem :label="t('tenants.require_approval_label')" :tooltip="t('tenants.require_approval_help')">
-                    <div class="ws-toggle">
-                        <Switch v-model:checked="form.require_report_approval" />
-                        <span class="ws-hint">{{ t('tenants.require_approval_help') }}</span>
-                    </div>
-                    <!-- Canal del aviso: solo cuando el flujo está activo -->
-                    <div v-if="form.require_report_approval" class="ws-toggle ws-subtoggle">
-                        <Switch v-model:checked="form.notify_approval_by_email" />
-                        <span class="ws-hint">{{ t('tenants.notify_email_help') }}</span>
-                    </div>
                 </FormItem>
 
                 <!-- ── Flujo de firmas: N slots con cargo ─────────────────── -->

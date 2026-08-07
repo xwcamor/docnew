@@ -30,8 +30,6 @@ class Tenant extends Model
         'report_disclaimer',
         'report_approver',
         'report_approver_user_id',
-        'require_report_approval',
-        'notify_approval_by_email',
         'is_active',
         'timezone',
         'system_user_id',
@@ -42,8 +40,6 @@ class Tenant extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'require_report_approval' => 'boolean',
-        'notify_approval_by_email' => 'boolean',
     ];
 
     // Accessor: URL completa del logo con cache-busting.

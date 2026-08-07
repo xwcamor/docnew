@@ -58,7 +58,6 @@ class CustomersExport implements FromCollection, WithEvents, WithTitle
             'locations_count'    => ['heading' => __('customers.locations'),    'value' => fn($c, $i) => (int) ($c->locations_count ?? 0)],
             'areas_count'        => ['heading' => __('customers.areas'),        'value' => fn($c, $i) => (int) ($c->areas_count ?? 0)],
             'substations_count'  => ['heading' => __('customers.substations'),  'value' => fn($c, $i) => (int) ($c->substations_count ?? 0)],
-            'transformers_count' => ['heading' => __('customers.transformers'), 'value' => fn($c, $i) => (int) ($c->transformers_count ?? 0)],
             'slug'               => ['heading' => 'Slug',                      'value' => fn($c, $i) => $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c, $i) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT)],
             'updated_at' => ['heading' => __('global.updated_at'),   'value' => fn($c, $i) => $c->updated_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT)],

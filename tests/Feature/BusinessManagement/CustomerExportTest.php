@@ -88,7 +88,7 @@ class CustomerExportTest extends CustomerTestCase
         $response = $this->post(route('business_management.customers.export_excel'), [
             'columns' => [
                 'name', 'cod', 'country', 'address', 'is_active',
-                'locations_count', 'areas_count', 'substations_count', 'transformers_count',
+                'locations_count', 'areas_count', 'substations_count',
                 'created_at',
             ],
             'scope'   => 'all',
@@ -123,7 +123,7 @@ class CustomerExportTest extends CustomerTestCase
         }
 
         $columns = ['id', 'name', 'cod', 'country', 'address', 'is_active',
-            'locations_count', 'areas_count', 'substations_count', 'transformers_count'];
+            'locations_count', 'areas_count', 'substations_count'];
         $job = new GenerateCustomersCsvJob($user->id, ['scope' => 'all', 'columns' => $columns]);
         $job->handle();
 
@@ -135,7 +135,7 @@ class CustomerExportTest extends CustomerTestCase
         $this->assertStringContainsString('RUC-FULL', $csv);
         $this->assertStringContainsString('Av. Siempre Viva 123', $csv);
         // Fila con los conteos: 1 ubicación, 2 áreas, 3 subestaciones, 0 trafos.
-        $this->assertMatchesRegularExpression('/Cliente Completo.*,1,2,3,0/', $csv);
+        $this->assertMatchesRegularExpression('/Cliente Completo.*,1,2,3/', $csv);
     }
 
     /**

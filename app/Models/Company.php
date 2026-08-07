@@ -55,10 +55,6 @@ class Company extends Model
         return $this->hasMany(WorkPlan::class);
     }
 
-    public function transformers(): HasMany
-    {
-        return $this->hasMany(Transformer::class);
-    }
 
     protected static function booted(): void
     {

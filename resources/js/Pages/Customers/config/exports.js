@@ -15,7 +15,6 @@ export const customersExportableColumns = (t, { isSuper = false } = {}) => [
     { key: 'locations_count',    label: t('customers.locations'),    default: true  },
     { key: 'areas_count',        label: t('customers.areas'),        default: true  },
     { key: 'substations_count',  label: t('customers.substations'),  default: true  },
-    { key: 'transformers_count', label: t('customers.transformers'), default: true  },
     { key: 'created_at',         label: t('global.created_at'),      default: true  },
     { key: 'updated_at',         label: t('global.updated_at'),      default: false },
     { key: 'creator',            label: t('global.created_by'),      default: false },

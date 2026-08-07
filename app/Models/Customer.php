@@ -68,11 +68,6 @@ class Customer extends Model
         return $this->hasManyThrough(CustomerArea::class, CustomerLocation::class);
     }
 
-    /** Transformadores del cliente (FK directa customer_id) — para conteos. */
-    public function transformers(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(Transformer::class);
-    }
 
     protected static function booted(): void
     {
@@ -152,8 +147,6 @@ class Customer extends Model
             match ($request->customer_group) {
                 'active'     => $q->where("{$tbl}.is_active", true),
                 'inactive'   => $q->where("{$tbl}.is_active", false),
-                'with_tx'    => $q->whereHas('transformers'),
-                'without_tx' => $q->whereDoesntHave('transformers'),
                 default      => null,
             };
         });
@@ -214,7 +207,7 @@ class Customer extends Model
             // select customers.* del controller evita colisión de columnas).
             $query->leftJoin('countries', 'countries.id', '=', "{$tbl}.country_id")
                   ->orderBy('countries.name', $direction);
-        } elseif (in_array($sort, ['locations_count', 'areas_count', 'substations_count', 'transformers_count'], true) && in_array($direction, ['asc', 'desc'])) {
+        } elseif (in_array($sort, ['locations_count', 'areas_count', 'substations_count'], true) && in_array($direction, ['asc', 'desc'])) {
             // Orden por conteos de la jerarquía: los alias ya vienen en el SELECT
             // del controller (withCount + subquery escalar). Son alias, sin prefijo
             // de tabla.
