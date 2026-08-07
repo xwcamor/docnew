@@ -60,6 +60,7 @@ class User extends Authenticatable implements HasLocalePreference
         'signature',
         'auto_sign_reports',
         'is_active',
+        'legacy_id',
         'module_tours',
         'created_by',
         'deleted_by',

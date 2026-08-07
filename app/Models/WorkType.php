@@ -14,7 +14,7 @@ class WorkType extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'slug', 'country_id', 'code', 'is_active',
+        'slug', 'country_id', 'code', 'is_active', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 

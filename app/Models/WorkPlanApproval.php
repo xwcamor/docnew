@@ -12,7 +12,7 @@ class WorkPlanApproval extends Model
     use Auditable;
 
     protected $fillable = ['slug', 'work_plan_id', 'approval_rule_id', 'person_id',
-                           'is_required', 'is_approved'];
+                           'is_required', 'is_approved', 'legacy_id'];
     protected $casts = ['is_required' => 'boolean', 'is_approved' => 'boolean'];
 
     public function workPlan() { return $this->belongsTo(WorkPlan::class); }

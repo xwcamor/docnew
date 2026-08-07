@@ -17,6 +17,7 @@ class SignatureEvent extends Model
         'override_reason', 'override_by', 'reviewed_at', 'reviewed_by', 'evidence_missing',
         'latitude', 'longitude', 'device_id', 'ip_address', 'user_agent',
         'country_code', 'region', 'city', 'tenant_id',
+        'legacy_id', 'legacy_source',
     ];
 
     protected $casts = [

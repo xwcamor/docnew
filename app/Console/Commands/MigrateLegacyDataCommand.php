@@ -2,15 +2,27 @@
 
 namespace App\Console\Commands;
 
+use App\Models\ApprovalRule;
 use App\Models\Company;
 use App\Models\Country;
+use App\Models\FormTemplate;
 use App\Models\Person;
 use App\Models\PersonCompanyLink;
 use App\Models\PersonRole;
 use App\Models\PersonSignature;
+use App\Models\Role;
 use App\Models\Tenant;
+use App\Models\User;
+use App\Models\WorkArea;
+use App\Models\WorkPlanApproval;
+use App\Models\WorkPlanPerson;
+use App\Models\WorkLocation;
+use App\Models\Workstation;
+use App\Models\WorkType;
+use App\Services\Migration\LegacyFormMapper;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\Console\Attribute\AsCommand;
 
@@ -21,19 +33,52 @@ use Symfony\Component\Console\Attribute\AsCommand;
  * cada fila migrada guarda su `legacy_id`. Nunca escribe en la base vieja.
  *
  *   php artisan docufiz:migrate-data empresas
+ *   php artisan docufiz:migrate-data usuarios
  *   php artisan docufiz:migrate-data personas
+ *   php artisan docufiz:migrate-data planes
+ *   php artisan docufiz:migrate-data documentos
+ *   php artisan docufiz:migrate-data evidencias
+ *   php artisan docufiz:migrate-data archivos --desde=/ruta/v1/public/images_uploads
  *   php artisan docufiz:migrate-data todo
+ *
+ * Los pasos grandes (planes, documentos, evidencias) escriben con el
+ * constructor de consultas y no con Eloquent: 3 722 planes, 14 435 formatos y
+ * 17 000 firmas por el modelo generarian otras tantas filas de auditoria de un
+ * hecho que ya esta documentado aqui, y tardarian de mas.
  */
 #[AsCommand(
     name: 'docufiz:migrate-data',
-    description: 'Migra los datos del sistema anterior (empresas, personas, vinculos y firmas).'
+    description: 'Migra los datos del sistema anterior (empresas, usuarios, personas, planes, formatos y evidencias).'
 )]
 class MigrateLegacyDataCommand extends Command
 {
-    protected $signature = 'docufiz:migrate-data {paso=todo : empresas|personas|todo}';
+    protected $signature = 'docufiz:migrate-data
+        {paso=todo : empresas|usuarios|personas|planes|documentos|evidencias|archivos|todo}
+        {--lote=500 : Cuantas filas de la base vieja se leen de una vez}
+        {--desde= : Carpeta con el public/images_uploads de la v1, para el paso archivos}';
+
+    /** En la v1 los planes son todos de Peru (country_id 1); el resto de paises solo tiene catalogos. */
+    protected const PAIS_LEGACY = 1;
+
+    /** Rol de menos privilegios: el origen no dice quien es que, y no se inventan permisos. */
+    protected const ROL_MINIMO = 'Usuario de campo';
+
+    /** Los cuatro formatos historicos y de que tabla de la v1 sale cada uno. */
+    protected const FORMATOS = [
+        'AST' => 'f1_documents',
+        'PTF' => 'f2_documents',
+        'EPP' => 'f3_documents',
+        'IHM' => 'f4_documents',
+    ];
 
     protected int $tenantId;
     protected int $countryId;
+    protected int $lote;
+
+    public function __construct(protected LegacyFormMapper $mapa)
+    {
+        parent::__construct();
+    }
 
     public function handle(): int
     {
@@ -48,6 +93,7 @@ class MigrateLegacyDataCommand extends Command
 
         $this->tenantId = $tenant->id;
         $this->countryId = $pais->id;
+        $this->lote = max(50, (int) $this->option('lote'));
 
         try {
             DB::connection('legacy')->getPdo();
@@ -63,8 +109,38 @@ class MigrateLegacyDataCommand extends Command
             $this->migrarEmpresas();
         }
 
+        // Los usuarios van antes que los planes: cada plan recuerda quien lo
+        // registro y esa llave se resuelve por el legacy_id del usuario.
+        if (in_array($paso, ['usuarios', 'todo'], true)) {
+            $this->migrarUsuarios();
+        }
+
         if (in_array($paso, ['personas', 'todo'], true)) {
             $this->migrarPersonas();
+        }
+
+        if (in_array($paso, ['planes', 'todo'], true)) {
+            $this->migrarPlanes();
+        }
+
+        if (in_array($paso, ['documentos', 'todo'], true)) {
+            $this->migrarDocumentos();
+        }
+
+        if (in_array($paso, ['evidencias', 'todo'], true)) {
+            $this->migrarEvidencias();
+        }
+
+        // Los archivos solo si se dice de donde: no estan en el repositorio y
+        // el paso no puede fallar por su ausencia.
+        if ($paso === 'archivos' || ($paso === 'todo' && $this->option('desde'))) {
+            if (! $this->option('desde')) {
+                $this->error('El paso archivos necesita --desde=/ruta/al/public/images_uploads de la v1.');
+
+                return self::FAILURE;
+            }
+
+            $this->copiarArchivos((string) $this->option('desde'));
         }
 
         return self::SUCCESS;
@@ -232,6 +308,1458 @@ class MigrateLegacyDataCommand extends Command
 
             foreach (array_slice($conflictos, 0, 10, true) as $doc => $nombres) {
                 $this->line("  {$doc}: " . implode('  |  ', $nombres));
+            }
+        }
+    }
+
+    /**
+     * Usuarios de la aplicacion: los que entran al sistema.
+     *
+     * La tabla `users` de la v1 se quedo fuera del volcado a proposito porque
+     * llevaba las contrasenas, asi que la identidad se reconstruye desde
+     * `user_details`, que tiene una fila por usuario. Lo que no viene del origen
+     * no se inventa: ni contrasena, ni correo real, ni permisos.
+     */
+    protected function migrarUsuarios(): void
+    {
+        $this->info('── Usuarios de la aplicacion ──');
+        $viejo = DB::connection('legacy');
+
+        $viejos = $viejo->table('user_details')->orderBy('user_id')->get();
+        $rol = Role::where('guard_name', 'web')->where('name', self::ROL_MINIMO)->first();
+        $localeId = Country::find($this->countryId)?->default_locale_id
+            ?? DB::table('locales')->min('id');
+
+        $creados = $actualizados = 0;
+
+        foreach ($viejos as $v) {
+            $existente = User::withTrashed()->withoutGlobalScopes()
+                ->where('legacy_id', $v->user_id)->first();
+
+            $datos = [
+                'name'       => trim("{$v->name} {$v->lastname}"),
+                // Provisional y a la vista de que lo es: el dueno los sustituye
+                // por los correos reales antes de dar acceso.
+                'email'      => sprintf('usuario%d@pendiente.local', $v->user_id),
+                'country_id' => $this->countryId,
+                'locale_id'  => $localeId,
+                'tenant_id'  => $this->tenantId,
+                'is_active'  => true,
+                'legacy_id'  => $v->user_id,
+            ];
+
+            if ($existente) {
+                // La contrasena no se toca al re-correr: puede que ya la hayan cambiado.
+                $existente->update($datos);
+                $actualizados++;
+
+                continue;
+            }
+
+            // No hay contrasena que migrar. Se pone una aleatoria larga que no
+            // conoce nadie —tampoco este comando, que no la escribe en ningun
+            // sitio— y se entra por "olvide mi contrasena".
+            $usuario = User::create($datos + ['password' => Str::password(48)]);
+
+            if ($rol) {
+                $usuario->assignRole($rol);
+            }
+
+            $creados++;
+        }
+
+        $destino = User::withTrashed()->withoutGlobalScopes()->whereNotNull('legacy_id')->count();
+        $this->linea('usuarios', $viejos->count(), $destino, "{$creados} nuevos, {$actualizados} actualizados");
+
+        if (! $rol) {
+            $this->warn(sprintf('  No existe el rol "%s": los usuarios quedan sin permisos. Asignalos a mano.', self::ROL_MINIMO));
+        } else {
+            $this->line(sprintf('  Rol asignado: "%s". El origen no dice quien es que; revisa y ajusta.', self::ROL_MINIMO));
+        }
+
+        $this->line('  Correos provisionales usuarioN@pendiente.local — hay que reemplazarlos por los reales.');
+        $this->line('  Contrasenas aleatorias sin registrar: no hay columna para forzar el cambio en el primer ingreso.');
+    }
+
+    // ── Planes de trabajo ────────────────────────────────────────────────────
+
+    /**
+     * Planes con sus llaves, su cuadrilla y sus aprobadores.
+     *
+     * Antes de los planes van los catalogos: tipo de trabajo, sede, area y
+     * puesto existen en la v1 y aqui son llaves obligatorias, asi que se crean
+     * leyendo el origen en vez de suponerlos.
+     */
+    protected function migrarPlanes(): void
+    {
+        $this->info('── Planes de trabajo ──');
+        $viejo = DB::connection('legacy');
+
+        $tipos       = $this->catalogoTipos($viejo);
+        $sedes       = $this->catalogoSedes($viejo);
+        $areas       = $this->catalogoAreas($viejo);
+        $puestos     = $this->catalogoPuestos($viejo, $sedes);
+        $reglas      = $this->catalogoReglas($viejo);
+        $this->catalogoFormatosPorTipo($viejo, $tipos);
+
+        $empresas = DB::table('companies')->whereNotNull('legacy_id')->pluck('id', 'legacy_id');
+        $usuarios = DB::table('users')->whereNotNull('legacy_id')->pluck('id', 'legacy_id');
+        $respaldo = $usuarios->first() ?? DB::table('users')->orderBy('id')->value('id');
+
+        if (! $respaldo) {
+            $this->error('  No hay ningun usuario en destino: corre el paso usuarios primero.');
+
+            return;
+        }
+
+        [$codigos, $renombrados] = $this->codigosUnicos($viejo);
+        $existentes = DB::table('work_plans')->whereNotNull('legacy_id')->pluck('id', 'legacy_id');
+
+        $origen = $viejo->table('plans')->count();
+        $creados = $actualizados = 0;
+        $descartados = ['empresa' => 0, 'tipo' => 0, 'sede' => 0, 'usuario' => 0, 'pais' => 0];
+        $barra = $this->output->createProgressBar($origen);
+        $barra->start();
+
+        $viejo->table('plans')->orderBy('id')->chunkById($this->lote, function ($filas) use (
+            &$creados, &$actualizados, &$descartados, $codigos, $existentes,
+            $empresas, $usuarios, $respaldo, $tipos, $sedes, $areas, $puestos, $barra
+        ) {
+            $nuevos = [];
+
+            foreach ($filas as $p) {
+                $barra->advance();
+
+                if ((int) $p->country_id !== self::PAIS_LEGACY) {
+                    $descartados['pais']++;
+
+                    continue;
+                }
+
+                $empresaId = $empresas[$p->company_id] ?? null;
+                $tipoId    = $tipos[$p->work_type_id] ?? null;
+                $sedeId    = $sedes[$p->location_id] ?? null;
+
+                // Las tres son obligatorias en destino. Sin ellas el plan no se
+                // puede escribir, y se dice cuantos y por que se quedaron fuera.
+                if (! $empresaId) { $descartados['empresa']++; continue; }
+                if (! $tipoId)    { $descartados['tipo']++;    continue; }
+                if (! $sedeId)    { $descartados['sede']++;    continue; }
+
+                $usuarioId = $usuarios[$p->user_id] ?? null;
+
+                if (! $usuarioId) {
+                    $descartados['usuario']++;
+                    $usuarioId = $respaldo;
+                }
+
+                $fila = [
+                    'country_id'       => $this->countryId,
+                    'company_id'       => $empresaId,
+                    'work_type_id'     => $tipoId,
+                    'work_location_id' => $sedeId,
+                    'workstation_id'   => $puestos[$p->workstation_id] ?? null,
+                    'work_area_id'     => $areas[$p->area_id] ?? null,
+                    'user_id'          => $usuarioId,
+                    'code'             => $codigos[$p->id] ?? $p->code,
+                    'num_os'           => $p->num_os,
+                    'description'      => $p->description,
+                    'date_start'       => $this->fecha($p->date_start),
+                    'date_end'         => $this->fecha($p->date_end),
+                    'is_locked'        => (bool) $p->is_locked,
+                    'is_done'          => (bool) $p->is_done,
+                    'legacy_id'        => $p->id,
+                    'tenant_id'        => $this->tenantId,
+                    'created_by'       => $usuarioId,
+                    'deleted_at'       => $p->is_deleted ? $p->updated_at : null,
+                    'deleted_description' => $p->is_deleted ? $p->deleted_description : null,
+                    'created_at'       => $p->created_at,
+                    'updated_at'       => $p->updated_at,
+                ];
+
+                if (isset($existentes[$p->id])) {
+                    DB::table('work_plans')->where('id', $existentes[$p->id])->update($fila);
+                    $actualizados++;
+                } else {
+                    $nuevos[] = $fila + ['slug' => Str::random(22)];
+                    $creados++;
+                }
+            }
+
+            if ($nuevos !== []) {
+                DB::table('work_plans')->insert($nuevos);
+            }
+        });
+
+        $barra->finish();
+        $this->newLine();
+
+        $this->linea('planes', $origen, DB::table('work_plans')->whereNotNull('legacy_id')->count(),
+            "{$creados} nuevos, {$actualizados} actualizados");
+
+        if ($renombrados > 0) {
+            $this->warn(sprintf(
+                '  %d plan(es) traian un codigo repetido en la v1 y se les anadio un sufijo (-2, -3...): aqui el codigo es unico. El original se recupera por legacy_id.',
+                $renombrados,
+            ));
+        }
+
+        $this->avisarDescartes($descartados, [
+            'empresa' => 'la empresa no esta migrada',
+            'tipo'    => 'el tipo de trabajo no existe en el catalogo',
+            'sede'    => 'la sede no existe en el catalogo',
+            'usuario' => 'el usuario que lo registro no existe (se asigno el de respaldo, el plan SI se migro)',
+            'pais'    => 'el plan es de otro pais',
+        ]);
+
+        $this->migrarCuadrillas($viejo);
+        $this->migrarAprobaciones($viejo, $reglas);
+    }
+
+    /**
+     * Los codigos de plan de la v1 se repiten: 3 526 distintos para 3 722
+     * planes. Aqui el codigo es unico por pais y workspace, asi que a las
+     * repeticiones se les anade un sufijo. Se calcula recorriendo el origen por
+     * id para que el resultado sea el mismo en cada pasada, y el codigo
+     * original siempre se puede recuperar por el legacy_id.
+     *
+     * @return array{0: array<int, string>, 1: int} [legacy_id => codigo, cuantos se renombraron]
+     */
+    protected function codigosUnicos($viejo): array
+    {
+        $usados = [];
+        $codigos = [];
+        $renombrados = 0;
+
+        foreach ($viejo->table('plans')->orderBy('id')->select('id', 'code')->get() as $p) {
+            $codigo = $p->code;
+            $n = 1;
+
+            while (isset($usados[mb_strtoupper($codigo)])) {
+                $n++;
+                $codigo = $p->code . '-' . $n;
+            }
+
+            if ($codigo !== $p->code) {
+                $renombrados++;
+            }
+
+            $usados[mb_strtoupper($codigo)] = true;
+            $codigos[$p->id] = $codigo;
+        }
+
+        return [$codigos, $renombrados];
+    }
+
+    /** La cuadrilla del plan: quien estuvo asignado a cada trabajo. */
+    protected function migrarCuadrillas($viejo): void
+    {
+        $planes = DB::table('work_plans')->whereNotNull('legacy_id')->pluck('id', 'legacy_id');
+        $personas = $this->personasPorTablaLegacy($viejo);
+
+        $origen = $viejo->table('plan_workers')->count();
+        $migrados = 0;
+        $descartados = ['plan' => 0, 'persona' => 0, 'repetido' => 0];
+        $vistos = [];
+
+        $viejo->table('plan_workers')->orderBy('id')->chunkById($this->lote, function ($filas) use (
+            $planes, $personas, &$migrados, &$descartados, &$vistos
+        ) {
+            $nuevos = [];
+
+            foreach ($filas as $f) {
+                $planId = $planes[$f->plan_id] ?? null;
+                $personaId = $personas['workers'][$f->worker_id] ?? null;
+
+                if (! $planId)    { $descartados['plan']++;    continue; }
+                if (! $personaId) { $descartados['persona']++; continue; }
+
+                // En la v1 la misma persona podia estar dos veces en un plan
+                // (una fila por empresa). Aqui la identidad es unica, asi que la
+                // segunda no aporta nada.
+                $clave = "{$planId}:{$personaId}";
+
+                if (isset($vistos[$clave])) {
+                    $descartados['repetido']++;
+
+                    continue;
+                }
+
+                $vistos[$clave] = true;
+
+                $nuevos[] = [
+                    'slug'         => Str::random(22),
+                    'work_plan_id' => $planId,
+                    'person_id'    => $personaId,
+                    'is_approved'  => (bool) $f->is_approved,
+                    'legacy_id'    => $f->id,
+                    'created_at'   => $f->created_at,
+                    'updated_at'   => $f->updated_at,
+                ];
+                $migrados++;
+            }
+
+            if ($nuevos !== []) {
+                DB::table('work_plan_people')->upsert($nuevos, ['work_plan_id', 'person_id'],
+                    ['is_approved', 'legacy_id', 'updated_at']);
+            }
+        });
+
+        $this->linea('cuadrilla', $origen, DB::table('work_plan_people')->whereNotNull('legacy_id')->count(),
+            "{$migrados} asignaciones");
+
+        $this->avisarDescartes($descartados, [
+            'plan'     => 'el plan no esta migrado',
+            'persona'  => 'el trabajador no tiene identidad en destino',
+            'repetido' => 'la misma persona ya estaba en ese plan (era una fila por empresa en la v1)',
+        ]);
+    }
+
+    /** Las aprobaciones del plan: quien tenia que firmar y si firmo. */
+    protected function migrarAprobaciones($viejo, array $reglas): void
+    {
+        $planes = DB::table('work_plans')->whereNotNull('legacy_id')->pluck('id', 'legacy_id');
+        $personas = $this->personasPorTablaLegacy($viejo);
+
+        $origen = $viejo->table('plan_approvals')->count();
+        $migrados = 0;
+        $descartados = ['plan' => 0, 'regla' => 0, 'aprobador' => 0, 'repetido' => 0];
+        $vistos = [];
+
+        $viejo->table('plan_approvals')->orderBy('id')->chunkById($this->lote, function ($filas) use (
+            $planes, $personas, $reglas, &$migrados, &$descartados, &$vistos
+        ) {
+            $nuevos = [];
+
+            foreach ($filas as $f) {
+                $planId = $planes[$f->plan_id] ?? null;
+                $reglaId = $reglas[$f->approval_rule_id] ?? null;
+
+                if (! $planId)  { $descartados['plan']++;  continue; }
+                if (! $reglaId) { $descartados['regla']++; continue; }
+
+                $personaId = $this->personaAprobadora($personas, $f->approver_type, $f->approver_id);
+
+                // Un aprobador que ya no existe en el origen no se sustituye por
+                // otro: la aprobacion queda sin persona y se cuenta.
+                if ($f->approver_id !== null && ! $personaId) {
+                    $descartados['aprobador']++;
+                }
+
+                $clave = "{$planId}:{$reglaId}";
+
+                if (isset($vistos[$clave])) {
+                    $descartados['repetido']++;
+
+                    continue;
+                }
+
+                $vistos[$clave] = true;
+
+                $nuevos[] = [
+                    'slug'             => Str::random(22),
+                    'work_plan_id'     => $planId,
+                    'approval_rule_id' => $reglaId,
+                    'person_id'        => $personaId,
+                    'is_required'      => (bool) $f->is_required,
+                    'is_approved'      => (bool) $f->is_approved,
+                    'legacy_id'        => $f->id,
+                    'created_at'       => $f->created_at,
+                    'updated_at'       => $f->updated_at,
+                ];
+                $migrados++;
+            }
+
+            if ($nuevos !== []) {
+                DB::table('work_plan_approvals')->upsert($nuevos, ['work_plan_id', 'approval_rule_id'],
+                    ['person_id', 'is_required', 'is_approved', 'legacy_id', 'updated_at']);
+            }
+        });
+
+        $destino = DB::table('work_plan_approvals')->whereNotNull('legacy_id')->count();
+        $pendientes = DB::table('work_plan_approvals')
+            ->where('is_required', true)->where('is_approved', false)->count();
+
+        $this->linea('aprobac.', $origen, $destino, "{$migrados} aprobaciones · {$pendientes} obligatorias sin firmar");
+
+        $this->avisarDescartes($descartados, [
+            'plan'      => 'el plan no esta migrado',
+            'regla'     => 'la regla de aprobacion no existe',
+            'aprobador' => 'el aprobador no existe ya en la v1 (la aprobacion se migro sin persona)',
+            'repetido'  => 'ese plan ya tenia una aprobacion con esa regla',
+        ]);
+    }
+
+    /** Aprobador de la v1 (Worker/Supervisor/HseSupervisor + id) a persona de destino. */
+    protected function personaAprobadora(array $personas, ?string $tipo, ?int $id): ?int
+    {
+        if (! $tipo || ! $id) {
+            return null;
+        }
+
+        $tabla = match ($tipo) {
+            'Worker'        => 'workers',
+            'Supervisor'    => 'supervisors',
+            'HseSupervisor' => 'hse_supervisors',
+            default         => null,
+        };
+
+        return $tabla ? ($personas[$tabla][$id] ?? null) : null;
+    }
+
+    /**
+     * Puente entre los ids de las tres tablas de personas de la v1 y la
+     * identidad unica de destino. Se reconstruye por documento, que es como se
+     * consolidaron las personas en su paso.
+     *
+     * @return array<string, array<int, int>> tabla => [id v1 => person_id]
+     */
+    protected function personasPorTablaLegacy($viejo): array
+    {
+        static $cache = null;
+
+        if ($cache !== null) {
+            return $cache;
+        }
+
+        $porDocumento = DB::table('people')
+            ->where('country_id', $this->countryId)
+            ->where('doc_type', 'DNI')
+            ->pluck('id', 'num_doc');
+
+        $cache = [];
+
+        foreach (['workers', 'supervisors', 'hse_supervisors'] as $tabla) {
+            $cache[$tabla] = [];
+
+            foreach ($viejo->table($tabla)->select('id', 'num_doc')->get() as $f) {
+                $id = $porDocumento[trim((string) $f->num_doc)] ?? null;
+
+                if ($id) {
+                    $cache[$tabla][$f->id] = $id;
+                }
+            }
+        }
+
+        return $cache;
+    }
+
+    // ── Catalogos que los planes necesitan ───────────────────────────────────
+
+    /** @return array<int, int> legacy_id => work_types.id */
+    protected function catalogoTipos($viejo): array
+    {
+        return $this->catalogo($viejo, 'work_types', function ($f) {
+            // En destino el nombre traducible vive en los archivos de idioma:
+            // la tabla solo guarda el codigo, que aqui es el nombre en espanol.
+            return WorkType::withTrashed()
+                ->where('country_id', $this->countryId)
+                ->whereRaw('lower(code) = ?', [mb_strtolower($f->name_es)])
+                ->first();
+        }, fn ($f) => ['country_id' => $this->countryId, 'code' => $f->name_es, 'is_active' => (bool) $f->is_active]);
+    }
+
+    /** @return array<int, int> legacy_id => work_locations.id */
+    protected function catalogoSedes($viejo): array
+    {
+        return $this->catalogo($viejo, 'locations', fn ($f) => WorkLocation::withTrashed()
+            ->where('country_id', $this->countryId)->where('name', $f->name)->first(),
+            fn ($f) => ['country_id' => $this->countryId, 'name' => $f->name, 'is_active' => (bool) $f->is_active]);
+    }
+
+    /** @return array<int, int> legacy_id => work_areas.id */
+    protected function catalogoAreas($viejo): array
+    {
+        return $this->catalogo($viejo, 'areas', fn ($f) => WorkArea::withTrashed()
+            ->where('country_id', $this->countryId)->where('name', $f->name)->first(),
+            fn ($f) => ['country_id' => $this->countryId, 'name' => $f->name, 'is_active' => (bool) $f->is_active]);
+    }
+
+    /** @return array<int, int> legacy_id => workstations.id */
+    protected function catalogoPuestos($viejo, array $sedes): array
+    {
+        return $this->catalogo($viejo, 'workstations', fn ($f) => Workstation::withTrashed()
+            ->where('work_location_id', $sedes[$f->location_id] ?? 0)->where('name', $f->name)->first(),
+            function ($f) use ($sedes) {
+                $sedeId = $sedes[$f->location_id] ?? null;
+
+                // Un puesto sin sede no se puede escribir: la sede es obligatoria.
+                return $sedeId ? ['work_location_id' => $sedeId, 'name' => $f->name, 'is_active' => (bool) $f->is_active] : null;
+            });
+    }
+
+    /**
+     * Reglas de aprobacion: quien tiene que firmar un plan y en que orden.
+     *
+     * @return array<int, int> legacy_id => approval_rules.id
+     */
+    protected function catalogoReglas($viejo): array
+    {
+        return $this->catalogo($viejo, 'approval_rules', function ($f) {
+            return ApprovalRule::withTrashed()
+                ->where('country_id', $this->countryId)
+                ->where('approver_role', $this->rolAprobador($f->approver_type))
+                ->where('priority_level', $f->priority_level)
+                ->first();
+        }, fn ($f) => [
+            'country_id'     => $this->countryId,
+            'approver_role'  => $this->rolAprobador($f->approver_type),
+            'priority_level' => $f->priority_level,
+            'is_required'    => (bool) $f->is_required,
+            'is_active'      => (bool) $f->is_active,
+        ]);
+    }
+
+    protected function rolAprobador(string $tipo): string
+    {
+        return match ($tipo) {
+            'Worker'        => PersonRole::WORKER,
+            'Supervisor'    => PersonRole::SUPERVISOR,
+            'HseSupervisor' => PersonRole::HSE_SUPERVISOR,
+            default         => Str::snake($tipo),
+        };
+    }
+
+    /**
+     * Que formatos exige cada tipo de trabajo. En la v1 era work_type_documents;
+     * aqui es la tabla que une el tipo con la plantilla del motor.
+     */
+    protected function catalogoFormatosPorTipo($viejo, array $tipos): void
+    {
+        $porTablaLegacy = array_flip(self::FORMATOS);   // f1_documents => AST
+        $documentos = $viejo->table('documents')->pluck('db_name', 'id');
+        $plantillas = FormTemplate::whereIn('code', array_keys(self::FORMATOS))
+            ->pluck('id', 'code');
+
+        // db_name en la v1 es el nombre de la clase Rails (F1Document).
+        $porClase = [];
+        foreach ($documentos as $id => $clase) {
+            $tabla = Str::snake($clase) . 's';           // F1Document => f1_documents
+            $porClase[$id] = $porTablaLegacy[$tabla] ?? null;
+        }
+
+        $filas = [];
+
+        foreach ($viejo->table('work_type_documents')->get() as $f) {
+            $tipoId = $tipos[$f->work_type_id] ?? null;
+            $codigo = $porClase[$f->document_id] ?? null;
+            $plantillaId = $codigo ? ($plantillas[$codigo] ?? null) : null;
+
+            if (! $tipoId || ! $plantillaId) {
+                continue;
+            }
+
+            $filas[] = [
+                'work_type_id'     => $tipoId,
+                'form_template_id' => $plantillaId,
+                'is_required'      => (bool) $f->is_required,
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ];
+        }
+
+        if ($filas !== []) {
+            DB::table('work_type_form_templates')
+                ->upsert($filas, ['work_type_id', 'form_template_id'], ['is_required', 'updated_at']);
+        }
+
+        $this->line(sprintf('  catalogos  tipos: %d · formatos exigidos por tipo: %d', count($tipos), count($filas)));
+    }
+
+    /**
+     * Alta idempotente de un catalogo del sistema anterior.
+     *
+     * @param  callable  $buscar  como encontrar la fila equivalente que ya exista
+     * @param  callable  $datos   columnas de destino, o null si la fila no se puede migrar
+     * @return array<int, int> legacy_id => id de destino
+     */
+    protected function catalogo($viejo, string $tabla, callable $buscar, callable $datos): array
+    {
+        $modelo = [
+            'work_types'     => WorkType::class,
+            'locations'      => WorkLocation::class,
+            'areas'          => WorkArea::class,
+            'workstations'   => Workstation::class,
+            'approval_rules' => ApprovalRule::class,
+        ][$tabla];
+
+        $mapa = [];
+
+        $consulta = $viejo->table($tabla)->orderBy('id');
+
+        // Los catalogos de la v1 son multipais; aqui solo se trae el que usan
+        // los planes. Workstations cuelga de la sede, no del pais.
+        if ($tabla !== 'workstations') {
+            $consulta->where('country_id', self::PAIS_LEGACY);
+        }
+
+        foreach ($consulta->get() as $f) {
+            $fila = $modelo::withTrashed()->where('legacy_id', $f->id)->first() ?? $buscar($f);
+            $columnas = $datos($f);
+
+            if ($columnas === null) {
+                continue;
+            }
+
+            $columnas['legacy_id'] = $f->id;
+
+            if ($fila) {
+                $fila->update($columnas);
+            } else {
+                $fila = $modelo::create($columnas + [
+                    'slug' => Str::random(22), 'tenant_id' => $this->tenantId, 'created_by' => 1,
+                ]);
+            }
+
+            $mapa[$f->id] = $fila->id;
+        }
+
+        return $mapa;
+    }
+
+    // ── Formatos llenados ────────────────────────────────────────────────────
+
+    /**
+     * Cada AST, PTF, EPP o IHM llenado de la v1 se convierte en una entrega del
+     * formato correspondiente, con sus respuestas.
+     *
+     * Es el paso con mas volumen del origen —226 875 respuestas de EPP y 62 254
+     * de PTF— asi que se recorre por lotes y las respuestas de un campo
+     * compuesto se guardan juntas, que es como las espera el motor.
+     */
+    protected function migrarDocumentos(): void
+    {
+        $this->info('── Formatos llenados ──');
+        $viejo = DB::connection('legacy');
+
+        $plantillas = FormTemplate::whereIn('code', array_keys(self::FORMATOS))
+            ->get()->keyBy('code');
+
+        $faltan = array_diff(array_keys(self::FORMATOS), $plantillas->keys()->all());
+
+        if ($faltan !== []) {
+            $this->error('  Faltan plantillas (' . implode(', ', $faltan) . '): corre php artisan docufiz:migrate-formats.');
+
+            return;
+        }
+
+        $this->migrarAst($viejo, $plantillas['AST']);
+        $this->migrarPtf($viejo, $plantillas['PTF']);
+        $this->migrarEpp($viejo, $plantillas['EPP']);
+        $this->migrarIhm($viejo, $plantillas['IHM']);
+    }
+
+    /** AST: la matriz de riesgo eran dos tablas encadenadas, actividades y peligros. */
+    protected function migrarAst($viejo, FormTemplate $plantilla): void
+    {
+        $campos = $this->camposDe($plantilla);
+        $severidades = $viejo->table('severities')->pluck('name', 'id')->all();
+        $probabilidades = $viejo->table('probabilities')->pluck('name', 'id')->all();
+        $equipos = $viejo->table('ast_equipments')->pluck('name_es', 'id')->all();
+        $objetivos = $viejo->table('ast_objetives')->pluck('name_es', 'id')->all();
+
+        $this->recorrerFormato($viejo, 'f1_documents', $plantilla, function ($docs, $entregas) use (
+            $viejo, $campos, $severidades, $probabilidades, $equipos, $objetivos
+        ) {
+            $ids = $docs->pluck('id')->all();
+
+            $actividades = $viejo->table('f1_document_activities')->whereIn('f1_document_id', $ids)
+                ->orderBy('id')->get()->groupBy('f1_document_id');
+            $peligros = $viejo->table('f1_document_dangers')
+                ->whereIn('f1_document_activity_id', $actividades->flatten()->pluck('id')->all())
+                ->orderBy('id')->get()->groupBy('f1_document_activity_id');
+            $susEquipos = $viejo->table('f1_document_equipments')->whereIn('f1_document_id', $ids)
+                ->get()->groupBy('f1_document_id');
+            $susObjetivos = $viejo->table('f1_document_objetives')->whereIn('f1_document_id', $ids)
+                ->get()->groupBy('f1_document_id');
+
+            $respuestas = [];
+
+            foreach ($docs as $d) {
+                $entregaId = $entregas[$d->id] ?? null;
+
+                if (! $entregaId) {
+                    continue;
+                }
+
+                $suyas = ($actividades[$d->id] ?? collect())->map(fn ($a) => (array) $a)->all();
+                $suyos = collect($suyas)
+                    ->flatMap(fn ($a) => ($peligros[$a['id']] ?? collect())->map(fn ($p) => (array) $p))
+                    ->all();
+
+                $filas = $this->mapa->matrizDeRiesgo($suyas, $suyos, $severidades, $probabilidades, 'f1_document_activity_id');
+
+                foreach ($filas as $i => $fila) {
+                    $respuestas[] = $this->respuesta($entregaId, $campos['matriz_de_riesgo'], $i, $fila, 'json');
+                }
+
+                $lista = ($susEquipos[$d->id] ?? collect())->map(fn ($e) => $equipos[$e->ast_equipment_id] ?? null)->filter()->values()->all();
+                if ($lista !== [] && isset($campos['equipos'])) {
+                    $respuestas[] = $this->respuesta($entregaId, $campos['equipos'], 0, $lista, 'json');
+                }
+
+                $lista = ($susObjetivos[$d->id] ?? collect())->map(fn ($o) => $objetivos[$o->ast_objetive_id] ?? null)->filter()->values()->all();
+                if ($lista !== [] && isset($campos['objetivos'])) {
+                    $respuestas[] = $this->respuesta($entregaId, $campos['objetivos'], 0, $lista, 'json');
+                }
+
+                $texto = $this->mapa->observacionesAst($d->adrights ?? null, $d->eqtools ?? null);
+                if ($texto !== null && isset($campos['observaciones'])) {
+                    $respuestas[] = $this->respuesta($entregaId, $campos['observaciones'], 0, $texto, 'text');
+                }
+            }
+
+            return $respuestas;
+        });
+    }
+
+    /** PTF: banco de preguntas y una matriz de riesgo que casi nunca se uso. */
+    protected function migrarPtf($viejo, FormTemplate $plantilla): void
+    {
+        $campos = $this->camposDe($plantilla);
+        $preguntas = $viejo->table('ptf_questions')->pluck('name_es', 'id')->all();
+        $severidades = $viejo->table('severities')->pluck('name', 'id')->all();
+        $probabilidades = $viejo->table('probabilities')->pluck('name', 'id')->all();
+
+        $this->recorrerFormato($viejo, 'f2_documents', $plantilla, function ($docs, $entregas) use (
+            $viejo, $campos, $preguntas, $severidades, $probabilidades
+        ) {
+            $ids = $docs->pluck('id')->all();
+
+            $contestadas = $viejo->table('f2_document_answers')->whereIn('f2_document_id', $ids)
+                ->orderBy('id')->get()->groupBy('f2_document_id');
+            $actividades = $viejo->table('f2_document_activities')->whereIn('f2_document_id', $ids)
+                ->orderBy('id')->get()->groupBy('f2_document_id');
+            $peligros = $viejo->table('f2_document_dangers')
+                ->whereIn('f2_document_activity_id', $actividades->flatten()->pluck('id')->all())
+                ->orderBy('id')->get()->groupBy('f2_document_activity_id');
+
+            $respuestas = [];
+
+            foreach ($docs as $d) {
+                $entregaId = $entregas[$d->id] ?? null;
+
+                if (! $entregaId) {
+                    continue;
+                }
+
+                $suyas = ($contestadas[$d->id] ?? collect())->map(fn ($r) => (array) $r)->all();
+
+                if ($suyas !== []) {
+                    $respuestas[] = $this->respuesta($entregaId, $campos['preguntas'], 0,
+                        $this->mapa->bancoDePreguntas($suyas, $preguntas), 'json');
+                }
+
+                $act = ($actividades[$d->id] ?? collect())->map(fn ($a) => (array) $a)->all();
+                $pel = collect($act)->flatMap(fn ($a) => ($peligros[$a['id']] ?? collect())->map(fn ($p) => (array) $p))->all();
+
+                foreach ($this->mapa->matrizDeRiesgo($act, $pel, $severidades, $probabilidades, 'f2_document_activity_id') as $i => $fila) {
+                    $respuestas[] = $this->respuesta($entregaId, $campos['matriz_de_riesgo'], $i, $fila, 'json');
+                }
+            }
+
+            return $respuestas;
+        });
+    }
+
+    /** EPP: una fila por trabajador del plan con sus items de proteccion. */
+    protected function migrarEpp($viejo, FormTemplate $plantilla): void
+    {
+        $campos = $this->camposDe($plantilla);
+        $items = $viejo->table('epp_items')->pluck('name_es', 'id')->all();
+        $personas = DB::table('work_plan_people')->whereNotNull('legacy_id')->pluck('person_id', 'legacy_id');
+
+        $this->recorrerFormato($viejo, 'f3_documents', $plantilla, function ($docs, $entregas) use (
+            $viejo, $campos, $items, $personas
+        ) {
+            $ids = $docs->pluck('id')->all();
+
+            $trabajadores = $viejo->table('f3_document_workers')->whereIn('f3_document_id', $ids)
+                ->orderBy('id')->get();
+            $contestadas = $viejo->table('f3_document_answers')
+                ->whereIn('f3_document_worker_id', $trabajadores->pluck('id')->all())
+                ->orderBy('id')->get()->groupBy('f3_document_worker_id');
+            $porDocumento = $trabajadores->groupBy('f3_document_id');
+
+            $respuestas = [];
+
+            foreach ($docs as $d) {
+                $entregaId = $entregas[$d->id] ?? null;
+
+                if (! $entregaId) {
+                    continue;
+                }
+
+                foreach (($porDocumento[$d->id] ?? collect())->values() as $i => $t) {
+                    $suyas = ($contestadas[$t->id] ?? collect())->map(fn ($r) => (array) $r)->all();
+
+                    $respuestas[] = $this->respuesta($entregaId, $campos['epp_por_trabajador'], $i,
+                        $this->mapa->checklistDePersona((array) $t, $suyas, $items, $personas[$t->plan_worker_id] ?? null),
+                        'json');
+                }
+            }
+
+            return $respuestas;
+        });
+    }
+
+    /** IHM: una fila por herramienta inspeccionada con sus puntos de control. */
+    protected function migrarIhm($viejo, FormTemplate $plantilla): void
+    {
+        $campos = $this->camposDe($plantilla);
+        $catalogo = $viejo->table('ihm_items')->pluck('name_es', 'id')->all();
+
+        $this->recorrerFormato($viejo, 'f4_documents', $plantilla, function ($docs, $entregas) use (
+            $viejo, $campos, $catalogo
+        ) {
+            $ids = $docs->pluck('id')->all();
+
+            $herramientas = $viejo->table('f4_document_tools')->whereIn('f4_document_id', $ids)
+                ->orderBy('id')->get();
+            $items = $viejo->table('f4_document_items')
+                ->whereIn('f4_document_tool_id', $herramientas->pluck('id')->all())
+                ->orderBy('id')->get()->groupBy('f4_document_tool_id');
+            $porDocumento = $herramientas->groupBy('f4_document_id');
+
+            $respuestas = [];
+
+            foreach ($docs as $d) {
+                $entregaId = $entregas[$d->id] ?? null;
+
+                if (! $entregaId) {
+                    continue;
+                }
+
+                foreach (($porDocumento[$d->id] ?? collect())->values() as $i => $h) {
+                    $suyos = ($items[$h->id] ?? collect())->map(fn ($r) => (array) $r)->all();
+
+                    $respuestas[] = $this->respuesta($entregaId, $campos['inspeccion_de_herramientas'], $i,
+                        $this->mapa->checklistDeHerramienta((array) $h, $suyos, $catalogo), 'json');
+                }
+            }
+
+            return $respuestas;
+        });
+    }
+
+    /**
+     * Recorrido comun de los cuatro formatos: crea la entrega de cada documento
+     * y delega en el llamador la construccion de las respuestas.
+     *
+     * Las respuestas anteriores de esas entregas se borran antes de escribir,
+     * para que volver a correr el paso deje exactamente lo que dice el origen y
+     * no restos de una pasada anterior.
+     */
+    protected function recorrerFormato($viejo, string $tabla, FormTemplate $plantilla, callable $construir): void
+    {
+        $planes = DB::table('work_plans')->whereNotNull('legacy_id')->pluck('id', 'legacy_id');
+        $origen = $viejo->table($tabla)->count();
+        $entregas = $respuestasEscritas = 0;
+        $descartados = ['plan' => 0];
+
+        $barra = $this->output->createProgressBar($origen);
+        $barra->start();
+
+        $viejo->table($tabla)->orderBy('id')->chunkById($this->lote, function ($docs) use (
+            $tabla, $plantilla, $planes, $construir, &$entregas, &$respuestasEscritas, &$descartados, $barra
+        ) {
+            $barra->advance($docs->count());
+
+            $filas = [];
+
+            foreach ($docs as $d) {
+                $planId = $planes[$d->plan_id] ?? null;
+
+                if (! $planId) {
+                    $descartados['plan']++;
+
+                    continue;
+                }
+
+                $filas[] = [
+                    'slug'             => Str::random(22),
+                    'work_plan_id'     => $planId,
+                    'form_template_id' => $plantilla->id,
+                    'template_version' => $plantilla->version,
+                    'status'           => $d->is_confirmed ? 'confirmed' : 'draft',
+                    'submitted_at'     => $d->is_confirmed ? $d->updated_at : null,
+                    'legacy_id'        => $d->id,
+                    'legacy_table'     => $tabla,
+                    'tenant_id'        => $this->tenantId,
+                    'created_by'       => 1,
+                    'deleted_at'       => ($d->is_deleted ?? false) ? $d->updated_at : null,
+                    'created_at'       => $d->created_at,
+                    'updated_at'       => $d->updated_at,
+                ];
+            }
+
+            if ($filas === []) {
+                return;
+            }
+
+            DB::table('form_submissions')->upsert($filas, ['work_plan_id', 'form_template_id'], [
+                'template_version', 'status', 'submitted_at', 'legacy_id', 'legacy_table',
+                'deleted_at', 'updated_at',
+            ]);
+            $entregas += count($filas);
+
+            // legacy_id del documento => id de la entrega recien escrita.
+            $mapa = DB::table('form_submissions')
+                ->where('legacy_table', $tabla)
+                ->whereIn('legacy_id', $docs->pluck('id')->all())
+                ->pluck('id', 'legacy_id');
+
+            DB::table('form_answers')->whereIn('form_submission_id', $mapa->values()->all())->delete();
+
+            $respuestas = $construir($docs, $mapa);
+
+            foreach (array_chunk($respuestas, 1000) as $trozo) {
+                DB::table('form_answers')->insert($trozo);
+                $respuestasEscritas += count($trozo);
+            }
+        });
+
+        $barra->finish();
+        $this->newLine();
+
+        $destino = DB::table('form_submissions')->where('legacy_table', $tabla)->count();
+        $this->linea($plantilla->code, $origen, $destino, "{$respuestasEscritas} respuestas escritas");
+
+        $this->avisarDescartes($descartados, ['plan' => 'el plan del documento no esta migrado']);
+    }
+
+    /** Los campos de la plantilla, por codigo, para no buscarlos en cada fila. */
+    protected function camposDe(FormTemplate $plantilla): array
+    {
+        return $plantilla->fields()->pluck('form_fields.id', 'form_fields.code')->all();
+    }
+
+    /** Una fila de form_answers en la columna que le toca segun el tipo de valor. */
+    protected function respuesta(int $entregaId, int $campoId, int $fila, mixed $valor, string $tipo): array
+    {
+        return [
+            'form_submission_id' => $entregaId,
+            'form_field_id'      => $campoId,
+            'row_index'          => $fila,
+            'value_text'         => $tipo === 'text' ? $valor : null,
+            'value_number'       => null,
+            'value_datetime'     => null,
+            'value_boolean'      => null,
+            'value_json'         => $tipo === 'json' ? json_encode($valor, JSON_UNESCAPED_UNICODE) : null,
+            'created_at'         => now(),
+            'updated_at'         => now(),
+        ];
+    }
+
+    // ── Firmas y fotos ───────────────────────────────────────────────────────
+
+    /**
+     * Firmas y fotos de la v1.
+     *
+     * El dato incomodo de este paso: de 9 012 fotos de trabajador, 7 508 eran
+     * literalmente la cadena "detected_by_IA" escrita en la columna del
+     * archivo, y con las firmas pasa lo mismo. No hay fichero detras. Se migran
+     * como firma historica sin archivo —method 'migrated', evidence_missing— y
+     * el comando dice cuantas eran reales y cuantas no. No se inventa evidencia.
+     */
+    protected function migrarEvidencias(): void
+    {
+        $this->info('── Firmas y fotos ──');
+        $viejo = DB::connection('legacy');
+
+        $cuadrilla = DB::table('work_plan_people')->whereNotNull('legacy_id')
+            ->get(['id', 'person_id', 'legacy_id'])->keyBy('legacy_id');
+        $aprobaciones = DB::table('work_plan_approvals')->whereNotNull('legacy_id')
+            ->get(['id', 'person_id', 'legacy_id'])->keyBy('legacy_id');
+
+        $conteo = ['reales' => 0, 'marcadores' => 0, 'sin_referencia' => 0, 'origen' => 0];
+
+        $this->evidenciasDeTrabajadores($viejo, $cuadrilla, $conteo);
+        $this->evidenciasDeAprobaciones($viejo, $aprobaciones, $conteo);
+
+        $eventos = DB::table('signature_events')->whereNotNull('legacy_source')->count();
+        $archivos = DB::table('evidence_files')->where('file_path', 'like', 'legacy/%')->count();
+        $conArchivo = DB::table('signature_events')->whereNotNull('legacy_source')
+            ->where('evidence_missing', false)->count();
+
+        $this->newLine();
+        $this->linea('firmas', $conteo['origen'], $eventos, sprintf(
+            '%d eventos con archivo (%d ficheros) · %d sin archivo',
+            $conArchivo, $archivos, $eventos - $conArchivo,
+        ));
+
+        $this->table(['Referencias de la v1', 'Cuantas', 'Que son'], [
+            ['archivo real',   $conteo['reales'],         'nombre de fichero: se migra como evidencia (falta copiar el archivo)'],
+            ['marcador de IA', $conteo['marcadores'],     '"detected_by_IA"/"signed_by_IA": no existe archivo, no es evidencia'],
+            ['sin referencia', $conteo['sin_referencia'], 'la columna venia vacia'],
+        ]);
+
+        $total = $conteo['reales'] + $conteo['marcadores'];
+        if ($total > 0) {
+            $this->warn(sprintf(
+                '  El %.1f %% de las firmas y fotos historicas no tiene archivo detras. Es un dato de la v1, no un fallo de la migracion.',
+                100 * $conteo['marcadores'] / $total,
+            ));
+        }
+
+        $this->line('  Los ficheros no estan en este repositorio. Cuando los tengas:');
+        $this->line('    php artisan docufiz:migrate-data archivos --desde=/ruta/v1/public/images_uploads');
+    }
+
+    /**
+     * Trabajadores del plan.
+     *
+     * La v1 tenia la tabla de eventos bien disenada —worker_signature_events—
+     * pero la foto no se guardaba alli sino en una columna de plan_workers, y
+     * casi siempre era el marcador. Aqui el evento manda: si existe se migra tal
+     * cual, y si un trabajador firmo sin evento se le crea uno.
+     */
+    protected function evidenciasDeTrabajadores($viejo, $cuadrilla, array &$conteo): void
+    {
+        $conEvento = [];
+
+        $origen = $viejo->table('worker_signature_events')->where('signable_type', 'PlanWorker')->count();
+        $descartados = ['sin_trabajador' => 0];
+        $barra = $this->output->createProgressBar($origen);
+        $barra->start();
+
+        $viejo->table('worker_signature_events')->where('signable_type', 'PlanWorker')
+            ->orderBy('id')->chunkById($this->lote, function ($eventos) use (
+                $viejo, $cuadrilla, &$conteo, &$conEvento, &$descartados, $barra
+            ) {
+                $barra->advance($eventos->count());
+
+                $trabajadores = $viejo->table('plan_workers')
+                    ->whereIn('id', $eventos->pluck('signable_id')->all())
+                    ->get()->keyBy('id');
+
+                $filas = $archivos = [];
+
+                foreach ($eventos as $e) {
+                    $destino = $cuadrilla[$e->signable_id] ?? null;
+                    $origenFila = $trabajadores[$e->signable_id] ?? null;
+
+                    if (! $destino || ! $origenFila) {
+                        $descartados['sin_trabajador']++;
+
+                        continue;
+                    }
+
+                    // Solo el primer evento de un trabajador se queda con la
+                    // foto: en la v1 hay una sola columna de foto por fila, no
+                    // una por evento.
+                    $primero = ! isset($conEvento[$e->signable_id]);
+                    $conEvento[$e->signable_id] = true;
+
+                    $referencias = $primero
+                        ? ['face' => $origenFila->photo, 'signature' => $origenFila->signature]
+                        : [];
+
+                    $filas[] = $this->eventoMigrado(
+                        WorkPlanPerson::class, $destino->id, $destino->person_id,
+                        $e->role_signed, $e->signed_at, 'worker_signature_events', $e->id,
+                        $referencias, $conteo,
+                        ['used_ai' => $e->used_ai, 'manual_override' => $e->manual_override,
+                         'latitude' => $e->latitude, 'longitude' => $e->longitude,
+                         'device_id' => $e->device_id, 'ip_address' => $e->ip_address,
+                         'user_agent' => $e->user_agent, 'country_code' => $e->country_code,
+                         'region' => $e->region, 'city' => $e->city,
+                         'created_at' => $e->created_at, 'updated_at' => $e->updated_at],
+                    );
+
+                    foreach ($referencias as $tipo => $referencia) {
+                        if ($this->mapa->esArchivoReal($referencia)) {
+                            $archivos[] = ['worker_signature_events', $e->id, $tipo, $referencia, $e->signed_at];
+                        }
+                    }
+                }
+
+                $this->escribirEventos($filas, $archivos);
+            });
+
+        $barra->finish();
+        $this->newLine();
+
+        // Los que firmaron pero no dejaron evento: pocos, pero no se pierden.
+        $sueltos = $viejo->table('plan_workers')
+            ->where(fn ($q) => $q->whereNotNull('signature')->orWhereNotNull('photo'))
+            ->whereNotExists(fn ($q) => $q->selectRaw('1')->from('worker_signature_events')
+                ->where('worker_signature_events.signable_type', 'PlanWorker')
+                ->whereColumn('worker_signature_events.signable_id', 'plan_workers.id'))
+            ->orderBy('id')
+            ->get();
+
+        $filas = $archivos = [];
+
+        foreach ($sueltos as $f) {
+            $destino = $cuadrilla[$f->id] ?? null;
+
+            if (! $destino) {
+                $descartados['sin_trabajador']++;
+
+                continue;
+            }
+
+            $referencias = ['face' => $f->photo, 'signature' => $f->signature];
+
+            $filas[] = $this->eventoMigrado(
+                WorkPlanPerson::class, $destino->id, $destino->person_id,
+                PersonRole::WORKER, $f->updated_at, 'plan_workers', $f->id, $referencias, $conteo,
+                ['created_at' => $f->created_at, 'updated_at' => $f->updated_at],
+            );
+
+            foreach ($referencias as $tipo => $referencia) {
+                if ($this->mapa->esArchivoReal($referencia)) {
+                    $archivos[] = ['plan_workers', $f->id, $tipo, $referencia, $f->updated_at];
+                }
+            }
+        }
+
+        $this->escribirEventos($filas, $archivos);
+
+        $conteo['origen'] += $origen + $sueltos->count();
+
+        $this->linea('trabajad.', $origen + $sueltos->count(),
+            DB::table('signature_events')->whereIn('legacy_source', ['worker_signature_events', 'plan_workers'])->count(),
+            sprintf('%d eventos de la v1 + %d firmas sin evento', $origen, $sueltos->count()));
+
+        $this->avisarDescartes($descartados, [
+            'sin_trabajador' => 'el evento apunta a un plan_worker que ya no existe en la v1',
+        ]);
+    }
+
+    /**
+     * Aprobaciones del plan.
+     *
+     * La tabla approval_signature_events existia en la v1 pero nunca se
+     * conecto: tiene cero filas. La unica huella de que alguien aprobo son las
+     * columnas signature/photo de plan_approvals, asi que el evento se crea a
+     * partir de ellas.
+     */
+    protected function evidenciasDeAprobaciones($viejo, $aprobaciones, array &$conteo): void
+    {
+        $origen = $viejo->table('plan_approvals')
+            ->where(fn ($q) => $q->whereNotNull('signature')->orWhereNotNull('photo'))->count();
+        $descartados = ['sin_aprobacion' => 0, 'sin_persona' => 0];
+
+        $barra = $this->output->createProgressBar($origen);
+        $barra->start();
+
+        $viejo->table('plan_approvals')
+            ->where(fn ($q) => $q->whereNotNull('signature')->orWhereNotNull('photo'))
+            ->orderBy('id')->chunkById($this->lote, function ($filas) use (
+                $aprobaciones, &$conteo, &$descartados, $barra
+            ) {
+                $barra->advance($filas->count());
+
+                $eventos = $archivos = [];
+
+                foreach ($filas as $f) {
+                    $destino = $aprobaciones[$f->id] ?? null;
+
+                    if (! $destino) {
+                        $descartados['sin_aprobacion']++;
+
+                        continue;
+                    }
+
+                    // Una firma es de alguien. Si la aprobacion se migro sin
+                    // persona no hay a quien atribuirla y no se inventa.
+                    if (! $destino->person_id) {
+                        $descartados['sin_persona']++;
+
+                        continue;
+                    }
+
+                    $referencias = ['face' => $f->photo, 'signature' => $f->signature];
+
+                    $eventos[] = $this->eventoMigrado(
+                        WorkPlanApproval::class, $destino->id, $destino->person_id,
+                        $this->rolAprobador((string) $f->approver_type), $f->updated_at,
+                        'plan_approvals', $f->id, $referencias, $conteo,
+                        ['created_at' => $f->created_at, 'updated_at' => $f->updated_at],
+                    );
+
+                    foreach ($referencias as $tipo => $referencia) {
+                        if ($this->mapa->esArchivoReal($referencia)) {
+                            $archivos[] = ['plan_approvals', $f->id, $tipo, $referencia, $f->updated_at];
+                        }
+                    }
+                }
+
+                $this->escribirEventos($eventos, $archivos);
+            });
+
+        $barra->finish();
+        $this->newLine();
+
+        $conteo['origen'] += $origen;
+
+        $this->linea('aprobad.', $origen,
+            DB::table('signature_events')->where('legacy_source', 'plan_approvals')->count(),
+            'firmas de aprobacion');
+
+        $this->avisarDescartes($descartados, [
+            'sin_aprobacion' => 'la aprobacion no esta migrada',
+            'sin_persona'    => 'la aprobacion no tiene aprobador: la firma no se puede atribuir a nadie',
+        ]);
+    }
+
+    /**
+     * Una firma historica.
+     *
+     * El metodo es siempre 'migrated': lo que la v1 llamaba reconocimiento
+     * facial lo decidia el navegador y no dejo prueba, asi que aqui no puede
+     * llamarse igual que una firma verificada por el servidor. El used_ai del
+     * origen si se conserva, porque es lo que la v1 creia.
+     */
+    protected function eventoMigrado(
+        string $tipo, int $id, int $personaId, ?string $rol, $firmadaEn,
+        string $fuente, int $legacyId, array $referencias, array &$conteo, array $extra = [],
+    ): array {
+        $conArchivo = false;
+
+        foreach (['face', 'signature'] as $clase) {
+            $referencia = $referencias[$clase] ?? null;
+
+            if ($referencia === null || trim((string) $referencia) === '') {
+                $conteo['sin_referencia'] += array_key_exists($clase, $referencias) ? 1 : 0;
+            } elseif ($this->mapa->esArchivoReal($referencia)) {
+                $conteo['reales']++;
+                $conArchivo = true;
+            } else {
+                $conteo['marcadores']++;
+            }
+        }
+
+        return [
+            'signable_type'   => $tipo,
+            'signable_id'     => $id,
+            'person_id'       => $personaId,
+            'role_signed'     => $rol ?: PersonRole::WORKER,
+            'signed_at'       => $firmadaEn,
+            'method'          => 'migrated',
+            'used_ai'         => (bool) ($extra['used_ai'] ?? false),
+            'manual_override' => (bool) ($extra['manual_override'] ?? false),
+            // Lo historico no entra en la cola de revision: se marca, no se revisa.
+            'pending_review'  => false,
+            'evidence_missing' => ! $conArchivo,
+            'latitude'        => $extra['latitude'] ?? null,
+            'longitude'       => $extra['longitude'] ?? null,
+            'device_id'       => $extra['device_id'] ?? null,
+            'ip_address'      => $extra['ip_address'] ?? null,
+            'user_agent'      => $extra['user_agent'] ?? null,
+            'country_code'    => $extra['country_code'] ?? null,
+            'region'          => $extra['region'] ?? null,
+            'city'            => $extra['city'] ?? null,
+            'legacy_id'       => $legacyId,
+            'legacy_source'   => $fuente,
+            'tenant_id'       => $this->tenantId,
+            'created_at'      => $extra['created_at'] ?? now(),
+            'updated_at'      => $extra['updated_at'] ?? now(),
+        ];
+    }
+
+    /**
+     * Escribe los eventos y, para los que si tenian nombre de archivo, la fila
+     * de evidencia que lo apunta.
+     *
+     * El fichero todavia no esta aqui: el sha256 y el tamano se dejan
+     * provisionales —hash del nombre y cero bytes— y los rellena el paso
+     * `archivos` cuando se copian de verdad. Queda registrado que se hizo asi.
+     */
+    protected function escribirEventos(array $eventos, array $archivos): void
+    {
+        if ($eventos === []) {
+            return;
+        }
+
+        DB::table('signature_events')->upsert($eventos, ['legacy_source', 'legacy_id'], [
+            'signable_type', 'signable_id', 'person_id', 'role_signed', 'signed_at',
+            'method', 'used_ai', 'evidence_missing', 'updated_at',
+        ]);
+
+        if ($archivos === []) {
+            return;
+        }
+
+        $filas = [];
+
+        // Los ids de la v1 se repiten entre tablas, asi que el evento se busca
+        // por (tabla de origen, id de origen) y nunca solo por el id.
+        foreach (collect($archivos)->groupBy(0) as $fuente => $suyos) {
+            $ids = DB::table('signature_events')
+                ->where('legacy_source', $fuente)
+                ->whereIn('legacy_id', $suyos->pluck(1)->all())
+                ->pluck('id', 'legacy_id');
+
+            foreach ($suyos as [, $legacyId, $clase, $referencia, $tomadaEn]) {
+                $eventoId = $ids[$legacyId] ?? null;
+
+                if (! $eventoId) {
+                    continue;
+                }
+
+                $filas[] = [
+                    'signature_event_id' => $eventoId,
+                    'kind'      => $clase,
+                    'file_path' => 'legacy/images_uploads/' . $referencia,
+                    'sha256'    => hash('sha256', 'legacy://' . $referencia),
+                    'byte_size' => 0,
+                    'taken_at'  => $tomadaEn,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+        }
+
+        if ($filas !== []) {
+            DB::table('evidence_files')->upsert($filas, ['signature_event_id', 'kind'],
+                ['file_path', 'sha256', 'updated_at']);
+        }
+    }
+
+    // ── Archivos fisicos ─────────────────────────────────────────────────────
+
+    /**
+     * Copia las imagenes de la v1 al almacenamiento nuevo.
+     *
+     * Se ejecuta aparte porque los ficheros no viven en la base ni en el
+     * repositorio: hay que traerse el `public/images_uploads` del servidor
+     * viejo. Hasta entonces las filas de evidencia apuntan a un archivo que no
+     * esta, con su sha256 provisional; este paso lo copia, lo pesa y lo vuelve a
+     * hashear de verdad. Lo que no aparezca se marca como evidencia perdida.
+     */
+    protected function copiarArchivos(string $carpeta): void
+    {
+        $this->info('── Archivos de imagen ──');
+
+        if (! is_dir($carpeta)) {
+            $this->error("  No existe la carpeta {$carpeta}. Nada que copiar.");
+
+            return;
+        }
+
+        $copiados = $perdidos = $yaEstaban = 0;
+
+        DB::table('evidence_files')->where('file_path', 'like', 'legacy/images_uploads/%')
+            ->orderBy('id')->chunkById(500, function ($filas) use ($carpeta, &$copiados, &$perdidos, &$yaEstaban) {
+                foreach ($filas as $f) {
+                    $nombre = basename($f->file_path);
+                    $fuente = rtrim($carpeta, '/') . '/' . $nombre;
+
+                    if (! is_file($fuente)) {
+                        $perdidos++;
+
+                        continue;
+                    }
+
+                    $contenido = file_get_contents($fuente);
+                    $hash = hash('sha256', $contenido);
+                    $destino = 'evidencias/legacy/' . substr($hash, 0, 2) . '/' . $hash . '.' . pathinfo($nombre, PATHINFO_EXTENSION);
+
+                    if (Storage::disk('local')->exists($destino)) {
+                        $yaEstaban++;
+                    } else {
+                        Storage::disk('local')->put($destino, $contenido);
+                        $copiados++;
+                    }
+
+                    $medidas = @getimagesizefromstring($contenido) ?: [null, null];
+
+                    DB::table('evidence_files')->where('id', $f->id)->update([
+                        'file_path' => $destino,
+                        'sha256'    => $hash,
+                        'byte_size' => strlen($contenido),
+                        'width'     => $medidas[0] ?: null,
+                        'height'    => $medidas[1] ?: null,
+                        'updated_at' => now(),
+                    ]);
+                }
+            });
+
+        // Un evento tiene evidencia si al menos uno de sus archivos existe de
+        // verdad. Se recalcula al final y no fichero a fichero: un evento con
+        // foto y firma no puede quedar marcado como perdido porque falte una de
+        // las dos.
+        $this->recalcularEvidenciaPerdida();
+
+        // Las firmas de referencia de cada persona salen del mismo sitio.
+        $firmas = $this->copiarFirmasDePersona($carpeta);
+
+        $this->line(sprintf('  evidencias: %d copiadas · %d ya estaban · %d no aparecieron', $copiados, $yaEstaban, $perdidos));
+        $this->line(sprintf('  firmas de persona: %d copiadas · %d no aparecieron', $firmas[0], $firmas[1]));
+
+        if ($perdidos > 0) {
+            $this->warn('  Las que no aparecieron quedan marcadas como evidencia perdida (evidence_missing).');
+        }
+    }
+
+    /**
+     * Marca como evidencia perdida los eventos migrados que no tienen ni un
+     * archivo con contenido. Los que siguen apuntando a un fichero que nunca se
+     * copio cuentan como perdidos: el tamano cero es la senal.
+     */
+    protected function recalcularEvidenciaPerdida(): void
+    {
+        $conArchivo = fn ($q) => $q->selectRaw('1')->from('evidence_files')
+            ->whereColumn('evidence_files.signature_event_id', 'signature_events.id')
+            ->where('evidence_files.byte_size', '>', 0);
+
+        DB::table('signature_events')->whereNotNull('legacy_source')
+            ->whereExists($conArchivo)->update(['evidence_missing' => false]);
+
+        DB::table('signature_events')->whereNotNull('legacy_source')
+            ->whereNotExists($conArchivo)->update(['evidence_missing' => true]);
+    }
+
+    /** @return array{0:int,1:int} copiadas, perdidas */
+    protected function copiarFirmasDePersona(string $carpeta): array
+    {
+        $copiadas = $perdidas = 0;
+
+        DB::table('person_signatures')->where('file_path', 'like', 'legacy/firmas/%')
+            ->orderBy('id')->chunkById(500, function ($filas) use ($carpeta, &$copiadas, &$perdidas) {
+                foreach ($filas as $f) {
+                    $fuente = rtrim($carpeta, '/') . '/' . basename($f->file_path);
+
+                    if (! is_file($fuente)) {
+                        $perdidas++;
+
+                        continue;
+                    }
+
+                    $contenido = file_get_contents($fuente);
+                    $hash = hash('sha256', $contenido);
+                    $destino = 'firmas/legacy/' . substr($hash, 0, 2) . '/' . $hash . '.' . pathinfo($f->file_path, PATHINFO_EXTENSION);
+
+                    if (! Storage::disk('local')->exists($destino)) {
+                        Storage::disk('local')->put($destino, $contenido);
+                    }
+
+                    DB::table('person_signatures')->where('id', $f->id)
+                        ->update(['file_path' => $destino, 'sha256' => $hash]);
+                    $copiadas++;
+                }
+            });
+
+        return [$copiadas, $perdidas];
+    }
+
+    // ── Utilidades ───────────────────────────────────────────────────────────
+
+    /** Las fechas de la v1 son datetime; en destino el plan se mide en dias. */
+    protected function fecha($valor): ?string
+    {
+        return $valor ? substr((string) $valor, 0, 10) : null;
+    }
+
+    /** Nada se descarta en silencio: se dice cuanto y por que. */
+    protected function avisarDescartes(array $descartados, array $motivos): void
+    {
+        foreach ($descartados as $clave => $cuantos) {
+            if ($cuantos > 0) {
+                $this->warn(sprintf('  descartadas %d fila(s): %s', $cuantos, $motivos[$clave] ?? $clave));
             }
         }
     }

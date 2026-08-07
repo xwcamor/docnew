@@ -14,7 +14,7 @@ class WorkLocation extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'slug', 'country_id', 'name', 'is_active',
+        'slug', 'country_id', 'name', 'is_active', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
