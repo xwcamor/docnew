@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\WorkPlan;
+use App\Services\FieldWork\FormSubmissionPdfService;
 use App\Services\FieldWork\FormSubmissionService;
 use Illuminate\Http\Request;
 
@@ -16,7 +17,7 @@ class FormSubmissionController extends Controller
     }
 
     /** Los formatos que exige el tipo de trabajo del plan, con su estado. */
-    public function index(WorkPlan $work_plan)
+    public function index(Request $request, WorkPlan $work_plan)
     {
         $exigidos = $work_plan->workType->formTemplates()->published()->get();
         $entregas = $work_plan->submissions()->get()->keyBy('form_template_id');
@@ -29,7 +30,13 @@ class FormSubmissionController extends Controller
                 'kind'   => $t->kind,
                 'required' => (bool) $t->pivot->is_required,
                 'status' => $entregas[$t->id]->status ?? 'pending',
+                // Slug de la entrega, para poder pedir su PDF. Solo existe
+                // cuando el formato ya se abrio alguna vez.
+                'submission' => $entregas[$t->id]->slug ?? null,
             ]),
+            // El PDF saca el documento del sistema, asi que lo ve quien puede
+            // exportar: el supervisor y el auditor, no el usuario de campo.
+            'canExport' => (bool) $request->user()?->can('form_submissions.export'),
         ]);
     }
 
@@ -47,6 +54,15 @@ class FormSubmissionController extends Controller
             ],
             'answers' => $entrega->answers()->get(),
             'missing' => $this->formatos->faltantes($entrega),
+            // La cuadrilla del plan: el checklist de EPP es una fila por
+            // trabajador, y esa lista no vive en la plantilla sino en el plan.
+            'people'  => $work_plan->people()->with('person')->get()
+                ->filter(fn ($asignado) => $asignado->person !== null)
+                ->map(fn ($asignado) => [
+                    'slug' => $asignado->person->slug,
+                    'name' => trim($asignado->person->name . ' ' . $asignado->person->lastname),
+                    'doc'  => $asignado->person->num_doc,
+                ])->values(),
         ]);
     }
 
@@ -88,5 +104,18 @@ class FormSubmissionController extends Controller
         $this->formatos->confirmar($form_submission);
 
         return back()->with('success', __('Formato confirmado.'));
+    }
+
+    /**
+     * El PDF firmado: el documento que la empresa conserva.
+     *
+     * Se genera al vuelo y no se guarda en disco. Guardarlo obligaria a
+     * invalidarlo cada vez que se resuelve una firma pendiente, y lo que vale
+     * es siempre el estado actual de la entrega, no una copia de ayer.
+     */
+    public function pdf(Request $request, FormSubmission $form_submission, FormSubmissionPdfService $pdf)
+    {
+        return $pdf->generar($form_submission, $request->user())
+            ->download($pdf->nombreArchivo($form_submission));
     }
 }

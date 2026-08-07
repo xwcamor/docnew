@@ -1,0 +1,611 @@
+<?php
+
+namespace Tests\Feature\FieldWork;
+
+use App\Models\ApprovalRule;
+use App\Models\Company;
+use App\Models\EvidenceFile;
+use App\Models\FormField;
+use App\Models\FormSection;
+use App\Models\FormSubmission;
+use App\Models\FormTemplate;
+use App\Models\Person;
+use App\Models\PersonRole;
+use App\Models\ReportSigner;
+use App\Models\SignatureEvent;
+use App\Models\Tenant;
+use App\Models\User;
+use App\Models\WorkLocation;
+use App\Models\WorkPlan;
+use App\Models\WorkPlanApproval;
+use App\Models\WorkPlanPerson;
+use App\Models\WorkType;
+use App\Services\FieldWork\FormSubmissionPdfService;
+use App\Services\FieldWork\FormSubmissionService;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+/**
+ * El PDF firmado: el unico eslabon del flujo que sale del sistema.
+ *
+ * Todo lo demas —llenar, firmar, revisar— vive dentro de la aplicacion y se
+ * puede corregir. El PDF es lo que la empresa archiva y lo que le ensena a un
+ * inspector dos anios despues, asi que lo que se comprueba aqui es que salga
+ * completo: el membrete del workspace, el plan, el formato en la version con la
+ * que se lleno, la foto del papel, cada firma con su cara y su metodo, y las
+ * que quedaron pendientes marcadas como tales.
+ */
+class FormSubmissionPdfTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_AR', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('regions')->insertOrIgnore([['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('countries')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('plans')->insertOrIgnore([['id' => 1, 'slug' => 'enterprise', 'name' => 'Enterprise', 'sort_order' => 1, 'max_users' => -1, 'max_records_per_module' => -1, 'export_rate_limit' => 50, 'support_level' => 'priority', 'features' => json_encode(['team_management' => true]), 'price_monthly' => 0, 'price_yearly' => 0, 'currency' => 'USD', 'is_active' => true, 'is_public' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Contratistas del Sur', 'address' => 'Av. Los Talleres 120, Lurin', 'report_disclaimer' => 'Documento generado por DOCUFIZ. Su validez depende de las firmas registradas.', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('subscriptions')->insertOrIgnore([['id' => 1, 'tenant_id' => 1, 'plan' => 'enterprise', 'status' => 'active', 'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(), 'currency' => 'USD', 'payment_method' => 'manual', 'created_at' => now(), 'updated_at' => now()]]);
+
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+        foreach (['form_submissions.view', 'form_submissions.export'] as $permiso) {
+            Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
+        }
+
+        $this->withoutMiddleware([
+            \Mcamara\LaravelLocalization\Middleware\LaravelLocalizationRedirectFilter::class,
+            \Mcamara\LaravelLocalization\Middleware\LocaleSessionRedirect::class,
+        ]);
+    }
+
+    public function test_el_pdf_trae_el_membrete_el_plan_el_formato_y_las_firmas(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        app()->setLocale('es');
+
+        $escenario = $this->escenario();
+
+        $pdf = app(FormSubmissionPdfService::class)
+            ->generar($escenario['entrega'], $escenario['usuario'])
+            ->output();
+
+        $this->assertStringStartsWith('%PDF-', $pdf);
+        $this->assertGreaterThan(5000, strlen($pdf), 'un PDF con fotos incrustadas no puede pesar tan poco');
+
+        // El logo y la cara van incrustados como objetos de imagen del PDF.
+        $this->assertGreaterThanOrEqual(2, substr_count($pdf, '/Subtype /Image'));
+
+        // Guarda contra la regresion de maquetado que ya se comio 11 paginas:
+        // un float dentro del pie fijo hace que DomPDF pagine por bloque.
+        $this->assertLessThanOrEqual(3, preg_match_all('#/Type /Page[^s]#', $pdf));
+
+        $texto = $this->textoDelPdf($pdf);
+
+        // 1 · Membrete del workspace.
+        $this->assertStringContainsString('Contratistas del Sur', $texto);
+        $this->assertStringContainsString('Av. Los Talleres 120', $texto);
+        $this->assertStringContainsString('Su validez depende de las firmas', $texto);
+
+        // 2 · Cabecera del plan.
+        $this->assertStringContainsString($escenario['plan']->code, $texto);
+        $this->assertStringContainsString('08072026', $texto);            // orden de trabajo
+        $this->assertStringContainsString('Electro Andina SAC', $texto);  // contratista
+        $this->assertStringContainsString('20481234567', $texto);         // RUC
+        $this->assertStringContainsString('Mantenimiento preventivo', $texto);
+
+        // 3 · El formato tal como se lleno: simples y compuestos.
+        $this->assertStringContainsString('Limpieza de celda 3', $texto);   // text
+        $this->assertStringContainsString('Casco, Guantes', $texto);        // multiselect
+        $this->assertStringContainsString('Trabajo en altura', $texto);     // fila de la matriz
+        $this->assertStringContainsString('Arnes anclado', $texto);         // otra columna de la matriz
+        $this->assertStringContainsString('Ana Quispe', $texto);            // fila del checklist por persona
+
+        // 5 · Firmas: nombre, documento, rol, metodo y la marca de pendiente.
+        $this->assertStringContainsString('40000001', $texto);
+        $this->assertStringContainsString('Reconocimiento facial', $texto);
+        $this->assertStringContainsString('Captura por tiempo de espera', $texto);
+        $this->assertStringContainsString('PENDIENTE DE REVISI', $texto);
+
+        // 6 · Firmas formales del workspace, con su relacion traducida (la hoja
+        // de estilos las pone en mayusculas).
+        $this->assertStringContainsString('Jefa de Seguridad', $texto);
+        $this->assertStringContainsString('APROBADO POR', $texto);
+        $this->assertStringContainsString('ELABORADO POR', $texto);
+
+        // 7 · Identificador verificable de la entrega.
+        $this->assertStringContainsString($escenario['entrega']->slug, $texto);
+    }
+
+    /** La foto del papel es el documento: tiene que salir incrustada. */
+    public function test_el_formato_de_solo_subida_incrusta_la_foto_del_papel(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $escenario = $this->escenario();
+        $hoja = $this->hojaX($escenario['plan']);
+
+        $datos = app(FormSubmissionPdfService::class)->datos($hoja, $escenario['usuario']);
+
+        $this->assertCount(1, $datos['adjuntos']);
+        $this->assertTrue($datos['adjuntos'][0]['pagina_completa']);
+        $this->assertStringStartsWith('data:image/', $datos['adjuntos'][0]['imagen']);
+
+        $pdf = app(FormSubmissionPdfService::class)->generar($hoja, $escenario['usuario'])->output();
+        $this->assertStringStartsWith('%PDF-', $pdf);
+        // El papel va en su propia pagina, detras del cuerpo del documento.
+        $this->assertSame(2, preg_match_all('#/Type /Page[^s]#', $pdf));
+        // Logo, cara de la firma y foto del papel. Son tres imagenes, pero la
+        // cara va en WebP y DomPDF la convierte a PNG con su mascara aparte,
+        // asi que el conteo de objetos no es exactamente tres.
+        $this->assertGreaterThanOrEqual(3, substr_count($pdf, '/Subtype /Image'));
+    }
+
+    /**
+     * Publicar una version nueva del formato no puede cambiar lo ya firmado.
+     *
+     * Se fuerza el caso raro —la entrega apunta a la fila de la v2 pero declara
+     * `template_version` 1— porque es el que llega con los datos migrados, y es
+     * justo donde la version congelada deja de ser la fila apuntada.
+     */
+    public function test_se_pinta_la_version_congelada_y_no_la_vigente(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $escenario = $this->escenario();
+        $v1 = $escenario['plantilla'];
+
+        $v2 = FormTemplate::create([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1,
+            'code' => $v1->code, 'kind' => FormTemplate::STRUCTURED, 'status' => 'published',
+            'version' => 2, 'requires_signature' => true, 'published_at' => now(),
+        ]);
+        $seccionV2 = FormSection::create(['form_template_id' => $v2->id, 'position' => 1]);
+        FormField::create([
+            'form_section_id' => $seccionV2->id, 'code' => 'campo_de_la_version_nueva',
+            'field_type' => 'text', 'position' => 1,
+        ]);
+
+        $escenario['entrega']->forceFill(['form_template_id' => $v2->id])->save();
+
+        $datos = app(FormSubmissionPdfService::class)
+            ->datos($escenario['entrega']->fresh(), $escenario['usuario']);
+
+        $codigos = collect($datos['secciones'])->flatMap(fn ($s) => collect($s['campos'])->pluck('codigo'));
+
+        $this->assertContains('actividad', $codigos->all());
+        $this->assertNotContains('campo_de_la_version_nueva', $codigos->all());
+        $this->assertSame(1, $datos['formato']['version']);
+    }
+
+    /**
+     * Los compuestos se pintan como tabla, con la forma que emite la pantalla.
+     *
+     * Es el contrato con `resources/js/Components/FormFields`: si el llenado
+     * cambia la forma del JSON, aqui se ve. Y lo que no se imprime tambien
+     * cuenta: el `person_slug` es un identificador interno y no pinta nada en
+     * un documento que se archiva.
+     */
+    public function test_los_compuestos_se_pintan_como_los_guarda_la_pantalla(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        app()->setLocale('es');
+
+        $escenario = $this->escenario();
+        $entrega = $escenario['entrega'];
+        $seccion = FormSection::create(['form_template_id' => $escenario['plantilla']->id, 'position' => 3]);
+
+        $seccion->fields()->create([
+            'code' => 'epp_real', 'field_type' => 'person_checklist', 'position' => 1,
+            'config' => ['items' => ['Casco', 'Guantes']],
+        ]);
+        $seccion->fields()->create([
+            'code' => 'preguntas', 'field_type' => 'question_bank', 'position' => 2,
+            'config' => ['questions' => ['¿Detente?'], 'answers' => ['Si', 'No']],
+        ]);
+        $campoFoto = $seccion->fields()->create([
+            'code' => 'foto_del_area', 'field_type' => 'photo', 'position' => 3,
+            'config' => ['max_files' => 2],
+        ]);
+
+        app(FormSubmissionService::class)->adjuntar(
+            $entrega, $this->imagenPng(300, 200), 'image/png', $campoFoto->id,
+        );
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'epp_real', 'row' => 0, 'value' => [
+                'person_slug' => 'aBcDeFgHiJkLmNoPqRsTuV',
+                'person_name' => 'Ana Quispe',
+                'person_doc'  => '40000001',
+                'items'       => [
+                    ['item' => 'Casco', 'answer' => 'Conforme'],
+                    ['item' => 'Guantes', 'answer' => 'No conforme'],
+                ],
+                'conforme'           => false,
+                'correction_measure' => 'Se entrega guante nuevo',
+            ]],
+            // La fila que el usuario quito llega como lapida: no se imprime.
+            ['code' => 'epp_real', 'row' => 1, 'value' => null],
+            ['code' => 'preguntas', 'value' => [
+                ['question' => 'Detente y piensa antes de actuar', 'answer' => 'Si'],
+                ['question' => 'El area esta senalizada', 'answer' => 'No'],
+            ]],
+        ]);
+
+        $datos = app(FormSubmissionPdfService::class)->datos($entrega->fresh(), $escenario['usuario']);
+        $campos = collect($datos['secciones'])->flatMap(fn ($s) => $s['campos'])->keyBy('codigo');
+
+        $epp = $campos['epp_real'];
+        $this->assertSame('tabla', $epp['render']);
+        $this->assertCount(1, $epp['filas'], 'la fila borrada no se imprime');
+        $this->assertNotContains('Person slug', $epp['cabeceras']);
+        $this->assertContains('Person name', $epp['cabeceras']);
+        // El checklist anidado se lee como en papel, no clave por clave.
+        $this->assertContains('Casco: Conforme · Guantes: No conforme', $epp['filas'][0]);
+        $this->assertContains('No', $epp['filas'][0]);   // conforme = false
+
+        $preguntas = $campos['preguntas'];
+        $this->assertSame(['Question', 'Answer'], $preguntas['cabeceras']);
+        $this->assertSame(
+            [['Detente y piensa antes de actuar', 'Si'], ['El area esta senalizada', 'No']],
+            $preguntas['filas'],
+        );
+
+        // La foto de un campo `photo` se pinta dentro de su campo y no vuelve a
+        // salir al final como si fuera el papel del formato.
+        $foto = $campos['foto_del_area'];
+        $this->assertSame('imagenes', $foto['render']);
+        $this->assertCount(1, $foto['imagenes']);
+        $this->assertStringStartsWith('data:image/', $foto['imagenes'][0]);
+        $this->assertSame([], $datos['adjuntos']);
+    }
+
+    /** Las caras se leen del disco privado; el PDF no lleva ninguna URL. */
+    public function test_la_evidencia_se_incrusta_y_no_se_publica(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $escenario = $this->escenario();
+
+        $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
+
+        $conFoto = collect($datos['firmas'])->filter(fn ($f) => $f['foto'] !== null);
+
+        $this->assertCount(2, $conFoto, 'las dos firmas del plan tienen su captura');
+        $conFoto->each(fn ($f) => $this->assertStringStartsWith('data:image/', $f['foto']));
+
+        // Ninguna ruta del disco privado ni URL de evidencia viaja en el documento.
+        $serializado = json_encode($datos);
+        $this->assertStringNotContainsString('evidencias/', $serializado);
+        $this->assertStringNotContainsString('/field_work/evidence', $serializado);
+
+        // Y una firma pendiente sale marcada como tal.
+        $this->assertSame(1, collect($datos['firmas'])->where('pendiente', true)->count());
+    }
+
+    /** El documento sale en el idioma de quien lo pide. */
+    public function test_el_pdf_respeta_el_idioma_del_usuario(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $escenario = $this->escenario();
+
+        app()->setLocale('en');
+        $texto = $this->textoDelPdf(
+            app(FormSubmissionPdfService::class)->generar($escenario['entrega'], $escenario['usuario'])->output()
+        );
+
+        $this->assertStringContainsString('RECORDED SIGNATURES', $texto);
+        $this->assertStringContainsString('Face recognition', $texto);
+        $this->assertStringContainsString('PENDING REVIEW', $texto);
+        $this->assertStringContainsString('Verification ID', $texto);
+        $this->assertStringNotContainsString('Reconocimiento facial', $texto);
+    }
+
+    /** Los dos idiomas con las mismas claves: si falta una, sale la clave cruda. */
+    public function test_las_dos_traducciones_tienen_las_mismas_claves(): void
+    {
+        $aplanar = function (array $arr, string $prefijo = '') use (&$aplanar) {
+            $claves = [];
+            foreach ($arr as $k => $v) {
+                $claves = array_merge($claves, is_array($v)
+                    ? $aplanar($v, $prefijo . $k . '.')
+                    : [$prefijo . $k]);
+            }
+
+            return $claves;
+        };
+
+        $es = $aplanar(require resource_path('lang/es/form_submissions.php'));
+        $en = $aplanar(require resource_path('lang/en/form_submissions.php'));
+
+        sort($es);
+        sort($en);
+        $this->assertSame($es, $en);
+    }
+
+    /** La ruta pide permiso, como el resto del modulo. */
+    public function test_la_ruta_pide_permiso_de_exportacion(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $escenario = $this->escenario();
+        $ruta = route('field_work.forms.pdf', $escenario['entrega']->slug);
+
+        // Solo puede ver: no se lleva el documento.
+        $this->actingAs($this->usuarioCon(['form_submissions.view']))
+            ->get($ruta)
+            ->assertRedirect();
+
+        $respuesta = $this->actingAs($this->usuarioCon(['form_submissions.view', 'form_submissions.export']))
+            ->get($ruta);
+
+        $respuesta->assertOk();
+        $respuesta->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF-', $respuesta->getContent());
+    }
+
+    // ── apoyo ────────────────────────────────────────────────────────────────
+
+    protected function usuarioCon(array $permisos): User
+    {
+        $rol = Role::firstOrCreate(
+            ['name' => 'rol_' . Str::random(8), 'guard_name' => 'web'],
+            ['description' => 'Rol de prueba'],
+        );
+        $rol->syncPermissions($permisos);
+
+        $usuario = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $usuario->assignRole($rol);
+
+        return $usuario;
+    }
+
+    /**
+     * Un dia de obra completo: el plan, la cuadrilla, el formato lleno con
+     * campos simples y compuestos, y las firmas con su evidencia.
+     */
+    protected function escenario(): array
+    {
+        $base = ['country_id' => 1, 'tenant_id' => 1, 'created_by' => 1];
+
+        $usuario = $this->usuarioCon(['form_submissions.view', 'form_submissions.export']);
+
+        // Membrete: logo en el disco publico y dos slots de firma formal.
+        $tenant = Tenant::find(1);
+        Storage::disk('public')->put('branding/logo.png', $this->imagenPng(120, 60));
+        $tenant->forceFill(['logo' => 'branding/logo.png'])->save();
+
+        ReportSigner::create([
+            'tenant_id' => 1, 'user_id' => null, 'name' => 'Ing. Maria Torres',
+            'title' => 'Jefa de Seguridad', 'relation' => 'approved', 'sort_order' => 1,
+        ]);
+        ReportSigner::create([
+            'tenant_id' => 1, 'user_id' => $usuario->id, 'name' => null,
+            'title' => 'Supervisor de obra', 'relation' => 'prepared', 'sort_order' => 2,
+        ]);
+
+        $empresa = Company::create($base + [
+            'slug' => Str::random(22), 'num_doc' => '20481234567',
+            'name' => 'Electro Andina', 'complete_name' => 'Electro Andina SAC', 'is_active' => true,
+        ]);
+
+        $trabajadora = Person::create($base + [
+            'slug' => Str::random(22), 'doc_type' => 'DNI', 'num_doc' => '40000001',
+            'name' => 'Ana', 'lastname' => 'Quispe',
+        ]);
+        $supervisor = Person::create($base + [
+            'slug' => Str::random(22), 'doc_type' => 'DNI', 'num_doc' => '40000002',
+            'name' => 'Luis', 'lastname' => 'Ramos',
+        ]);
+
+        $tipo = WorkType::create($base + ['slug' => Str::random(22), 'code' => 'MTTO']);
+        $lugar = WorkLocation::create($base + ['slug' => Str::random(22), 'name' => 'Subestacion Lurin']);
+
+        $plan = WorkPlan::create($base + [
+            'slug' => Str::random(22), 'company_id' => $empresa->id, 'work_type_id' => $tipo->id,
+            'work_location_id' => $lugar->id, 'user_id' => $usuario->id,
+            'code' => 'PE26-0807-0001', 'num_os' => '08072026',
+            'description' => 'Mantenimiento preventivo de celda de media tension',
+            'date_start' => today(),
+        ]);
+
+        $enPlan = WorkPlanPerson::create([
+            'slug' => Str::random(22), 'work_plan_id' => $plan->id, 'person_id' => $trabajadora->id,
+        ]);
+
+        $regla = ApprovalRule::create($base + [
+            'slug' => Str::random(22), 'approver_role' => PersonRole::SUPERVISOR,
+            'priority_level' => 1, 'is_required' => true,
+        ]);
+        $aprobacion = WorkPlanApproval::create([
+            'slug' => Str::random(22), 'work_plan_id' => $plan->id,
+            'approval_rule_id' => $regla->id, 'person_id' => $supervisor->id,
+        ]);
+
+        [$plantilla, $entrega] = $this->formatoLleno($plan, $base);
+
+        // Firma reconocida del trabajador.
+        $this->firma($enPlan, $trabajadora, PersonRole::WORKER, [
+            'method' => SignatureEvent::FACE_RECOGNITION, 'used_ai' => true,
+            'match_distance' => 0.3812, 'threshold_used' => 0.5,
+        ]);
+
+        // Firma del supervisor que no reconocio a tiempo: se capturo igual y
+        // queda pendiente de revision. Es la que tiene que salir marcada.
+        $this->firma($aprobacion, $supervisor, PersonRole::SUPERVISOR, [
+            'method' => SignatureEvent::TIMEOUT_CAPTURE, 'used_ai' => false,
+            'threshold_used' => 0.5, 'pending_review' => true,
+        ]);
+
+        return compact('usuario', 'plan', 'plantilla', 'entrega');
+    }
+
+    /** El formato AST: campos simples, matriz de riesgo y checklist por persona. */
+    protected function formatoLleno(WorkPlan $plan, array $base): array
+    {
+        $plantilla = FormTemplate::create($base + [
+            'slug' => Str::random(22), 'code' => 'AST', 'kind' => FormTemplate::STRUCTURED,
+            'status' => 'published', 'version' => 1, 'requires_signature' => true, 'published_at' => now(),
+        ]);
+
+        $s1 = FormSection::create(['form_template_id' => $plantilla->id, 'position' => 1]);
+        $s2 = FormSection::create(['form_template_id' => $plantilla->id, 'position' => 2]);
+
+        $campos = [
+            ['s' => $s1, 'code' => 'actividad',   'field_type' => 'text',     'position' => 1, 'is_required' => true],
+            ['s' => $s1, 'code' => 'personal',    'field_type' => 'number',   'position' => 2],
+            ['s' => $s1, 'code' => 'fecha',       'field_type' => 'date',     'position' => 3],
+            ['s' => $s1, 'code' => 'charla',      'field_type' => 'checkbox', 'position' => 4],
+            ['s' => $s1, 'code' => 'epp_basico',  'field_type' => 'multiselect', 'position' => 5,
+             'config' => ['options' => ['Casco', 'Guantes', 'Botas']]],
+            ['s' => $s2, 'code' => 'matriz_de_riesgo', 'field_type' => 'risk_matrix', 'position' => 1,
+             'config' => ['severities' => 5, 'probabilities' => 5]],
+            ['s' => $s2, 'code' => 'epp_por_trabajador', 'field_type' => 'person_checklist', 'position' => 2,
+             'config' => ['items' => ['Casco', 'Guantes']]],
+        ];
+
+        $creados = [];
+        foreach ($campos as $campo) {
+            $seccion = $campo['s'];
+            unset($campo['s']);
+            $creados[$campo['code']] = $seccion->fields()->create($campo);
+        }
+
+        $entrega = FormSubmission::create($base + [
+            'slug' => Str::random(22), 'work_plan_id' => $plan->id,
+            'form_template_id' => $plantilla->id, 'template_version' => $plantilla->version,
+            'status' => 'confirmed', 'submitted_at' => now(),
+            'observations' => 'Sin incidencias durante la jornada.',
+        ]);
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'actividad',  'value' => 'Limpieza de celda 3'],
+            ['code' => 'personal',   'value' => 4],
+            ['code' => 'fecha',      'value' => today()->toDateString()],
+            ['code' => 'charla',     'value' => true],
+            ['code' => 'epp_basico', 'value' => ['Casco', 'Guantes']],
+            ['code' => 'matriz_de_riesgo', 'value' => [
+                'actividad'    => 'Trabajo en altura',
+                'peligro'      => 'Caida a distinto nivel',
+                'control'      => 'Arnes anclado',
+                'severidad'    => 4,
+                'probabilidad' => 2,
+            ]],
+            ['code' => 'epp_por_trabajador', 'value' => [
+                ['trabajador' => 'Ana Quispe', 'casco' => 'Conforme', 'guantes' => 'Conforme'],
+                ['trabajador' => 'Luis Ramos', 'casco' => 'Conforme', 'guantes' => 'No conforme'],
+            ]],
+        ]);
+
+        return [$plantilla, $entrega->fresh(['answers'])];
+    }
+
+    /** La "HOJA X": el formato existe en papel y solo se le toma una foto. */
+    protected function hojaX(WorkPlan $plan): FormSubmission
+    {
+        $plantilla = FormTemplate::create([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1,
+            'code' => 'HOJA-X', 'kind' => FormTemplate::UPLOAD_ONLY, 'status' => 'published',
+            'version' => 1, 'requires_signature' => true, 'published_at' => now(),
+        ]);
+
+        $entrega = FormSubmission::create([
+            'slug' => Str::random(22), 'work_plan_id' => $plan->id, 'tenant_id' => 1, 'created_by' => 1,
+            'form_template_id' => $plantilla->id, 'template_version' => 1, 'status' => 'confirmed',
+            'submitted_at' => now(),
+        ]);
+
+        app(FormSubmissionService::class)->adjuntar(
+            $entrega, $this->imagenPng(600, 800), 'image/png',
+        );
+
+        return $entrega->fresh(['attachments']);
+    }
+
+    protected function firma($firmable, Person $persona, string $rol, array $extra): SignatureEvent
+    {
+        $evento = SignatureEvent::create($extra + [
+            'signable_type' => $firmable->getMorphClass(), 'signable_id' => $firmable->getKey(),
+            'person_id' => $persona->id, 'role_signed' => $rol, 'signed_at' => now(),
+            'tenant_id' => 1,
+        ]);
+
+        // WebP, que es lo que deja SignatureService tras comprimir la captura.
+        $ruta = 'evidencias/' . now()->format('Y/m') . '/' . Str::random(24) . '.webp';
+        $binario = $this->imagenWebp(160, 160);
+        Storage::disk('local')->put($ruta, $binario);
+
+        EvidenceFile::create([
+            'signature_event_id' => $evento->id, 'kind' => EvidenceFile::FACE,
+            'file_path' => $ruta, 'sha256' => hash('sha256', $binario),
+            'byte_size' => strlen($binario), 'width' => 160, 'height' => 160, 'taken_at' => now(),
+        ]);
+
+        $firmable->forceFill(['is_approved' => true])->save();
+
+        return $evento;
+    }
+
+    protected function imagenPng(int $ancho, int $alto): string
+    {
+        return $this->imagen($ancho, $alto, fn ($img) => imagepng($img));
+    }
+
+    protected function imagenWebp(int $ancho, int $alto): string
+    {
+        return $this->imagen($ancho, $alto, fn ($img) => imagewebp($img, null, 70));
+    }
+
+    protected function imagen(int $ancho, int $alto, callable $codificar): string
+    {
+        $img = imagecreatetruecolor($ancho, $alto);
+        imagefilledrectangle($img, 0, 0, $ancho, $alto, imagecolorallocate($img, 200, 210, 220));
+        imagefilledellipse($img, (int) ($ancho / 2), (int) ($alto / 2), (int) ($ancho / 2), (int) ($alto / 2),
+            imagecolorallocate($img, 70, 90, 110));
+
+        ob_start();
+        $codificar($img);
+        $salida = ob_get_clean();
+        imagedestroy($img);
+
+        return $salida;
+    }
+
+    /**
+     * Texto plano de un PDF de DomPDF.
+     *
+     * Los flujos van comprimidos con zlib, asi que no vale con buscar en los
+     * bytes: hay que inflarlos primero. Se comprueba sobre el PDF de verdad y
+     * no sobre el HTML intermedio porque lo que se archiva es el PDF.
+     */
+    protected function textoDelPdf(string $pdf): string
+    {
+        $texto = '';
+
+        if (preg_match_all('/stream\r?\n(.*?)endstream/s', $pdf, $coincidencias)) {
+            foreach ($coincidencias[1] as $bruto) {
+                $plano = @gzuncompress($bruto);
+                $texto .= ($plano === false ? $bruto : $plano);
+            }
+        }
+
+        return $texto;
+    }
+}

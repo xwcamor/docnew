@@ -2,12 +2,19 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import { Link } from '@inertiajs/vue3';
+import { FilePdfOutlined } from '@ant-design/icons-vue';
 
-defineProps({ plan: Object, templates: Array });
+defineProps({ plan: Object, templates: Array, canExport: { type: Boolean, default: false } });
 defineOptions({ layout: AppLayout });
 
 const color = { pending: 'default', draft: 'orange', submitted: 'blue', confirmed: 'green' };
 const etiqueta = { pending: 'Sin empezar', draft: 'En borrador', submitted: 'Enviado', confirmed: 'Confirmado' };
+
+/**
+ * El PDF solo tiene sentido cuando el formato esta cerrado: en borrador seria
+ * un documento a medias con firmas que aun pueden cambiar.
+ */
+const conPdf = (item) => item.submission && item.status === 'confirmed';
 </script>
 
 <template>
@@ -24,6 +31,18 @@ const etiqueta = { pending: 'Sin empezar', draft: 'En borrador', submitted: 'Env
                         </template>
                     </a-list-item-meta>
                     <a-tag :color="color[item.status]">{{ etiqueta[item.status] }}</a-tag>
+
+                    <a
+                        v-if="canExport && conPdf(item)"
+                        :href="route('field_work.forms.pdf', item.submission)"
+                        class="mr-2"
+                    >
+                        <a-button size="small">
+                            <template #icon><FilePdfOutlined /></template>
+                            PDF
+                        </a-button>
+                    </a>
+
                     <Link :href="route('field_work.forms.open', [plan.slug, item.slug])">
                         <a-button type="primary" size="small">Abrir</a-button>
                     </Link>

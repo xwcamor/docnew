@@ -1,33 +1,127 @@
 <script setup>
-import { ref, reactive } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
+import RiskMatrixField from '@/Components/FormFields/RiskMatrixField.vue';
+import PersonChecklistField from '@/Components/FormFields/PersonChecklistField.vue';
+import ToolChecklistField from '@/Components/FormFields/ToolChecklistField.vue';
+import QuestionBankField from '@/Components/FormFields/QuestionBankField.vue';
+import { humanizar } from '@/Components/FormFields/respuestas';
 
-const props = defineProps({ submission: Object, template: Object, answers: Array, missing: Array });
+const props = defineProps({
+    submission: Object,
+    template: Object,
+    answers: Array,
+    missing: Array,
+    people: { type: Array, default: () => [] },
+});
+
 defineOptions({ layout: AppLayout });
 
+/**
+ * Los compuestos que guardan UNA respuesta POR FILA, usando `row_index`: la
+ * matriz de riesgo (una fila por peligro), el EPP (una por trabajador) y el IHM
+ * (una por herramienta). El banco de preguntas no: es una sola respuesta con la
+ * lista completa.
+ */
+const POR_FILA = ['risk_matrix', 'person_checklist', 'tool_checklist'];
+
+const COMPUESTOS = {
+    risk_matrix: RiskMatrixField,
+    person_checklist: PersonChecklistField,
+    tool_checklist: ToolChecklistField,
+    question_bank: QuestionBankField,
+};
+
+const campos = props.template.sections.flatMap((s) => s.fields);
+const porId = new Map(campos.map((c) => [c.id, c]));
+
+// Una entrega confirmada se mira, no se edita: lo firmado no se altera.
+const soloLectura = computed(() => props.submission.status === 'confirmed');
+
 const valores = reactive({});
-props.answers.forEach((r) => {
-    valores[r.form_field_id] = r.value_text ?? r.value_number ?? r.value_json ?? r.value_boolean;
+
+/**
+ * Cuantas filas tenia el campo la ultima vez que se guardo. Hace falta porque
+ * `responder()` hace updateOrCreate por (campo, fila) y nunca borra: si el
+ * usuario quita una fila hay que sobreescribirla con null, o reaparece.
+ */
+const filasGuardadas = {};
+
+const porCampo = {};
+props.answers.forEach((r) => { (porCampo[r.form_field_id] ??= []).push(r); });
+
+Object.entries(porCampo).forEach(([id, lista]) => {
+    const campo = porId.get(Number(id));
+
+    if (! campo) return;
+
+    lista.sort((a, b) => a.row_index - b.row_index);
+
+    if (POR_FILA.includes(campo.field_type)) {
+        filasGuardadas[campo.id] = lista[lista.length - 1].row_index + 1;
+        // Las filas borradas quedan como null en la entrega: no se pintan.
+        valores[campo.id] = lista.map((r) => r.value_json).filter((v) => v !== null && v !== undefined);
+
+        return;
+    }
+
+    const r = lista[0];
+    valores[campo.id] = r.value_text ?? r.value_number ?? r.value_json ?? r.value_boolean ?? r.value_datetime;
 });
 
 const archivo = ref(null);
+const guardando = ref(false);
+
+/** El code del campo es su etiqueta: viene del formato, no de la interfaz. */
+const etiqueta = (campo) => campo.config?.label ?? humanizar(campo.code);
 
 function guardar() {
     const respuestas = [];
-    props.template.sections.forEach((s) => s.fields.forEach((c) => {
-        if (valores[c.id] !== undefined) respuestas.push({ code: c.code, value: valores[c.id] });
-    }));
 
-    router.post(route('field_work.forms.answer', props.submission.slug), { answers: respuestas },
-        { preserveScroll: true });
+    campos.forEach((campo) => {
+        const valor = valores[campo.id];
+
+        if (valor === undefined) return;
+
+        if (POR_FILA.includes(campo.field_type)) {
+            const filas = Array.isArray(valor) ? valor : [];
+
+            filas.forEach((fila, i) => respuestas.push({ code: campo.code, row: i, value: fila }));
+
+            // Lapidas de las filas que se quitaron (ver filasGuardadas).
+            for (let i = filas.length; i < (filasGuardadas[campo.id] ?? 0); i++) {
+                respuestas.push({ code: campo.code, row: i, value: null });
+            }
+
+            filasGuardadas[campo.id] = Math.max(filasGuardadas[campo.id] ?? 0, filas.length);
+
+            return;
+        }
+
+        // Una lista vacia no la acepta el servidor: se omite en vez de fallar.
+        if (Array.isArray(valor) && valor.length === 0) return;
+
+        respuestas.push({ code: campo.code, value: valor });
+    });
+
+    if (! respuestas.length) return;
+
+    guardando.value = true;
+
+    router.post(route('field_work.forms.answer', props.submission.slug), { answers: respuestas }, {
+        preserveScroll: true,
+        onFinish: () => { guardando.value = false; },
+    });
 }
 
 function subir() {
-    if (!archivo.value) return;
+    if (! archivo.value) return;
+
     const datos = new FormData();
     datos.append('file', archivo.value);
+
     router.post(route('field_work.forms.attach', props.submission.slug), datos, { preserveScroll: true });
 }
 
@@ -39,37 +133,59 @@ function confirmar() {
 <template>
     <div class="mi-console">
         <SectionHeader :title="template.code"
-                       :subtitle="`Version ${submission.template_version} · ${submission.status}`" />
+                       :subtitle="`${$t('field_work.version')} ${submission.template_version} · ${$t(`field_work.status.${submission.status}`)}`" />
 
-        <a-alert v-if="missing.length" type="warning" show-icon class="mb-4"
-                 :message="`Falta completar: ${missing.join(', ')}`" />
+        <a-alert v-if="soloLectura" type="success" show-icon class="mb-4"
+                 :message="$t('field_work.readonly_notice')" />
+
+        <a-alert v-else-if="missing.length" type="warning" show-icon class="mb-4"
+                 :message="`${$t('field_work.missing')}: ${missing.join(', ')}`" />
 
         <!-- La HOJA X: el formato es el papel, solo se le toma la foto -->
-        <a-card v-if="template.kind !== 'structured'" title="Documento" size="small" class="mb-4">
+        <a-card v-if="template.kind !== 'structured' && !soloLectura"
+                :title="$t('field_work.document')" size="small" class="mb-4">
             <input type="file" accept="image/*,application/pdf" @change="archivo = $event.target.files[0]" />
-            <a-button type="primary" size="small" class="ml-2" @click="subir">Adjuntar</a-button>
+            <a-button type="primary" class="ml-2" @click="subir">{{ $t('field_work.attach') }}</a-button>
         </a-card>
 
         <a-card v-for="s in template.sections" :key="s.id" size="small" class="mb-4">
-            <div v-for="c in s.fields" :key="c.id" class="field">
-                <label class="field__label">
-                    {{ c.code }}<span v-if="c.is_required"> *</span>
+            <div v-for="c in s.fields" :key="c.id" class="ff-block">
+                <label class="ff-block__label">
+                    {{ etiqueta(c) }}<span v-if="c.is_required" class="ff-block__req"> *</span>
                 </label>
 
-                <a-textarea v-if="c.field_type === 'textarea'" v-model:value="valores[c.id]" :rows="3" />
+                <!-- Compuestos: reproducen lo que antes era un formato entero -->
+                <component
+                    v-if="COMPUESTOS[c.field_type]"
+                    :is="COMPUESTOS[c.field_type]"
+                    :field="c"
+                    :value="valores[c.id]"
+                    :readonly="soloLectura"
+                    :people="c.field_type === 'person_checklist' ? people : undefined"
+                    @update:value="valores[c.id] = $event"
+                />
+
+                <template v-else-if="soloLectura">
+                    <span class="ff-readonly">{{ valores[c.id] ?? '—' }}</span>
+                </template>
+
+                <a-textarea v-else-if="c.field_type === 'textarea'" v-model:value="valores[c.id]" :rows="3" />
                 <a-input-number v-else-if="c.field_type === 'number'" v-model:value="valores[c.id]" />
                 <a-date-picker v-else-if="c.field_type === 'date'" v-model:value="valores[c.id]" />
                 <a-checkbox v-else-if="c.field_type === 'checkbox'" v-model:checked="valores[c.id]" />
+                <a-select v-else-if="c.field_type === 'multiselect'" v-model:value="valores[c.id]"
+                          mode="multiple" size="large" show-search option-filter-prop="label"
+                          :options="(c.config?.options ?? []).map((o) => ({ value: o, label: o }))" />
+                <a-select v-else-if="c.field_type === 'select'" v-model:value="valores[c.id]"
+                          size="large" show-search allow-clear option-filter-prop="label"
+                          :options="(c.config?.options ?? []).map((o) => ({ value: o, label: o }))" />
                 <a-input v-else v-model:value="valores[c.id]" />
-
-                <span class="field__hint" v-if="c.field_type !== 'text'">{{ c.field_type }}</span>
             </div>
         </a-card>
 
-        <div class="action-bar">
-            <a-button @click="guardar">Guardar</a-button>
-            <span class="action-bar__spacer" />
-            <a-button type="primary" @click="confirmar">Confirmar formato</a-button>
+        <div v-if="!soloLectura" class="ff-actions">
+            <a-button size="large" :loading="guardando" @click="guardar">{{ $t('field_work.save') }}</a-button>
+            <a-button type="primary" size="large" @click="confirmar">{{ $t('field_work.confirm') }}</a-button>
         </div>
     </div>
 </template>
