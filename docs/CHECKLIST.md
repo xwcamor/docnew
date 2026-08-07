@@ -35,7 +35,12 @@
 | [x] | Menú lateral con los módulos de DOCUFIZ (Trabajo en obra · Maestros) | compila y las rutas resuelven |
 | [x] | Rutas protegidas: sin sesión redirigen al login | `work_plans` → 302 |
 | [x] | **Alta de persona que reutiliza la identidad** (`PersonService::vincularOCrear`) | probado: la misma persona en dos empresas, **sin identidad nueva**, conservando biometría e historial de firmas |
-| [ ] | Captura de formatos (`form_submissions`) y bandeja de firmas pendientes | pendiente |
+| [x] | **Servicio de firma con verificación en el servidor** | probado: descriptor idéntico → `face_recognition`; distinto → `timeout_capture` con foto y pendiente de revisión; sin foto y sin coincidencia → rechazado; manual sin motivo → rechazado |
+| [x] | Deduplicación de evidencias por hash | probado: 4 referencias, 3 archivos en disco |
+| [x] | Revisión de firmas pendientes | probado: rechazar revierte la aprobación |
+| [x] | **Servicio de llenado de formatos** | probado: HOJA X no cierra sin la foto del papel; AST no cierra sin sus campos obligatorios; la matriz de riesgo se guarda como JSON |
+| [ ] | Controladores, rutas y pantallas Vue de firma y llenado | pendiente: la lógica está, falta exponerla |
+| [ ] | Kiosco de cámara portado de tenkofiz (face-api.js) | pendiente |
 | [ ] | Motor de formatos: editor y tipos de campo | pendiente |
 | [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |

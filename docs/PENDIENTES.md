@@ -56,6 +56,12 @@ silencio.
 - El seeder de roles usaba `updateOrCreate` con `tenant_id => null`, que nunca casa en SQL y
   duplicaba filas. Es un defecto heredado de TRAFODEX: sigue ahí para los roles del núcleo.
 
+## Corregido sobre la marcha
+
+- `evidence_files.sha256` estaba declarado único, lo cual contradecía la propia deduplicación: si un
+  archivo se guarda una vez y lo referencian varios eventos, el hash **se repite**. Ahora el hash va
+  indexado y lo único es el par (evento, tipo).
+
 ## Nota operativa
 
 `make:module` consulta la base al registrar el módulo en `system_modules`. Si PostgreSQL no está

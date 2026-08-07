@@ -1,0 +1,219 @@
+<?php
+
+namespace App\Services\FieldWork;
+
+use App\Models\EvidenceFile;
+use App\Models\Person;
+use App\Models\Setting;
+use App\Models\SignatureEvent;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+
+/**
+ * Firma de un documento con reconocimiento facial.
+ *
+ * Dos reglas que vienen de lo que fallaba en el sistema anterior:
+ *
+ *  1. La comparacion la hace el servidor. Antes el navegador calculaba la
+ *     distancia, decidia si habia coincidencia y mandaba is_approved=1 en un
+ *     campo oculto del formulario: bastaba con abrir las herramientas de
+ *     desarrollo para firmar como cualquiera.
+ *
+ *  2. La foto se guarda siempre. Antes el 83 % de las fotos y el 96 % de las
+ *     firmas eran la cadena "detected_by_IA" escrita en la columna del archivo,
+ *     es decir, no habia evidencia de nada.
+ *
+ * Y una regla que viene de como se trabaja en obra: si no reconoce, no se
+ * bloquea a nadie. Se captura igual, se firma, y el evento queda marcado para
+ * que un supervisor lo revise.
+ */
+class SignatureService
+{
+    /** Distancia por defecto si el pais no tiene configuracion propia. */
+    public const UMBRAL_POR_DEFECTO = 0.5;
+
+    /**
+     * Registra la firma de una persona sobre algo firmable (un trabajador del
+     * plan, una aprobacion o un formato entregado).
+     *
+     * @param  array  $descriptor  Los 128 valores que midio el navegador.
+     * @param  string|null  $foto  Imagen en base64. Obligatoria salvo firma manual autorizada.
+     */
+    public function firmar(
+        Model $firmable,
+        Person $persona,
+        string $rolFirmado,
+        ?array $descriptor,
+        ?string $foto,
+        array $contexto = [],
+    ): SignatureEvent {
+        $umbral = $this->umbralPara($persona);
+        $distancia = $descriptor ? $this->distanciaMinima($persona, $descriptor) : null;
+
+        // El metodo lo decide el servidor a partir de la medicion, nunca el cliente.
+        $reconocida = $distancia !== null && $distancia <= $umbral;
+        $manual = (bool) ($contexto['manual_override'] ?? false);
+
+        if ($manual && blank($contexto['override_reason'] ?? null)) {
+            throw new \InvalidArgumentException('Una firma manual necesita un motivo.');
+        }
+
+        $metodo = match (true) {
+            $manual      => SignatureEvent::MANUAL,
+            $reconocida  => SignatureEvent::FACE_RECOGNITION,
+            default      => SignatureEvent::TIMEOUT_CAPTURE,
+        };
+
+        // Sin reconocimiento hace falta la foto: es la unica evidencia que queda.
+        if ($metodo !== SignatureEvent::FACE_RECOGNITION && blank($foto) && ! $manual) {
+            throw new \InvalidArgumentException('Sin coincidencia facial se requiere la captura de la camara.');
+        }
+
+        return DB::transaction(function () use (
+            $firmable, $persona, $rolFirmado, $metodo, $reconocida, $distancia, $umbral, $manual, $foto, $contexto
+        ) {
+            $evento = SignatureEvent::create([
+                'signable_type'   => $firmable->getMorphClass(),
+                'signable_id'     => $firmable->getKey(),
+                'person_id'       => $persona->id,
+                'role_signed'     => $rolFirmado,
+                'signed_at'       => now(),
+                'method'          => $metodo,
+                'used_ai'         => $reconocida,
+                'match_distance'  => $distancia,
+                'threshold_used'  => $umbral,
+                'pending_review'  => $metodo !== SignatureEvent::FACE_RECOGNITION,
+                'manual_override' => $manual,
+                'override_reason' => $contexto['override_reason'] ?? null,
+                'override_by'     => $manual ? ($contexto['override_by'] ?? auth()->id()) : null,
+                'latitude'        => $contexto['latitude'] ?? null,
+                'longitude'       => $contexto['longitude'] ?? null,
+                'device_id'       => $contexto['device_id'] ?? null,
+                'ip_address'      => $contexto['ip_address'] ?? request()->ip(),
+                'user_agent'      => $contexto['user_agent'] ?? request()->userAgent(),
+                'country_code'    => $contexto['country_code'] ?? null,
+                'region'          => $contexto['region'] ?? null,
+                'city'            => $contexto['city'] ?? null,
+                'tenant_id'       => $persona->tenant_id,
+            ]);
+
+            if (filled($foto)) {
+                $this->guardarEvidencia($evento, $foto, EvidenceFile::FACE);
+            }
+
+            // La aprobacion la calcula el servidor a partir del evento.
+            if (in_array('is_approved', $firmable->getFillable(), true)) {
+                $firmable->forceFill(['is_approved' => true])->save();
+            }
+
+            return $evento;
+        });
+    }
+
+    /**
+     * Distancia euclidiana minima contra las muestras enroladas de esa persona.
+     * Es verificacion 1:1: nunca se compara contra el resto del padron.
+     */
+    public function distanciaMinima(Person $persona, array $descriptor): ?float
+    {
+        $biometria = $persona->activeBiometric;
+
+        if (! $biometria || blank($biometria->face_descriptor)) {
+            return null;
+        }
+
+        $muestras = $biometria->face_descriptor;
+
+        // Compatibilidad con el formato viejo: un unico vector plano.
+        if (! is_array($muestras[0] ?? null)) {
+            $muestras = [$muestras];
+        }
+
+        $minima = null;
+
+        foreach ($muestras as $muestra) {
+            if (count($muestra) !== count($descriptor)) {
+                continue;
+            }
+
+            $suma = 0.0;
+            foreach ($muestra as $i => $valor) {
+                $suma += ($valor - $descriptor[$i]) ** 2;
+            }
+
+            $distancia = sqrt($suma);
+            $minima = $minima === null ? $distancia : min($minima, $distancia);
+        }
+
+        return $minima === null ? null : round($minima, 4);
+    }
+
+    /** Umbral configurado para el pais de la persona, con rango acotado. */
+    public function umbralPara(Person $persona): float
+    {
+        $propio = $persona->activeBiometric?->threshold;
+
+        // Ajuste del workspace. Se cambia solo desde configuracion y queda auditado.
+        $delWorkspace = Setting::get('docufiz.face_threshold');
+
+        $umbral = (float) ($propio ?? $delWorkspace ?? self::UMBRAL_POR_DEFECTO);
+
+        // Fuera de este rango el reconocimiento deja de significar algo.
+        return max(0.30, min(0.65, $umbral));
+    }
+
+    /**
+     * Guarda la imagen y la registra. Deduplica por hash: la misma foto no se
+     * almacena dos veces, que era otra fuente de crecimiento sin control.
+     */
+    protected function guardarEvidencia(SignatureEvent $evento, string $base64, string $tipo): EvidenceFile
+    {
+        $binario = base64_decode(preg_replace('#^data:image/\w+;base64,#', '', $base64), true);
+
+        if ($binario === false) {
+            throw new \InvalidArgumentException('La captura no es una imagen valida.');
+        }
+
+        $hash = hash('sha256', $binario);
+        $existente = EvidenceFile::where('sha256', $hash)->first();
+
+        $ruta = $existente?->file_path
+            ?? sprintf('evidencias/%s/%s.webp', now()->format('Y/m'), Str::random(24));
+
+        if (! $existente) {
+            Storage::disk('local')->put($ruta, $binario);
+        }
+
+        return EvidenceFile::create([
+            'signature_event_id' => $evento->id,
+            'kind'      => $tipo,
+            'file_path' => $ruta,
+            'sha256'    => $hash,
+            'byte_size' => strlen($binario),
+            'taken_at'  => now(),
+        ]);
+    }
+
+    /** Resolucion de una firma que quedo pendiente de revision. */
+    public function revisar(SignatureEvent $evento, bool $aceptada, int $revisorId, ?string $motivo = null): SignatureEvent
+    {
+        $evento->update([
+            'pending_review' => false,
+            'reviewed_at'    => now(),
+            'reviewed_by'    => $revisorId,
+            'override_reason' => $motivo ?? $evento->override_reason,
+        ]);
+
+        if (! $aceptada) {
+            $firmable = $evento->signable;
+
+            if ($firmable && in_array('is_approved', $firmable->getFillable(), true)) {
+                $firmable->forceFill(['is_approved' => false])->save();
+            }
+        }
+
+        return $evento->fresh();
+    }
+}

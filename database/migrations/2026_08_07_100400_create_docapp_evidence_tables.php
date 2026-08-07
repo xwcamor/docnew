@@ -69,9 +69,10 @@ return new class extends Migration {
             $table->unsignedInteger('height')->nullable();
             $table->timestamp('taken_at')->nullable();
             $table->timestamps();
-            // Deduplicacion: el mismo archivo no se guarda dos veces.
-            $table->unique('sha256', 'evidence_files_sha256_unique');
-            $table->index(['signature_event_id', 'kind'], 'idx_evidence_files_kind');
+            // Deduplicacion en disco: el mismo contenido se guarda una vez y lo
+            // referencian varios eventos, asi que el hash NO es unico aqui.
+            $table->index('sha256', 'idx_evidence_files_sha256');
+            $table->unique(['signature_event_id', 'kind'], 'evidence_files_event_kind_unique');
         });
     }
 
