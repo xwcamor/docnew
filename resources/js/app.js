@@ -7,7 +7,7 @@ import Antd from 'ant-design-vue';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue';
 import I18nPlugin from '@/Plugins/i18n';
-import { setDiagnosticColors } from '@/utils/severity';
+import { setDiagnosticColors } from '@/Utils/severity';
 
 // Register AG Grid Community modules once for the whole app
 ModuleRegistry.registerModules([AllCommunityModule]);

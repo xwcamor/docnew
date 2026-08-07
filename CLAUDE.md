@@ -1,4 +1,31 @@
-# Proyecto: B2B SaaS multi-tenant (Laravel 13 + Inertia + Vue 3 + Postgres)
+# DOCUFIZ
+
+Documentacion diaria de seguridad en obra. Este proyecto **arranca desde el codigo de TRAFODEX**
+como base SaaS; el resto de este archivo son las convenciones heredadas de ese proyecto y siguen
+vigentes salvo donde esta seccion diga lo contrario.
+
+## Lo propio de DOCUFIZ
+
+- **Dominio**: planes de trabajo diarios (`work_plans`), personas (`people`), formatos configurables
+  (`form_templates` / `form_submissions`) y evidencias de firma (`signature_events`).
+- **El dominio de transformadores fue purgado.** Si encuentras una referencia a transformadores,
+  muestras, fiqui, furanos, FPOT, Duval, conmutadores, laboratorios o informes de diagnostico, es
+  un resto: borrala. Ver `docs/PURGA.md`.
+- **`Brand` y `Customer` siguen en el proyecto a proposito** (uno es la plantilla de `make:module`,
+  el otro esta entretejido con el nucleo). Ambos estan en `docs/PENDIENTES.md` esperando decision.
+- **`work_plans`, no `plans`**: en esta base `plans` son los planes de suscripcion.
+- **Firmas**: toda firma genera un `signature_event` con su `evidence_file`. Nunca se guarda un
+  texto magico en una columna de archivo, como hacia el sistema viejo con `detected_by_IA`.
+- **Reconocimiento facial**: portado de tenkofiz. Si no reconoce en el tiempo configurado, se
+  captura la foto igual y la firma queda pendiente de revision. **Nunca se bloquea el trabajo en
+  campo.** Ver `docs/BIOMETRIA.md`.
+- **Lo que decide una aprobacion lo decide el servidor**, nunca un campo del formulario.
+- Antes de dar algo por terminado, actualiza `docs/CHECKLIST.md`, y si algo queda abierto,
+  anotalo en `docs/PENDIENTES.md`. Nada se cierra en silencio.
+
+---
+
+# Convenciones heredadas de TRAFODEX
 
 > **Para futuras conversaciones**: este archivo se lee automáticamente al
 > trabajar en este directorio. Tiene todo el contexto que se necesita. No

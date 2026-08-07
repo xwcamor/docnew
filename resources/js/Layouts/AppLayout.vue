@@ -15,7 +15,6 @@ import enUS from 'ant-design-vue/es/locale/en_US';
 import { h } from 'vue';
 import RotatePortraitOverlay from '@/Components/Common/RotatePortraitOverlay.vue';
 import GlobalSearch from '@/Components/GlobalSearch.vue';
-import TransformerIcon from '@/Components/Transformers/TransformerIcon.vue';
 import { useI18n } from '@/Plugins/i18n';
 
 const { t } = useI18n();
@@ -431,8 +430,6 @@ provide('sidebarCollapsed', collapsed);
 const selectedKey = computed(() => {
     const url = page.url ?? '';
     // Comparación: 2 páginas independientes con paths distintos.
-    if (url.includes('/comparison/patrones')) return 'cmp_patrones';
-    if (url.includes('/comparison/gases')) return 'cmp_gases';
     const matchers = [
         ['audit_logs',     '/audit_logs'],
         ['system_modules', '/system_modules'],
@@ -447,22 +444,9 @@ const selectedKey = computed(() => {
         ['locales',        '/locales'],
         ['settings',       '/settings'],
         ['workspace',      '/workspace'],
-        ['my_requests',    '/my-requests'],
-        ['approvals',      '/approvals'],
-        ['diagnostic_rules', '/diagnostic-rules'],
-        ['tools-duval',    '/tools/duval'],
         ['roles',          '/roles'],
         ['users',          '/users'],
         ['customers',          '/customers'],
-        ['transformers',       '/transformers'],
-        ['oil_types',          '/oil_types'],
-        ['brands',             '/brands'],
-        ['transformer_types',  '/transformer_types'],
-        ['tap_changer_types',  '/tap_changer_types'],
-        ['tap_changer_brands',       '/tap_changer_brands'],
-        ['tap_changer_models',       '/tap_changer_models'],
-        ['tap_changer_technologies', '/tap_changer_technologies'],
-        ['laboratories',       '/laboratories'],
         ['dashboard',      '/dashboard_management/dashboards'],
         ['dashboard',      '/dashboard'],  // legacy fallback
     ];
@@ -608,26 +592,10 @@ const menuStructure = computed(() => [
     },
 
     // ── Aprobaciones (etapa 2 de firmas) — solo para firmantes ────────────
-    {
-        kind: 'item',
-        key: 'approvals', label: t('approvals.menu'), icon: FileDoneOutlined,
-        href: route('approvals.index'), inertia: true,
-        badge: () => page.props.approvals?.pending ?? 0,
-        visible: () => !!page.props.approvals?.is_signer,
-    },
-
     // ── Mis solicitudes — lo que YO envié a aprobación (seguimiento) ───────
     // Visible para quien haya enviado al menos una solicitud. El badge cuenta
     // las que siguen en revisión (pendientes). El aviso de "ya se aprobó/
     // rechazó" llega por la campana (notificación al solicitante).
-    {
-        kind: 'item',
-        key: 'my_requests', label: t('approvals.my_requests_menu'), icon: SolutionOutlined,
-        href: route('report_requests.index'), inertia: true,
-        badge: () => page.props.approvals?.my_requests_pending ?? 0,
-        visible: () => (page.props.approvals?.my_requests_total ?? 0) > 0,
-    },
-
     // ── Grupo: Accesos ────────────────────────────────────────────────────
     {
         kind: 'group',
@@ -650,104 +618,11 @@ const menuStructure = computed(() => [
     },
 
     // ── Grupo: Negocio (operación del día a día) ─────────────────────────
-    {
-        kind: 'group',
-        key: 'group-business', title: t('sidebar.group_business'),
-        items: [
-            {
-                key: 'customers', label: t('sidebar.customers'), icon: TeamOutlined,
-                href: route('business_management.customers.index'), inertia: true,
-                visible: () => can('customers.view'),
-            },
-            {
-                key: 'transformers', label: t('sidebar.transformers'), icon: TransformerIcon,
-                href: route('business_management.transformers.index'), inertia: true,
-                visible: () => can('transformers.view'),
-            },
-            {
-                key: 'cmp_gases', label: t('sidebar.comparison_gases'), icon: LineChartOutlined,
-                href: route('business_management.comparison.gases'), inertia: true,
-                visible: () => can('transformers.view'),
-            },
-            {
-                key: 'cmp_patrones', label: t('sidebar.comparison_patrones'), icon: BarChartOutlined,
-                href: route('business_management.comparison.patrones'), inertia: true,
-                visible: () => can('transformers.view'),
-            },
-            {
-                // Historial de enlaces compartidos, cruzando clientes. Premium
-                // (misma feature de plan que el botón de compartir).
-                key: 'report_shares', label: t('sidebar.report_shares'), icon: ShareAltOutlined,
-                href: route('business_management.report_shares_log.index'), inertia: true,
-                visible: () => can('transformers.view') && canUsePlanFeature('report_sharing'),
-            },
-        ],
-    },
-
     // ── Grupo: Condiciones de diagnóstico (catálogos editables del motor) ──
     // Lo que un ingeniero ajusta sin reprogramar: tipos de aceite, y más
     // adelante tipos de trafo, normas, variables, reglas y escalas/semáforos.
     // Separado de "Negocio" (operación) a propósito: aquí se configura CÓMO
     // diagnostica el sistema, no se opera con transformadores.
-    {
-        kind: 'group',
-        key: 'group-diagnostics', title: t('sidebar.group_diagnostics'),
-        items: [
-            // Editor del semáforo + pesos del HI (reglas en datos). SOLO super.
-            {
-                key: 'diagnostic_rules', label: t('sidebar.diagnostic_rules'), icon: ExperimentOutlined,
-                href: route('system_management.diagnostic_rules.index'), inertia: true,
-                // Híbrido: super edita el estándar global; el admin del workspace
-                // edita SU override (aislado). Por eso ahora también lo ve el admin.
-                visible: () => hasRole('super') || hasRole('admin'),
-            },
-            // Tipo de aceite / tipo de trafo / conmutador: catálogos internos del
-            // motor de diagnóstico. SOLO super los ve y edita; el admin del workspace
-            // no los necesita (las reglas viven en datos, no se tocan por tenant).
-            {
-                key: 'oil_types', label: t('sidebar.oil_types'), icon: BgColorsOutlined,
-                href: route('business_management.oil_types.index'), inertia: true,
-                visible: () => hasRole('super'),
-            },
-            {
-                key: 'transformer_types', label: t('sidebar.transformer_types'), icon: AppstoreOutlined,
-                href: route('business_management.transformer_types.index'), inertia: true,
-                visible: () => hasRole('super'),
-            },
-            {
-                key: 'brands', label: t('sidebar.brands'), icon: TagsOutlined,
-                href: route('business_management.brands.index'), inertia: true,
-                visible: () => can('brands.view'),
-            },
-            {
-                key: 'laboratories', label: t('sidebar.laboratories'), icon: ExperimentOutlined,
-                href: route('business_management.laboratories.index'), inertia: true,
-                visible: () => can('laboratories.view'),
-            },
-            {
-                key: 'tap_changer_types', label: t('sidebar.tap_changer_types'), icon: ControlOutlined,
-                href: route('business_management.tap_changer_types.index'), inertia: true,
-                visible: () => hasRole('super'),
-            },
-            {
-                key: 'tap_changer_brands', label: t('sidebar.tap_changer_brands'), icon: TagsOutlined,
-                href: route('business_management.tap_changer_brands.index'), inertia: true,
-                visible: () => can('tap_changer_brands.view'),
-            },
-            {
-                key: 'tap_changer_models', label: t('sidebar.tap_changer_models'), icon: BlockOutlined,
-                href: route('business_management.tap_changer_models.index'), inertia: true,
-                visible: () => can('tap_changer_models.view'),
-            },
-            {
-                key: 'tap_changer_technologies', label: t('sidebar.tap_changer_technologies'), icon: ThunderboltOutlined,
-                href: route('business_management.tap_changer_technologies.index'), inertia: true,
-                visible: () => can('tap_changer_technologies.view'),
-            },
-        ],
-    },
-
-
     // ── Grupo: Comunicacion (Mensajes + Bandeja) ─────────────────────────
     // Mensajes: solo super (envia anuncios/avisos/debates a la audiencia)
     // Bandeja: todos los users autenticados (lee los mensajes recibidos)
@@ -859,18 +734,7 @@ const menuStructure = computed(() => [
             },
         ],
     },
-    {
-        kind: 'group',
-        key: 'group-tools', title: t('sidebar.group_tools'),
-        items: [
-            {
-                key: 'tools-duval', label: t('sidebar.tools_duval'), icon: RadarChartOutlined,
-                href: route('tools.duval.index'), inertia: true,
-                visible: () => hasRole('super'),
-            },
-        ],
-    },
-]);
+    ]);
 
 // Computed: filter items inside groups; drop empty groups; keep ungrouped items.
 const visibleStructure = computed(() => {

@@ -28,14 +28,24 @@ silencio.
 
 ## Trabajo técnico pendiente
 
-1. Adaptar `CLAUDE.md`: hoy es el de TRAFODEX y menciona su dominio.
+1. ~~Adaptar `CLAUDE.md`~~ — hecho.
 2. Revisar los documentos heredados en `docs/` que aún hablan de transformadores
    (`ARCHITECTURE.md`, `MANUAL-CLIENTE.md`, `PERMISSIONS.md`, `FRONTEND.md`…).
-3. `npm install` y compilar el front: **no se ha ejecutado ni una vez**.
-4. Menú lateral y traducciones `sidebar.php`: aún listan módulos borrados.
-5. Seeder de roles y permisos: todavía genera permisos de módulos que ya no existen.
+3. ~~`npm install` y compilar el front~~ — hecho, compila sin errores.
+4. ~~Menú lateral y traducciones~~ — limpiados; faltan las entradas de los módulos nuevos,
+   que se añaden cuando cada módulo exista (una entrada a una ruta inexistente rompe la página).
+5. ~~Seeder de roles y permisos~~ — reescrito con los módulos y perfiles de DOCUFIZ.
 6. Tests: los del dominio viejo se borraron; faltan los del dominio nuevo.
 7. Flujo de aprobación de documentos: el de TRAFODEX se borró con los informes de diagnóstico.
    Si hace falta aprobación formal en DOCUFIZ, se rehace sobre `work_plan_approvals`.
 8. Índices únicos que faltan en el sistema viejo: hay que resolver antes el duplicado `47019239`.
 9. Auditar `public/images_uploads` del sistema viejo contra las 4 189 referencias de la base.
+
+## Hallazgos de esta tanda
+
+- El `.git/config` del repositorio se corrompió durante `composer install` (dejó `origin` apuntando
+  a `symfony/routing`). Se reparó, pero conviene revisarlo si vuelve a fallar un `push`.
+- `resources/js/Utils` se importaba como `@/utils` en dos archivos: funcionaba en macOS y falla en
+  Linux por mayúsculas. Corregido.
+- El seeder de roles usaba `updateOrCreate` con `tenant_id => null`, que nunca casa en SQL y
+  duplicaba filas. Es un defecto heredado de TRAFODEX: sigue ahí para los roles del núcleo.

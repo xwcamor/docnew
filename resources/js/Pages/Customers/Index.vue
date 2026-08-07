@@ -19,7 +19,7 @@ import ResponsiveTable from '@/Components/Common/ResponsiveTable.vue';
 import ColumnSelector from '@/Components/Common/ColumnSelector.vue';
 import FilterBar from '@/Components/Common/FilterBar.vue';
 import InlineFilterBuilder from '@/Components/Common/InlineFilterBuilder.vue';
-import { countClauses, pruneRules } from '@/utils/filterTree';
+import { countClauses, pruneRules } from '@/Utils/filterTree';
 import ExportDialog from '@/Components/Common/ExportDialog.vue';
 import ImportDialog from '@/Components/Common/ImportDialog.vue';
 import SavedViews from '@/Components/Common/SavedViews.vue';

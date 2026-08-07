@@ -155,7 +155,6 @@ class HandleInertiaRequests extends Middleware
             // Colores del diagnóstico (semáforo + gradiente de celda), editables por
             // super con override por tenant. Se comparten en TODA página porque
             // utils/severity.js los usa en cualquier vista (no solo el editor).
-            'diagnosticColors' => fn () => \App\Support\Diagnostics\DiagnosticColors::all(),
             'app'    => [
                 'name' => config('app.name'),
             ],

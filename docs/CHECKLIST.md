@@ -14,6 +14,8 @@
 | [x] | `composer install` | Laravel 13.9.0 arranca |
 | [x] | **`php artisan migrate:fresh` contra PostgreSQL 16** | **69 tablas creadas, 0 errores** |
 | [x] | **`php artisan db:seed`** | tenants, suscripciones y 175 clientes sembrados |
+| [x] | Menú lateral y traducciones sin módulos borrados | 0 rutas muertas en `AppLayout.vue` |
+| [x] | **La aplicación responde**: `/` redirige a login y `/es/login` devuelve 200 | probado con el servidor levantado |
 
 ## Dominio DOCUFIZ
 
@@ -30,8 +32,8 @@
 | [ ] | Módulos con `make:module` (catálogos → personas → planes → formatos) | pendiente |
 | [ ] | Motor de formatos: editor y tipos de campo | pendiente |
 | [ ] | Firma facial portada de tenkofiz | diseñada en `docs/BIOMETRIA.md`, sin implementar |
-| [ ] | Seeders propios (país, roles, perfiles, permisos de DOCUFIZ) | pendiente |
-| [ ] | `npm install` y compilación del front | **no ejecutado** |
+| [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |
+| [x] | `npm install` y `npm run build` | **compila sin errores** |
 
 ## Documentación
 
@@ -39,7 +41,7 @@
 | --- | --- |
 | [x] | `docs/PLAN.md` · `docs/DOMINIO.md` · `docs/MIGRACION.md` · `docs/BIOMETRIA.md` · `docs/PURGA.md` |
 | [x] | `docs/CHECKLIST.md` (este) · `docs/PENDIENTES.md` |
-| [ ] | `CLAUDE.md` sigue siendo el de TRAFODEX: hay que adaptarlo |
+| [x] | `CLAUDE.md` adaptado a DOCUFIZ (conserva las convenciones heredadas) |
 
 ## Sistema viejo (`app_documentation`)
 

@@ -34,15 +34,12 @@ class RolesAndPermissionsSeeder extends Seeder
         // Permisos transversales que NO salen de un módulo de system_modules.
         // Comentarios de usuario sobre transformadores y muestras: el admin decide
         // qué perfiles pueden ver/crear/borrar comentarios.
-        // transformers.samples: cargar/editar MUESTRAS de ensayos sin poder tocar
-        // la ficha del trafo (perfiles tipo "Cliente Editor"). transformers.edit
-        // lo incluye vía OR en las rutas.
-        // diagnosis_notes.create: ESCRIBIR la "Nota del diagnosticador" (hilo a
-        // nivel del transformer). Separado de comments.create — que ahora solo
-        // habilita los comentarios POR MUESTRA — para que un cargador de muestras
-        // pueda comentar SU muestra sin firmar la nota del especialista. Ver/borrar
-        // siguen compartiendo comments.view/comments.delete (no se separaron).
-        foreach (['comments.view', 'comments.create', 'comments.delete', 'transformers.samples', 'diagnosis_notes.create'] as $perm) {
+        // form_submissions.sign: firmar un formato (con reconocimiento facial o
+        // con captura por tiempo de espera). Separado del CRUD: se puede llenar
+        // un formato sin poder firmarlo.
+        // signature_events.review: resolver la bandeja de firmas que quedaron
+        // pendientes de revision.
+        foreach (['comments.view', 'comments.create', 'comments.delete', 'form_submissions.sign', 'signature_events.review'] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 
@@ -102,47 +99,57 @@ class RolesAndPermissionsSeeder extends Seeder
             );
         };
 
-        // Módulos de DATOS de negocio (excluye oil_types/transformer_types/
-        // tap_changer_types: son globales super-only y no se ofrecen a perfiles).
-        $bizModules = ['customers', 'transformers', 'brands', 'laboratories',
-            'tap_changer_brands', 'tap_changer_models', 'tap_changer_technologies'];
+        // Módulos de datos de negocio de DOCUFIZ. Los catálogos de obra
+        // (work_types, positions, ...) se gestionan por rol, no por perfil.
+        $bizModules = ['companies', 'people', 'work_plans', 'form_templates', 'form_submissions'];
         $noDelete   = ['view', 'show', 'create', 'edit', 'export', 'import']; // todo salvo delete
 
-        // Soporte (editor): crea/edita cualquier dato de negocio, NO elimina.
-        // Incluye diagnosis_notes.create: es un rol de especialista, sí firma la
-        // "Nota del diagnosticador" (además de comentar muestras).
+        // Supervisor de obra: arma el plan del dia, registra a su cuadrilla y
+        // aprueba. No elimina nada ni toca las plantillas de formato.
+        $supervisorPerms = array_merge(
+            $pick('work_plans',       $noDelete),
+            $pick('people',           ['view', 'show', 'create', 'edit', 'export']),
+            $pick('companies',        ['view', 'show']),
+            $pick('form_submissions', $noDelete),
+            $pick('form_templates',   ['view', 'show']),
+            ['form_submissions.sign', 'signature_events.review', 'comments.view', 'comments.create'],
+        );
+
+        // Usuario de campo: llena los formatos del plan y firma. No crea planes
+        // ni da de alta personas.
+        $fieldPerms = array_merge(
+            $pick('work_plans',       ['view', 'show']),
+            $pick('form_submissions', ['view', 'show', 'create', 'edit']),
+            $pick('people',           ['view', 'show']),
+            ['form_submissions.sign', 'comments.view', 'comments.create'],
+        );
+
+        // Auditor HSE: lo ve todo y lo exporta, no escribe nada.
+        $auditorParts = array_map(fn ($m) => $pick($m, ['view', 'show', 'export']), $bizModules);
+        $auditorParts[] = ['signature_events.review', 'comments.view'];
+        $auditorPerms = array_merge(...$auditorParts);
+
+        // Soporte: crea y edita cualquier dato, no elimina.
         $editorParts = array_map(fn ($m) => $pick($m, $noDelete), $bizModules);
-        $editorParts[] = ['transformers.samples', 'comments.view', 'comments.create', 'diagnosis_notes.create'];
+        $editorParts[] = ['comments.view', 'comments.create'];
         $editorPerms = array_merge(...$editorParts);
 
-        // Soporte (editor full): todo sobre los datos de negocio (incl. eliminar).
-        // NO incluye users/roles: el super y el admin ya tienen acceso a esos
-        // módulos por su rol; no se delegan vía un perfil custom.
-        $fullParts   = array_map(fn ($m) => $all($m), $bizModules);
-        $fullParts[] = ['transformers.samples', 'comments.view', 'comments.create', 'comments.delete', 'diagnosis_notes.create'];
-        $fullPerms   = array_merge(...$fullParts);
-
-        // Reglas de diagnóstico y logs del sistema NO hace falta excluirlos: sus
-        // menús son hasRole(super|admin), así que un perfil CUSTOM nunca los ve.
         $profiles = [
-            'Empresa (solo lectura)' => [
-                'desc'  => 'Solo lectura: ve el dashboard y los transformadores con sus diagnósticos. No crea, edita ni elimina nada.',
-                'perms' => array_merge($pick('transformers', ['view', 'show', 'export']), ['comments.view']),
+            'Supervisor de obra' => [
+                'desc'  => 'Arma el plan de trabajo del dia, registra a su cuadrilla, llena y firma los formatos, y revisa las firmas que quedaron pendientes. No elimina registros.',
+                'perms' => $supervisorPerms,
             ],
-            'Empresa (carga de muestras)' => [
-                'desc'  => 'Ve el dashboard y los transformadores; no edita ni elimina trafos, pero carga muestras de ensayo y comenta SUS muestras. Lee la nota del diagnosticador pero NO la escribe (eso es del especialista).',
-                // comments.view + comments.create (comentar SUS muestras), pero SIN
-                // diagnosis_notes.create: la "Nota del diagnosticador" la firma el
-                // especialista, no quien carga muestras.
-                'perms' => array_merge($pick('transformers', ['view', 'show', 'export']), ['transformers.samples', 'comments.view', 'comments.create']),
+            'Usuario de campo' => [
+                'desc'  => 'Llena y firma los formatos del plan al que esta asignado. No crea planes ni da de alta personas.',
+                'perms' => $fieldPerms,
+            ],
+            'Auditor HSE (solo lectura)' => [
+                'desc'  => 'Consulta y exporta todo: planes, formatos, personas y evidencias de firma. No modifica nada.',
+                'perms' => $auditorPerms,
             ],
             'Soporte (editor)' => [
-                'desc'  => 'Crea y edita cualquier dato (clientes, transformadores, catálogos) pero NO elimina. Sin reglas de diagnóstico ni logs.',
+                'desc'  => 'Crea y edita cualquier dato de negocio pero NO elimina.',
                 'perms' => $editorPerms,
-            ],
-            'Soporte (editor full)' => [
-                'desc'  => 'Gestión completa de los datos de negocio: crea, edita y elimina clientes, transformadores y catálogos. No gestiona accesos (usuarios/perfiles) ni ve reglas de diagnóstico o logs.',
-                'perms' => $fullPerms,
             ],
         ];
 

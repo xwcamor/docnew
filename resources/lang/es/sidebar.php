@@ -13,21 +13,8 @@ return [
     // Grupo: Negocio (operación)
     'group_business'     => 'Negocio',
     'customers'          => 'Clientes',
-    'transformers'       => 'Transformadores',
-    'comparison_gases'    => 'Gases por grupo',
-    'comparison_patrones' => 'Patrones por grupo',
 
     // Grupo: Condiciones de diagnóstico (catálogos editables del motor)
-    'group_diagnostics'  => 'Condiciones de diagnóstico',
-    'oil_types'          => 'Tipos de aceite',
-    'transformer_types'  => 'Tipos de transformador',
-    'diagnostic_rules'   => 'Reglas de diagnóstico',
-    'brands'             => 'Marcas',
-    'tap_changer_types'  => 'Tipos de conmutador',
-    'laboratories'       => 'Laboratorios',
-    'tap_changer_technologies' => 'Tecnología de conmutador',
-    'tap_changer_models' => 'Modelo de conmutador',
-    'tap_changer_brands' => 'Marca de conmutador',
 
     // Grupo: Automatizaciones (planes enterprise)
     'group_automation'   => 'Automatizaciones',
@@ -57,9 +44,25 @@ return [
 
     // Tools (solo-super)
     'group_tools'        => 'Herramientas',
-    'tools_duval'        => 'Cálculo Duval',
 
     // Tooltips
     'coming_soon'        => 'Próximamente',
     'report_shares'      => 'Envíos de informes',
+
+    // DOCUFIZ
+    'group_field'        => 'Trabajo en obra',
+    'work_plans'         => 'Planes de trabajo',
+    'form_submissions'   => 'Formatos llenados',
+    'signature_events'   => 'Firmas por revisar',
+    'group_master'       => 'Maestros',
+    'companies'          => 'Empresas',
+    'people'             => 'Personas',
+    'form_templates'     => 'Plantillas de formato',
+    'work_types'         => 'Tipos de trabajo',
+    'work_locations'     => 'Sedes',
+    'workstations'       => 'Puestos de trabajo',
+    'work_areas'         => 'Áreas',
+    'positions'          => 'Cargos',
+    'nationalities'      => 'Nacionalidades',
+    'approval_rules'     => 'Reglas de aprobación',
 ];

@@ -40,18 +40,22 @@ class SystemModulesSeeder extends Seeder
             // como patrón clonable para los siguientes (Patients, Inventory, etc.).
             ['name' => 'Customers',      'permission_key' => 'customers'],
 
-            // TR APP — módulos del dominio de diagnóstico de transformadores.
-            // (transformers/oil_types se registraban ad-hoc; aquí quedan
-            // reproducibles para installs frescos. firstOrCreate = idempotente.)
-            ['name' => 'Transformers',     'permission_key' => 'transformers'],
-            ['name' => 'OilTypes',         'permission_key' => 'oil_types'],
-            ['name' => 'TransformerTypes', 'permission_key' => 'transformer_types'],
-            ['name' => 'Brands',           'permission_key' => 'brands'],
-            ['name' => 'TapChangerTypes',  'permission_key' => 'tap_changer_types'],
-            ['name' => 'TapChangerTechnologies', 'permission_key' => 'tap_changer_technologies'],
-            ['name' => 'TapChangerModels', 'permission_key' => 'tap_changer_models'],
-            ['name' => 'TapChangerBrands', 'permission_key' => 'tap_changer_brands'],
-            ['name' => 'Laboratories',     'permission_key' => 'laboratories'],
+            // DOCUFIZ — módulos del dominio de documentación de seguridad en obra.
+            ['name' => 'Companies',      'permission_key' => 'companies'],
+            ['name' => 'People',         'permission_key' => 'people'],
+            ['name' => 'WorkPlans',      'permission_key' => 'work_plans'],
+            ['name' => 'FormTemplates',  'permission_key' => 'form_templates'],
+            ['name' => 'FormSubmissions','permission_key' => 'form_submissions'],
+            ['name' => 'SignatureEvents','permission_key' => 'signature_events'],
+
+            // Catálogos de obra.
+            ['name' => 'WorkTypes',      'permission_key' => 'work_types'],
+            ['name' => 'WorkLocations',  'permission_key' => 'work_locations'],
+            ['name' => 'Workstations',   'permission_key' => 'workstations'],
+            ['name' => 'WorkAreas',      'permission_key' => 'work_areas'],
+            ['name' => 'Positions',      'permission_key' => 'positions'],
+            ['name' => 'Nationalities',  'permission_key' => 'nationalities'],
+            ['name' => 'ApprovalRules',  'permission_key' => 'approval_rules'],
         ];
 
         foreach ($modules as $m) {

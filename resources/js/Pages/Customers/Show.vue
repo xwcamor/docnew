@@ -12,7 +12,6 @@ import EntityShowTabs from '@/Components/Common/EntityShowTabs.vue';
 import EntityShowActions from '@/Components/Common/EntityShowActions.vue';
 import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import RecordHistory from '@/Components/Common/RecordHistory.vue';
-import ShareModal from '@/Components/Sharing/ShareModal.vue';
 import CustomerHierarchyTree from '@/Components/Customers/CustomerHierarchyTree.vue';
 import CustomerOrgChart from '@/Components/Customers/CustomerOrgChart.vue';
 import CustomerStructureTable from '@/Components/Customers/CustomerStructureTable.vue';
@@ -108,7 +107,6 @@ const fmt = (d) => formatDateTimeFull(d);
                             <Button><template #icon><BarChartOutlined /></template><span class="btn-txt">{{ $t('comparison.compare_fleet') }}</span></Button>
                         </Link>
                     </Tooltip>
-                    <ShareModal v-if="!isDeleted" scope-type="fleet" :scope-id="customer.id" />
                     <EntityShowActions
                         module="customers"
                         route-prefix="business_management"

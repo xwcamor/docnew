@@ -14,7 +14,6 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
 
 import AppLayout from '@/Layouts/AppLayout.vue';
-import FleetDashboard from '@/Components/Dashboard/FleetDashboard.vue';
 import { useI18n } from '@/Plugins/i18n';
 import { useDateFormat } from '@/Composables/useDateFormat';
 
@@ -126,7 +125,6 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
             </div>
 
             <!-- Flota cross-tenant (todos los workspaces) + desglose por workspace -->
-            <FleetDashboard v-if="fleet" :fleet="fleet" :filters="fleetFilters" :active="fleetActive" class="dashboard__fleet" />
 
             <!-- Suscripciones por vencer -->
             <Card v-if="expiringSoon.length > 0" class="block-card" :bodyStyle="{ padding: 0 }">
@@ -180,7 +178,6 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
 
         <!-- ─── VISTA NON-SUPER: dashboard de flota + actividad reciente ──────── -->
         <template v-else>
-            <FleetDashboard v-if="fleet" :fleet="fleet" :filters="fleetFilters" :active="fleetActive" />
         </template>
     </div>
 </template>
