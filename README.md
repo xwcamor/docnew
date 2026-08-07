@@ -35,6 +35,7 @@ npm run dev
 | `docs/DOMINIO.md` | Qué es un plan, un formato, una firma |
 | `docs/BIOMETRIA.md` | Cómo se firma con reconocimiento facial |
 | `docs/MIGRACION.md` | Cómo se traen y se controlan los datos del sistema viejo |
+| `docs/BASE-DE-DATOS-LOCAL.md` | **Migrar en tu máquina y subir la base ya terminada** |
 | `docs/DESPLIEGUE-POSTGRES.md` | Varias bases en un servidor, aisladas entre sí |
 | `docs/PURGA.md` | Qué se quitó de TRAFODEX y qué se conservó |
 | `docs/CHECKLIST.md` | Estado real, verificado, de cada cosa |

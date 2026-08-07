@@ -22,10 +22,41 @@ El sistema anterior lo intentaba y no lo cumplia: de 9 012 fotos de trabajadores
 cadena `detected_by_IA`** y el archivo nunca existio. La intencion era correcta; el codigo no la
 respetaba.
 
-El coste es asumible: con el ritmo del sistema anterior —9 186 firmas al ano— son unos **500 MB
-anuales**, y las imagenes se deduplican por hash.
-
 Se puede desactivar por workspace con `docufiz.always_store_photo`, pero por defecto se guarda.
+
+### Lo que ocupa, y por qué no se dispara
+
+Guardar una foto por firma suena caro. Sin tocar nada lo es: a 500 firmas diarias y 122 KB por
+captura salen unos **15 GB al año**, que en el disco de un droplet pequeño es un problema real.
+
+Dos medidas lo bajan un orden de magnitud, y ninguna toca la evidencia como prueba:
+
+| Medida | Efecto |
+| --- | --- |
+| Cada captura se reduce a **320 px** de lado mayor y se guarda en **WebP** | 122 KB → **24 KB** |
+| La misma persona firmando varios formatos **del mismo plan y el mismo día** reutiliza la foto ya guardada | una foto en vez de cuatro |
+| Deduplicación por `sha256` | dos capturas idénticas ocupan un archivo |
+
+Las cifras son medidas, no estimadas: 122 KB de JPEG de 640×480 quedan en 24 KB. Y son el peor
+caso, porque la imagen de la prueba es ruido puro; una cara real comprime bastante más.
+
+Con las dos medidas, esas mismas 500 firmas diarias ocupan del orden de **1 GB al año** en lugar de
+15. Las pruebas que lo fijan están en `tests/Feature/FieldWork/SignatureEvidenceTest.php`, para que
+nadie las deshaga sin enterarse.
+
+Lo que **no** cambia: sigue habiendo **una fila de evidencia por cada firma**. Lo que se comparte es
+el archivo, no el registro, así que la trazabilidad de quién firmó qué y cuándo queda intacta.
+
+320 px es suficiente para lo único que se le pide a esta foto: que un supervisor reconozca a la
+persona al revisar una firma pendiente. No es una foto de archivo, es un acuse.
+
+> **Cuidado al borrar.** Como varios registros pueden apuntar al mismo archivo, borrar una fila de
+> `evidence_files` **no** puede borrar el archivo sin comprobar antes que nadie más lo usa. Hoy no
+> hay ninguna pantalla que borre evidencias; cuando la haya, esa comprobación es obligatoria.
+
+Para producción, la recomendación es que las evidencias vivan en almacenamiento de objetos (DO
+Spaces) y no en el disco del droplet: crece solo, se respalda aparte y no tumba la aplicación cuando
+se llena.
 
 ## Lo que se guarda
 
