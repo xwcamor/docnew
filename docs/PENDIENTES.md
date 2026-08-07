@@ -37,6 +37,20 @@ registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al c
 | Motor de formatos | se usa para los formatos nuevos; los históricos se evalúan después |
 | Trabajo en campo | sigue en navegador (tablets Android); sin app nativa ni API por ahora |
 
+## Defectos heredados que siguen abiertos
+
+Salieron al poner la documentación al día. Ninguno impide trabajar, pero conviene no olvidarlos:
+
+| Qué | Dónde |
+| --- | --- |
+| `CommentController::TYPES` está **vacío**: los comentarios no se pueden usar en ningún módulo, y los permisos `comments.*` no gatean nada | `app/Http/Controllers/.../CommentController.php` |
+| El seeder de roles asigna a tres usuarios de demostración perfiles con nombres que ya no existen; se saltan en silencio | `RolesAndPermissionsSeeder` |
+| `export` e `import` son gate real solo en `customers` y `brands`. En `companies`, `people`, `work_plans` y `form_templates` **exportar solo exige `.view`** | `routes/business_management.php` |
+| `edit_all` y `audit_log_view` están declarados como características de plan pero **ninguna ruta las comprueba**: solo se esconde el botón | `config/features.php` |
+| Tres ajustes heredados sembrados que nadie lee (`fleet_report.pdf_max_transformers`, `reports.frozen_retention_years`, `diagnostics.cell_alert_sev`) | `SettingsSeeder` |
+| El freno del login es por **email + IP**: para la misma contraseña repartida entre muchos correos no sirve. La defensa real sería 2FA, que no hay | `LoginController` |
+| `docs/brain/`, `docs/manual-usuario.html` y `docs/mockups/` no se revisaron: probablemente sigan describiendo transformadores | `docs/` |
+
 ## Lo que la migración dejó a la vista
 
 **El 89 % de las firmas de cinco años no tiene prueba detrás.** De las 30 695 referencias a fotos y
@@ -72,10 +86,11 @@ o sea que contando se podía confirmar la entrega de otro. Corregido y con prueb
    buscador y las transformaciones de la migración.
 7. Flujo de aprobación de documentos: el de TRAFODEX se borró con los informes de diagnóstico.
    La estructura ya está (`approval_rules` + `work_plan_approvals`), falta la pantalla.
-10. Los módulos `Companies`, `People` y `WorkPlans` se generaron clonando `Brand`, así que trae `code`/`sort_order` renombrados
-    a las columnas reales. Falta revisar sus vistas una por una: el formulario y el listado
-    todavía tratan la segunda columna como si fuera un número de orden, y les faltan los campos
-    propios (país, nacionalidad, empresa, tipo de trabajo, fechas).
+10. ~~Los módulos `Companies`, `People` y `WorkPlans` se generaron clonando `Brand`~~ — hecho, y era
+    peor de lo que parecía: el listado de planes mostraba 366 páginas de filas en blanco, crear una
+    empresa devolvía un 500 (`StoreCompanyRequest` validaba el RUC contra una columna `code` que no
+    existe), el filtro de documento nunca se aplicaba, y el importador de personas emparejaba por
+    nombre, fusionando homónimos. Todo corregido y comprobado en un navegador real.
 11. `DocufizDemoSeeder` no está en `DatabaseSeeder`: se ejecuta a mano con
     `php artisan db:seed --class=DocufizDemoSeeder`. Decidir si entra en el sembrado por defecto.
 8. Índices únicos que faltan en el sistema viejo: hay que resolver antes el duplicado `47019239`.

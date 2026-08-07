@@ -65,6 +65,8 @@
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |
 | [x] | `npm install` y `npm run build` | **compila sin errores** |
 | [x] | **Conjunto de pruebas completo en verde** | **603 pasan, 0 fallan**, 19 omitidas |
+| [x] | **Los tres listados principales muestran los datos reales** | comprobado en un Chromium real con los datos migrados: plan por código, empresa, tipo y fecha; persona por apellidos, documento, empresas y si tiene la cara enrolada; empresa por RUC, personas y planes |
+| [x] | Documentación heredada puesta al día | 21 documentos reescritos contra el código; 11 afirmaciones falsas corregidas |
 | [x] | **Alertas de seguridad de dependencias** | de 44 avisos en 14 paquetes (1 crítico) a **0**, sin cambiar ninguna versión mayor |
 
 ## Documentación
