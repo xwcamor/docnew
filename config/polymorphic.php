@@ -75,6 +75,10 @@ return [
             'model'      => \App\Models\WorkPlan::class,
             'show_route' => 'business_management.work_plans.show',
         ],
+        'form_templates' => [
+            'model'      => \App\Models\FormTemplate::class,
+            'show_route' => 'business_management.form_templates.show',
+        ],
         // Agrega modulos nuevos aqui cuando crees patients, doctors, etc.
     ],
 ];

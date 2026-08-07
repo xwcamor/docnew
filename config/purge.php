@@ -107,6 +107,10 @@ return [
             'model' => \App\Models\WorkPlan::class,
             'days'  => 90,
         ],
+        'form_templates' => [
+            'model' => \App\Models\FormTemplate::class,
+            'days'  => 90,
+        ],
         // Suma modulos nuevos aqui:
         // 'patients' => [...],
         // 'doctors'  => [...],

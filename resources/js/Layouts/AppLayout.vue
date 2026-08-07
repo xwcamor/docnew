@@ -447,6 +447,10 @@ const selectedKey = computed(() => {
         ['roles',          '/roles'],
         ['users',          '/users'],
         ['customers',          '/customers'],
+        ['work_plans',         '/work_plans'],
+        ['companies',          '/companies'],
+        ['people',             '/people'],
+        ['form_templates',     '/form_templates'],
         ['dashboard',      '/dashboard_management/dashboards'],
         ['dashboard',      '/dashboard'],  // legacy fallback
     ];
@@ -613,6 +617,42 @@ const menuStructure = computed(() => [
                 key: 'roles', label: t('sidebar.roles'), icon: IdcardOutlined,
                 href: route('user_management.roles.index'), inertia: true,
                 visible: () => hasRole('super', 'admin') && canUsePlanFeature('team_management'),
+            },
+        ],
+    },
+
+    // ── Grupo: Trabajo en obra (operación del día a día) ─────────────────
+    {
+        kind: 'group',
+        key: 'group-field', title: t('sidebar.group_field'),
+        items: [
+            {
+                key: 'work_plans', label: t('sidebar.work_plans'), icon: FileDoneOutlined,
+                href: route('business_management.work_plans.index'), inertia: true,
+                visible: () => can('work_plans.view'),
+            },
+        ],
+    },
+
+    // ── Grupo: Maestros (lo que se configura una vez) ────────────────────
+    {
+        kind: 'group',
+        key: 'group-master', title: t('sidebar.group_master'),
+        items: [
+            {
+                key: 'companies', label: t('sidebar.companies'), icon: BankOutlined,
+                href: route('business_management.companies.index'), inertia: true,
+                visible: () => can('companies.view'),
+            },
+            {
+                key: 'people', label: t('sidebar.people'), icon: UserOutlined,
+                href: route('business_management.people.index'), inertia: true,
+                visible: () => can('people.view'),
+            },
+            {
+                key: 'form_templates', label: t('sidebar.form_templates'), icon: FileOutlined,
+                href: route('business_management.form_templates.index'), inertia: true,
+                visible: () => can('form_templates.view'),
             },
         ],
     },

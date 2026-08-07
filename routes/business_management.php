@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BusinessManagement\FormTemplateController;
 use App\Http\Controllers\BusinessManagement\WorkPlanController;
 use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Http\Controllers\BusinessManagement\CompanyController;
@@ -398,5 +399,79 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('work_plans/{workPlan}/lock',   [WorkPlanController::class, 'lock'])->name('work_plans.lock');
         Route::post('work_plans/{workPlan}/unlock', [WorkPlanController::class, 'unlock'])->name('work_plans.unlock');
+    });
+
+
+    // ── FormTemplates ──
+    // Bloque generado por make:module. Reordena o ajusta permisos según tu dominio.
+
+    // 1) Trash + restore + force_delete (super only — defense in depth)
+    Route::middleware('role:super')->group(function () {
+        Route::get('form_templates/trash',                  [FormTemplateController::class, 'trash'])->name('form_templates.trash');
+        Route::post('form_templates/bulk_restore',          [FormTemplateController::class, 'bulkRestore'])->name('form_templates.bulk_restore');
+        Route::post('form_templates/{slug}/restore',        [FormTemplateController::class, 'restore'])->name('form_templates.restore');
+        Route::get('form_templates/{slug}/restore',         fn () => redirect()->route('business_management.form_templates.trash'));
+        Route::delete('form_templates/{slug}/force_delete', [FormTemplateController::class, 'forceDelete'])->name('form_templates.force_delete');
+    });
+
+    // 2) Exports (gated por plan_feature por formato)
+    Route::middleware('permission:form_templates.view')->group(function () {
+        Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
+            ->post('form_templates/export_excel', [FormTemplateController::class, 'exportExcel'])->name('form_templates.export_excel');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
+            ->post('form_templates/export_pdf',   [FormTemplateController::class, 'exportPdf'])->name('form_templates.export_pdf');
+        Route::middleware(['throttle:5,1', 'plan_feature:export_word'])
+            ->post('form_templates/export_word',  [FormTemplateController::class, 'exportWord'])->name('form_templates.export_word');
+        Route::middleware('throttle:5,1')
+            ->post('form_templates/export_csv',   [FormTemplateController::class, 'exportCsv'])->name('form_templates.export_csv');
+    });
+
+    // 3) Imports
+    Route::middleware(['permission:form_templates.create', 'plan_feature:bulk_operations'])->group(function () {
+        Route::post('form_templates/import',          [FormTemplateController::class, 'import'])->name('form_templates.import');
+        Route::get('form_templates/import_template',  [FormTemplateController::class, 'importTemplate'])->name('form_templates.import_template');
+    });
+
+    // 4) Bulk operations
+    Route::middleware(['permission:form_templates.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('form_templates/bulk_delete',     [FormTemplateController::class, 'bulkDelete'])->name('form_templates.bulk_delete');
+        Route::post('form_templates/bulk_set_active', [FormTemplateController::class, 'bulkSetActive'])->name('form_templates.bulk_set_active');
+    });
+
+    // Undo del ultimo borrado (60s window)
+    Route::middleware('permission:form_templates.delete')->group(function () {
+        Route::post('form_templates/undo_last_delete', [FormTemplateController::class, 'undoLastDelete'])->name('form_templates.undo_last_delete');
+    });
+
+    // Edit All
+    Route::middleware('permission:form_templates.edit')->group(function () {
+        Route::get('form_templates/edit_all',         [FormTemplateController::class, 'editAll'])->name('form_templates.edit_all');
+        Route::post('form_templates/edit_all/update', [FormTemplateController::class, 'editAllUpdate'])->name('form_templates.edit_all.update');
+    });
+
+    // 5) CRUD principal — paths estaticos PRIMERO.
+    Route::middleware('permission:form_templates.create')->group(function () {
+        Route::get('form_templates/create', [FormTemplateController::class, 'create'])->name('form_templates.create');
+        Route::post('form_templates',       [FormTemplateController::class, 'store'])->name('form_templates.store');
+        Route::post('form_templates/{formTemplate}/duplicate', [FormTemplateController::class, 'duplicate'])->name('form_templates.duplicate');
+    });
+
+    Route::middleware('permission:form_templates.view')->group(function () {
+        Route::get('form_templates',                [FormTemplateController::class, 'index'])->name('form_templates.index');
+        Route::get('form_templates/{formTemplate}',  [FormTemplateController::class, 'show'])->name('form_templates.show');
+    });
+    Route::middleware('permission:form_templates.edit')->group(function () {
+        Route::get('form_templates/{formTemplate}/edit', [FormTemplateController::class, 'edit'])->name('form_templates.edit');
+        Route::put('form_templates/{formTemplate}',      [FormTemplateController::class, 'update'])->name('form_templates.update');
+    });
+    Route::middleware('permission:form_templates.delete')->group(function () {
+        Route::get('form_templates/{formTemplate}/delete',        [FormTemplateController::class, 'delete'])->name('form_templates.delete');
+        Route::delete('form_templates/{formTemplate}/deleteSave', [FormTemplateController::class, 'deleteSave'])->name('form_templates.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('form_templates/{formTemplate}/lock',   [FormTemplateController::class, 'lock'])->name('form_templates.lock');
+        Route::post('form_templates/{formTemplate}/unlock', [FormTemplateController::class, 'unlock'])->name('form_templates.unlock');
     });
 });

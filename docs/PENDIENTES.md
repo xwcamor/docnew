@@ -55,3 +55,9 @@ silencio.
   Linux por mayúsculas. Corregido.
 - El seeder de roles usaba `updateOrCreate` con `tenant_id => null`, que nunca casa en SQL y
   duplicaba filas. Es un defecto heredado de TRAFODEX: sigue ahí para los roles del núcleo.
+
+## Nota operativa
+
+`make:module` consulta la base al registrar el módulo en `system_modules`. Si PostgreSQL no está
+levantado, el comando **revierte todo lo generado** (lo hace bien: deja el proyecto limpio), pero hay
+que volver a ejecutarlo con la base arriba.
