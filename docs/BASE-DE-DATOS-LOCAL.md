@@ -83,19 +83,43 @@ LEGACY_DB_PASSWORD=
 php artisan migrate:fresh --seed
 ```
 
-### 5. Migrar, por pasos
+### 5. Migrar
 
-Cada comando es **idempotente**: puedes repetirlo sin duplicar nada, porque cada fila migrada guarda
-su `legacy_id`. Corre uno, mira lo que dice, y sigue.
+**De una sola orden**, que es lo normal cuando ya sabes que la conexión funciona:
 
 ```bash
-php artisan docufiz:migrate-formats     # las plantillas AST, PTF, EPP e IHM con los catálogos reales
-php artisan docufiz:migrate-data empresas
-php artisan docufiz:migrate-data personas
+php artisan setup:project --datos
 ```
 
-Los comandos imprimen **origen contra destino**. Si no cuadra, se ve ahí mismo, y ese es el momento
-de mirarlo — no cuando ya está en producción.
+Rehace la base, siembra, crea las plantillas AST/PTF/EPP/IHM con tus catálogos reales, y trae
+empresas, usuarios, personas, planes, formatos llenados y firmas. Al final imprime cuánto quedó de
+cada cosa. **Borra todas las tablas**, así que es para preparar la migración, no para producción —
+ahí se niega a correr.
+
+Si la base ya está creada y sólo quieres traer los datos:
+
+```bash
+php artisan docufiz:migrate-data todo
+```
+
+`todo` incluye las plantillas: no hace falta acordarse de correr `migrate-formats` antes. Si vienen
+de una versión anterior y les faltan campos, añade `--rehacer-formatos`.
+
+**Paso a paso**, si quieres mirar cada uno antes de seguir:
+
+```bash
+php artisan docufiz:migrate-formats     # las plantillas, con los catálogos reales
+php artisan docufiz:migrate-data empresas
+php artisan docufiz:migrate-data usuarios
+php artisan docufiz:migrate-data personas
+php artisan docufiz:migrate-data planes
+php artisan docufiz:migrate-data documentos
+php artisan docufiz:migrate-data evidencias
+```
+
+Todos son **idempotentes**: se pueden repetir sin duplicar nada, porque cada fila migrada guarda su
+`legacy_id`. Y todos imprimen **origen contra destino**. Si no cuadra, se ve ahí mismo, que es el
+momento de mirarlo — no cuando ya está en producción.
 
 ### 6. Revisar
 

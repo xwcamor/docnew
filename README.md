@@ -22,9 +22,13 @@ Spatie Permission · Sanctum · Vite
 ```bash
 composer install && npm install
 cp .env.example .env && php artisan key:generate
-php artisan migrate --seed
+php artisan setup:project
 npm run dev
 ```
+
+`setup:project` rehace la base, migra y siembra. Con `--datos` trae además todo el sistema anterior
+—plantillas, empresas, personas, planes, formatos llenados y firmas— en la misma orden; necesita
+`LEGACY_DB_*` en el `.env` y está explicado en `docs/BASE-DE-DATOS-LOCAL.md`.
 
 ## Documentación propia
 

@@ -3,98 +3,137 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
-use Symfony\Component\Console\Attribute\AsCommand;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use PDO;
+use Symfony\Component\Console\Attribute\AsCommand;
 
+/**
+ * Deja el sistema listo de una sola orden.
+ *
+ *   php artisan setup:project             la base desde cero, con datos de ejemplo
+ *   php artisan setup:project --datos     ademas trae todo lo del sistema anterior
+ *
+ * El segundo es el que interesa cuando se esta preparando la migracion en
+ * local: rehace la base, siembra, crea las plantillas AST/PTF/EPP/IHM con los
+ * catalogos reales y trae empresas, usuarios, personas, planes, formatos
+ * llenados y firmas. Sin tener que acordarse del orden.
+ */
 #[AsCommand(
     name: 'setup:project',
-    description: 'Initialize the system: recreate the database (or refresh tables), run migrations and seeders.'
+    description: 'Rehace la base desde cero, migra y siembra. Con --datos trae ademas el sistema anterior.'
 )]
 class SetupProjectCommand extends Command
 {
+    protected $signature = 'setup:project
+        {--datos : Trae tambien los datos del sistema anterior (necesita LEGACY_DB_* en el .env)}
+        {--desde= : Carpeta con el public/images_uploads de la v1, para copiar las fotos}';
+
     public function handle(): int
     {
-        // Hard guard: this command is destructive (drops all tables).
-        // Refuse to run on production no matter what. Complementa el candado
-        // global DB::prohibitDestructiveCommands (AppServiceProvider): ese
-        // bloquea el migrate:fresh interno, pero el DROP DATABASE crudo de
-        // MySQL (PDO) no pasa por artisan — este guard lo corta antes.
+        // Candado duro: esto borra todas las tablas. En produccion no se corre
+        // ni por equivocacion. Complementa a DB::prohibitDestructiveCommands
+        // del AppServiceProvider, que ataja el migrate:fresh pero no el
+        // DROP DATABASE crudo por PDO, que no pasa por artisan.
         if (app()->environment('production')) {
-            $this->error('Refusing to run setup:project on APP_ENV=production. Use [php artisan migrate] for incremental changes.');
+            $this->error('En produccion no. Para cambios incrementales: php artisan migrate.');
+
             return self::FAILURE;
         }
 
-        $connection = Config::get('database.default');
-        $cfg        = Config::get("database.connections.{$connection}");
-        $dbName     = $cfg['database'] ?? null;
+        $conexion = Config::get('database.default');
+        $cfg = Config::get("database.connections.{$conexion}");
+        $base = $cfg['database'] ?? null;
 
-        if (! $dbName) {
-            $this->error("No database configured for connection [{$connection}].");
+        if (! $base) {
+            $this->error("La conexion [{$conexion}] no tiene base configurada.");
+
             return self::FAILURE;
         }
 
-        $env = app()->environment();
-        $this->warn("Environment: [{$env}] | Driver: [{$connection}] | DB: [{$dbName}]");
-        $this->warn("This will DROP ALL TABLES and re-run migrations + seeders.");
+        $this->warn(sprintf('Entorno [%s] · motor [%s] · base [%s]', app()->environment(), $conexion, $base));
+        $this->warn('Se van a BORRAR TODAS LAS TABLAS y volver a crearlas.');
 
-        // if (! $this->confirm("Are you sure you want to continue?")) {
-        //     $this->warn('Task cancelled.');
-        //     return self::SUCCESS;
-        // }
-
-        match ($connection) {
-            'mysql' => $this->recreateMysql($cfg),
-            'pgsql' => $this->info("Postgres detected — skipping DROP DATABASE (requires superuser). Using migrate:fresh instead."),
-            default => $this->warn("Driver [{$connection}] not specifically handled — relying on migrate:fresh."),
+        match ($conexion) {
+            'mysql' => $this->recrearMysql($cfg),
+            'pgsql' => $this->line('PostgreSQL: no se hace DROP DATABASE (pide superusuario). Basta migrate:fresh.'),
+            default => $this->warn("Motor [{$conexion}] sin trato especial: se confia en migrate:fresh."),
         };
 
-        $this->info("Running migrate:fresh --seed ...");
-        Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true]);
-        $this->info(Artisan::output());
+        $this->newLine();
+        $this->info('── Migraciones y datos de ejemplo ──');
+        Artisan::call('migrate:fresh', ['--force' => true, '--seed' => true], $this->getOutput());
 
-        $this->verifyDiagnosticData();
+        if ($this->option('datos') && ! $this->traerDatosDeLaV1()) {
+            return self::FAILURE;
+        }
 
-        $this->info("Project successfully initialized.");
+        $this->newLine();
+        $this->resumen();
+        $this->newLine();
+        $this->info('Listo.');
+
         return self::SUCCESS;
     }
 
     /**
-     * Verifica que el motor de diagnóstico quedó cargado: cuadros/reglas de cromas
-     * (vienen de CromasRulesSeeder) y la feature report_sharing en los planes pagos
-     * (PlansSeeder). Si algo falta, avisa fuerte con el comando para corregirlo.
+     * Trae el sistema anterior entero. `docufiz:migrate-data todo` ya crea las
+     * plantillas por su cuenta, asi que aqui es una sola llamada.
      */
-    private function verifyDiagnosticData(): void
+    protected function traerDatosDeLaV1(): bool
     {
-        $this->line('');
-        $this->info('Verifying diagnostic engine data...');
+        $this->newLine();
+        $this->info('── Datos del sistema anterior ──');
 
-        $ruleSets = \App\Models\RuleSet::count();
-        $rules    = \App\Models\Rule::count();
-        $this->line("  rule_sets: {$ruleSets} · rules: {$rules}");
-        if ($rules === 0) {
-            $this->error('  No diagnostic rules loaded. Run: php artisan db:seed --class=CromasRulesSeeder --force');
+        try {
+            DB::connection('legacy')->getPdo();
+        } catch (\Throwable) {
+            $this->error('  No se pudo conectar a la base anterior. Revisa LEGACY_DB_* en el .env.');
+            $this->line('  La base nueva quedo creada y sembrada; los datos se pueden traer despues con:');
+            $this->line('    php artisan docufiz:migrate-data todo');
+
+            return false;
         }
 
-        $ent = \App\Models\Plan::findBySlug('enterprise');
-        $hasSharing = $ent?->hasFeature('report_sharing') ?? false;
-        $this->line('  enterprise.report_sharing: ' . ($hasSharing ? 'yes' : 'NO'));
-        if (! $hasSharing) {
-            $this->error('  report_sharing missing in plans. Run: php artisan db:seed --class=PlansSeeder --force');
+        $argumentos = ['paso' => 'todo'];
+
+        if ($this->option('desde')) {
+            $argumentos['--desde'] = $this->option('desde');
         }
+
+        return $this->call('docufiz:migrate-data', $argumentos) === self::SUCCESS;
     }
 
-    private function recreateMysql(array $cfg): void
+    /** Que quedo en la base, para no tener que ir a mirarlo. */
+    protected function resumen(): void
+    {
+        $filas = [];
+
+        foreach ([
+            'Empresas' => 'companies',
+            'Personas' => 'people',
+            'Usuarios' => 'users',
+            'Planes de trabajo' => 'work_plans',
+            'Formatos llenados' => 'form_submissions',
+            'Respuestas' => 'form_answers',
+            'Firmas' => 'signature_events',
+        ] as $que => $tabla) {
+            $filas[] = [$que, number_format(DB::table($tabla)->count())];
+        }
+
+        $this->table(['', 'Cuantos'], $filas);
+    }
+
+    protected function recrearMysql(array $cfg): void
     {
         try {
             $pdo = new PDO("mysql:host={$cfg['host']};port={$cfg['port']}", $cfg['username'], $cfg['password']);
             $pdo->exec("DROP DATABASE IF EXISTS `{$cfg['database']}`;");
-            $this->info("Database `{$cfg['database']}` dropped.");
             $pdo->exec("CREATE DATABASE `{$cfg['database']}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;");
-            $this->info("Database `{$cfg['database']}` created.");
+            $this->line("Base `{$cfg['database']}` recreada.");
         } catch (\Exception $e) {
-            $this->error("Error recreating MySQL database: " . $e->getMessage());
+            $this->error('No se pudo recrear la base MySQL: ' . $e->getMessage());
         }
     }
 }

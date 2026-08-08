@@ -43,6 +43,11 @@ use Symfony\Component\Console\Attribute\AsCommand;
  *   php artisan docufiz:migrate-data archivos --desde=/ruta/v1/public/images_uploads
  *   php artisan docufiz:migrate-data todo
  *
+ * `todo` es de verdad todo: crea antes las plantillas AST, PTF, EPP e IHM
+ * llamando a `docufiz:migrate-formats`, porque los formatos llenados cuelgan de
+ * ellas y no tiene sentido obligar a acordarse del orden. Con `--rehacer-formatos`
+ * las reconstruye aunque ya existan.
+ *
  * Los pasos grandes (planes, documentos, evidencias) escriben con el
  * constructor de consultas y no con Eloquent: 3 722 planes, 14 435 formatos y
  * 17 000 firmas por el modelo generarian otras tantas filas de auditoria de un
@@ -57,7 +62,8 @@ class MigrateLegacyDataCommand extends Command
     protected $signature = 'docufiz:migrate-data
         {paso=todo : empresas|usuarios|personas|planes|documentos|evidencias|archivos|todo}
         {--lote=500 : Cuantas filas de la base vieja se leen de una vez}
-        {--desde= : Carpeta con el public/images_uploads de la v1, para el paso archivos}';
+        {--desde= : Carpeta con el public/images_uploads de la v1, para el paso archivos}
+        {--rehacer-formatos : Reconstruye las plantillas AST/PTF/EPP/IHM aunque ya existan}';
 
     /** En la v1 los planes son todos de Peru (country_id 1); el resto de paises solo tiene catalogos. */
     protected const PAIS_LEGACY = 1;
@@ -106,6 +112,13 @@ class MigrateLegacyDataCommand extends Command
         }
 
         $paso = $this->argument('paso');
+
+        // Las plantillas primero: los formatos llenados cuelgan de ellas. Es lo
+        // que antes habia que recordar correr aparte, y olvidarlo se pagaba a
+        // mitad de los 14 435 documentos.
+        if (in_array($paso, ['documentos', 'todo'], true) && ! $this->prepararFormatos()) {
+            return self::FAILURE;
+        }
 
         if (in_array($paso, ['empresas', 'todo'], true)) {
             $this->migrarEmpresas();
@@ -956,6 +969,30 @@ class MigrateLegacyDataCommand extends Command
         $this->migrarPtf($viejo, $plantillas['PTF']);
         $this->migrarEpp($viejo, $plantillas['EPP']);
         $this->migrarIhm($viejo, $plantillas['IHM']);
+    }
+
+    /**
+     * Deja listas las cuatro plantillas antes de tocar los documentos.
+     *
+     * `migrate-formats` es idempotente: omite las que ya existen. Con
+     * `--rehacer-formatos` se le pasa `--fresh` y las reconstruye, que es lo que
+     * hace falta cuando vienen de una version anterior y les faltan campos.
+     */
+    protected function prepararFormatos(): bool
+    {
+        $this->info('── Plantillas de formato ──');
+
+        $codigo = $this->call('docufiz:migrate-formats', [
+            '--fresh' => (bool) $this->option('rehacer-formatos'),
+        ]);
+
+        if ($codigo !== self::SUCCESS) {
+            $this->error('  No se pudieron preparar las plantillas: se detiene aqui.');
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
