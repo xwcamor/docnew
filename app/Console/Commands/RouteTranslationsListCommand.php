@@ -21,8 +21,14 @@ use Symfony\Component\Console\Input\InputArgument;
  *
  * Se corrige lo justo: se le pone su nombre y se le anade el argumento que le
  * faltaba, **conservando todas las opciones del padre** (`--json`, `--method`,
- * `--path`, `--sort`…). Reescribir la firma a mano las habria dejado fuera, y
- * el `handle()` heredado las usa.
+ * `--path`, `--sort`…), que el `handle()` heredado usa.
+ *
+ * Se comprueba antes si el argumento ya esta, y no es paranoia: Laravel solo
+ * aplica `getArguments()` cuando la clase **no** trae `$signature`, y esa
+ * condicion ha cambiado entre versiones. Anadirlo a ciegas lo duplica en las
+ * versiones donde si se aplica, y entonces revienta la construccion del
+ * comando — que ocurre al arrancar la consola, o sea que se cae **cualquier**
+ * `php artisan`, no solo este.
  */
 class RouteTranslationsListCommand extends Original
 {
@@ -33,8 +39,10 @@ class RouteTranslationsListCommand extends Original
         $this->setName('route:trans:list');
         $this->setDescription('Lista las rutas registradas para un idioma concreto');
 
-        $this->getDefinition()->addArgument(
-            new InputArgument('locale', InputArgument::REQUIRED, 'El idioma cuyas rutas se quieren listar'),
-        );
+        if (! $this->getDefinition()->hasArgument('locale')) {
+            $this->getDefinition()->addArgument(
+                new InputArgument('locale', InputArgument::REQUIRED, 'El idioma cuyas rutas se quieren listar'),
+            );
+        }
     }
 }
