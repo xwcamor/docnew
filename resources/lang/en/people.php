@@ -50,6 +50,13 @@ return [
     'trash_search_placeholder' => 'Search by name or document…',
 
     'section_identity' => 'Identity',
+    'section_work'     => 'Work',
+    // Position and company were missing entirely from this screen, and in the
+    // previous system both are mandatory on the worker record.
+    'company'          => 'Company',
+    'company_help'     => 'Company they work for. Determines which plans they can join.',
+    'position'         => 'Position',
+    'position_help'    => 'What they do on site: technician, supervisor, mechanic, electrician.',
 
     'role_worker'         => 'Worker',
     'role_supervisor'     => 'Supervisor',

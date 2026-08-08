@@ -42,6 +42,11 @@ class StorePersonRequest extends FormRequest
             'name'     => ['required', 'string', 'max:255'],
             'lastname' => ['required', 'string', 'max:255'],
             'doc_type' => ['required', 'string', 'max:20', Rule::in(['DNI', 'CE', 'PASAPORTE'])],
+            // La empresa y el cargo, que en la v1 son NOT NULL en `workers`.
+            // No son columnas de la persona: se guardan en el vinculo
+            // persona-empresa (ver PersonService::guardarVinculo).
+            'company_id'  => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
+            'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')],
             // Una persona es única por documento dentro de su país y workspace:
             // es exactamente el índice único parcial de la tabla.
             'num_doc' => [

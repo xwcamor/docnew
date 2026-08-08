@@ -13,8 +13,11 @@ class Position extends Model
     use Auditable;
     use SoftDeletes;
 
+    // `code` faltaba, y sin el la tabla no se podia poblar: es el nombre del
+    // cargo (Tecnico, Supervisor, Mecanico, Electrico). Salio al migrar los 372
+    // trabajadores de la v1, que todos traen cargo y llegaban sin ninguno.
     protected $fillable = [
-        'slug', 'country_id', 'is_signature_approver', 'is_active',
+        'slug', 'country_id', 'code', 'is_signature_approver', 'is_active',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
@@ -23,9 +26,20 @@ class Position extends Model
         'is_signature_approver' => 'boolean',
     ];
 
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
+
     public function country()
     {
         return $this->belongsTo(Country::class);
+    }
+
+    /** Los vinculos persona–empresa que llevan este cargo. */
+    public function personCompanyLinks()
+    {
+        return $this->hasMany(PersonCompanyLink::class);
     }
 
     public function scopeActive($q)

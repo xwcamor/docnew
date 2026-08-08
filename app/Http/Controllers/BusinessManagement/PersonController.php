@@ -54,7 +54,13 @@ class PersonController extends Controller
 
         // people es per-tenant (BelongsToTenant lo scopea solo) — eager-load creator.
         // El super ve cross-tenant: carga el tenant para mostrarlo en el drawer.
-        $with = ['creator:id,name,email', 'country:id,name,iso_code', 'roles:id,person_id,role,is_active'];
+        // El cargo y la empresa viajan al listado: es lo primero que se mira de
+        // un trabajador («¿quién es el eléctrico de tal contratista?») y no
+        // estaban, porque el cargo ni se migraba.
+        $with = [
+            'creator:id,name,email', 'country:id,name,iso_code', 'roles:id,person_id,role,is_active',
+            'companyLinks.company:id,name', 'companyLinks.position:id,code',
+        ];
         if ($isSuper) {
             $with[] = 'tenant:id,name';
         }
@@ -136,6 +142,13 @@ class PersonController extends Controller
             'nationalityOptions' => \App\Models\Nationality::query()->where('is_active', true)->orderBy('code')
                 ->get(['id', 'code'])
                 ->map(fn ($n) => ['value' => $n->id, 'label' => $n->code])
+                ->all(),
+            // El cargo: Técnico, Supervisor, Mecánico, Eléctrico. En el sistema
+            // anterior `workers.position_id` es NOT NULL —los 372 trabajadores
+            // traen cargo— y aquí el campo no existía ni en el formulario.
+            'positionOptions' => \App\Models\Position::query()->where('is_active', true)->orderBy('code')
+                ->get(['id', 'code'])
+                ->map(fn ($p) => ['value' => $p->id, 'label' => $p->code])
                 ->all(),
         ];
     }
@@ -280,7 +293,9 @@ class PersonController extends Controller
         // Registro bloqueado (Lockable): ni se abre el formulario de edición.
         abort_if($person->is_locked, 403, __('locks.cannot_edit_locked'));
 
-        $person->load(['country:id,name,iso_code', 'roles']);
+        // El vinculo con su empresa y su cargo: el formulario los edita, asi
+        // que tienen que llegar cargados o saldrian siempre en blanco.
+        $person->load(['country:id,name,iso_code', 'roles', 'companyLinks.position:id,code']);
 
         return inertia('People/Form', [
             'person'           => $this->payload($person),
@@ -526,6 +541,14 @@ class PersonController extends Controller
                     'position'   => $l->position?->code,
                     'is_active'  => (bool) $l->is_active,
                 ])->values()->all()
+                : null,
+            // El vinculo que edita el formulario: empresa y cargo. Si la persona
+            // trabaja en varias, el resto se ve en `companies` y se conserva.
+            'primary_link' => $m->relationLoaded('companyLinks') && $m->companyLinks->isNotEmpty()
+                ? [
+                    'company_id'  => $m->companyLinks->first()->company_id,
+                    'position_id' => $m->companyLinks->first()->position_id,
+                ]
                 : null,
             'companies_count'  => $m->company_links_count,
             'has_biometric'    => $m->active_biometrics_count !== null ? $m->active_biometrics_count > 0 : null,

@@ -207,6 +207,34 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(3, DB::table('work_plan_people')->count());
     }
 
+    /**
+     * El cargo del trabajador llega, y llega en el vinculo con su empresa.
+     *
+     * Se habia quedado fuera por completo: la migracion **capturaba**
+     * `workers.position_id` y luego lo tiraba, porque el `firstOrCreate` del
+     * vinculo no lo escribia. Resultado: 370 vinculos, 0 con cargo, y el
+     * catalogo `positions` vacio. En la v1 esa columna es NOT NULL —los 372
+     * trabajadores tienen cargo— y la ficha del plan lo enseñaba bajo el nombre.
+     */
+    public function test_el_cargo_del_trabajador_llega_con_su_vinculo(): void
+    {
+        $this->migrarTodo();
+
+        // Solo los cargos del pais que usan los planes, como el resto de
+        // catalogos: el mecanico del pais 6 no se trae.
+        $this->assertSame(2, DB::table('positions')->count());
+        $this->assertSame(0, DB::table('positions')->where('code', 'Mecanico')->count());
+
+        // `is_signature_approver` viene con ellos: marca quien puede aprobar.
+        $this->assertTrue((bool) DB::table('positions')->where('code', 'Supervisor')->value('is_signature_approver'));
+
+        $persona = DB::table('people')->where('num_doc', '10000001')->first();
+        $vinculo = DB::table('person_company_links')->where('person_id', $persona->id)->first();
+
+        $this->assertNotNull($vinculo->position_id, 'el vinculo llego sin cargo');
+        $this->assertSame('Tecnico', DB::table('positions')->where('id', $vinculo->position_id)->value('code'));
+    }
+
     public function test_una_aprobacion_con_aprobador_inexistente_se_migra_sin_persona(): void
     {
         $this->migrarTodo();

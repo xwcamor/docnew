@@ -152,9 +152,9 @@ return [
     // plan is one still being worked on.
     'state_open'           => 'Open',
 
-    // "Contractor workers" is the previous system's own label (`plans.workers`)
-    // and says whose they are: the contractor supplies them, not Hitachi.
-    'crew_title'    => 'Contractor workers',
+    // Just "Workers". The previous system said "contractor" because only their
+    // people went in, but the main company staffs its own plans too.
+    'crew_title'    => 'Workers',
     'crew_summary'  => '{0} Nobody signed yet|{1} 1 of :total signed|[2,*] :signed of :total signed',
     'crew_empty'    => 'Nobody here yet. Scan the first worker’s document.',
     'crew_add'      => 'Add worker',
@@ -164,10 +164,14 @@ return [
     'crew_no_results'         => 'That document is not registered. Register the worker first.',
     'crew_remove'   => 'Remove from plan',
     'crew_remove_confirm' => 'Remove :name from this plan?',
+    // Whether a person has a face on file belongs in the Workers module, where
+    // it is registered. On the plan what matters is whether they signed, and when.
     'crew_enrolled'     => 'Face enrolled',
     'crew_not_enrolled' => 'No face enrolled',
     'crew_signed'       => 'Signed',
-    'crew_pending'      => 'Not signed',
+    'crew_signed_at'    => 'Signed on :when',
+    'crew_pending'      => 'Signature missing',
+    'crew_sign_hint'    => 'Sign for :name with face recognition',
     'crew_added'    => ':name was added to the plan.',
     'crew_removed'  => 'The worker was removed from the plan.',
     'crew_already_assigned'     => ':name is already on this plan.',
@@ -217,6 +221,7 @@ return [
 
     // Assign and sign
     'approval_assign'    => 'Assign signer',
+    'approval_change_hint' => 'Change who signs as :role',
     'approval_assign_hint' => 'Scan or type the document. If the person exists, their name appears.',
     'approval_assigned'  => ':name is now the signer.',
     'approval_change'    => 'Change',

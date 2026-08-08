@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Form, FormItem, Input, Textarea, Switch, Space, Alert, Row, Col, Select, DatePicker,
+    Form, FormItem, Input, Textarea, Alert, Row, Col, Select, DatePicker,
 } from 'ant-design-vue';
 import { ScheduleOutlined } from '@ant-design/icons-vue';
 
@@ -34,8 +34,49 @@ const form = useForm({
     work_area_id:     props.workPlan?.work_area_id ?? null,
     date_start:       props.workPlan?.date_start ?? null,
     date_end:         props.workPlan?.date_end ?? null,
-    is_done:          props.workPlan?.is_done ?? false,
 });
+
+/**
+ * En el selector de fin, todo lo anterior al inicio queda deshabilitado.
+ *
+ * Se validaba en el servidor («la fecha de fin no puede ser anterior…»), o sea
+ * que se dejaba elegir una fecha imposible y se explicaba el error después de
+ * guardar. Mejor no poder equivocarse.
+ *
+ * Se compara por día para poder desactivar el día entero, y las horas del
+ * propio día de inicio se limitan aparte con `disabledTime`.
+ */
+const dia = (v) => String(v ?? '').slice(0, 10);
+
+const finDeshabilitado = (fecha) => {
+    if (!form.date_start || !fecha) return false;
+
+    return fecha.format('YYYY-MM-DD') < dia(form.date_start);
+};
+
+const horasDeshabilitadas = (fecha) => {
+    // Sólo el día que coincide con el de inicio tiene horas prohibidas; los
+    // días posteriores admiten cualquiera.
+    if (!form.date_start || !fecha || fecha.format('YYYY-MM-DD') !== dia(form.date_start)) {
+        return {};
+    }
+
+    const [h, m] = String(form.date_start).slice(11, 16).split(':').map(Number);
+    const rango = (desde, hasta) => Array.from({ length: hasta - desde }, (_, i) => desde + i);
+
+    return {
+        disabledHours: () => rango(0, h),
+        disabledMinutes: (horaElegida) => (horaElegida === h ? rango(0, m) : []),
+    };
+};
+
+// Cambiar el inicio a después del fin dejaría un fin imposible: se limpia en
+// vez de guardarlo y dejar que el servidor lo rechace.
+const onStartChange = () => {
+    if (form.date_end && String(form.date_end) < String(form.date_start)) {
+        form.date_end = null;
+    }
+};
 
 // El puesto pertenece a una sede: mostrar los 900 puestos de todas las sedes
 // haría inusable el selector en tablet.
@@ -203,6 +244,7 @@ const submit = () => {
                 <FormItem
                     :label="$t('work_plans.workstation')"
                     :tooltip="$t('work_plans.workstation_help')"
+                    required
                     :validate-status="form.errors.workstation_id ? 'error' : ''"
                     :help="form.errors.workstation_id"
                 >
@@ -221,6 +263,7 @@ const submit = () => {
                 <FormItem
                     :label="$t('work_plans.work_area')"
                     :tooltip="$t('work_plans.work_area_help')"
+                    required
                     :validate-status="form.errors.work_area_id ? 'error' : ''"
                     :help="form.errors.work_area_id"
                 >
@@ -243,6 +286,7 @@ const submit = () => {
                             :label="$t('work_plans.date_start')"
                             :label-col="{ xs: 24, sm: 8 }"
                             :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
                             :validate-status="form.errors.date_start ? 'error' : ''"
                             :help="form.errors.date_start"
                         >
@@ -258,6 +302,7 @@ const submit = () => {
                                 :minute-step="5"
                                 format="DD-MM-YYYY HH:mm"
                                 value-format="YYYY-MM-DD HH:mm"
+                                @change="onStartChange"
                             />
                         </FormItem>
                     </Col>
@@ -269,6 +314,9 @@ const submit = () => {
                             :validate-status="form.errors.date_end ? 'error' : ''"
                             :help="form.errors.date_end"
                         >
+                            <!-- Todo lo anterior al inicio queda deshabilitado:
+                                 no se puede elegir un fin imposible y enterarse
+                                 al guardar. -->
                             <DatePicker
                                 v-model:value="form.date_end"
                                 size="large"
@@ -277,25 +325,19 @@ const submit = () => {
                                 :minute-step="5"
                                 format="DD-MM-YYYY HH:mm"
                                 value-format="YYYY-MM-DD HH:mm"
+                                :disabled-date="finDeshabilitado"
+                                :disabled-time="horasDeshabilitadas"
                             />
                         </FormItem>
                     </Col>
                 </Row>
 
-                <FormItem
-                    v-if="isEdit"
-                    :label="$t('work_plans.is_done')"
-                    :tooltip="$t('work_plans.is_done_help')"
-                    :validate-status="form.errors.is_done ? 'error' : ''"
-                    :help="form.errors.is_done"
-                >
-                    <Space>
-                        <Switch v-model:checked="form.is_done" />
-                        <span class="state-label">
-                            {{ form.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
-                        </span>
-                    </Space>
-                </FormItem>
+                <!-- El estado NO se elige aquí. Lo calcula el sistema: un plan
+                     queda terminado cuando firman todos los trabajadores, se
+                     confirman todos los formatos y se dan las aprobaciones
+                     obligatorias (WorkPlanCompletionService). Un interruptor
+                     que dijera «Terminado» sin que eso fuera cierto convertiría
+                     el estado en una opinión. -->
 
                 <FormFooter
                     :cancel-href="route('business_management.work_plans.index')"

@@ -24,16 +24,62 @@ class PersonService
 {
     public function create(array $data): Person
     {
+        $vinculo = $this->extraerVinculo($data);
+
         $person = new Person($data);
         $person->created_by = auth()->id();
         $person->save();
+
+        $this->guardarVinculo($person, $vinculo);
+
         return $person;
     }
 
     public function update(Person $person, array $data): Person
     {
+        $vinculo = $this->extraerVinculo($data);
+
         $person->update($data);
+        $this->guardarVinculo($person, $vinculo);
+
         return $person;
+    }
+
+    /**
+     * Saca del formulario la empresa y el cargo, que no son columnas de la
+     * persona: viven en `person_company_links`.
+     *
+     * En el sistema anterior un trabajador ERA de una empresa y tenia UN cargo
+     * (`workers.company_id` y `workers.position_id`, los dos NOT NULL). Aqui la
+     * persona es una sola identidad y lo que se multiplica son los vinculos,
+     * porque la misma persona puede ser tecnico en una contratista y supervisor
+     * en otra — y en la v1 eso eran dos filas de `workers` con el mismo DNI.
+     *
+     * El formulario edita el vinculo de la empresa que se elija; los demas se
+     * conservan y se ven en la ficha.
+     */
+    private function extraerVinculo(array &$data): array
+    {
+        $vinculo = [
+            'company_id'  => $data['company_id'] ?? null,
+            'position_id' => $data['position_id'] ?? null,
+        ];
+
+        unset($data['company_id'], $data['position_id']);
+
+        return $vinculo;
+    }
+
+    private function guardarVinculo(Person $person, array $vinculo): void
+    {
+        if (blank($vinculo['company_id'])) {
+            return;
+        }
+
+        $person->companyLinks()->updateOrCreate(
+            ['company_id' => $vinculo['company_id']],
+            ['position_id' => $vinculo['position_id'], 'is_active' => true],
+        );
     }
 
     /**

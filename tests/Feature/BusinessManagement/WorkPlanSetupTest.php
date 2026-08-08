@@ -89,10 +89,15 @@ class WorkPlanSetupTest extends TestCase
         $usuario->givePermissionTo('work_plans.create');
         $this->actingAs($usuario);
 
+        $sede = $this->sede();
+
         $respuesta = $this->post(route('business_management.work_plans.store'), [
             'company_id'       => $this->empresa()->id,
             'work_type_id'     => $this->tipoDeTrabajo()->id,
-            'work_location_id' => $this->sede()->id,
+            'work_location_id' => $sede->id,
+            // Obligatorios, como en la v1 (`workstation_id` y `area_id` son NOT NULL).
+            'workstation_id'   => $this->puestoDeTrabajo($sede)->id,
+            'work_area_id'     => $this->area()->id,
             'country_id'       => 1,
             'description'      => 'Bobinado AT',
             'date_start'       => '2026-08-08 08:00',
@@ -756,6 +761,19 @@ class WorkPlanSetupTest extends TestCase
     private function sede(): WorkLocation
     {
         return WorkLocation::firstOrCreate(['name' => 'Planta'], $this->base());
+    }
+
+    private function puestoDeTrabajo(WorkLocation $sede): \App\Models\Workstation
+    {
+        return \App\Models\Workstation::firstOrCreate(
+            ['work_location_id' => $sede->id, 'name' => 'Celda 1'],
+            ['slug' => Str::random(22), 'is_active' => true],
+        );
+    }
+
+    private function area(): \App\Models\WorkArea
+    {
+        return \App\Models\WorkArea::firstOrCreate(['name' => 'Bobinado'], $this->base());
     }
 
     private function plan(string $codigo = 'PE26-0808-0001'): WorkPlan

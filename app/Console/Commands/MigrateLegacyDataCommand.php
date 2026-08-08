@@ -214,6 +214,11 @@ class MigrateLegacyDataCommand extends Command
         $this->info('── Personas ──');
         $viejo = DB::connection('legacy');
 
+        // Los cargos primero: cada trabajador trae el suyo y sin el catalogo no
+        // hay a que apuntar. En la v1 `workers.position_id` es NOT NULL, o sea
+        // que los 372 tienen cargo.
+        $cargos = $this->catalogoCargos($viejo);
+
         $fuentes = [
             'workers'         => PersonRole::WORKER,
             'supervisors'     => PersonRole::SUPERVISOR,
@@ -293,10 +298,26 @@ class MigrateLegacyDataCommand extends Command
                     continue;
                 }
 
-                PersonCompanyLink::firstOrCreate(
+                // El cargo va en el vinculo, no en la persona: la misma persona
+                // puede ser tecnico en una contratista y supervisor en otra, y
+                // en la v1 eso eran dos filas de `workers` distintas.
+                //
+                // Se capturaba arriba y se tiraba aqui: el `firstOrCreate` no lo
+                // escribia y los 372 trabajadores llegaban sin cargo. La ficha
+                // del plan lo enseñaba debajo del nombre de cada uno.
+                $cargoId = $cargoLegacy ? ($cargos[$cargoLegacy] ?? null) : null;
+
+                $vinculo = PersonCompanyLink::firstOrCreate(
                     ['person_id' => $persona->id, 'company_id' => $empresa->id],
-                    ['is_active' => true],
+                    ['is_active' => true, 'position_id' => $cargoId],
                 );
+
+                // Re-correr la migracion rellena el cargo de los vinculos que
+                // ya existian sin el, que es justo el caso de los 370 de ahora.
+                if ($cargoId && $vinculo->position_id === null) {
+                    $vinculo->update(['position_id' => $cargoId]);
+                }
+
                 $vinculos++;
             }
 
@@ -970,6 +991,33 @@ class MigrateLegacyDataCommand extends Command
             fn ($f) => ['country_id' => $this->countryId, 'name' => $f->name, 'is_active' => (bool) $f->is_active]);
     }
 
+    /**
+     * Cargos: Tecnico, Supervisor, Mecanico, Electrico.
+     *
+     * Se habia quedado sin migrar y no era un detalle: los 372 trabajadores de
+     * la v1 tienen cargo —`workers.position_id` es NOT NULL— y la ficha del plan
+     * lo enseñaba debajo del nombre de cada uno. Aqui llegaban los 372 sin
+     * cargo, y el campo ni existia en la pantalla de personas.
+     *
+     * `is_signature_approver` viene con ellos: marca los cargos que pueden
+     * firmar como aprobadores del plan (en la v1 solo Supervisor).
+     *
+     * @return array<int, int> legacy_id => positions.id
+     */
+    protected function catalogoCargos($viejo): array
+    {
+        return $this->catalogo($viejo, 'positions', fn ($f) => \App\Models\Position::withTrashed()
+            ->where('country_id', $this->countryId)
+            ->whereRaw('lower(code) = ?', [mb_strtolower($f->name_es)])
+            ->first(),
+            fn ($f) => [
+                'country_id'            => $this->countryId,
+                'code'                  => $f->name_es,
+                'is_signature_approver' => (bool) $f->is_signature_approver,
+                'is_active'             => (bool) $f->is_active,
+            ]);
+    }
+
     /** @return array<int, int> legacy_id => workstations.id */
     protected function catalogoPuestos($viejo, array $sedes): array
     {
@@ -1076,6 +1124,7 @@ class MigrateLegacyDataCommand extends Command
             'areas'          => WorkArea::class,
             'workstations'   => Workstation::class,
             'approval_rules' => ApprovalRule::class,
+            'positions'      => \App\Models\Position::class,
         ][$tabla];
 
         $mapa = [];

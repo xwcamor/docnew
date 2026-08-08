@@ -50,6 +50,13 @@ return [
     'trash_search_placeholder' => 'Buscar por nombre, apellido o documento…',
 
     'section_identity' => 'Identidad',
+    'section_work'     => 'Trabajo',
+    // El cargo y la empresa faltaban por completo en esta pantalla, y en el
+    // sistema anterior los dos son obligatorios en la ficha del trabajador.
+    'company'          => 'Empresa',
+    'company_help'     => 'Empresa para la que trabaja. Determina en qué planes puede entrar.',
+    'position'         => 'Cargo',
+    'position_help'    => 'Qué hace en obra: técnico, supervisor, mecánico, eléctrico.',
 
     'role_worker'         => 'Trabajador',
     'role_supervisor'     => 'Supervisor',

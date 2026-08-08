@@ -43,6 +43,14 @@ const firmadas = computed(() => props.approvals.filter((a) => a.signed).length);
 
 const rotulo = (rol) => (rol ? t('work_plans.approver_role.' + rol) : '—');
 
+/** dd-mm-aaaa hh:mm, hora de obra: no se reinterpreta la zona. */
+const cuando = (v) => {
+    if (!v) return '';
+    const s = String(v);
+    const [y, m, d] = s.slice(0, 10).split('-');
+    return d ? `${d}-${m}-${y} ${s.slice(11, 16)}` : s;
+};
+
 /**
  * Las aprobaciones se firman en orden, y aquí se dice por qué una todavía no.
  *
@@ -197,30 +205,36 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                 </div>
 
                 <div class="wp-flow__acts">
+                    <!-- Firmado: verde con la hora. Es la prueba de cuándo se
+                         autorizó el trabajo, no un adorno — la ficha del sistema
+                         anterior la enseñaba y se había perdido. -->
                     <Tooltip v-if="a.signed" :title="$t('work_plans.approval_signed_cannot_reassign')">
-                        <Tag color="success" :bordered="false">{{ $t('work_plans.approval_approved') }}</Tag>
+                        <Tag color="success" :bordered="false">
+                            <CheckCircleFilled /> {{ cuando(a.signed_at) || $t('work_plans.approval_approved') }}
+                        </Tag>
                     </Tooltip>
 
                     <template v-else>
-                        <Button
+                        <Tooltip
                             v-if="canEdit"
-                            size="small"
-                            :loading="guardando === a.slug"
-                            @click="abrir(a)"
+                            :title="a.person
+                                ? $t('work_plans.approval_change_hint', { role: rotulo(a.role) })
+                                : $t('work_plans.approval_assign_hint')"
                         >
-                            <template #icon><EditOutlined /></template>
-                            {{ a.person ? $t('work_plans.approval_change') : $t('work_plans.approval_assign') }}
-                        </Button>
+                            <Button size="small" :loading="guardando === a.slug" @click="abrir(a)">
+                                <template #icon><EditOutlined /></template>
+                                {{ a.person ? $t('work_plans.approval_change') : $t('work_plans.approval_assign') }}
+                            </Button>
+                        </Tooltip>
 
-                        <Button
+                        <Tooltip
                             v-if="canSign && a.person"
-                            size="small"
-                            type="primary"
-                            :disabled="!!bloqueo(a, i)"
-                            @click="firmar"
+                            :title="bloqueo(a, i) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
                         >
-                            {{ $t('work_plans.approval_sign') }}
-                        </Button>
+                            <Button size="small" type="primary" :disabled="!!bloqueo(a, i)" @click="firmar">
+                                {{ $t('work_plans.approval_sign') }}
+                            </Button>
+                        </Tooltip>
                     </template>
                 </div>
             </li>

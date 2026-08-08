@@ -461,22 +461,14 @@ const pendientes = computed(() => {
                         </div>
                     </div>
 
-                    <div v-if="fieldWork.canOpenForms || fieldWork.canSign" class="wp-bar__acts">
-                        <Link v-if="fieldWork.canOpenForms" :href="route('field_work.forms.index', workPlan.slug)">
-                            <Button type="primary">
-                                <template #icon><FormOutlined /></template>
-                                {{ $t('work_plans.field_work_forms') }}
-                            </Button>
-                        </Link>
-                        <Link v-if="fieldWork.canSign" :href="route('field_work.signatures.show', workPlan.slug)">
-                            <Button>
-                                <template #icon><IdcardOutlined /></template>
-                                {{ $t('work_plans.field_work_sign') }}
-                                <span v-if="crew.length">&nbsp;· {{ firmasCrew }}/{{ crew.length }}</span>
-                            </Button>
-                        </Link>
-                    </div>
                 </div>
+                <!-- Aquí había dos botones sueltos, «Llenar formatos» y «Firmar
+                     con reconocimiento facial», que llevaban a una pantalla con
+                     otra lista de lo mismo. Sobran: firmar y abrir un formato
+                     son acciones **de una fila concreta**, y su sitio es al lado
+                     de la persona o del formato al que le faltan. Están en las
+                     tarjetas del tablero. -->
+
 
                 <!-- ── El tablero ──────────────────────────────────────────
                      Tres columnas, como la ficha del sistema anterior:
@@ -489,6 +481,7 @@ const pendientes = computed(() => {
                         :plan-slug="workPlan.slug"
                         :crew="crew"
                         :can-edit="canSetup"
+                        :can-sign="fieldWork.canSign"
                     />
 
                     <WorkPlanFormsCard

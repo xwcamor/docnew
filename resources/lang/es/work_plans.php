@@ -155,10 +155,10 @@ return [
     // un plan abierto es el que todavía se está trabajando.
     'state_open'           => 'Abierto',
 
-    // «Trabajadores del proveedor» es la etiqueta literal del sistema anterior
-    // (`plans.workers`), y dice de quién son: los pone la contratista, no
-    // Hitachi. «Cuadrilla» la inventé yo y nadie la reconoció.
-    'crew_title'    => 'Trabajadores del proveedor',
+    // «Trabajadores» a secas. El sistema anterior decía «del Proveedor» porque
+    // allí sólo entraban los de la contratista, pero la empresa principal
+    // también pone gente en sus planes. «Cuadrilla» la inventé yo.
+    'crew_title'    => 'Trabajadores',
     'crew_summary'  => '{0} Nadie firmó todavía|{1} 1 de :total firmó|[2,*] :signed de :total firmaron',
     'crew_empty'    => 'Todavía no hay nadie. Escanea el documento del primer trabajador.',
     'crew_add'      => 'Añadir trabajador',
@@ -169,10 +169,15 @@ return [
     'crew_no_results'         => 'Ese documento no está registrado. Da de alta al trabajador primero.',
     'crew_remove'   => 'Quitar del plan',
     'crew_remove_confirm' => '¿Quitar a :name de este plan?',
+    // Si la persona tiene la cara registrada se ve en el módulo de Trabajadores,
+    // que es donde se registra. En la ficha del plan no pinta nada: ahí lo que
+    // importa es si firmó y cuándo.
     'crew_enrolled'     => 'Cara registrada',
     'crew_not_enrolled' => 'Sin cara registrada',
     'crew_signed'       => 'Firmó',
-    'crew_pending'      => 'Sin firmar',
+    'crew_signed_at'    => 'Firmado el :when',
+    'crew_pending'      => 'Falta su firma',
+    'crew_sign_hint'    => 'Firmar por :name con reconocimiento facial',
     'crew_added'    => ':name se añadió al plan.',
     'crew_removed'  => 'El trabajador se quitó del plan.',
     'crew_already_assigned'     => ':name ya está en este plan.',
@@ -224,6 +229,7 @@ return [
 
     // Asignar y firmar
     'approval_assign'    => 'Asignar firmante',
+    'approval_change_hint' => 'Cambiar quién firma como :role',
     'approval_assign_hint' => 'Escanea o escribe el documento. Si la persona existe, sale su nombre.',
     'approval_assigned'  => ':name queda asignado como firmante.',
     'approval_change'    => 'Cambiar',

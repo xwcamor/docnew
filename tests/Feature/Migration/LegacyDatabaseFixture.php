@@ -87,6 +87,15 @@ class LegacyDatabaseFixture
             $t->string('name'); $t->boolean('is_active')->default(true); $t->boolean('is_deleted')->default(false);
         });
 
+        // Cargos: Tecnico, Supervisor... En la v1 `workers.position_id` es NOT
+        // NULL, asi que todo trabajador trae el suyo.
+        $esquema->create('positions', function ($t) {
+            $t->id(); $t->unsignedBigInteger('country_id');
+            $t->string('name_es'); $t->string('name_en')->nullable(); $t->string('name_pt')->nullable();
+            $t->boolean('is_signature_approver')->default(false);
+            $t->boolean('is_active')->default(true); $t->boolean('is_deleted')->default(false);
+        });
+
         $esquema->create('approval_rules', function ($t) {
             $t->id(); $t->unsignedBigInteger('country_id'); $t->string('name_es');
             $t->string('approver_type'); $t->integer('priority_level');
@@ -251,6 +260,14 @@ class LegacyDatabaseFixture
 
         // El trabajador 3 esta en dos empresas (filas 3 y 4, mismo documento):
         // en destino tiene que ser una sola identidad.
+        // El cargo al que apuntan los trabajadores de abajo.
+        $viejo->table('positions')->insert([
+            ['id' => 1, 'country_id' => 1, 'name_es' => 'Tecnico', 'name_en' => 'Technician', 'name_pt' => 'Tecnico', 'is_signature_approver' => false, 'is_active' => true, 'is_deleted' => false],
+            ['id' => 2, 'country_id' => 1, 'name_es' => 'Supervisor', 'name_en' => 'Supervisor', 'name_pt' => 'Supervisor', 'is_signature_approver' => true, 'is_active' => true, 'is_deleted' => false],
+            // De otro pais: no debe migrarse, como el resto de catalogos.
+            ['id' => 3, 'country_id' => 6, 'name_es' => 'Mecanico', 'name_en' => 'Mechanic', 'name_pt' => 'Mecanico', 'is_signature_approver' => false, 'is_active' => true, 'is_deleted' => false],
+        ]);
+
         $viejo->table('workers')->insert([
             ['id' => 1, 'num_doc' => '10000001', 'name' => 'Trabajador', 'lastname' => 'Uno', 'company_id' => 1, 'position_id' => 1, 'signature' => 'firma-uno.webp', 'is_deleted' => false],
             ['id' => 2, 'num_doc' => '10000002', 'name' => 'Trabajador', 'lastname' => 'Dos', 'company_id' => 1, 'position_id' => 1, 'signature' => null, 'is_deleted' => false],

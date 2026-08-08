@@ -71,10 +71,20 @@ class UpdateWorkPlanRequest extends FormRequest
             'company_id'       => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
             'work_type_id'     => ['required', 'integer', Rule::exists('work_types', 'id')->whereNull('deleted_at')],
             'work_location_id' => ['required', 'integer', Rule::exists('work_locations', 'id')->whereNull('deleted_at')],
-            'workstation_id'   => ['nullable', 'integer', Rule::exists('workstations', 'id')->whereNull('deleted_at')],
-            'work_area_id'     => ['nullable', 'integer', Rule::exists('work_areas', 'id')->whereNull('deleted_at')],
-            'date_start'       => ['nullable', 'date'],
+            // Obligatorios, como en el sistema anterior: alli `workstation_id`,
+            // `area_id` y `date_start` son NOT NULL. Un plan sin sitio o sin
+            // hora de inicio no describe ningun trabajo, y ademas el codigo del
+            // plan se construye con la fecha de inicio.
+            'workstation_id'   => ['required', 'integer', Rule::exists('workstations', 'id')->whereNull('deleted_at')],
+            'work_area_id'     => ['required', 'integer', Rule::exists('work_areas', 'id')->whereNull('deleted_at')],
+            'date_start'       => ['required', 'date'],
+            // Los dos unicos opcionales, y por un motivo: la orden de servicio
+            // puede no existir, y la hora de fin no se sabe hasta que el
+            // trabajo termina. Exigirla al crear haria imposible crear un plan.
             'date_end'         => ['nullable', 'date', 'after_or_equal:date_start'],
+            // `is_done` ya no se manda desde el formulario: lo calcula
+            // WorkPlanCompletionService cuando el plan esta completo. Se sigue
+            // aceptando porque la edicion masiva lo usa.
             'is_done'          => ['sometimes', 'boolean'],
         ];
     }

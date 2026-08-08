@@ -580,18 +580,17 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                         <Tag v-else color="purple" :bordered="false">{{ $t('global.platform') }}</Tag>
                     </template>
 
-                    <!-- Estado de avance + candado: en obra lo que importa es si
-                         el plan ya está firmado y si sigue abierto. -->
+                    <!-- Sólo el avance: Terminado o Pendiente.
+                         El candado de «cerrado» estaba también aquí, y era la
+                         misma información dos veces en la misma fila: un plan
+                         terminado está cerrado, y que ya no se pueda tocar lo
+                         dice la columna de acciones, donde sale el candado en
+                         lugar de Editar y Eliminar. -->
                     <template v-else-if="column.key === 'status'">
-                        <Space :size="4" wrap>
-                            <span class="pill" :class="record.is_done ? 'pill--ok' : 'pill--warn'">
-                                <span class="pill__dot" />
-                                {{ record.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
-                            </span>
-                            <Tooltip v-if="record.is_closed" :title="$t('work_plans.state_closed')">
-                                <Tag color="gold" :bordered="false"><LockOutlined /></Tag>
-                            </Tooltip>
-                        </Space>
+                        <span class="pill" :class="record.is_done ? 'pill--ok' : 'pill--warn'">
+                            <span class="pill__dot" />
+                            {{ record.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
+                        </span>
                     </template>
 
                     <template v-else-if="column.key === 'date_start' || column.key === 'date_end'">

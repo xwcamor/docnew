@@ -245,31 +245,43 @@ class WorkPlanController extends Controller
     protected function crewPayload(WorkPlan $workPlan): array
     {
         $asignados = $workPlan->people()
-            ->with('person:id,slug,name,lastname,num_doc,doc_type')
-            ->withCount('signatureEvents')
+            ->with([
+                'person:id,slug,name,lastname,num_doc,doc_type',
+                // El cargo de la persona EN LA EMPRESA DEL PLAN: la misma
+                // persona puede ser técnico en una contratista y supervisor en
+                // otra, y lo que se enseña es el de este trabajo.
+                'person.companyLinks' => fn ($q) => $q->where('company_id', $workPlan->company_id)->with('position:id,code'),
+            ])
             ->get();
 
-        // Quién tiene cara enrolada, en UNA consulta. No se usa la relación
-        // `activeBiometric` porque su latestOfMany deja el `person_id` sin
-        // calificar y no se le puede acotar la lista de columnas — y aquí no se
-        // quiere traer el descriptor facial entero para pintar una etiqueta.
-        $enroladas = \App\Models\PersonBiometric::query()
-            ->whereIn('person_id', $asignados->pluck('person_id'))
-            ->where('is_active', true)
-            ->pluck('person_id')
-            ->flip();
+        // Cuándo firmó cada uno, en UNA consulta. La v1 lo enseñaba en la ficha
+        // («Firmado: 06-08-2026 09:14 p. m.») y se había perdido: aquí sólo
+        // salía un sí/no, que en un documento de seguridad no vale — la hora es
+        // parte de la prueba de que la persona estuvo antes de empezar.
+        $firmas = \App\Models\SignatureEvent::query()
+            ->where('signable_type', (new \App\Models\WorkPlanPerson)->getMorphClass())
+            ->whereIn('signable_id', $asignados->pluck('id'))
+            ->orderBy('signed_at')
+            ->pluck('signed_at', 'signable_id');
 
         return $asignados
-            ->map(fn ($asignado) => [
-                'slug'      => $asignado->slug,
-                'name'      => $asignado->person?->list_name ?? '—',
-                // Enmascarado salvo permiso: el JSON de Inertia viaja entero al
-                // navegador, asi que taparlo en la plantilla no tapa nada.
-                'num_doc'   => $asignado->person?->safe_num_doc,
-                'doc_type'  => $asignado->person?->doc_type,
-                'enrolled'  => $enroladas->has($asignado->person_id),
-                'signed'    => (bool) $asignado->is_approved || $asignado->signature_events_count > 0,
-            ])
+            ->map(function ($asignado) use ($firmas) {
+                $firmadoEn = $firmas->get($asignado->id);
+
+                return [
+                    'slug'      => $asignado->slug,
+                    'person'    => $asignado->person?->slug,
+                    'name'      => $asignado->person?->list_name ?? '—',
+                    // Enmascarado salvo permiso: el JSON de Inertia viaja entero
+                    // al navegador, así que taparlo en la plantilla no tapa nada.
+                    'num_doc'   => $asignado->person?->safe_num_doc,
+                    'doc_type'  => $asignado->person?->doc_type,
+                    // El cargo, que es lo que la v1 ponía debajo del nombre.
+                    'position'  => $asignado->person?->companyLinks->first()?->position?->code,
+                    'signed'    => (bool) $asignado->is_approved || $firmadoEn !== null,
+                    'signed_at' => $firmadoEn,
+                ];
+            })
             ->all();
     }
 
@@ -312,13 +324,22 @@ class WorkPlanController extends Controller
             ->all();
     }
 
-    /** Quién tiene que aprobar el plan, si su firma es obligatoria y si ya firmó. */
+    /** Quién tiene que aprobar el plan, si su firma es obligatoria y cuándo firmó. */
     protected function approvalsPayload(WorkPlan $workPlan): array
     {
-        return $workPlan->approvals()
+        $aprobaciones = $workPlan->approvals()
             ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,approver_role,priority_level'])
-            ->withCount('signatureEvents')
-            ->get()
+            ->get();
+
+        // La hora de cada aprobación, igual que en la cuadrilla: es la prueba
+        // de cuándo se autorizó el trabajo, no un adorno.
+        $firmas = \App\Models\SignatureEvent::query()
+            ->where('signable_type', (new \App\Models\WorkPlanApproval)->getMorphClass())
+            ->whereIn('signable_id', $aprobaciones->pluck('id'))
+            ->orderBy('signed_at')
+            ->pluck('signed_at', 'signable_id');
+
+        return $aprobaciones
             ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)
             ->map(fn ($a) => [
                 'slug'      => $a->slug,
@@ -326,7 +347,8 @@ class WorkPlanController extends Controller
                 'rule_id'   => $a->approval_rule_id,
                 'person'    => $a->person ? ['slug' => $a->person->slug, 'name' => $a->person->list_name, 'num_doc' => $a->person->safe_num_doc] : null,
                 'required'  => (bool) $a->is_required,
-                'signed'    => (bool) $a->is_approved || $a->signature_events_count > 0,
+                'signed'    => (bool) $a->is_approved || $firmas->get($a->id) !== null,
+                'signed_at' => $firmas->get($a->id),
             ])
             ->values()
             ->all();

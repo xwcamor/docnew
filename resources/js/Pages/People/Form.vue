@@ -17,6 +17,8 @@ const props = defineProps({
     countryOptions:     { type: Array,  default: () => [] },
     docTypeOptions:     { type: Array,  default: () => [] },
     nationalityOptions: { type: Array,  default: () => [] },
+    companyOptions:     { type: Array,  default: () => [] },
+    positionOptions:    { type: Array,  default: () => [] },
     defaultCountryId:   { type: Number, default: null },
 });
 
@@ -32,6 +34,10 @@ const form = useForm({
     nationality_id: props.person?.nationality_id ?? null,
     birthdate:      props.person?.birthdate ?? null,
     is_active:      props.person?.is_active ?? true,
+    // Empresa y cargo: no son columnas de la persona, van al vinculo
+    // persona-empresa. Al editar se carga el primero, que es el que se enseña.
+    company_id:     props.person?.primary_link?.company_id ?? null,
+    position_id:    props.person?.primary_link?.position_id ?? null,
 });
 
 const filterOption = (input, option) =>
@@ -193,6 +199,46 @@ const submit = () => {
                     :help="form.errors.birthdate"
                 >
                     <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                </FormItem>
+
+                <h2 class="form-section-title">{{ $t('people.section_work') }}</h2>
+
+                <!-- Empresa y cargo. En el sistema anterior son parte de la
+                     ficha del trabajador y los dos son obligatorios; aquí
+                     faltaban los dos, así que no había forma de decir que
+                     alguien es técnico de tal contratista. -->
+                <FormItem
+                    :label="$t('people.company')"
+                    :tooltip="$t('people.company_help')"
+                    required
+                    :validate-status="form.errors.company_id ? 'error' : ''"
+                    :help="form.errors.company_id"
+                >
+                    <Select
+                        v-model:value="form.company_id"
+                        size="large"
+                        show-search
+                        :options="companyOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('people.company')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.position')"
+                    :tooltip="$t('people.position_help')"
+                    required
+                    :validate-status="form.errors.position_id ? 'error' : ''"
+                    :help="form.errors.position_id"
+                >
+                    <Select
+                        v-model:value="form.position_id"
+                        size="large"
+                        show-search
+                        :options="positionOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('people.position')"
+                    />
                 </FormItem>
 
                 <FormItem
