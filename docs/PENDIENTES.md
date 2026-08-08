@@ -146,3 +146,30 @@ que volver a ejecutarlo con la base arriba.
 - El nombre del producto vive en la tabla `settings` (`app.name`). El seeder ya dice DOCUFIZ, pero
   en una base ya sembrada la fila conserva el valor anterior: se cambia desde Configuración o
   volviendo a sembrar desde cero.
+
+## Comparación con el sistema anterior (2026-08-08)
+
+Se leyó el código Rails completo y se escribió `docs/COMPARACION-V1.md`, que dice
+lógica por lógica qué hacía la v1, qué hace DOCUFIZ y si el cambio fue
+deliberado. **Lo que queda por comparar está listado al final de ese documento**,
+y hasta que se haga no se puede dar por portado:
+
+- Los cuatro formatos (`f1_document`…`f4_document`) tenían lógica propia por
+  tabla — `recalculate_observations_and_confirmation`, `sync_f3_document_workers`.
+  Aquí es un motor genérico y hay que verificar formato por formato.
+- `plan_exports_controller`: exportación a ZIP y PDF por formato.
+- `Plan#lock_plan_if_all_conditions_met`: la v1 cierra el plan **sola** cuando hay
+  `date_end` y no quedan aprobaciones obligatorias sin firmar. Aquí el cierre es
+  manual. Falta decidirlo con el dueño.
+- `must_have_at_least_one_document_and_worker`: la v1 no deja guardar un plan sin
+  al menos un formato y un trabajador. Aquí sí se puede.
+- `settings.num_doc_minimum` por país: aquí está fijo en 8 (Perú), en
+  `WorkPlanSetupController::MINIMO_DOCUMENTO`.
+
+### Estado de la interfaz
+
+Ningún módulo está cerrado al 100% contra el checklist de `docs/UI.md`. El plan
+—ficha, flujo de firmas, formatos— sí está revisado **en un navegador con datos
+reales**, que es el punto que más veces se había saltado. El resto de módulos
+(personas, empresas, plantillas, catálogos de obra) siguen tal y como los dejó
+`make:module` y no se han mirado en pantalla.

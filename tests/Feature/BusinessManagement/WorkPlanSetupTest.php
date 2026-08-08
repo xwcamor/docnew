@@ -271,23 +271,98 @@ class WorkPlanSetupTest extends TestCase
         $this->assertEqualsCanonicalizing(['AST', 'IHM'], $codigos);
     }
 
-    /** Y quitarle el que no aplica, sin tocar el estandar del tipo de trabajo. */
-    public function test_se_le_puede_quitar_un_formato_que_no_aplica(): void
+    /**
+     * Se le quita el formato **opcional** que no aplica, sin tocar el estandar.
+     *
+     * El tipo de trabajo marca cada formato obligatorio u opcional
+     * (`work_type_documents.is_required` en la v1). El opcional es el que el
+     * supervisor puede descartar en el plan del dia.
+     */
+    public function test_se_le_puede_quitar_un_formato_opcional_del_tipo(): void
     {
         $plan = $this->plan();
         $ast  = $this->plantilla('AST');
         $ihm  = $this->plantilla('IHM');
-        $plan->workType->formTemplates()->attach([$ast->id => ['is_required' => true], $ihm->id => ['is_required' => true]]);
+        $plan->workType->formTemplates()->attach([$ast->id => ['is_required' => true], $ihm->id => ['is_required' => false]]);
         $this->actingAs($this->supervisor());
 
-        $this->delete(route('business_management.work_plans.forms.destroy', [$plan->slug, $ihm->slug]));
+        $this->delete(route('business_management.work_plans.forms.destroy', [$plan->slug, $ihm->slug]))
+            ->assertSessionHas('success');
 
         $codigos = $plan->fresh()->expectedFormTemplates()->map(fn ($i) => $i['template']->code)->values()->all();
         $this->assertSame(['AST'], $codigos);
 
         // El estandar del tipo de trabajo NO se toca: otro plan del mismo tipo
-        // sigue exigiendo los dos formatos.
+        // sigue ofreciendo los dos formatos.
         $this->assertSame(2, $plan->workType->formTemplates()->count());
+    }
+
+    /**
+     * Un formato **obligatorio** del tipo de trabajo no se quita del plan.
+     *
+     * Es la razon de ser de `work_type_documents.is_required`: el tipo decide
+     * que papeles exige esa clase de maniobra, y eso es lo que impide que un
+     * trabajo salga sin AST porque alguien iba con prisa. Quien crea que sobra
+     * cambia el tipo de trabajo, que afecta a todos los planes y deja rastro.
+     */
+    public function test_no_se_quita_un_formato_obligatorio_del_tipo_de_trabajo(): void
+    {
+        $plan = $this->plan();
+        $ast  = $this->plantilla('AST');
+        $plan->workType->formTemplates()->attach($ast->id, ['is_required' => true]);
+        $this->actingAs($this->supervisor());
+
+        $this->delete(route('business_management.work_plans.forms.destroy', [$plan->slug, $ast->slug]))
+            ->assertSessionHas('error');
+
+        $codigos = $plan->fresh()->expectedFormTemplates()->map(fn ($i) => $i['template']->code)->values()->all();
+        $this->assertSame(['AST'], $codigos, 'el formato obligatorio desaparecio del plan');
+    }
+
+    /**
+     * Y si un plan viejo lo tenia excluido, vuelve a aparecer.
+     *
+     * Hay planes migrados y ajustes hechos antes de que existiera la regla. La
+     * comprobacion que vale esta en `expectedFormTemplates()`, no solo en el
+     * servicio: un AST excluido en su dia no puede seguir sin salir.
+     */
+    public function test_una_exclusion_vieja_no_esconde_un_formato_obligatorio(): void
+    {
+        $plan = $this->plan();
+        $ast  = $this->plantilla('AST');
+        $plan->workType->formTemplates()->attach($ast->id, ['is_required' => true]);
+
+        // La exclusion que dejo la version anterior del codigo.
+        $plan->formTemplateOverrides()->create([
+            'slug' => Str::random(22), 'form_template_id' => $ast->id,
+            'is_included' => false, 'is_required' => false,
+        ]);
+
+        $esperados = $plan->fresh()->expectedFormTemplates();
+
+        $this->assertSame(['AST'], $esperados->map(fn ($i) => $i['template']->code)->values()->all());
+        $this->assertTrue($esperados->first()['is_required']);
+        $this->assertTrue($esperados->first()['from_type_required']);
+    }
+
+    /** La ficha lo dice antes de pulsar: candado, y el motivo correcto. */
+    public function test_la_ficha_marca_el_formato_obligatorio_como_no_quitable(): void
+    {
+        $plan = $this->plan();
+        $ast  = $this->plantilla('AST');
+        $ihm  = $this->plantilla('IHM');
+        $plan->workType->formTemplates()->attach([$ast->id => ['is_required' => true], $ihm->id => ['is_required' => false]]);
+        $this->actingAs($this->supervisor());
+
+        $this->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->has('forms', 2)
+                ->where('forms.0.code', 'AST')
+                ->where('forms.0.locked_by_work_type', true)
+                ->where('forms.0.can_remove', false)
+                ->where('forms.1.code', 'IHM')
+                ->where('forms.1.locked_by_work_type', false)
+                ->where('forms.1.can_remove', true));
     }
 
     /** Un formato con respuestas es el documento lleno: no se quita del plan. */
@@ -325,7 +400,8 @@ class WorkPlanSetupTest extends TestCase
         $plan = $this->plan();
         $ast  = $this->plantilla('AST');
         $ihm  = $this->plantilla('IHM');
-        $plan->workType->formTemplates()->attach([$ast->id => ['is_required' => true], $ihm->id => ['is_required' => true]]);
+        // IHM opcional: es el que se puede descartar en el plan del dia.
+        $plan->workType->formTemplates()->attach([$ast->id => ['is_required' => true], $ihm->id => ['is_required' => false]]);
         $supervisor = $this->supervisor();
         $this->actingAs($supervisor);
 

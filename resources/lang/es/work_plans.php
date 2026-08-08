@@ -151,6 +151,9 @@ return [
     'setup_blocked_closed' => 'El plan está cerrado: ya no se le cambian los trabajadores, los formatos ni los aprobadores.',
     'setup_blocked_hint'   => 'Este plan es solo de consulta.',
     'state_closed'         => 'Cerrado',
+    // Lo contrario de cerrado, para el filtro del listado. No es «desbloqueado»:
+    // un plan abierto es el que todavía se está trabajando.
+    'state_open'           => 'Abierto',
 
     // «Trabajadores del proveedor» es la etiqueta literal del sistema anterior
     // (`plans.workers`), y dice de quién son: los pone la contratista, no
@@ -196,6 +199,9 @@ return [
     'form_already_required'     => 'El plan ya exige el formato :code.',
     'form_not_published'        => 'El formato :code todavía no está publicado: no se puede llenar.',
     'form_filled_cannot_remove' => 'No se puede quitar el formato :code: ya tiene respuestas, adjuntos o firmas. Vaciarlo borraría el documento de seguridad de ese día.',
+    // Lo exige el catálogo, no este plan. Se dice dónde se cambia, porque un
+    // «no puedes» sin salida es lo que hace que la gente busque un atajo.
+    'form_required_by_work_type' => 'El formato :code es obligatorio para los trabajos de tipo :type y no se quita de un plan suelto. Si ya no debe exigirse, cámbialo en el tipo de trabajo.',
 
     // «Flujo de Aprobaciones» es como lo llama el sistema anterior, y describe
     // mejor lo que es: una secuencia fija, no una lista que se edita.

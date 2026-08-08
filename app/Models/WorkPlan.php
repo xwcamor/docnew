@@ -335,13 +335,27 @@ class WorkPlan extends Model
 
         foreach ($estandar as $plantilla) {
             $override = $overrides->get($plantilla->id);
-            if ($override && ! $override->is_included) {
+
+            // Lo que el tipo de trabajo marca obligatorio no se puede excluir
+            // del plan, y aqui se ignora cualquier exclusion que hubiera.
+            //
+            // El servicio ya lo impide al quitar, pero esta comprobacion es la
+            // que vale: hay planes migrados y ajustes hechos antes de que
+            // existiera la regla, y un AST excluido en 2025 no puede seguir
+            // sin aparecer ahora que sabemos que es obligatorio.
+            $obligatorioDelTipo = (bool) $plantilla->pivot->is_required;
+
+            if ($override && ! $override->is_included && ! $obligatorioDelTipo) {
                 continue;
             }
+
             $esperados->put($plantilla->id, [
                 'template'    => $plantilla,
-                'is_required' => (bool) ($override?->is_required ?? $plantilla->pivot->is_required),
+                // Un ajuste del plan puede subir la exigencia, nunca bajarla:
+                // si el tipo lo pide, se pide.
+                'is_required' => $obligatorioDelTipo || (bool) ($override?->is_required ?? false),
                 'source'      => 'work_type',
+                'from_type_required' => $obligatorioDelTipo,
             ]);
         }
 
@@ -355,6 +369,8 @@ class WorkPlan extends Model
                 'template'    => $plantilla,
                 'is_required' => (bool) $overrides[$plantilla->id]->is_required,
                 'source'      => 'extra',
+                // Añadido a mano a ESTE plan: quien lo puso lo puede quitar.
+                'from_type_required' => false,
             ]);
         }
 
@@ -369,6 +385,7 @@ class WorkPlan extends Model
                 'template'    => $plantilla,
                 'is_required' => false,
                 'source'      => 'submitted',
+                'from_type_required' => false,
             ]);
         }
 

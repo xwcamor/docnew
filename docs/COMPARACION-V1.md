@@ -95,7 +95,29 @@ que es lo único que la v1 hacía: ponerle nombre a una aprobación pendiente.
 enrutador**, no dentro del servicio: la protección de verdad es que la operación
 no exista.
 
-### 1.6 El nombre se lista por el apellido
+### 1.6 Los formatos obligatorios del tipo de trabajo no se quitan
+
+`work_type_documents` tiene `is_required`, y en los datos reales casi todas las
+filas están en 1 con alguna en 0. El tipo de trabajo decide qué papeles exige esa
+clase de maniobra: eso es lo que impide que un trabajo salga sin AST.
+
+DOCUFIZ dejaba quitar **cualquier** formato del plan; sólo lo impedía si ya
+tenía respuestas. Así que un plan podía quedarse sin su AST estando vacío, que es
+justo cuando más fácil es hacerlo.
+
+Ahora:
+
+- El **obligatorio del tipo** no se quita. El botón sale con candado y el mensaje
+  dice dónde se cambia (en el tipo de trabajo, que afecta a todos los planes y
+  deja rastro).
+- El **opcional del tipo** (`is_required = 0`) sí se descarta en el plan del día.
+- El **añadido a mano a este plan** también.
+
+La comprobación que vale está en `WorkPlan::expectedFormTemplates()`, no sólo en
+el servicio: hay planes migrados con exclusiones hechas antes de que existiera la
+regla, y un AST excluido en su día no puede seguir sin aparecer.
+
+### 1.7 El nombre se lista por el apellido
 
 `Worker#str_complete_name_pro` devolvía `lastname + name`. Portado como
 `Person::getListNameAttribute()`.

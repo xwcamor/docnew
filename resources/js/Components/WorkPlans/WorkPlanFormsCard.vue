@@ -6,7 +6,9 @@ import {
 } from 'ant-design-vue';
 import {
     FileTextOutlined, FilePdfOutlined, DeleteOutlined, PlusOutlined, EditOutlined,
+    LockOutlined,
 } from '@ant-design/icons-vue';
+import { useI18n } from '@/Plugins/i18n';
 
 /**
  * Formatos de seguridad del plan.
@@ -26,7 +28,12 @@ const props = defineProps({
     canEdit:   { type: Boolean, default: false },
     canOpen:   { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
+    /** Código del tipo de trabajo — se nombra al explicar por qué un formato es obligatorio. */
+    workTypeCode: { type: String, default: '' },
 });
+
+const { t } = useI18n();
+const workTypeCode = props.workTypeCode || '—';
 
 // Un formato sin empezar sale en gris pero con borde: en gris plano se leía
 // como "no aplica" cuando en realidad es lo que falta hacer.
@@ -43,6 +50,14 @@ const confirmados = computed(() => props.forms.filter((f) => f.status === 'confi
 // El PDF solo tiene sentido con el formato cerrado: en borrador sería un
 // documento a medias con firmas que aún pueden cambiar.
 const conPdf = (f) => f.submission && f.status === 'confirmed';
+
+/**
+ * Por qué este formato no se puede quitar. Son dos casos y no significan lo
+ * mismo: uno es una norma del catálogo, el otro es que ya hay trabajo hecho.
+ */
+const motivoNoQuitar = (f) => (f.locked_by_work_type
+    ? t('work_plans.form_required_by_work_type', { code: f.code, type: workTypeCode })
+    : t('work_plans.form_filled_cannot_remove', { code: f.code }));
 
 const anadir = () => {
     if (!elegido.value) return;
@@ -84,16 +99,21 @@ const quitar = (f) => {
                 <div class="ff-item__main ff-item__name">
                     <strong>{{ f.code }}</strong>
                     <span class="ff-item__sub">
+                        <!-- El candado dice que no se puede quitar y por qué:
+                             lo exige el tipo de trabajo, no este plan. -->
+                        <LockOutlined v-if="f.locked_by_work_type" />
                         {{ f.required ? $t('work_plans.forms_required') : $t('work_plans.forms_optional') }}
                     </span>
                 </div>
 
                 <div class="ff-item__meta">
-                    <Tag :color="COLOR_ORIGEN[f.source]" :bordered="false">
-                        {{ $t('work_plans.forms_source_' + f.source) }}
-                    </Tag>
                     <Tag :color="COLOR_ESTADO[f.status]" :bordered="false">
                         {{ $t('field_work.status.' + f.status) }}
+                    </Tag>
+                    <!-- El origen sólo cuando NO es el del tipo de trabajo: ese
+                         es el caso normal y repetirlo en cada fila es ruido. -->
+                    <Tag v-if="f.source !== 'work_type'" :color="COLOR_ORIGEN[f.source]" :bordered="false">
+                        {{ $t('work_plans.forms_source_' + f.source) }}
                     </Tag>
                 </div>
 
@@ -113,7 +133,11 @@ const quitar = (f) => {
                     </Link>
 
                     <template v-if="canEdit">
-                        <Tooltip v-if="!f.can_remove" :title="$t('work_plans.form_filled_cannot_remove', { code: f.code })">
+                        <!-- Dos motivos distintos para no poder quitarlo, y se
+                             dicen distintos: uno lo exige el tipo de trabajo,
+                             el otro ya está lleno. Un tooltip genérico obliga a
+                             adivinar cuál de los dos es. -->
+                        <Tooltip v-if="!f.can_remove" :title="motivoNoQuitar(f)">
                             <Button size="small" type="text" disabled><DeleteOutlined /></Button>
                         </Tooltip>
                         <Popconfirm

@@ -148,6 +148,9 @@ return [
     'setup_blocked_closed' => 'This plan is closed: its workers, forms and approvers can no longer be changed.',
     'setup_blocked_hint'   => 'This plan is read-only.',
     'state_closed'         => 'Closed',
+    // The opposite of closed, for the index filter. Not "unlocked": an open
+    // plan is one still being worked on.
+    'state_open'           => 'Open',
 
     // "Contractor workers" is the previous system's own label (`plans.workers`)
     // and says whose they are: the contractor supplies them, not Hitachi.
@@ -191,6 +194,9 @@ return [
     'form_already_required'     => 'This plan already requires form :code.',
     'form_not_published'        => 'Form :code is not published yet: it cannot be filled in.',
     'form_filled_cannot_remove' => 'Cannot remove form :code: it already has answers, attachments or signatures. Dropping it would destroy that day’s safety record.',
+    // The catalogue requires it, not this plan. Say where to change it: a "no"
+    // with no way forward is what makes people look for a workaround.
+    'form_required_by_work_type' => 'Form :code is mandatory for :type work and cannot be dropped from a single plan. If it should no longer be required, change it on the work type.',
 
     'approvals_title'    => 'Approval flow',
     'approvals_subtitle' => 'Signed in order. Type the signer’s document to assign them.',

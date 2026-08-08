@@ -108,6 +108,24 @@ class WorkPlanSetupService
     {
         $this->assertOpen($plan);
 
+        // Un formato que el tipo de trabajo marca como obligatorio no se quita.
+        //
+        // Es la razon de ser de `work_type_documents.is_required`: el tipo de
+        // trabajo decide que papeles exige esa clase de maniobra, y eso es lo
+        // que impide que un trabajo en altura salga sin AST porque alguien iba
+        // con prisa. Quien opine que ese formato sobra tiene que cambiar el
+        // tipo de trabajo, que afecta a todos los planes y deja rastro — no
+        // saltarselo en el plan de un martes.
+        //
+        // Los opcionales del tipo (`is_required = 0`) y los añadidos a mano si
+        // se quitan: para eso estan.
+        if ($this->esObligatorioDelTipo($plan, $plantilla)) {
+            throw new \DomainException(__('work_plans.form_required_by_work_type', [
+                'code' => $plantilla->code,
+                'type' => $plan->workType?->code ?? '—',
+            ]));
+        }
+
         $entrega = $plan->submissions()->where('form_template_id', $plantilla->id)->first();
 
         if ($entrega && $this->entregaTieneContenido($entrega)) {
@@ -124,6 +142,23 @@ class WorkPlanSetupService
                 'is_required' => false,
             ])->save();
         });
+    }
+
+    /**
+     * Si el tipo de trabajo del plan exige este formato.
+     *
+     * Se mira el pivote `form_template_work_type.is_required` —el
+     * `work_type_documents` del sistema anterior—, no el `is_required` que
+     * pueda tener el plan: el del plan es un ajuste local y no puede levantar
+     * una obligacion que viene del catalogo.
+     */
+    public function esObligatorioDelTipo(WorkPlan $plan, FormTemplate $plantilla): bool
+    {
+        $pivote = $plan->workType?->formTemplates()
+            ->where('form_templates.id', $plantilla->id)
+            ->first()?->pivot;
+
+        return (bool) ($pivote?->is_required ?? false);
     }
 
     /** Una entrega "tiene contenido" si alguien la trabajó: respuestas, foto del papel, firma o cierre. */

@@ -299,9 +299,13 @@ class WorkPlanController extends Controller
                     'source'      => $item['source'],
                     'status'      => $entrega->status ?? 'pending',
                     'submission'  => $entrega->slug ?? null,
+                    // Lo exige el tipo de trabajo: no se puede quitar de este
+                    // plan, se cambia en el tipo. El motivo viaja para poder
+                    // decirlo en el tooltip, que no es el mismo que "ya está lleno".
+                    'locked_by_work_type' => $item['source'] === 'work_type' && $item['from_type_required'],
                     // Se avisa en la ficha, no al pulsar: un formato lleno no se
                     // quita, y esconderlo detrás de un error sería peor.
-                    'can_remove'  => ! $conDatos,
+                    'can_remove'  => ! $conDatos && ! ($item['source'] === 'work_type' && $item['from_type_required']),
                 ];
             })
             ->values()

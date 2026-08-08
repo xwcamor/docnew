@@ -2,13 +2,12 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert, Button, Segmented, Progress,
+    Card, Tag, Space, Alert, Button, Segmented,
 } from 'ant-design-vue';
 import {
     ScheduleOutlined, LockOutlined, ToolOutlined, FormOutlined, IdcardOutlined,
     BankOutlined, EnvironmentOutlined, CalendarOutlined, DashboardOutlined,
-    CheckCircleFilled, ExclamationCircleFilled, FileTextOutlined, TeamOutlined,
-    SafetyCertificateOutlined, HourglassOutlined,
+    CheckCircleFilled, ExclamationCircleFilled, HourglassOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -130,22 +129,11 @@ const cuando = computed(() => {
 const tiempoTrabajado = computed(() =>
     props.workPlan.worked_time || t('work_plans.worked_time_open'));
 
+// Los avances no se pintan aparte: cada columna del tablero lleva su propia
+// cuenta en la cabecera («3/5 firmaron»). Tres barras de progreso encima de
+// tres tarjetas que ya lo dicen era la misma información dos veces.
 const formatosLlenos = computed(() => props.forms.filter((f) => f.status === 'confirmed').length);
 const firmasCrew     = computed(() => props.crew.filter((p) => p.signed).length);
-const aprobFirmadas  = computed(() => props.approvals.filter((a) => a.signed).length);
-
-/** Un avance es "completo" cuando no queda nada; sin nada asignado es neutro. */
-const avance = (hechos, total) => ({
-    hechos, total,
-    pct: total ? Math.round((hechos / total) * 100) : 0,
-    estado: total === 0 ? 'vacio' : (hechos >= total ? 'ok' : 'falta'),
-});
-
-const marcadores = computed(() => [
-    { clave: 'forms',      icono: FileTextOutlined,           etiqueta: t('work_plans.progress_forms'),      ...avance(formatosLlenos.value, props.forms.length) },
-    { clave: 'signatures', icono: TeamOutlined,               etiqueta: t('work_plans.progress_signatures'), ...avance(firmasCrew.value, props.crew.length) },
-    { clave: 'approvals',  icono: SafetyCertificateOutlined,  etiqueta: t('work_plans.progress_approvals'),  ...avance(aprobFirmadas.value, props.approvals.length) },
-]);
 
 // Aprobaciones obligatorias sin firmar, con el nombre del rol: decirle al
 // supervisor "falta 1 aprobación" sin decirle cuál lo manda a buscarla.
@@ -201,12 +189,13 @@ const pendientes = computed(() => {
                     <Tag v-else :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
                         {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
                     </Tag>
+                    <!-- El `is_locked` del sistema anterior: el plan se cerró y
+                         pasa a ser documento de archivo. Una sola etiqueta —
+                         antes había dos, con dos textos distintos, colgando las
+                         dos de `is_closed`: la misma cosa contada dos veces. El
+                         candado administrativo es otro y lo enseña la barra de
+                         acciones. -->
                     <Tag v-if="workPlan.is_closed" color="gold" :bordered="false">
-                        <LockOutlined /> {{ $t('work_plans.state_locked') }}
-                    </Tag>
-                    <!-- El plan cerrado del sistema anterior: no es el candado
-                         administrativo, pero también deja el plan solo lectura. -->
-                    <Tag v-if="workPlan.is_closed && !workPlan.is_done" color="gold" :bordered="false">
                         <LockOutlined /> {{ $t('work_plans.state_closed') }}
                     </Tag>
                     <span v-if="workPlan.company" class="muted">{{ workPlan.company.name }}</span>
@@ -414,115 +403,88 @@ const pendientes = computed(() => {
                     </div>
                 </Card>
 
-                <!-- ── Cómo va y qué falta ─────────────────────────────────
-                     Se queda en las dos vistas: es la pregunta que el supervisor
-                     trae al abrir la ficha, y cambiar de vista no la responde. -->
-                <Card :bodyStyle="{ padding: 18 }" class="info-card">
-                    <template #title><DashboardOutlined /> {{ $t('work_plans.progress_title') }}</template>
-                    <template #extra>
-                        <Tag :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false" class="wp-statetag">
-                            {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
-                        </Tag>
-                    </template>
+                <!-- ── Qué falta y por dónde se empieza ────────────────────
+                     Una franja, no una tarjeta. Antes eran tres barras de
+                     progreso encima de tres tarjetas que ya llevan su cuenta:
+                     la misma información dos veces y media pantalla gastada.
+                     Aquí queda lo que las columnas no dicen —la frase de qué
+                     falta— y los dos botones con los que empieza el día. -->
+                <div class="wp-bar" :class="workPlan.is_done ? 'is-done' : 'is-todo'">
+                    <div class="wp-bar__say">
+                        <CheckCircleFilled v-if="workPlan.is_done || !pendientes.length" class="wp-bar__icon" />
+                        <ExclamationCircleFilled v-else class="wp-bar__icon" />
 
-                    <div class="wp-meters">
-                        <div v-for="m in marcadores" :key="m.clave" class="wp-meter" :class="'is-' + m.estado">
-                            <div class="wp-meter__head">
-                                <component :is="m.icono" class="wp-meter__icon" />
-                                <span class="wp-meter__label">{{ m.etiqueta }}</span>
-                            </div>
-                            <p class="wp-meter__num">
-                                <template v-if="m.total">{{ m.hechos }}<span class="wp-meter__of">/{{ m.total }}</span></template>
-                                <template v-else>—</template>
-                            </p>
-                            <Progress
-                                :percent="m.pct"
-                                :show-info="false"
-                                size="small"
-                                :stroke-color="m.estado === 'ok' ? '#107E3E' : '#E9730C'"
-                            />
-                            <p v-if="!m.total" class="wp-meter__note">{{ $t('work_plans.progress_empty') }}</p>
+                        <div>
+                            <strong class="wp-bar__head">
+                                {{ workPlan.is_done
+                                    ? $t('work_plans.missing_done')
+                                    : (pendientes.length ? $t('work_plans.missing_title') : $t('work_plans.missing_none')) }}
+                            </strong>
+                            <!-- En una línea, separadas por punto: tres viñetas
+                                 para «faltan 2 firmas» era una lista de la compra. -->
+                            <span v-if="!workPlan.is_done && pendientes.length" class="wp-bar__list">
+                                {{ pendientes.join(' · ') }}
+                            </span>
+                            <!-- Y aquí, no en un aviso aparte, por qué ya no se
+                                 toca. Antes eran tres cosas diciendo lo mismo:
+                                 la etiqueta «Terminado», esta franja y un aviso
+                                 amarillo debajo. Una sola frase, con su motivo. -->
+                            <span v-if="setup.reason && !isDeleted" class="wp-bar__list">
+                                {{ setup.reason }}
+                            </span>
                         </div>
                     </div>
 
-                    <!-- El titulo solo cuando hay algo que listar: "Falta para
-                         cerrarlo — nada" es una frase que se lee dos veces. -->
-                    <h4 v-if="pendientes.length" class="wp-missing__title">{{ $t('work_plans.missing_title') }}</h4>
-                    <p v-if="workPlan.is_done" class="wp-missing wp-missing--ok wp-missing--solo">
-                        <CheckCircleFilled /> {{ $t('work_plans.missing_done') }}
-                    </p>
-                    <p v-else-if="!pendientes.length" class="wp-missing wp-missing--ok wp-missing--solo">
-                        <CheckCircleFilled /> {{ $t('work_plans.missing_none') }}
-                    </p>
-                    <ul v-else class="wp-missing__list">
-                        <li v-for="(p, i) in pendientes" :key="i" class="wp-missing wp-missing--todo">
-                            <ExclamationCircleFilled /> {{ p }}
-                        </li>
-                    </ul>
-                </Card>
-
-                <!-- Por qué no se puede armar el plan. Sale antes de las
-                     tarjetas para que nadie busque el botón que no está. -->
-                <Alert
-                    v-if="setup.reason && !isDeleted"
-                    type="warning"
-                    show-icon
-                    class="deleted-alert"
-                    :message="$t('work_plans.setup_blocked_hint')"
-                    :description="setup.reason"
-                />
-
-                <!-- Accesos a obra: las dos pantallas que se usan en la tablet.
-                     Existían desde el principio pero había que escribir la URL
-                     a mano; el trabajo del día empieza aquí. -->
-                <Card
-                    v-if="fieldWork.canOpenForms || fieldWork.canSign"
-                    :bodyStyle="{ padding: 18 }"
-                    class="info-card"
-                >
-                    <template #title><ToolOutlined /> {{ $t('work_plans.field_work_title') }}</template>
-                    <p class="ff-cardhint">{{ $t('work_plans.field_work_subtitle') }}</p>
-                    <div class="ff-addrow">
+                    <div v-if="fieldWork.canOpenForms || fieldWork.canSign" class="wp-bar__acts">
                         <Link v-if="fieldWork.canOpenForms" :href="route('field_work.forms.index', workPlan.slug)">
-                            <Button type="primary" class="ff-add">
+                            <Button type="primary">
                                 <template #icon><FormOutlined /></template>
                                 {{ $t('work_plans.field_work_forms') }}
                             </Button>
                         </Link>
                         <Link v-if="fieldWork.canSign" :href="route('field_work.signatures.show', workPlan.slug)">
-                            <Button class="ff-add">
+                            <Button>
                                 <template #icon><IdcardOutlined /></template>
                                 {{ $t('work_plans.field_work_sign') }}
                                 <span v-if="crew.length">&nbsp;· {{ firmasCrew }}/{{ crew.length }}</span>
                             </Button>
                         </Link>
                     </div>
-                </Card>
+                </div>
 
-                <WorkPlanCrewCard
-                    :plan-slug="workPlan.slug"
-                    :crew="crew"
-                    :can-edit="canSetup"
-                />
+                <!-- ── El tablero ──────────────────────────────────────────
+                     Tres columnas, como la ficha del sistema anterior:
+                     trabajadores, formatos y flujo de aprobaciones uno al lado
+                     del otro. Las tres cosas que hay que completar se ven a la
+                     vez, y se ve cuál va retrasada sin bajar la pantalla.
+                     A 1200px pasan a dos columnas y a 900 se apilan. -->
+                <div class="wp-board">
+                    <WorkPlanCrewCard
+                        :plan-slug="workPlan.slug"
+                        :crew="crew"
+                        :can-edit="canSetup"
+                    />
 
-                <WorkPlanFormsCard
-                    :plan-slug="workPlan.slug"
-                    :forms="forms"
-                    :options="setupOptions.formTemplates"
-                    :can-edit="canSetup"
-                    :can-open="fieldWork.canOpenForms"
-                    :can-export="fieldWork.canExport"
-                />
+                    <WorkPlanFormsCard
+                        :plan-slug="workPlan.slug"
+                        :forms="forms"
+                        :options="setupOptions.formTemplates"
+                        :can-edit="canSetup"
+                        :can-open="fieldWork.canOpenForms"
+                        :can-export="fieldWork.canExport"
+                        :work-type-code="workPlan.work_type?.code || ''"
+                    />
 
-                <!-- El flujo espera a que la cuadrilla firme, como en el
-                     sistema anterior: `crewPending` es lo que lo bloquea. -->
-                <WorkPlanApprovalsCard
-                    :plan-slug="workPlan.slug"
-                    :approvals="approvals"
-                    :can-edit="canSetup"
-                    :can-sign="fieldWork.canSign"
-                    :crew-pending="crew.length - firmasCrew"
-                />
+                    <!-- El flujo espera a que los trabajadores firmen, como en
+                         el sistema anterior: `crewPending` es lo que lo bloquea. -->
+                    <WorkPlanApprovalsCard
+                        :plan-slug="workPlan.slug"
+                        :approvals="approvals"
+                        :can-edit="canSetup"
+                        :can-sign="fieldWork.canSign"
+                        :crew-pending="crew.length - firmasCrew"
+                    />
+                </div>
             </template>
 
             <template #history>
@@ -569,49 +531,60 @@ const pendientes = computed(() => {
 }
 .wp-fact__value small { display: block; font-weight: 400; }
 
-/* ── Resumen: cómo va ────────────────────────────────────────────────────── */
+/* ── La franja de estado ─────────────────────────────────────────────────── */
 .wp-statetag { font-size: 0.875rem; padding: 4px 12px; }
-.wp-meters { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
-.wp-meter {
-    padding: 14px; border-radius: 10px; min-width: 0;
-    background: var(--color-surface-alt, #f5f6f7);
-    border: 1px solid var(--color-border, #e5e5e5);
+
+.wp-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+    margin-bottom: 16px; padding: 12px 16px;
+    border-radius: 8px; border: 1px solid var(--color-border, #e5e5e5);
     border-left: 4px solid var(--color-border, #e5e5e5);
 }
-.wp-meter.is-ok    { border-left-color: #107E3E; }
-.wp-meter.is-falta { border-left-color: #E9730C; }
-.wp-meter__head { display: flex; align-items: center; gap: 8px; }
-.wp-meter__icon  { color: var(--color-text-muted, #6A6D70); }
-.wp-meter__label { font-size: 0.8125rem; font-weight: 600; color: var(--color-text-muted, #6A6D70); }
-.wp-meter__num   { margin: 4px 0 8px; font-size: 1.75rem; font-weight: 700; line-height: 1; color: var(--color-text-strong, #1f2329); }
-.wp-meter__of    { font-size: 1rem; font-weight: 500; color: var(--color-text-muted, #6A6D70); }
-.wp-meter__note  { margin: 6px 0 0; font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); }
+/* Color Y palabra, nunca sólo color (docs/UI.md §5). */
+.wp-bar.is-done { border-left-color: #107E3E; background: color-mix(in srgb, #107E3E 8%, transparent); }
+.wp-bar.is-todo { border-left-color: #E9730C; background: color-mix(in srgb, #E9730C 9%, transparent); }
 
-.wp-missing__title {
-    margin: 18px 0 8px; font-size: 0.8125rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--color-text-muted, #6A6D70);
+.wp-bar__say  { display: flex; align-items: flex-start; gap: 10px; min-width: 0; }
+.wp-bar__icon { margin-top: 3px; font-size: 18px; flex: none; }
+.wp-bar.is-done .wp-bar__icon { color: #107E3E; }
+.wp-bar.is-todo .wp-bar__icon { color: #E9730C; }
+.wp-bar__head { display: block; font-size: 0.9375rem; color: var(--color-text-strong, #1f2329); }
+.wp-bar__list { display: block; margin-top: 2px; font-size: 0.875rem; color: var(--color-text-muted, #6A6D70); }
+.wp-bar__acts { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Con guantes, a pleno sol: 44px de objetivo de toque (docs/UI.md §3). */
+.wp-bar__acts :deep(.ant-btn) { min-height: 44px; }
+
+/* ── El tablero: trabajadores · formatos · aprobaciones ──────────────────── */
+.wp-board {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+    gap: 16px;
 }
-.wp-missing__list { list-style: none; margin: 0; padding: 0; }
-.wp-missing {
-    display: flex; align-items: flex-start; gap: 8px;
-    margin: 0 0 6px; padding: 10px 12px; border-radius: 8px;
-    font-size: 0.9375rem; line-height: 1.4;
+/* Las tarjetas traen su propio margen inferior para cuando van apiladas; en
+   el tablero lo pone la rejilla, y sumar los dos deja un hueco raro abajo. */
+.wp-board :deep(.info-card) { margin-bottom: 0; }
+
+/* En una tablet apaisada tres columnas dejan las listas en un canal
+   demasiado estrecho: dos, y el flujo de firmas debajo a todo el ancho. */
+@media (max-width: 1200px) {
+    .wp-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wp-board > :deep(*:last-child) { grid-column: 1 / -1; }
 }
-.wp-missing:last-child { margin-bottom: 0; }
-/* Sin titulo encima necesita su propio aire respecto de los marcadores. */
-.wp-missing--solo { margin-top: 18px; }
-.wp-missing--ok   { background: color-mix(in srgb, #107E3E 10%, transparent); color: #0b5f2f; }
-.wp-missing--todo { background: color-mix(in srgb, #E9730C 12%, transparent); color: #8a4405; }
-/* En oscuro el verde y el naranja oscuros se pierden contra el fondo. */
-html[data-theme="dark"] .wp-missing--ok   { color: #4cc37c; }
-html[data-theme="dark"] .wp-missing--todo { color: #f0a256; }
+@media (max-width: 900px) {
+    .wp-board { grid-template-columns: 1fr; }
+    .wp-board > :deep(*:last-child) { grid-column: auto; }
+}
 
 /* ── Tablet en vertical y móvil: una columna, nada de scroll horizontal ─── */
 @media (max-width: 768px) {
-    .wp-facts, .wp-meters { grid-template-columns: 1fr; }
+    .wp-facts { grid-template-columns: 1fr; }
     .wp-headline { font-size: 1.125rem; }
     .wp-viewswitch { width: 100%; }
+    .wp-bar { align-items: stretch; }
+    .wp-bar__acts { width: 100%; }
+    .wp-bar__acts :deep(.ant-btn) { width: 100%; }
     .wp-viewswitch :deep(.ant-segmented-group) { width: 100%; }
     .wp-viewswitch :deep(.ant-segmented-item) { flex: 1 1 0; }
     :deep(.ant-descriptions-item-label) {

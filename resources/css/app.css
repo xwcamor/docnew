@@ -1531,6 +1531,18 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 }
 .ff-add { min-height: 48px; font-weight: 600; }
 
+/* Las tarjetas de ficha son contenedores de consulta.
+ *
+ * Hace falta para que sus filas se apilen segun el ancho de LA TARJETA y no el
+ * de la ventana: en un tablero de tres columnas una tarjeta mide un tercio, y
+ * una media query sobre la ventana no se entera. Ver el bloque
+ * `@container card` mas abajo.
+ *
+ * `inline-size` contiene solo el ancho, que es lo unico que se consulta: con
+ * `size` habria que fijar tambien el alto y las tarjetas dejarian de crecer con
+ * su contenido. */
+.info-card { container: card / inline-size; }
+
 /* ── Composicion del plan: cuadrilla, formatos y aprobadores ─────────────────
    La ficha del plan lista lo mismo que un checklist —una fila por persona, por
    formato o por aprobador, con sus etiquetas de estado y un boton— asi que
@@ -1543,6 +1555,27 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 .ff-item__meta { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
 .ff-item__acts { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .ff-item__acts .ant-btn { min-height: 44px; }
+
+/* Cuando la tarjeta es estrecha, la fila se apila — mire el ancho que mire
+   la ventana.
+
+   Esto es un fallo que se vio en pantalla y que ninguna media query podia
+   arreglar: en el tablero del plan la tarjeta de formatos mide unos 380 px
+   AUNQUE la ventana tenga 1440. Con `.ff-item__main` pidiendo 240 px de base y
+   las etiquetas y los botones con `flex-shrink: 0`, al nombre le quedaban unos
+   pocos pixeles y «AST Obligatorio» salia **una letra por linea**, en vertical,
+   estirando la columna hasta el absurdo.
+
+   La condicion no es «la ventana es chica» sino «este contenedor es estrecho»,
+   y eso es exactamente una container query. Las tarjetas se declaran contenedor
+   en `.info-card` (mas abajo) y aqui se reacciona a su ancho. */
+@container card (max-width: 460px) {
+    .ff-item { flex-wrap: wrap; align-items: flex-start; gap: 8px 10px; }
+    /* Base 100%: el nombre se lleva la primera linea entera y las etiquetas y
+       los botones bajan solos, en vez de pelearse por el hueco que quede. */
+    .ff-item__main { flex: 1 1 100%; }
+    .ff-item__acts { margin-left: auto; }
+}
 /* Nota bajo el titulo de la tarjeta: para que se explique sola. */
 .ff-cardhint { margin: 0 0 12px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 /* Fila para armar (selector + boton): se apila sola en pantalla chica. */

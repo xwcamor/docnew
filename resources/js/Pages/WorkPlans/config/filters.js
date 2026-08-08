@@ -20,9 +20,12 @@ export const workPlansFilterFields = (t, {
         { value: true,  label: t('work_plans.state_done')    },
         { value: false, label: t('work_plans.state_pending') },
     ]},
+    // «Cerrado», no «Bloqueado»: es el `is_locked` de la v1, que significa que
+    // el plan pasó a ser documento de archivo. El candado administrativo es
+    // otra cosa y tiene su propia columna.
     { key: 'is_closed',        label: t('work_plans.is_closed'),      type: 'select', options: [
-        { value: true,  label: t('work_plans.state_locked')   },
-        { value: false, label: t('work_plans.state_unlocked') },
+        { value: true,  label: t('work_plans.state_closed') },
+        { value: false, label: t('work_plans.state_open')   },
     ]},
     { key: 'work_date',        label: t('work_plans.date_start'),     type: 'date_range' },
     { key: 'created_at',       label: t('global.created_at'),         type: 'date_range' },
@@ -85,7 +88,7 @@ export const workPlansFiltersSummary = (f, t) => {
         parts.push(`${t('work_plans.is_done')}: ${f.is_done ? t('work_plans.state_done') : t('work_plans.state_pending')}`);
     }
     if (f.is_closed !== null && f.is_closed !== undefined) {
-        parts.push(`${t('work_plans.is_closed')}: ${f.is_closed ? t('work_plans.state_locked') : t('work_plans.state_unlocked')}`);
+        parts.push(`${t('work_plans.is_closed')}: ${f.is_closed ? t('work_plans.state_closed') : t('work_plans.state_open')}`);
     }
     if (f.work_date)  parts.push(`${t('work_plans.date_start')}: ${f.work_date[0]?.format('YYYY-MM-DD')} → ${f.work_date[1]?.format('YYYY-MM-DD')}`);
     if (f.created_at) parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
