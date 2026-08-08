@@ -76,29 +76,12 @@ class DatabaseSeeder extends Seeder
             //    de la suscripcion vigente.
             ExampleSubscriptionsSeeder::class,
 
-            // ── TR APP — catálogo inicial de marcas/fabricantes (editable). ─
-            // Catálogos per-tenant nuevos (seeders vacíos a propósito: cada
-            // workspace carga los suyos; el super crea los globales desde la UI).
-            // Se registran igual por consistencia/futuro. La registración de los
-            // módulos en system_modules + permisos ya la hace SystemModulesSeeder.
-            // Reglas de fisicoquímico en tablas relacionales (desde el JSON de fábrica).
-            // Datos editables (ieee) a BD para editarse desde la UI.
-
-            // ── Clientes reales (los activos del sistema viejo) en Empresa 1. ─
-            CustomersSeeder::class,
-
-            // ── Transformadores REALES del sistema viejo. ─
-            // Lee database/seeders/data/transformers_legacy.sql; se omite si falta.
-            // (Los trafos demo de prueba se quitaron a propósito: solo data real.)
-
-            // ── Muestras REALES de ensayos del sistema viejo (cuelgan de los trafos). ─
-            // Lee database/seeders/data/*_legacy.sql; cada uno se omite si falta.
-
-            // ── Limpieza + diagnóstico real de lo importado. ─
-            // El dump viejo trae muestras duplicadas (mismo trafo+fecha por
-            // zona horaria/recargas); se conserva una por fecha.
-            // Recalcula el Índice de Salud con el motor NUEVO desde las muestras
-            // (reemplaza el snapshot cacheado del viejo en health_index/state).
+            // Aqui iban los clientes, transformadores y muestras de TRAFODEX.
+            // Se quitaron: son datos de otro sistema —344 empresas con su
+            // jerarquia de sedes, areas y subestaciones— y no pintan nada en una
+            // instalacion de DOCUFIZ. Los datos propios se traen del sistema
+            // anterior con `php artisan docufiz:migrate-data todo`, y para
+            // probar sin base vieja esta `DocufizDemoSeeder`.
         ]);
 
         // Los dumps legacy se insertan con IDs explícitos (SQL crudo), lo que NO

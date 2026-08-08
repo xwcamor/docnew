@@ -180,7 +180,11 @@ class RolesAndPermissionsSeeder extends Seeder
                 $userModel->syncRoles([$role]);
                 $this->command?->info("  · {$email}  →  {$role->name}");
             } else {
-                $this->command?->warn("  · {$email}  NOT FOUND (run UsersSeeder first)");
+                // Este sembrador corre dos veces a proposito: la primera define
+                // permisos y roles, la segunda —ya con UsersSeeder detras— los
+                // asigna. Que en la primera no haya usuarios es lo esperado, y
+                // avisarlo como si fuera un problema solo asusta al que instala.
+                $this->command?->line("  · {$email}  aun no existe; se le asigna en la segunda pasada.");
             }
         }
 
