@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\BelongsToTenantOrGlobal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +13,7 @@ class WorkLocation extends Model
     use HasFactory;
     use Auditable;
     use SoftDeletes;
+    use BelongsToTenantOrGlobal;
 
     protected $fillable = [
         'slug', 'country_id', 'name', 'is_active', 'legacy_id',
@@ -21,6 +23,11 @@ class WorkLocation extends Model
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 
     public function country()
     {

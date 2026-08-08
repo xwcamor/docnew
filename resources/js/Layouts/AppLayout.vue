@@ -47,6 +47,9 @@ import {
     IdcardOutlined,
     SafetyCertificateOutlined,
     NodeIndexOutlined,
+    ToolOutlined,
+    EnvironmentOutlined,
+    ClusterOutlined,
     CheckOutlined,
     DownloadOutlined,
     DeleteOutlined,
@@ -455,6 +458,12 @@ const selectedKey = computed(() => {
         ['form_templates',     '/form_templates'],
         ['approval_rules',     '/approval_rules'],
         ['approver_roles',     '/approver_roles'],
+        ['work_locations',     '/work_locations'],
+        ['workstations',       '/workstations'],
+        ['work_areas',         '/work_areas'],
+        ['positions',          '/positions'],
+        ['nationalities',      '/nationalities'],
+        ['work_types',         '/work_types'],
         ['dashboard',      '/dashboard_management/dashboards'],
         ['dashboard',      '/dashboard'],  // legacy fallback
     ];
@@ -675,6 +684,41 @@ const menuStructure = computed(() => [
                 key: 'approver_roles', label: t('sidebar.approver_roles'), icon: SafetyCertificateOutlined,
                 href: route('business_management.approver_roles.index'), inertia: true,
                 visible: () => can('approver_roles.view'),
+            },
+            // Los tipos de trabajo van con los formatos y las reglas: los tres
+            // deciden qué se le exige a un plan. Aquí se decide qué papeles.
+            {
+                key: 'work_types', label: t('sidebar.work_types'), icon: ToolOutlined,
+                href: route('business_management.work_types.index'), inertia: true,
+                visible: () => can('work_types.view'),
+            },
+            // Los cinco catálogos de obra. El orden no es alfabético: sede →
+            // puesto → área es como se rellena un plan, y un puesto no se puede
+            // crear antes que su sede.
+            {
+                key: 'work_locations', label: t('sidebar.work_locations'), icon: EnvironmentOutlined,
+                href: route('business_management.work_locations.index'), inertia: true,
+                visible: () => can('work_locations.view'),
+            },
+            {
+                key: 'workstations', label: t('sidebar.workstations'), icon: BlockOutlined,
+                href: route('business_management.workstations.index'), inertia: true,
+                visible: () => can('workstations.view'),
+            },
+            {
+                key: 'work_areas', label: t('sidebar.work_areas'), icon: ClusterOutlined,
+                href: route('business_management.work_areas.index'), inertia: true,
+                visible: () => can('work_areas.view'),
+            },
+            {
+                key: 'positions', label: t('sidebar.positions'), icon: SolutionOutlined,
+                href: route('business_management.positions.index'), inertia: true,
+                visible: () => can('positions.view'),
+            },
+            {
+                key: 'nationalities', label: t('sidebar.nationalities'), icon: GlobalOutlined,
+                href: route('business_management.nationalities.index'), inertia: true,
+                visible: () => can('nationalities.view'),
             },
         ],
     },

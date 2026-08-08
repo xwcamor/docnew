@@ -7,6 +7,12 @@ use App\Http\Controllers\BusinessManagement\ApproverRoleController;
 use App\Http\Controllers\BusinessManagement\FormTemplateController;
 use App\Http\Controllers\BusinessManagement\WorkPlanController;
 use App\Http\Controllers\BusinessManagement\WorkPlanSetupController;
+use App\Http\Controllers\BusinessManagement\WorkTypeController;
+use App\Http\Controllers\BusinessManagement\WorkLocationController;
+use App\Http\Controllers\BusinessManagement\WorkstationController;
+use App\Http\Controllers\BusinessManagement\WorkAreaController;
+use App\Http\Controllers\BusinessManagement\PositionController;
+use App\Http\Controllers\BusinessManagement\NationalityController;
 use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Http\Controllers\BusinessManagement\CompanyController;
 use App\Http\Controllers\BusinessManagement\BrandController;
@@ -676,5 +682,311 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('permission:approval_rules.delete')->group(function () {
         Route::get('approval_rules/{approvalRule}/delete',        [ApprovalRuleController::class, 'delete'])->name('approval_rules.delete');
         Route::delete('approval_rules/{approvalRule}/deleteSave', [ApprovalRuleController::class, 'deleteSave'])->name('approval_rules.deleteSave');
+    });
+
+
+    // ── WorkTypes ── que clase de maniobra es, y que papeles exige.
+    // Sin exportar ni importar (el catalogo es corto: un puñado por pais) y sin
+    // lock ni duplicar, por lo mismo que ApprovalRules.
+
+    // 1) Papelera + restaurar + borrado definitivo (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('work_types/trash',                  [WorkTypeController::class, 'trash'])->name('work_types.trash');
+        Route::post('work_types/bulk_restore',          [WorkTypeController::class, 'bulkRestore'])->name('work_types.bulk_restore');
+        Route::post('work_types/{slug}/restore',        [WorkTypeController::class, 'restore'])->name('work_types.restore');
+        Route::get('work_types/{slug}/restore',         fn () => redirect()->route('business_management.work_types.trash'));
+        Route::delete('work_types/{slug}/force_delete', [WorkTypeController::class, 'forceDelete'])->name('work_types.force_delete');
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:work_types.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('work_types/bulk_delete',     [WorkTypeController::class, 'bulkDelete'])->name('work_types.bulk_delete');
+        Route::post('work_types/bulk_set_active', [WorkTypeController::class, 'bulkSetActive'])->name('work_types.bulk_set_active');
+    });
+
+    Route::middleware('permission:work_types.delete')->group(function () {
+        Route::post('work_types/undo_last_delete', [WorkTypeController::class, 'undoLastDelete'])->name('work_types.undo_last_delete');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {workType}.
+    Route::middleware('permission:work_types.create')->group(function () {
+        Route::get('work_types/create', [WorkTypeController::class, 'create'])->name('work_types.create');
+        Route::post('work_types',       [WorkTypeController::class, 'store'])->name('work_types.store');
+    });
+
+    Route::middleware('permission:work_types.view')->group(function () {
+        Route::get('work_types',             [WorkTypeController::class, 'index'])->name('work_types.index');
+        Route::get('work_types/{workType}',  [WorkTypeController::class, 'show'])->name('work_types.show');
+    });
+
+    Route::middleware('permission:work_types.edit')->group(function () {
+        Route::get('work_types/{workType}/edit', [WorkTypeController::class, 'edit'])->name('work_types.edit');
+        Route::put('work_types/{workType}',      [WorkTypeController::class, 'update'])->name('work_types.update');
+
+        // Los formatos se guardan desde la propia ficha: mover un interruptor no
+        // deberia obligar a abrir el formulario entero, donde de paso se toca el
+        // pais — que es un cambio de otra magnitud.
+        Route::put('work_types/{workType}/form_templates', [WorkTypeController::class, 'updateFormTemplates'])
+            ->name('work_types.form_templates.update');
+    });
+
+    Route::middleware('permission:work_types.delete')->group(function () {
+        Route::get('work_types/{workType}/delete',        [WorkTypeController::class, 'delete'])->name('work_types.delete');
+        Route::delete('work_types/{workType}/deleteSave', [WorkTypeController::class, 'deleteSave'])->name('work_types.deleteSave');
+    });
+
+    // ── WorkLocations ── Dónde se trabaja: cada plan de trabajo sale de una sede.
+    // Sin exportar ni importar: es un catalogo de un puñado de filas que se
+    // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
+    // dentro de su ambito no ahorra nada.
+
+    // 1) Papelera + restaurar (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('work_locations/trash',           [WorkLocationController::class, 'trash'])->name('work_locations.trash');
+        Route::post('work_locations/bulk_restore',   [WorkLocationController::class, 'bulkRestore'])->name('work_locations.bulk_restore');
+        Route::post('work_locations/{slug}/restore', [WorkLocationController::class, 'restore'])->name('work_locations.restore');
+        Route::get('work_locations/{slug}/restore',  fn () => redirect()->route('business_management.work_locations.trash'));
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:work_locations.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('work_locations/bulk_delete',     [WorkLocationController::class, 'bulkDelete'])->name('work_locations.bulk_delete');
+        Route::post('work_locations/bulk_set_active', [WorkLocationController::class, 'bulkSetActive'])->name('work_locations.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:work_locations.delete')->group(function () {
+        Route::post('work_locations/undo_last_delete', [WorkLocationController::class, 'undoLastDelete'])->name('work_locations.undo_last_delete');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
+    // al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:work_locations.edit')->group(function () {
+        Route::post('work_locations/{workLocation}/deactivate', [WorkLocationController::class, 'deactivate'])->name('work_locations.deactivate');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {workLocation}.
+    Route::middleware('permission:work_locations.create')->group(function () {
+        Route::get('work_locations/create', [WorkLocationController::class, 'create'])->name('work_locations.create');
+        Route::post('work_locations',       [WorkLocationController::class, 'store'])->name('work_locations.store');
+    });
+
+    Route::middleware('permission:work_locations.view')->group(function () {
+        Route::get('work_locations',          [WorkLocationController::class, 'index'])->name('work_locations.index');
+        Route::get('work_locations/{workLocation}',  [WorkLocationController::class, 'show'])->name('work_locations.show');
+    });
+
+    Route::middleware('permission:work_locations.edit')->group(function () {
+        Route::get('work_locations/{workLocation}/edit', [WorkLocationController::class, 'edit'])->name('work_locations.edit');
+        Route::put('work_locations/{workLocation}',      [WorkLocationController::class, 'update'])->name('work_locations.update');
+    });
+
+    Route::middleware('permission:work_locations.delete')->group(function () {
+        Route::get('work_locations/{workLocation}/delete',        [WorkLocationController::class, 'delete'])->name('work_locations.delete');
+        Route::delete('work_locations/{workLocation}/deleteSave', [WorkLocationController::class, 'deleteSave'])->name('work_locations.deleteSave');
+    });
+
+    // ── Workstations ── Los puestos de cada sede. Un plan de trabajo se hace en uno de ellos.
+    // Sin exportar ni importar: es un catalogo de un puñado de filas que se
+    // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
+    // dentro de su ambito no ahorra nada.
+
+    // 1) Papelera + restaurar (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('workstations/trash',           [WorkstationController::class, 'trash'])->name('workstations.trash');
+        Route::post('workstations/bulk_restore',   [WorkstationController::class, 'bulkRestore'])->name('workstations.bulk_restore');
+        Route::post('workstations/{slug}/restore', [WorkstationController::class, 'restore'])->name('workstations.restore');
+        Route::get('workstations/{slug}/restore',  fn () => redirect()->route('business_management.workstations.trash'));
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:workstations.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('workstations/bulk_delete',     [WorkstationController::class, 'bulkDelete'])->name('workstations.bulk_delete');
+        Route::post('workstations/bulk_set_active', [WorkstationController::class, 'bulkSetActive'])->name('workstations.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:workstations.delete')->group(function () {
+        Route::post('workstations/undo_last_delete', [WorkstationController::class, 'undoLastDelete'])->name('workstations.undo_last_delete');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
+    // al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:workstations.edit')->group(function () {
+        Route::post('workstations/{workstation}/deactivate', [WorkstationController::class, 'deactivate'])->name('workstations.deactivate');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {workstation}.
+    Route::middleware('permission:workstations.create')->group(function () {
+        Route::get('workstations/create', [WorkstationController::class, 'create'])->name('workstations.create');
+        Route::post('workstations',       [WorkstationController::class, 'store'])->name('workstations.store');
+    });
+
+    Route::middleware('permission:workstations.view')->group(function () {
+        Route::get('workstations',          [WorkstationController::class, 'index'])->name('workstations.index');
+        Route::get('workstations/{workstation}',  [WorkstationController::class, 'show'])->name('workstations.show');
+    });
+
+    Route::middleware('permission:workstations.edit')->group(function () {
+        Route::get('workstations/{workstation}/edit', [WorkstationController::class, 'edit'])->name('workstations.edit');
+        Route::put('workstations/{workstation}',      [WorkstationController::class, 'update'])->name('workstations.update');
+    });
+
+    Route::middleware('permission:workstations.delete')->group(function () {
+        Route::get('workstations/{workstation}/delete',        [WorkstationController::class, 'delete'])->name('workstations.delete');
+        Route::delete('workstations/{workstation}/deleteSave', [WorkstationController::class, 'deleteSave'])->name('workstations.deleteSave');
+    });
+
+    // ── WorkAreas ── La parte de la sede donde se trabaja: es lo que se anota en el plan.
+    // Sin exportar ni importar: es un catalogo de un puñado de filas que se
+    // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
+    // dentro de su ambito no ahorra nada.
+
+    // 1) Papelera + restaurar (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('work_areas/trash',           [WorkAreaController::class, 'trash'])->name('work_areas.trash');
+        Route::post('work_areas/bulk_restore',   [WorkAreaController::class, 'bulkRestore'])->name('work_areas.bulk_restore');
+        Route::post('work_areas/{slug}/restore', [WorkAreaController::class, 'restore'])->name('work_areas.restore');
+        Route::get('work_areas/{slug}/restore',  fn () => redirect()->route('business_management.work_areas.trash'));
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:work_areas.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('work_areas/bulk_delete',     [WorkAreaController::class, 'bulkDelete'])->name('work_areas.bulk_delete');
+        Route::post('work_areas/bulk_set_active', [WorkAreaController::class, 'bulkSetActive'])->name('work_areas.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:work_areas.delete')->group(function () {
+        Route::post('work_areas/undo_last_delete', [WorkAreaController::class, 'undoLastDelete'])->name('work_areas.undo_last_delete');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
+    // al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:work_areas.edit')->group(function () {
+        Route::post('work_areas/{workArea}/deactivate', [WorkAreaController::class, 'deactivate'])->name('work_areas.deactivate');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {workArea}.
+    Route::middleware('permission:work_areas.create')->group(function () {
+        Route::get('work_areas/create', [WorkAreaController::class, 'create'])->name('work_areas.create');
+        Route::post('work_areas',       [WorkAreaController::class, 'store'])->name('work_areas.store');
+    });
+
+    Route::middleware('permission:work_areas.view')->group(function () {
+        Route::get('work_areas',          [WorkAreaController::class, 'index'])->name('work_areas.index');
+        Route::get('work_areas/{workArea}',  [WorkAreaController::class, 'show'])->name('work_areas.show');
+    });
+
+    Route::middleware('permission:work_areas.edit')->group(function () {
+        Route::get('work_areas/{workArea}/edit', [WorkAreaController::class, 'edit'])->name('work_areas.edit');
+        Route::put('work_areas/{workArea}',      [WorkAreaController::class, 'update'])->name('work_areas.update');
+    });
+
+    Route::middleware('permission:work_areas.delete')->group(function () {
+        Route::get('work_areas/{workArea}/delete',        [WorkAreaController::class, 'delete'])->name('work_areas.delete');
+        Route::delete('work_areas/{workArea}/deleteSave', [WorkAreaController::class, 'deleteSave'])->name('work_areas.deleteSave');
+    });
+
+    // ── Positions ── Qué hace cada persona en obra, y cuáles de esos cargos pueden firmar una aprobación.
+    // Sin exportar ni importar: es un catalogo de un puñado de filas que se
+    // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
+    // dentro de su ambito no ahorra nada.
+
+    // 1) Papelera + restaurar (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('positions/trash',           [PositionController::class, 'trash'])->name('positions.trash');
+        Route::post('positions/bulk_restore',   [PositionController::class, 'bulkRestore'])->name('positions.bulk_restore');
+        Route::post('positions/{slug}/restore', [PositionController::class, 'restore'])->name('positions.restore');
+        Route::get('positions/{slug}/restore',  fn () => redirect()->route('business_management.positions.trash'));
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:positions.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('positions/bulk_delete',     [PositionController::class, 'bulkDelete'])->name('positions.bulk_delete');
+        Route::post('positions/bulk_set_active', [PositionController::class, 'bulkSetActive'])->name('positions.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:positions.delete')->group(function () {
+        Route::post('positions/undo_last_delete', [PositionController::class, 'undoLastDelete'])->name('positions.undo_last_delete');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
+    // al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:positions.edit')->group(function () {
+        Route::post('positions/{position}/deactivate', [PositionController::class, 'deactivate'])->name('positions.deactivate');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {position}.
+    Route::middleware('permission:positions.create')->group(function () {
+        Route::get('positions/create', [PositionController::class, 'create'])->name('positions.create');
+        Route::post('positions',       [PositionController::class, 'store'])->name('positions.store');
+    });
+
+    Route::middleware('permission:positions.view')->group(function () {
+        Route::get('positions',          [PositionController::class, 'index'])->name('positions.index');
+        Route::get('positions/{position}',  [PositionController::class, 'show'])->name('positions.show');
+    });
+
+    Route::middleware('permission:positions.edit')->group(function () {
+        Route::get('positions/{position}/edit', [PositionController::class, 'edit'])->name('positions.edit');
+        Route::put('positions/{position}',      [PositionController::class, 'update'])->name('positions.update');
+    });
+
+    Route::middleware('permission:positions.delete')->group(function () {
+        Route::get('positions/{position}/delete',        [PositionController::class, 'delete'])->name('positions.delete');
+        Route::delete('positions/{position}/deleteSave', [PositionController::class, 'deleteSave'])->name('positions.deleteSave');
+    });
+
+    // ── Nationalities ── La nacionalidad que se anota en la ficha de cada persona.
+    // Sin exportar ni importar: es un catalogo de un puñado de filas que se
+    // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
+    // dentro de su ambito no ahorra nada.
+
+    // 1) Papelera + restaurar (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('nationalities/trash',           [NationalityController::class, 'trash'])->name('nationalities.trash');
+        Route::post('nationalities/bulk_restore',   [NationalityController::class, 'bulkRestore'])->name('nationalities.bulk_restore');
+        Route::post('nationalities/{slug}/restore', [NationalityController::class, 'restore'])->name('nationalities.restore');
+        Route::get('nationalities/{slug}/restore',  fn () => redirect()->route('business_management.nationalities.trash'));
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:nationalities.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('nationalities/bulk_delete',     [NationalityController::class, 'bulkDelete'])->name('nationalities.bulk_delete');
+        Route::post('nationalities/bulk_set_active', [NationalityController::class, 'bulkSetActive'])->name('nationalities.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:nationalities.delete')->group(function () {
+        Route::post('nationalities/undo_last_delete', [NationalityController::class, 'undoLastDelete'])->name('nationalities.undo_last_delete');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
+    // al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:nationalities.edit')->group(function () {
+        Route::post('nationalities/{nationality}/deactivate', [NationalityController::class, 'deactivate'])->name('nationalities.deactivate');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {nationality}.
+    Route::middleware('permission:nationalities.create')->group(function () {
+        Route::get('nationalities/create', [NationalityController::class, 'create'])->name('nationalities.create');
+        Route::post('nationalities',       [NationalityController::class, 'store'])->name('nationalities.store');
+    });
+
+    Route::middleware('permission:nationalities.view')->group(function () {
+        Route::get('nationalities',          [NationalityController::class, 'index'])->name('nationalities.index');
+        Route::get('nationalities/{nationality}',  [NationalityController::class, 'show'])->name('nationalities.show');
+    });
+
+    Route::middleware('permission:nationalities.edit')->group(function () {
+        Route::get('nationalities/{nationality}/edit', [NationalityController::class, 'edit'])->name('nationalities.edit');
+        Route::put('nationalities/{nationality}',      [NationalityController::class, 'update'])->name('nationalities.update');
+    });
+
+    Route::middleware('permission:nationalities.delete')->group(function () {
+        Route::get('nationalities/{nationality}/delete',        [NationalityController::class, 'delete'])->name('nationalities.delete');
+        Route::delete('nationalities/{nationality}/deleteSave', [NationalityController::class, 'deleteSave'])->name('nationalities.deleteSave');
     });
 });

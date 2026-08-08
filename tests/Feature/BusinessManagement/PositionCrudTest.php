@@ -1,0 +1,214 @@
+<?php
+
+namespace Tests\Feature\BusinessManagement;
+
+use App\Models\Company;
+use App\Models\Person;
+use App\Models\PersonCompanyLink;
+use App\Models\Position;
+
+/**
+ * Los cargos: que hace cada persona en obra.
+ *
+ * El campo que de verdad importa no es el nombre sino `is_signature_approver`:
+ * es lo que decide si a quien tiene ese cargo se le pide la firma de aprobacion
+ * de un plan. Si se pierde al guardar, el plan se queda sin quien lo apruebe y
+ * el fallo no se ve hasta que alguien intenta cerrarlo en obra.
+ */
+class PositionCrudTest extends CatalogTestCase
+{
+    protected function moduleKey(): string
+    {
+        return 'positions';
+    }
+
+    private function cargo(string $nombre = 'Técnico', bool $firma = false): Position
+    {
+        return Position::create($this->base() + [
+            'code' => $nombre, 'is_signature_approver' => $firma,
+        ]);
+    }
+
+    /** Una persona vinculada a una empresa con ese cargo: impide borrarlo. */
+    private function personaCon(Position $cargo): PersonCompanyLink
+    {
+        $empresa = Company::firstOrCreate(
+            ['num_doc' => '20100000001'],
+            $this->base() + ['name' => 'Contratista', 'complete_name' => 'Contratista SAC'],
+        );
+        $persona = Person::create($this->base() + [
+            'doc_type' => 'DNI', 'num_doc' => '44556677',
+            'name' => 'Juan', 'lastname' => 'Pérez', 'is_active' => true,
+        ]);
+
+        return PersonCompanyLink::create([
+            'person_id' => $persona->id, 'company_id' => $empresa->id,
+            'position_id' => $cargo->id, 'is_active' => true,
+        ]);
+    }
+
+    protected function unaFila(): \Illuminate\Database\Eloquent\Model
+    {
+        return $this->cargo();
+    }
+
+    // ── Alta ─────────────────────────────────────────────────────────────────
+
+    public function test_un_cargo_nuevo_se_da_de_alta_desde_la_pantalla(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.positions.store'), [
+            'country_id' => 1, 'code' => 'Mecánico',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('positions', ['code' => 'Mecánico', 'is_signature_approver' => false]);
+    }
+
+    /**
+     * La marca de firma se guarda tal cual se dejo en el formulario. Es la que
+     * decide si a esa persona se le pide firmar la aprobacion del plan.
+     */
+    public function test_un_cargo_puede_nacer_marcado_como_firmante_de_aprobaciones(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.positions.store'), [
+            'country_id' => 1, 'code' => 'Supervisor', 'is_signature_approver' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('positions', ['code' => 'Supervisor', 'is_signature_approver' => true]);
+    }
+
+    /** Y se puede quitar despues sin tocar nada mas del cargo. */
+    public function test_la_marca_de_firmante_se_quita_y_se_pone_desde_la_edicion(): void
+    {
+        $this->actingAs($this->admin());
+        $cargo = $this->cargo('Supervisor', firma: true);
+
+        $this->put(route('business_management.positions.update', $cargo->slug), [
+            'country_id' => 1, 'code' => 'Supervisor', 'is_active' => true,
+            // Sin `is_signature_approver`: el interruptor apagado no viaja como
+            // false, viaja ausente, y el cargo tiene que dejar de firmar.
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('positions', ['id' => $cargo->id, 'is_signature_approver' => false]);
+
+        $this->put(route('business_management.positions.update', $cargo->slug), [
+            'country_id' => 1, 'code' => 'Supervisor', 'is_active' => true,
+            'is_signature_approver' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('positions', ['id' => $cargo->id, 'is_signature_approver' => true]);
+    }
+
+    public function test_no_puede_haber_dos_cargos_con_el_mismo_nombre_en_un_pais(): void
+    {
+        $this->actingAs($this->admin());
+        $this->cargo('Técnico');
+
+        $this->post(route('business_management.positions.store'), [
+            'country_id' => 1, 'code' => 'Técnico',
+        ])->assertSessionHasErrors('code');
+
+        $this->assertSame(1, Position::where('code', 'Técnico')->count());
+    }
+
+    // ── Borrado ──────────────────────────────────────────────────────────────
+
+    public function test_un_cargo_que_no_tiene_nadie_se_borra_y_queda_en_papelera(): void
+    {
+        $this->actingAs($this->admin());
+        $cargo = $this->cargo('Ayudante');
+
+        $this->delete(route('business_management.positions.deleteSave', $cargo->slug), [
+            'deleted_description' => 'ya no existe ese puesto',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSoftDeleted('positions', ['id' => $cargo->id]);
+    }
+
+    public function test_un_cargo_que_alguien_tiene_no_se_puede_borrar(): void
+    {
+        $this->actingAs($this->admin());
+        $cargo = $this->cargo();
+        $this->personaCon($cargo);
+
+        $this->delete(route('business_management.positions.deleteSave', $cargo->slug), [
+            'deleted_description' => 'limpieza',
+        ])->assertSessionHas('error');
+
+        $this->assertNotSoftDeleted('positions', ['id' => $cargo->id]);
+    }
+
+    public function test_a_cambio_se_puede_desactivar_y_quien_lo_tiene_lo_conserva(): void
+    {
+        $this->actingAs($this->admin());
+        $cargo   = $this->cargo();
+        $vinculo = $this->personaCon($cargo);
+
+        $this->post(route('business_management.positions.deactivate', $cargo->slug))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('positions', ['id' => $cargo->id, 'is_active' => false]);
+        $this->assertDatabaseHas('person_company_links', ['id' => $vinculo->id, 'position_id' => $cargo->id]);
+    }
+
+    // ── Listado ──────────────────────────────────────────────────────────────
+
+    public function test_el_listado_dice_quien_firma_y_cuanta_gente_tiene_cada_cargo(): void
+    {
+        $this->actingAs($this->admin());
+        $cargo = $this->cargo('Supervisor', firma: true);
+        $this->personaCon($cargo);
+
+        $this->get(route('business_management.positions.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Positions/Index')
+                ->where('positions.data.0.code', 'Supervisor')
+                ->where('positions.data.0.is_signature_approver', true)
+                ->where('positions.data.0.usage_count', 1));
+    }
+
+    // ── Permisos ─────────────────────────────────────────────────────────────
+
+    public function test_sin_permiso_de_crear_no_se_crea(): void
+    {
+        $this->actingAs($this->soloLectura());
+
+        $this->assertProhibido($this->get(route('business_management.positions.create')));
+        $this->assertProhibido($this->post(route('business_management.positions.store'), [
+            'country_id' => 1, 'code' => 'Colado',
+        ]));
+
+        $this->assertDatabaseMissing('positions', ['code' => 'Colado']);
+    }
+
+    public function test_sin_permiso_de_borrar_no_se_borra(): void
+    {
+        $cargo = $this->cargo();
+        $this->actingAs($this->soloLectura());
+
+        $this->assertProhibido($this->delete(route('business_management.positions.deleteSave', $cargo->slug), [
+            'deleted_description' => 'porque sí',
+        ]));
+
+        $this->assertNotSoftDeleted('positions', ['id' => $cargo->id]);
+    }
+
+    public function test_sin_permiso_de_ver_no_se_entra_al_listado(): void
+    {
+        $this->assertProhibido(
+            $this->actingAs($this->sinPermisos())->get(route('business_management.positions.index'))
+        );
+    }
+
+    public function test_la_papelera_es_solo_del_super(): void
+    {
+        $this->assertProhibido(
+            $this->actingAs($this->admin())->get(route('business_management.positions.trash'))
+        );
+    }
+}

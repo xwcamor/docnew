@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\BelongsToTenantOrGlobal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +13,7 @@ class Position extends Model
     use HasFactory;
     use Auditable;
     use SoftDeletes;
+    use BelongsToTenantOrGlobal;
 
     // `code` faltaba, y sin el la tabla no se podia poblar: es el nombre del
     // cargo (Tecnico, Supervisor, Mecanico, Electrico). Salio al migrar los 372
