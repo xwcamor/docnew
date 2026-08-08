@@ -1240,8 +1240,18 @@ html[data-theme="dark"] .lift:hover {
 .sap-form .ant-card-body,
 .sap-form .form-body { background: transparent; border: 0; box-shadow: none; }
 .sap-form .form-body { padding: 8px 28px 24px; }
-/* Campos apilados: Col a ancho completo (el layout horizontal pone label/input). */
-.sap-form .ant-col:not(.ant-form-item-label):not(.ant-form-item-control) { flex: 0 0 100% !important; max-width: 100% !important; }
+/* Campos apilados: Col a ancho completo (el layout horizontal pone label/input).
+ *
+ * Ojo con el alcance. Esta regla llevaba `!important` sobre CUALQUIER columna
+ * de cualquier formulario, asi que aplanaba tambien las rejillas escritas a
+ * proposito: el par «inicio / fin» de la ficha del plan y el par «tipo de
+ * documento / numero» de personas estaban en el template como dos columnas y
+ * salian apiladas. De ahi que los formularios se leyeran como una tira vertical
+ * larguisima aunque el codigo dijera otra cosa.
+ *
+ * Ahora solo aplana las filas que NO piden rejilla. Una fila marcada con
+ * `.form-grid` manda sobre sus columnas, que es lo que se escribio. */
+.sap-form .ant-row:not(.form-grid) > .ant-col:not(.ant-form-item-label):not(.ant-form-item-control) { flex: 0 0 100% !important; max-width: 100% !important; }
 .sap-form .ant-form-item { margin-bottom: 16px; }
 /* Título de subsección. */
 .sap-form .form-section-title {

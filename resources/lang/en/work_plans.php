@@ -21,8 +21,6 @@ return [
 
     // ── Fields ──────────────────────────────────────────────────────────────
     'code'                 => 'Code',
-    'code_help'            => 'Generated on save: country, year, day of the work and its number within that day. Never repeats.',
-    'code_auto'            => 'Assigned on save — the running number for the day of the work.',
     'num_os'               => 'Service order',
     'num_os_help'          => "Customer's service order number, if any.",
     'num_os_placeholder'   => 'E.g.: OS-2024-1187',

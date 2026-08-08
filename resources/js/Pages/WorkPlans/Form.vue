@@ -23,7 +23,20 @@ const props = defineProps({
 
 const isEdit = computed(() => !!props.workPlan);
 
+/*
+ * Por qué la rejilla parte en `lg` (≥992) y no en `md` (≥768).
+ *
+ * Esto se llena en tablets de 10". En horizontal (1024) caben dos columnas de
+ * sobra; en vertical (768) cada columna se queda en 350 px y, con la etiqueta a
+ * la izquierda comiendo un tercio, al selector de empresa le sobrarían 230 px
+ * para nombres como «CONTRATISTA GENERAL DEL NORTE SAC». Ahí es mejor apilado.
+ */
+
+
 const form = useForm({
+    // No se pinta en ningún sitio: lo genera el sistema al guardar (correlativo
+    // del día, ver WorkPlanCodeGenerator) y al editar ya sale en la cabecera.
+    // Sigue aquí porque el PUT lo exige, y viaja sin que nadie lo toque.
     code:             props.workPlan?.code ?? '',
     num_os:           props.workPlan?.num_os ?? '',
     description:      props.workPlan?.description ?? '',
@@ -139,37 +152,26 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <!-- El código lo pone el sistema: es el correlativo del día y
-                     tiene que ser único. Antes se escribía a mano, que es como
-                     acababan repetidos. Al editar se muestra, no se toca. -->
-                <FormItem
-                    :label="$t('work_plans.code')"
-                    :tooltip="$t('work_plans.code_help')"
-                    :validate-status="form.errors.code ? 'error' : ''"
-                    :help="form.errors.code"
-                >
-                    <Input
-                        v-if="isEdit"
-                        :value="form.code"
-                        size="large"
-                        disabled
-                    />
-                    <p v-else class="code-auto">{{ $t('work_plans.code_auto') }}</p>
-                </FormItem>
-
-                <FormItem
-                    :label="$t('work_plans.num_os')"
-                    :tooltip="$t('work_plans.num_os_help')"
-                    :validate-status="form.errors.num_os ? 'error' : ''"
-                    :help="form.errors.num_os"
-                >
-                    <Input
-                        v-model:value="form.num_os"
-                        size="large"
-                        :maxlength="255"
-                        :placeholder="$t('work_plans.num_os_placeholder')"
-                    />
-                </FormItem>
+                <!-- Media fila: es un numero de orden de seis digitos, no una frase. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('work_plans.num_os')"
+                            :tooltip="$t('work_plans.num_os_help')"
+                            :validate-status="form.errors.num_os ? 'error' : ''"
+                            :help="form.errors.num_os"
+                        >
+                            <Input
+                                v-model:value="form.num_os"
+                                size="large"
+                                :maxlength="255"
+                                :placeholder="$t('work_plans.num_os_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <FormItem
                     :label="$t('work_plans.description')"
@@ -189,99 +191,122 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('work_plans.section_work') }}</h2>
 
-                <FormItem
-                    :label="$t('work_plans.company')"
-                    :tooltip="$t('work_plans.company_help')"
-                    required
-                    :validate-status="form.errors.company_id ? 'error' : ''"
-                    :help="form.errors.company_id"
-                >
-                    <Select
-                        v-model:value="form.company_id"
-                        size="large"
-                        show-search
-                        :options="companyOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
-                    />
-                </FormItem>
-
-                <FormItem
-                    :label="$t('work_plans.work_type')"
-                    :tooltip="$t('work_plans.work_type_help')"
-                    required
-                    :validate-status="form.errors.work_type_id ? 'error' : ''"
-                    :help="form.errors.work_type_id"
-                >
-                    <Select
-                        v-model:value="form.work_type_id"
-                        size="large"
-                        show-search
-                        :options="workTypeOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
-                    />
-                </FormItem>
-
-                <FormItem
-                    :label="$t('work_plans.work_location')"
-                    :tooltip="$t('work_plans.work_location_help')"
-                    required
-                    :validate-status="form.errors.work_location_id ? 'error' : ''"
-                    :help="form.errors.work_location_id"
-                >
-                    <Select
-                        v-model:value="form.work_location_id"
-                        size="large"
-                        show-search
-                        :options="workLocationOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
-                        @change="onLocationChange"
-                    />
-                </FormItem>
-
-                <FormItem
-                    :label="$t('work_plans.workstation')"
-                    :tooltip="$t('work_plans.workstation_help')"
-                    required
-                    :validate-status="form.errors.workstation_id ? 'error' : ''"
-                    :help="form.errors.workstation_id"
-                >
-                    <Select
-                        v-model:value="form.workstation_id"
-                        size="large"
-                        show-search
-                        allow-clear
-                        :options="workstationsForLocation"
-                        :filter-option="filterOption"
-                        :disabled="!form.work_location_id"
-                        :placeholder="form.work_location_id ? $t('global.select') : $t('work_plans.workstation_needs_location')"
-                    />
-                </FormItem>
-
-                <FormItem
-                    :label="$t('work_plans.work_area')"
-                    :tooltip="$t('work_plans.work_area_help')"
-                    required
-                    :validate-status="form.errors.work_area_id ? 'error' : ''"
-                    :help="form.errors.work_area_id"
-                >
-                    <Select
-                        v-model:value="form.work_area_id"
-                        size="large"
-                        show-search
-                        allow-clear
-                        :options="workAreaOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
-                    />
-                </FormItem>
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('work_plans.company')"
+                            :tooltip="$t('work_plans.company_help')"
+                            required
+                            :validate-status="form.errors.company_id ? 'error' : ''"
+                            :help="form.errors.company_id"
+                        >
+                            <Select
+                                v-model:value="form.company_id"
+                                size="large"
+                                show-search
+                                :options="companyOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('work_plans.work_type')"
+                            :tooltip="$t('work_plans.work_type_help')"
+                            required
+                            :validate-status="form.errors.work_type_id ? 'error' : ''"
+                            :help="form.errors.work_type_id"
+                        >
+                            <Select
+                                v-model:value="form.work_type_id"
+                                size="large"
+                                show-search
+                                :options="workTypeOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('work_plans.work_location')"
+                            :tooltip="$t('work_plans.work_location_help')"
+                            required
+                            :validate-status="form.errors.work_location_id ? 'error' : ''"
+                            :help="form.errors.work_location_id"
+                        >
+                            <Select
+                                v-model:value="form.work_location_id"
+                                size="large"
+                                show-search
+                                :options="workLocationOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                                @change="onLocationChange"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('work_plans.workstation')"
+                            :tooltip="$t('work_plans.workstation_help')"
+                            required
+                            :validate-status="form.errors.workstation_id ? 'error' : ''"
+                            :help="form.errors.workstation_id"
+                        >
+                            <Select
+                                v-model:value="form.workstation_id"
+                                size="large"
+                                show-search
+                                allow-clear
+                                :options="workstationsForLocation"
+                                :filter-option="filterOption"
+                                :disabled="!form.work_location_id"
+                                :placeholder="form.work_location_id ? $t('global.select') : $t('work_plans.workstation_needs_location')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
+                <!-- Media fila, alineada con el par de arriba. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('work_plans.work_area')"
+                            :tooltip="$t('work_plans.work_area_help')"
+                            required
+                            :validate-status="form.errors.work_area_id ? 'error' : ''"
+                            :help="form.errors.work_area_id"
+                        >
+                            <Select
+                                v-model:value="form.work_area_id"
+                                size="large"
+                                show-search
+                                allow-clear
+                                :options="workAreaOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <h2 class="form-section-title">{{ $t('work_plans.section_schedule') }}</h2>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="12">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem
                             :label="$t('work_plans.date_start')"
                             :label-col="{ xs: 24, sm: 8 }"
@@ -306,7 +331,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="12">
+                    <Col :xs="24" :lg="12">
                         <FormItem
                             :label="$t('work_plans.date_end')"
                             :label-col="{ xs: 24, sm: 8 }"
@@ -351,10 +376,5 @@ const submit = () => {
 </template>
 
 <style scoped>
-.state-label {
-    font-size: 0.875rem;
-    color: var(--color-text);
-    font-weight: 500;
-}
 .mb-4 { margin-bottom: 16px; }
 </style>
