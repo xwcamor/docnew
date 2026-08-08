@@ -31,8 +31,6 @@ const props = defineProps({
     approvals: { type: Array,  default: () => [] },
     canEdit:   { type: Boolean, default: false },
     canSign:   { type: Boolean, default: false },
-    /** Cuántos de la cuadrilla faltan por firmar. Bloquea el resto del flujo. */
-    crewPending: { type: Number, default: 0 },
 });
 
 const { t } = useI18n();
@@ -57,33 +55,50 @@ const cuando = (v) => {
  * saber cuántos pasos le quedan; enseñarlas en gris con el motivo enseña el
  * camino entero sin permitir saltárselo.
  */
-const bloqueo = (a, i) => {
+/**
+ * Las **aprobaciones de rol trabajador** que siguen sin firmar.
+ *
+ * Ésta es la condición del sistema anterior, literal:
+ *
+ *     required_workers_pending = @list_plan_approvals.select { |p|
+ *       p.approver_type == "Worker" && p.approval_rule.is_required && !p.is_approved }
+ *     next if approver_type != "worker" && !all_required_workers_signed
+ *
+ * Lo que bloquea al supervisor es que **el ejecutante haya firmado su
+ * aprobación** — no que haya firmado toda la cuadrilla. Yo lo había puesto
+ * contra `work_plan_people`, que es otra cosa: son las firmas de asistencia a
+ * la charla, y no gobiernan el flujo de autorización.
+ */
+const ejecutantesPendientes = computed(() =>
+    props.approvals.filter((a) => a.role === 'worker' && a.required && !a.signed));
+
+const bloqueo = (a) => {
     if (a.signed) return null;
 
     // El rol «trabajador» es el primer eslabón: lo firma el ejecutante y no
-    // espera a nadie. Los demás sí esperan a que la cuadrilla haya firmado.
-    if (a.role !== 'worker' && props.crewPending > 0) {
-        return t('work_plans.approval_waits_crew');
+    // espera a nadie.
+    if (a.role === 'worker') return null;
+
+    if (ejecutantesPendientes.value.length) {
+        return t('work_plans.approval_waits_worker', {
+            role: rotulo(ejecutantesPendientes.value[0].role),
+        });
     }
 
-    const previa = props.approvals
-        .slice(0, i)
-        .find((p) => p.required && !p.signed);
-
-    return previa ? t('work_plans.approval_waits_prior', { role: rotulo(previa.role) }) : null;
+    return null;
 };
 
 /** El estado del paso, con el mismo vocabulario que las otras dos columnas. */
-const estado = (a, i) => {
+const estado = (a) => {
     if (a.signed) return 'done';
-    if (bloqueo(a, i)) return 'blocked';
+    if (bloqueo(a)) return 'blocked';
 
     return a.required ? 'pending' : 'optional';
 };
 
-const etiqueta = (a, i) => {
+const etiqueta = (a) => {
     if (a.signed) return t('work_plans.approval_approved');
-    if (bloqueo(a, i)) return t('work_plans.approval_pending');
+    if (bloqueo(a)) return t('work_plans.approval_pending');
 
     return a.required ? t('work_plans.approval_required') : t('work_plans.approval_optional');
 };
@@ -182,15 +197,15 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
 
         <ol v-else class="wp-rows">
             <WorkPlanBoardRow
-                v-for="(a, i) in approvals"
+                v-for="a in approvals"
                 :key="a.slug"
                 chained
-                :state="estado(a, i)"
+                :state="estado(a)"
                 :title="rotulo(a.role)"
                 :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
                 :when="a.signed ? a.signed_at : null"
-                :label="etiqueta(a, i)"
-                :reason="bloqueo(a, i) || ''"
+                :label="etiqueta(a)"
+                :reason="bloqueo(a) || ''"
             >
                 <template #actions>
                     <template v-if="!a.signed">
@@ -208,9 +223,9 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
 
                         <Tooltip
                             v-if="canSign && a.person"
-                            :title="bloqueo(a, i) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
+                            :title="bloqueo(a) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
                         >
-                            <Button size="small" type="primary" :disabled="!!bloqueo(a, i)" @click="firmar">
+                            <Button size="small" type="primary" :disabled="!!bloqueo(a)" @click="firmar">
                                 {{ $t('work_plans.approval_sign') }}
                             </Button>
                         </Tooltip>

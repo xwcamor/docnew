@@ -385,24 +385,42 @@ class WorkPlanSetupTest extends TestCase
         $this->assertTrue($esperados->first()['from_type_required']);
     }
 
-    /** La ficha lo dice antes de pulsar: candado, y el motivo correcto. */
-    public function test_la_ficha_marca_el_formato_obligatorio_como_no_quitable(): void
+    /**
+     * La ficha enseña **todos** los formatos publicados, con su interruptor.
+     *
+     * Es lo que hacía el sistema anterior: `_list_documents.html.erb` recorre el
+     * catálogo entero y deshabilita el checkbox de los que el tipo de trabajo
+     * exige. Aquí sólo se listaban los del plan y se «añadía» desde un
+     * desplegable — con todos ya puestos el desplegable salía vacío y parecía
+     * que el sistema no dejaba añadir ninguno.
+     */
+    public function test_la_ficha_lista_todos_los_formatos_con_su_interruptor(): void
     {
         $plan = $this->plan();
         $ast  = $this->plantilla('AST');
         $ihm  = $this->plantilla('IHM');
+        $ptf  = $this->plantilla('PTF');   // publicado, pero fuera de este tipo de trabajo
         $plan->workType->formTemplates()->attach([$ast->id => ['is_required' => true], $ihm->id => ['is_required' => false]]);
         $this->actingAs($this->supervisor());
 
         $this->get(route('business_management.work_plans.show', $plan->slug))
             ->assertInertia(fn ($page) => $page
-                ->has('forms', 2)
+                // Los tres del catálogo, no sólo los dos del plan.
+                ->has('forms', 3)
+                // Obligatorio del tipo: dentro y con el interruptor bloqueado.
                 ->where('forms.0.code', 'AST')
+                ->where('forms.0.included', true)
                 ->where('forms.0.locked_by_work_type', true)
-                ->where('forms.0.can_remove', false)
+                ->where('forms.0.can_toggle', false)
+                // Opcional del tipo: dentro y se puede apagar.
                 ->where('forms.1.code', 'IHM')
+                ->where('forms.1.included', true)
                 ->where('forms.1.locked_by_work_type', false)
-                ->where('forms.1.can_remove', true));
+                ->where('forms.1.can_toggle', true)
+                // Del catálogo y fuera del plan: apagado, y se puede encender.
+                ->where('forms.2.code', 'PTF')
+                ->where('forms.2.included', false)
+                ->where('forms.2.can_toggle', true));
     }
 
     /** Un formato con respuestas es el documento lleno: no se quita del plan. */
@@ -642,6 +660,39 @@ class WorkPlanSetupTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'people')
             ->assertJsonPath('people.0.name', 'Lopez Sara');
+    }
+
+    /**
+     * Primero firma el ejecutante: el flujo lo bloquea **su aprobación**, no las
+     * firmas de la cuadrilla.
+     *
+     * Ésta es la condición literal del sistema anterior:
+     *
+     *     required_workers_pending = @list_plan_approvals.select { |p|
+     *       p.approver_type == "Worker" && p.approval_rule.is_required && !p.is_approved }
+     *
+     * Yo la había puesto contra `work_plan_people` —las firmas de asistencia a
+     * la charla—, que es otra cosa y no gobierna la autorización. Se comprueba
+     * sobre el modelo porque es lo que mira el servidor al firmar.
+     */
+    public function test_el_flujo_espera_a_la_aprobacion_del_ejecutante_no_a_la_cuadrilla(): void
+    {
+        $plan = $this->plan();
+        // Toda la cuadrilla ha firmado su asistencia...
+        $this->asignar($plan, $this->persona('Nora', 'Paz', '40000040'))->update(['is_approved' => true]);
+
+        $ejecutante = $this->aprobacion($plan, $this->regla('worker', 1, true));
+        $supervisor = $this->aprobacion($plan, $this->regla('supervisor', 2, true));
+
+        // ...y aun así el supervisor espera, porque el ejecutante no ha aprobado.
+        $this->assertCount(1, $supervisor->ejecutantesPendientes());
+
+        // El ejecutante no se espera a sí mismo.
+        $this->assertCount(0, $ejecutante->ejecutantesPendientes());
+
+        // En cuanto el ejecutante aprueba, el supervisor queda libre.
+        $ejecutante->forceFill(['is_approved' => true])->save();
+        $this->assertCount(0, $supervisor->refresh()->ejecutantesPendientes());
     }
 
     /** La misma persona no cubre dos firmas del mismo plan. */

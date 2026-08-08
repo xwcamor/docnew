@@ -138,16 +138,28 @@ class SignatureController extends Controller
             abort(403, __('No tienes permiso para firmar sin reconocimiento.'));
         }
 
-        // Si el workspace exige el orden, una aprobacion no se firma hasta que
-        // firmen las obligatorias de nivel anterior. Aprobar algo que aun no ha
-        // aprobado quien iba primero vacia de sentido la firma.
-        if ($firmable instanceof WorkPlanApproval && $this->exigeOrden()) {
-            $antes = $firmable->aprobacionesPendientesAntes();
+        if ($firmable instanceof WorkPlanApproval) {
+            // **Siempre**: primero firma el ejecutante. Es la regla del sistema
+            // anterior y no es opcional — el que hace el trabajo declara lo que
+            // va a hacer, y el supervisor autoriza sobre esa declaración.
+            // Autorizar antes es firmar en blanco.
+            //
+            // Antes esto sólo se comprobaba con `docufiz.sequential_approvals`
+            // activo, que viene apagado: la pantalla bloqueaba y el servidor
+            // dejaba pasar cualquier peticion hecha a mano.
+            $antes = $firmable->ejecutantesPendientes();
+
+            // Y si además el workspace exige el orden estricto, tampoco se firma
+            // por delante de una obligatoria de nivel anterior. Eso sí es una
+            // vuelta de tuerca nuestra, y por eso es un ajuste.
+            if ($antes->isEmpty() && $this->exigeOrden()) {
+                $antes = $firmable->aprobacionesPendientesAntes();
+            }
 
             if ($antes->isNotEmpty()) {
                 abort(422, __('field_work.approval_out_of_order', [
                     'roles' => $antes->map(fn ($a) => $a->approvalRule?->role?->label
-                        ?? $a->approvalRule?->approver_role)->filter()->implode(', '),
+                        ?? $a->approvalRule?->approver_role)->filter()->unique()->implode(', '),
                 ]));
             }
         }

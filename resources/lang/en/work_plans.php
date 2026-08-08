@@ -178,6 +178,10 @@ return [
     'crew_signed_cannot_remove' => 'Cannot remove :name: they already signed this plan. Their signature proves they were on site and attended the briefing, so the record is kept.',
 
     'forms_title'    => 'Safety forms',
+    'forms_not_in_plan'  => 'Not required on this plan',
+    'forms_toggle_hint'  => 'Require form :code on this plan, or not',
+    'forms_open_hint'    => 'Open form :code to fill it in',
+    'forms_pdf_hint'     => 'Download :code as PDF',
     'forms_subtitle' => 'The work type sets them. Add or drop one here.',
     'forms_summary'  => '{0} None filled in|[1,*] :done of :total filled in',
     'forms_empty'    => 'This plan’s work type does not require any form.',
@@ -244,7 +248,10 @@ return [
     'close_needs_forms_done'  => '{1} 1 form is still unconfirmed.|[2,*] :count forms are still unconfirmed.',
     'close_needs_approvals' => '{1} 1 mandatory approval is missing.|[2,*] :count mandatory approvals are missing.',
 
-    'approval_waits_crew'  => 'The workers have to sign first.',
+    // The v1 rule: until the executing worker signs their approval, the rest
+    // were not even shown. Not "the crew must sign" -- those are attendance
+    // signatures and do not govern authorisation.
+    'approval_waits_worker' => ':role has to sign first.',
     'approval_waits_prior' => 'Waiting on the :role signature.',
 
     'approver_role' => [

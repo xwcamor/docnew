@@ -184,6 +184,10 @@ return [
     'crew_signed_cannot_remove' => 'No se puede quitar a :name: ya firmó este plan. Su firma es la prueba de que estuvo en la obra y recibió la charla, así que el registro se conserva.',
 
     'forms_title'    => 'Formatos de seguridad',
+    'forms_not_in_plan'  => 'No se exige en este plan',
+    'forms_toggle_hint'  => 'Exigir o no el formato :code en este plan',
+    'forms_open_hint'    => 'Abrir el formato :code para llenarlo',
+    'forms_pdf_hint'     => 'Descargar el :code en PDF',
     'forms_subtitle' => 'Los pone el tipo de trabajo. Aquí se suma o se quita uno.',
     'forms_summary'  => '{0} Ninguno lleno|[1,*] :done de :total llenos',
     'forms_empty'    => 'El tipo de trabajo de este plan no exige ningún formato.',
@@ -253,7 +257,10 @@ return [
     'close_needs_forms_done'  => '{1} Falta confirmar 1 formato.|[2,*] Faltan :count formatos por confirmar.',
     'close_needs_approvals' => '{1} Falta 1 aprobación obligatoria.|[2,*] Faltan :count aprobaciones obligatorias.',
 
-    'approval_waits_crew'  => 'Primero tienen que firmar los trabajadores.',
+    // La regla de la v1: hasta que el ejecutante no firma su aprobación, las
+    // demás ni se enseñaban. No es «que firme la cuadrilla» — eso son firmas de
+    // asistencia y no gobiernan la autorización.
+    'approval_waits_worker' => 'Primero tiene que firmar :role.',
     'approval_waits_prior' => 'Espera la firma de :role.',
 
     'approver_role' => [

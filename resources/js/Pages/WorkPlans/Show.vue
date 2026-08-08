@@ -149,8 +149,12 @@ const tiempoTrabajado = computed(() =>
 // Los avances no se pintan aparte: cada columna del tablero lleva su propia
 // cuenta en la cabecera («3/5 firmaron»). Tres barras de progreso encima de
 // tres tarjetas que ya lo dicen era la misma información dos veces.
-const formatosLlenos = computed(() => props.forms.filter((f) => f.status === 'confirmed').length);
-const firmasCrew     = computed(() => props.crew.filter((p) => p.signed).length);
+// `forms` trae el catálogo entero —los que el plan exige y los que no—, porque
+// la tarjeta los enseña todos con un interruptor. Aquí sólo cuentan los que el
+// plan exige: los apagados no son trabajo pendiente.
+const formatosDelPlan = computed(() => props.forms.filter((f) => f.included));
+const formatosLlenos  = computed(() => formatosDelPlan.value.filter((f) => f.status === 'confirmed').length);
+const firmasCrew      = computed(() => props.crew.filter((p) => p.signed).length);
 
 // Aprobaciones obligatorias sin firmar, con el nombre del rol: decirle al
 // supervisor "falta 1 aprobación" sin decirle cuál lo manda a buscarla.
@@ -181,7 +185,7 @@ const pendientes = computed(() => {
         lista.push(tc('work_plans.missing_signatures', props.crew.length - firmasCrew.value));
     }
 
-    const sinConfirmar = props.forms.length - formatosLlenos.value;
+    const sinConfirmar = formatosDelPlan.value.length - formatosLlenos.value;
     if (sinConfirmar > 0) {
         lista.push(tc('work_plans.missing_forms', sinConfirmar));
     }
@@ -487,21 +491,20 @@ const pendientes = computed(() => {
                     <WorkPlanFormsCard
                         :plan-slug="workPlan.slug"
                         :forms="forms"
-                        :options="setupOptions.formTemplates"
                         :can-edit="canSetup"
                         :can-open="fieldWork.canOpenForms"
                         :can-export="fieldWork.canExport"
                         :work-type-code="workPlan.work_type?.code || ''"
                     />
 
-                    <!-- El flujo espera a que los trabajadores firmen, como en
-                         el sistema anterior: `crewPending` es lo que lo bloquea. -->
+                    <!-- Lo que bloquea el flujo es la aprobación del ejecutante,
+                         no las firmas de la cuadrilla: la propia tarjeta lo sabe
+                         mirando sus filas de rol trabajador. -->
                     <WorkPlanApprovalsCard
                         :plan-slug="workPlan.slug"
                         :approvals="approvals"
                         :can-edit="canSetup"
                         :can-sign="fieldWork.canSign"
-                        :crew-pending="crew.length - firmasCrew"
                     />
                 </div>
             </template>

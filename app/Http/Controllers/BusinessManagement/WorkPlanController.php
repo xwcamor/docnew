@@ -286,8 +286,20 @@ class WorkPlanController extends Controller
     }
 
     /**
-     * Los formatos que el plan exige de verdad (estándar del tipo de trabajo ±
-     * los cambios de este plan), cada uno con el estado de su entrega.
+     * **Todos** los formatos publicados, marcados o no.
+     *
+     * Así lo hacía el sistema anterior y es lo que yo no había entendido. Su
+     * `_list_documents.html.erb` recorre `@documents` —el catálogo entero, no
+     * los del tipo de trabajo— y pinta un interruptor por cada uno:
+     *
+     *     checked  = el tipo lo exige, o el plan ya lo tiene
+     *     disabled = el tipo lo exige  → no se puede desmarcar
+     *
+     * Aquí había un desplegable de «formatos que quedan» y un botón Añadir. Con
+     * cuatro formatos en el catálogo y los cuatro ya en el plan, el desplegable
+     * salía vacío y parecía que el sistema no dejaba añadir nada. No era un
+     * fallo del desplegable: es que **no hay nada que añadir**, porque todos los
+     * formatos se ven siempre y lo que se hace es encenderlos y apagarlos.
      */
     protected function formsPayload(WorkPlan $workPlan): array
     {
@@ -296,32 +308,57 @@ class WorkPlanController extends Controller
             ->get()
             ->keyBy('form_template_id');
 
-        return $workPlan->expectedFormTemplates()
-            ->map(function ($item) use ($entregas) {
+        $enElPlan = $workPlan->expectedFormTemplates();
+
+        // El catálogo entero. Los que ya están en el plan salen de
+        // `expectedFormTemplates()` —que sabe si los exige el tipo—; el resto se
+        // añade apagado, para poder encenderlo.
+        $todos = \App\Models\FormTemplate::query()
+            ->where('status', 'published')
+            ->orderBy('code')
+            ->get()
+            ->map(fn ($p) => $enElPlan->get($p->id) ?? [
+                'template' => $p, 'is_required' => false,
+                'source' => 'catalog', 'from_type_required' => false,
+            ]);
+
+        // Y los que están en el plan pero ya no en el catálogo (despublicados
+        // después de usarse): no se esconden, que el documento existe.
+        foreach ($enElPlan as $id => $item) {
+            if (! $todos->contains(fn ($t) => $t['template']->id === $id)) {
+                $todos->push($item);
+            }
+        }
+
+        return $todos
+            ->map(function ($item) use ($entregas, $enElPlan) {
                 $plantilla = $item['template'];
                 $entrega   = $entregas->get($plantilla->id);
                 $conDatos  = $entrega && ($entrega->status === 'confirmed'
                     || $entrega->answers_count > 0 || $entrega->attachments_count > 0);
 
+                $obligatorioDelTipo = (bool) ($item['from_type_required'] ?? false);
+
                 return [
                     'slug'        => $plantilla->slug,
                     'code'        => $plantilla->code,
                     'kind'        => $plantilla->kind,
+                    'included'    => $enElPlan->has($plantilla->id),
                     'required'    => $item['is_required'],
                     'source'      => $item['source'],
                     'status'      => $entrega->status ?? 'pending',
-                    // Cuando se confirmo. Las otras dos columnas del tablero
-                    // enseñan su hora y esta no: la misma fila compartida las
-                    // pinta igual, asi que el dato tiene que llegar.
+                    // Cuando se confirmó. Las otras dos columnas del tablero
+                    // enseñan su hora y ésta no: la misma fila compartida las
+                    // pinta igual, así que el dato tiene que llegar.
                     'confirmed_at' => $entrega?->submitted_at,
                     'submission'  => $entrega->slug ?? null,
-                    // Lo exige el tipo de trabajo: no se puede quitar de este
-                    // plan, se cambia en el tipo. El motivo viaja para poder
-                    // decirlo en el tooltip, que no es el mismo que "ya está lleno".
-                    'locked_by_work_type' => $item['source'] === 'work_type' && $item['from_type_required'],
-                    // Se avisa en la ficha, no al pulsar: un formato lleno no se
-                    // quita, y esconderlo detrás de un error sería peor.
-                    'can_remove'  => ! $conDatos && ! ($item['source'] === 'work_type' && $item['from_type_required']),
+                    // Lo exige el tipo de trabajo: el interruptor sale bloqueado,
+                    // igual que el `disabled` del checkbox de la v1.
+                    'locked_by_work_type' => $obligatorioDelTipo,
+                    // Y un formato ya trabajado tampoco se apaga: eso borraría
+                    // el documento de seguridad de ese día.
+                    'can_toggle'  => ! $conDatos && ! $obligatorioDelTipo,
+                    'has_content' => $conDatos,
                 ];
             })
             ->values()
