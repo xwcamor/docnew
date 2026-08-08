@@ -300,7 +300,11 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     });
 
     // Edit All
-    Route::middleware('permission:people.edit')->group(function () {
+    // Pide ADEMAS `people.view_private_info`: esta pantalla edita el documento
+    // de identidad, asi que tiene que enseñarlo entero — enmascarado no se
+    // podria corregir. Es la unica de personas que manda el `num_doc` en crudo,
+    // y por eso es la unica que exige el permiso de datos privados.
+    Route::middleware(['permission:people.edit', 'permission:people.view_private_info'])->group(function () {
         Route::get('people/edit_all',         [PersonController::class, 'editAll'])->name('people.edit_all');
         Route::post('people/edit_all/update', [PersonController::class, 'editAllUpdate'])->name('people.edit_all.update');
     });
@@ -422,8 +426,13 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::post('work_plans/{workPlan}/forms',                  [WorkPlanSetupController::class, 'addForm'])->name('work_plans.forms.store');
         Route::delete('work_plans/{workPlan}/forms/{formTemplate}', [WorkPlanSetupController::class, 'removeForm'])->name('work_plans.forms.destroy');
 
+        // Las aprobaciones NO se crean ni se borran desde la ficha: las genera
+        // la regla del pais al nacer el plan (WorkPlanSetupService::
+        // seedApprovalsFromRules) y pertenecen al flujo. Lo unico que falta es
+        // quien las firma, y para eso esta esta ruta. Si el flujo cambia, se
+        // cambia en `approval_rules`, que es donde se decide.
         Route::post('work_plans/{workPlan}/approvals',                           [WorkPlanSetupController::class, 'addApproval'])->name('work_plans.approvals.store');
-        Route::delete('work_plans/{workPlan}/approvals/{workPlanApproval:slug}', [WorkPlanSetupController::class, 'removeApproval'])->name('work_plans.approvals.destroy')->withoutScopedBindings();
+        Route::put('work_plans/{workPlan}/approvals/{workPlanApproval:slug}/approver', [WorkPlanSetupController::class, 'assignApprover'])->name('work_plans.approvals.approver')->withoutScopedBindings();
     });
 
 

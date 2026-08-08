@@ -2,6 +2,27 @@
 
 return [
     'approval_out_of_order' => 'Todavía no puedes aprobar: falta la firma de :roles, que va antes en el flujo.',
+
+    // Pantalla de firma. Se lee con casco, a pleno sol y con la cámara abierta:
+    // frases cortas, y cada una dice qué hacer, no qué pasa por dentro.
+    'sign' => [
+        'searching'          => 'Buscando un rostro…',
+        'comparing'          => 'Comparando…',
+        'evidence'           => 'Sin coincidencia: tomando la foto para revisión',
+        'frame_face'         => 'Encuadra el rostro',
+        'enrolling'          => 'Registrando cara…',
+        'enroll_progress'    => 'Registrando cara: :done de :total',
+        'no_face_registered' => 'Esta persona no tiene su cara registrada. Mantén el rostro encuadrado.',
+        'enroll_failed'      => 'No se pudo registrar la cara. Inténtalo de nuevo con mejor luz.',
+        'enroll_done'        => 'Cara registrada. Ahora firma.',
+        'nobody_found'       => 'No se detectó a nadie frente a la cámara. No se registró nada.',
+        'challenge_failed'   => 'La cara coincide pero no se completó el gesto. La firma queda registrada y pendiente de revisión del supervisor.',
+        'failed'             => 'No se pudo completar la firma.',
+        'turn_head'          => 'Gira la cabeza hacia un lado',
+        'nod_head'           => 'Asiente con la cabeza',
+        'back_center'        => 'Ahora vuelve a mirar al frente',
+    ],
+
     // Pantalla de llenado de un formato del plan.
     'version'         => 'Versión',
     'missing'         => 'Falta completar',

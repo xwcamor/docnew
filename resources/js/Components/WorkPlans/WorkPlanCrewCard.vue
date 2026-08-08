@@ -7,25 +7,31 @@ import {
 import {
     TeamOutlined, DeleteOutlined, PlusOutlined, CameraOutlined, CheckCircleOutlined,
 } from '@ant-design/icons-vue';
+import { useI18n } from '@/Plugins/i18n';
 /**
  * Trabajadores del plan: quién sale a obra ese día.
  *
- * Se llama "Trabajadores" y no "Cuadrilla" porque es la palabra que traía el
- * sistema anterior (`plan_workers`) y la que se entiende sin explicación.
+ * Se llama «Trabajadores del proveedor», que es literalmente la etiqueta del
+ * sistema anterior (`plans.workers`), y no «Cuadrilla», que la inventé yo.
  *
- * De cada persona interesan tres cosas antes de salir, y son las tres que se
- * muestran: su documento (con eso se la identifica en obra), si tiene la cara
- * enrolada —sin eso no puede firmar con reconocimiento y hay que enrolarla en
- * el momento— y si ya firmó, porque en ese caso ya no se la puede quitar.
+ * De cada persona interesan tres cosas antes de salir: **el nombre** —no su
+ * documento—, si tiene la cara enrolada (sin eso no puede firmar con
+ * reconocimiento y hay que enrolarla en el momento) y si ya firmó, porque en
+ * ese caso ya no se la puede quitar.
  *
- * El buscador va contra el servidor: son 228 personas y suben, así que mandar
- * el padrón entero en la ficha sería tirar 200 KB por plan abierto.
+ * **El documento sólo se escribe, no se lee.** Se añade gente escaneando o
+ * tecleando el DNI —«Escanea DNI ó documento del trabajador aquí»— y lo que
+ * vuelve es el nombre. Nunca se despliega el padrón: antes esta pantalla
+ * pedía la lista al recibir el foco y el servidor contestaba con 25 personas
+ * y su documento completo.
  */
 const props = defineProps({
     planSlug: { type: String, required: true },
     crew:     { type: Array,  default: () => [] },
     canEdit:  { type: Boolean, default: false },
 });
+
+const { t } = useI18n();
 
 // El dato de la tarjeta es cuántos firmaron, no cuántos hay: eso es lo que
 // decide si el plan puede cerrarse.
@@ -41,21 +47,36 @@ const quitando = ref(null);
 // esto cada letra sería una consulta.
 let temporizador = null;
 
+const parcial = ref(true);   // lo escrito todavía no llega a un documento
+
 const buscar = (texto) => {
     clearTimeout(temporizador);
+    const q = (texto || '').trim();
+
+    // Sin texto no se pregunta nada. El servidor tampoco contestaría, pero así
+    // ni se gasta la llamada ni se parpadea un «no hay resultados» que mentiría.
+    if (!q) { candidatos.value = []; parcial.value = true; return; }
+
     temporizador = setTimeout(async () => {
         buscando.value = true;
         try {
             const { data } = await axios.get(
                 route('business_management.work_plans.crew.candidates', props.planSlug),
-                { params: { q: texto, exclude_assigned: 1 } },
+                { params: { q, exclude_assigned: 1 } },
             );
             candidatos.value = data.people;
+            parcial.value = !!data.partial;
         } finally {
             buscando.value = false;
         }
     }, 250);
 };
+
+// Un documento a medias no es «no existe nadie»: es «sigue escribiendo». Decir
+// lo primero manda al supervisor a dar de alta a alguien que ya está.
+const sinResultados = computed(() => (parcial.value
+    ? t('work_plans.crew_search_hint')
+    : t('work_plans.crew_no_results')));
 
 const anadir = () => {
     if (!elegido.value) return;
@@ -98,6 +119,8 @@ const quitar = (fila) => {
             <li v-for="fila in crew" :key="fila.slug" class="ff-item">
                 <div class="ff-item__main ff-item__name">
                     <strong>{{ fila.name }}</strong>
+                    <!-- Enmascarado en el servidor (App\Support\PrivateInfo):
+                         llega ya como ******78 salvo permiso. -->
                     <span class="ff-item__sub">{{ fila.doc_type }} {{ fila.num_doc || '—' }}</span>
                 </div>
 
@@ -147,12 +170,13 @@ const quitar = (fila) => {
                 :filter-option="false"
                 :loading="buscando"
                 :placeholder="$t('work_plans.crew_search_placeholder')"
-                :not-found-content="buscando ? undefined : $t('work_plans.crew_no_results')"
+                :not-found-content="buscando ? undefined : sinResultados"
                 @search="buscar"
-                @focus="buscar('')"
             >
+                <!-- El nombre, y sólo el nombre: es lo que confirma que es la
+                     persona correcta. El documento ya lo escribió quien busca. -->
                 <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
-                    {{ p.name }} — {{ p.num_doc }}
+                    {{ p.name }}
                 </SelectOption>
             </Select>
             <Button type="primary" :disabled="!elegido" :loading="guardando" @click="anadir">

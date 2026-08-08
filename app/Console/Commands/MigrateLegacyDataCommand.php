@@ -654,8 +654,10 @@ class MigrateLegacyDataCommand extends Command
                     'code'             => $codigos[$p->id] ?? $p->code,
                     'num_os'           => $p->num_os,
                     'description'      => $p->description,
-                    'date_start'       => $this->fecha($p->date_start),
-                    'date_end'         => $this->fecha($p->date_end),
+                    // Con hora: son «Fecha y Hora de Inicio/Fin» en la v1 y de
+                    // su diferencia sale el tiempo trabajado.
+                    'date_start'       => $this->fechaHora($p->date_start),
+                    'date_end'         => $this->fechaHora($p->date_end),
                     'is_closed'        => (bool) $p->is_locked,
                     'is_done'          => (bool) $p->is_done,
                     'legacy_id'        => $p->id,
@@ -2022,10 +2024,25 @@ class MigrateLegacyDataCommand extends Command
 
     // ── Utilidades ───────────────────────────────────────────────────────────
 
-    /** Las fechas de la v1 son datetime; en destino el plan se mide en dias. */
+    /** Un dia de calendario, sin hora: fechas de nacimiento y similares. */
     protected function fecha($valor): ?string
     {
         return $valor ? substr((string) $valor, 0, 10) : null;
+    }
+
+    /**
+     * Fecha **con hora**, para las columnas que la llevan.
+     *
+     * Las de un plan son `datetime(6)` en la v1 y la hora es informacion: de
+     * restar el fin del inicio sale el «Tiempo Trabajado», y el codigo original
+     * del plan se construia con la hora de inicio. Pasarlas por `fecha()` las
+     * truncaba a medianoche y dejaba 3 712 planes con duracion cero.
+     *
+     * Se recortan los microsegundos, que ahi no significan nada.
+     */
+    protected function fechaHora($valor): ?string
+    {
+        return $valor ? substr((string) $valor, 0, 19) : null;
     }
 
     /** Nada se descarta en silencio: se dice cuanto y por que. */

@@ -2,6 +2,27 @@
 
 return [
     'approval_out_of_order' => 'Not yet: :roles still has to sign, and comes first in the flow.',
+
+    // Signing screen. Read wearing a hard hat, in full sun, with the camera
+    // open: short lines, each saying what to do rather than what is happening.
+    'sign' => [
+        'searching'          => 'Looking for a face…',
+        'comparing'          => 'Comparing…',
+        'evidence'           => 'No match: taking the photo for review',
+        'frame_face'         => 'Frame your face',
+        'enrolling'          => 'Registering face…',
+        'enroll_progress'    => 'Registering face: :done of :total',
+        'no_face_registered' => 'This person has no face on file. Keep your face in frame.',
+        'enroll_failed'      => 'Could not register the face. Try again with better light.',
+        'enroll_done'        => 'Face registered. Now sign.',
+        'nobody_found'       => 'Nobody was detected in front of the camera. Nothing was recorded.',
+        'challenge_failed'   => 'The face matches but the gesture was not completed. The signature is recorded and left pending supervisor review.',
+        'failed'             => 'Could not complete the signature.',
+        'turn_head'          => 'Turn your head to one side',
+        'nod_head'           => 'Nod your head',
+        'back_center'        => 'Now look straight ahead again',
+    ],
+
     // Pantalla de llenado de un formato del plan.
     'version'         => 'Version',
     'missing'         => 'Still missing',

@@ -146,8 +146,13 @@ class UiStandardTest extends TestCase
                 continue;
             }
 
+            // Los comentarios `<!-- ... -->` no los ve nadie. Y un comentario
+            // que explica por que se dejo de usar la palabra es justo lo que se
+            // quiere conservar: sin esto, documentar la regla la incumple.
+            $visible = preg_replace('/<!--.*?-->/s', '', $m[1]);
+
             foreach ($prohibidas as $palabra) {
-                if (mb_stripos($m[1], $palabra) !== false) {
+                if (mb_stripos($visible, $palabra) !== false) {
                     $encontradas[] = str_replace(base_path() . '/', '', $archivo);
                 }
             }

@@ -246,7 +246,19 @@ const submit = () => {
                             :validate-status="form.errors.date_start ? 'error' : ''"
                             :help="form.errors.date_start"
                         >
-                            <DatePicker v-model:value="form.date_start" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                            <!-- Con hora, y en minutos de 5 en 5: nadie apunta que
+                                 la maniobra empezó a las 12:26:47. El `value-format`
+                                 hace que el selector hable en cadenas — no se le
+                                 puede pasar un computed que llame a .format(). -->
+                            <DatePicker
+                                v-model:value="form.date_start"
+                                size="large"
+                                style="width: 100%"
+                                show-time
+                                :minute-step="5"
+                                format="DD-MM-YYYY HH:mm"
+                                value-format="YYYY-MM-DD HH:mm"
+                            />
                         </FormItem>
                     </Col>
                     <Col :xs="24" :md="12">
@@ -257,7 +269,15 @@ const submit = () => {
                             :validate-status="form.errors.date_end ? 'error' : ''"
                             :help="form.errors.date_end"
                         >
-                            <DatePicker v-model:value="form.date_end" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                            <DatePicker
+                                v-model:value="form.date_end"
+                                size="large"
+                                style="width: 100%"
+                                show-time
+                                :minute-step="5"
+                                format="DD-MM-YYYY HH:mm"
+                                value-format="YYYY-MM-DD HH:mm"
+                            />
                         </FormItem>
                     </Col>
                 </Row>

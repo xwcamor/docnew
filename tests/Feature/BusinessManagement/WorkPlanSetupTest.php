@@ -201,13 +201,17 @@ class WorkPlanSetupTest extends TestCase
     {
         $plan = $this->plan();
         $aprobacion = $this->aprobacion($plan);
+        $persona = $this->persona('Ines', 'Vera', '40000021');
         $plan->forceFill(['is_done' => true])->save();
         $this->actingAs($this->supervisor());
 
-        $respuesta = $this->delete(route('business_management.work_plans.approvals.destroy', [$plan->slug, $aprobacion->slug]));
+        $respuesta = $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            ['person_slug' => $persona->slug],
+        );
 
         $respuesta->assertSessionHas('error');
-        $this->assertDatabaseHas('work_plan_approvals', ['id' => $aprobacion->id]);
+        $this->assertNull($aprobacion->fresh()->person_id);
     }
 
     // ── Permisos ─────────────────────────────────────────────────────────────
@@ -382,29 +386,59 @@ class WorkPlanSetupTest extends TestCase
         $this->assertTrue($aprobacion->is_required);
     }
 
-    public function test_no_se_puede_quitar_un_aprobador_que_ya_firmo(): void
+    /**
+     * Una aprobacion no se borra, y no hay ruta que lo intente.
+     *
+     * Pertenece al flujo, no al plan: la crea la regla del pais al nacer el
+     * plan. Quitar la fila del supervisor HSE no quita la obligacion de que
+     * firme, solo la esconde — y el plan pasaria por completo sin estarlo.
+     *
+     * Se comprueba sobre el enrutador porque la proteccion de verdad es que la
+     * operacion no exista. Una comprobacion dentro del servicio se puede saltar
+     * llamando al modelo; una ruta que no esta no se llama de ninguna manera.
+     */
+    public function test_no_existe_manera_de_borrar_una_aprobacion(): void
+    {
+        $rutas = collect(app('router')->getRoutes())->map(fn ($r) => $r->getName());
+
+        $this->assertFalse($rutas->contains('business_management.work_plans.approvals.destroy'),
+            'Volvio la ruta de borrar aprobaciones: pertenecen al flujo y no se borran.');
+
+        $this->assertFalse(method_exists(\App\Services\BusinessManagement\WorkPlanSetupService::class, 'removeApproval'),
+            'Volvio WorkPlanSetupService::removeApproval().');
+    }
+
+    /**
+     * Una aprobacion ya firmada tampoco cambia de firmante.
+     *
+     * La firma es la prueba de quien se hizo responsable. Reasignarla dejaria
+     * la evidencia de una persona colgando del nombre de otra.
+     */
+    public function test_no_se_cambia_el_firmante_de_una_aprobacion_firmada(): void
     {
         $plan = $this->plan();
         $aprobacion = $this->aprobacion($plan);
         $aprobacion->forceFill(['is_approved' => true])->save();
+        $otra = $this->persona('Luis', 'Rojas', '40000022');
         $this->actingAs($this->supervisor());
 
-        $respuesta = $this->delete(route('business_management.work_plans.approvals.destroy', [$plan->slug, $aprobacion->slug]));
+        $respuesta = $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            ['person_slug' => $otra->slug],
+        );
 
         $respuesta->assertSessionHas('error');
-        $this->assertDatabaseHas('work_plan_approvals', ['id' => $aprobacion->id]);
+        $this->assertNull($aprobacion->fresh()->person_id);
     }
 
     /**
-     * La misma regla que protege al trabajador, aplicada al aprobador: una firma
-     * de aprobacion es evidencia igual que la otra.
+     * La misma regla, con la firma pendiente de revision.
      *
-     * Este es el caso que faltaba cubrir. Si el reconocimiento no cerro y la
-     * firma quedo pendiente de revision, `is_approved` sigue en false pero el
-     * evento —con su foto— ya existe; mirar solo la bandera dejaria borrar justo
-     * las aprobaciones dudosas, que son las que hay que poder auditar.
+     * Si el reconocimiento no cerro, `is_approved` sigue en false pero el
+     * evento —con su foto— ya existe. Mirar solo la bandera dejaria reasignar
+     * justo las aprobaciones dudosas, que son las que hay que poder auditar.
      */
-    public function test_tampoco_se_quita_un_aprobador_con_firma_pendiente_de_revision(): void
+    public function test_tampoco_se_reasigna_con_firma_pendiente_de_revision(): void
     {
         $plan = $this->plan();
         $persona = $this->persona('Marta', 'Quispe', '40000012');
@@ -418,29 +452,63 @@ class WorkPlanSetupTest extends TestCase
             'pending_review' => true, 'tenant_id' => 1,
         ]);
 
+        $otra = $this->persona('Rosa', 'Diaz', '40000023');
         $this->actingAs($this->supervisor());
-        $respuesta = $this->delete(route('business_management.work_plans.approvals.destroy', [$plan->slug, $aprobacion->slug]));
+
+        $respuesta = $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            ['person_slug' => $otra->slug],
+        );
 
         $respuesta->assertSessionHas('error');
-        $this->assertDatabaseHas('work_plan_approvals', ['id' => $aprobacion->id]);
+        $this->assertSame($persona->id, $aprobacion->fresh()->person_id);
     }
 
-    /** Y el que no firmo si se quita: la proteccion no puede congelar el armado. */
-    public function test_un_aprobador_que_no_firmo_si_se_puede_quitar(): void
+    /** Una pendiente si admite firmante: la proteccion no congela el armado. */
+    public function test_a_una_aprobacion_pendiente_se_le_asigna_firmante(): void
     {
         $plan = $this->plan();
         $aprobacion = $this->aprobacion($plan);
+        $persona = $this->persona('Elsa', 'Nunez', '40000024');
         $this->actingAs($this->supervisor());
 
-        $this->delete(route('business_management.work_plans.approvals.destroy', [$plan->slug, $aprobacion->slug]));
+        $respuesta = $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            ['person_slug' => $persona->slug],
+        );
 
-        $this->assertDatabaseMissing('work_plan_approvals', ['id' => $aprobacion->id]);
+        $respuesta->assertSessionHas('success');
+        $this->assertSame($persona->id, $aprobacion->fresh()->person_id);
+    }
+
+    /** La misma persona no cubre dos firmas del mismo plan. */
+    public function test_una_persona_no_firma_dos_roles_del_mismo_plan(): void
+    {
+        $plan = $this->plan();
+        $persona = $this->persona('Hugo', 'Salas', '40000025');
+        $primera = $this->aprobacion($plan, $this->regla('supervisor', 1, true));
+        $segunda = $this->aprobacion($plan, $this->regla('hse_supervisor', 2, false));
+        $primera->forceFill(['person_id' => $persona->id])->save();
+        $this->actingAs($this->supervisor());
+
+        $respuesta = $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $segunda->slug]),
+            ['person_slug' => $persona->slug],
+        );
+
+        $respuesta->assertSessionHas('error');
+        $this->assertNull($segunda->fresh()->person_id);
     }
 
     // ── La ficha ─────────────────────────────────────────────────────────────
 
-    /** La ficha trae la cuadrilla, los formatos y las aprobaciones resueltos. */
-    public function test_la_ficha_del_plan_muestra_cuadrilla_formatos_y_aprobaciones(): void
+    /**
+     * La ficha trae los trabajadores, los formatos y las aprobaciones resueltos.
+     *
+     * El nombre va con el apellido delante («Paz Nora»), como listaba a la
+     * gente el sistema anterior (`Worker#str_complete_name_pro`).
+     */
+    public function test_la_ficha_del_plan_muestra_trabajadores_formatos_y_aprobaciones(): void
     {
         $plan = $this->plan();
         $ast = $this->plantilla('AST');
@@ -453,13 +521,74 @@ class WorkPlanSetupTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('WorkPlans/Show')
                 ->has('crew', 1)
-                ->where('crew.0.name', 'Nora Paz')
+                ->where('crew.0.name', 'Paz Nora')
                 ->where('crew.0.signed', false)
                 ->has('forms', 1)
                 ->where('forms.0.code', 'AST')
                 ->where('forms.0.status', 'pending')
                 ->has('approvals', 1)
                 ->where('setup.can', true));
+    }
+
+    /**
+     * El documento de un trabajador no sale entero en la ficha.
+     *
+     * Sin `people.view_private_info` viaja como `******09`. Y viaja **ya
+     * tapado**: el JSON de Inertia se lee entero desde el navegador, asi que
+     * esconderlo en la plantilla no lo esconde de nadie.
+     */
+    public function test_la_ficha_no_expone_el_documento_del_trabajador(): void
+    {
+        $plan = $this->plan();
+        $this->asignar($plan, $this->persona('Nora', 'Paz', '40000009'));
+        $this->actingAs($this->supervisor());
+
+        $this->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page->where('crew.0.num_doc', '******09'))
+            ->assertDontSee('40000009');
+    }
+
+    /** Y con el permiso, entero: quien tiene que ver el documento lo ve. */
+    public function test_con_permiso_el_documento_sale_completo(): void
+    {
+        $plan = $this->plan();
+        $this->asignar($plan, $this->persona('Nora', 'Paz', '40000009'));
+
+        $usuario = $this->supervisor();
+        \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'people.view_private_info', 'guard_name' => 'web']);
+        $usuario->givePermissionTo('people.view_private_info');
+        $this->actingAs($usuario);
+
+        $this->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page->where('crew.0.num_doc', '40000009'));
+    }
+
+    /**
+     * El buscador de personas no es un listado.
+     *
+     * Antes, con la busqueda vacia, devolvia 25 personas con su documento
+     * completo — y la pantalla lo llamaba sola al recibir el foco. Con menos de
+     * 8 caracteres no devuelve nada, y lo que devuelve lleva el documento tapado.
+     */
+    public function test_el_buscador_de_personas_no_vuelca_el_padron(): void
+    {
+        $plan = $this->plan();
+        $this->persona('Nora', 'Paz', '40000009');
+        $this->persona('Hugo', 'Salas', '40000010');
+        $this->actingAs($this->supervisor());
+
+        foreach (['', '4', '4000'] as $parcial) {
+            $this->getJson(route('business_management.work_plans.crew.candidates', $plan->slug) . '?q=' . $parcial)
+                ->assertOk()
+                ->assertJsonCount(0, 'people')
+                ->assertJsonPath('partial', true);
+        }
+
+        $this->getJson(route('business_management.work_plans.crew.candidates', $plan->slug) . '?q=40000009')
+            ->assertOk()
+            ->assertJsonCount(1, 'people')
+            ->assertJsonPath('people.0.name', 'Paz Nora')
+            ->assertJsonPath('people.0.num_doc', '******09');
     }
 
     /** Y en un plan cerrado dice por que no se puede armar, en vez de callarse. */
@@ -584,13 +713,15 @@ class WorkPlanSetupTest extends TestCase
         ]);
     }
 
-    private function aprobacion(WorkPlan $plan): WorkPlanApproval
+    private function aprobacion(WorkPlan $plan, ?ApprovalRule $regla = null): WorkPlanApproval
     {
+        $regla ??= $this->regla('supervisor', 1, true);
+
         return $plan->approvals()->create([
             'slug'             => Str::random(22),
-            'approval_rule_id' => $this->regla('supervisor', 1, true)->id,
+            'approval_rule_id' => $regla->id,
             'person_id'        => null,
-            'is_required'      => true,
+            'is_required'      => (bool) $regla->is_required,
         ]);
     }
 }

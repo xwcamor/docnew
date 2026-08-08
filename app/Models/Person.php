@@ -217,6 +217,29 @@ class Person extends Model
         return trim($this->name . ' ' . $this->lastname);
     }
 
+    /**
+     * El apellido primero, que es como se lista a la gente en obra y como lo
+     * hacia el sistema anterior (`Worker#str_complete_name_pro`).
+     */
+    public function getListNameAttribute(): string
+    {
+        return trim($this->lastname . ' ' . $this->name);
+    }
+
+    /**
+     * El documento tal y como puede verlo quien esta mirando: entero si tiene
+     * `people.view_private_info`, y si no `******78`.
+     *
+     * **Esto es lo que se manda al navegador.** `num_doc` a secas se queda en
+     * el servidor: sirve para buscar y para comparar, no para pintar. La regla
+     * viene del sistema anterior, donde el DNI solo salia completo con
+     * `display_private_info`, y me la habia saltado.
+     */
+    public function getSafeNumDocAttribute(): ?string
+    {
+        return \App\Support\PrivateInfo::documento($this->num_doc);
+    }
+
     public function country() { return $this->belongsTo(Country::class); }
     public function companyLinks() { return $this->hasMany(PersonCompanyLink::class); }
     public function companies() { return $this->belongsToMany(Company::class, 'person_company_links'); }

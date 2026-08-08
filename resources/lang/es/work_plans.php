@@ -40,8 +40,13 @@ return [
     'workstation_needs_location' => 'Elige primero una sede',
     'work_area'            => 'Área',
     'work_area_help'       => 'Área de la instalación intervenida.',
-    'date_start'           => 'Fecha de inicio',
-    'date_end'             => 'Fecha de fin',
+    // Llevan hora, y por eso lo dicen: es lo que las distingue de una fecha de
+    // calendario y lo que hace que «Tiempo trabajado» signifique algo.
+    'date_start'           => 'Fecha y hora de inicio',
+    'date_end'             => 'Fecha y hora de fin',
+    'period_work'          => 'Período de trabajo',
+    'worked_time'          => 'Tiempo trabajado',
+    'worked_time_open'     => 'En curso',
     'is_done'              => 'Estado',
     'is_done_help'         => 'Un plan está terminado cuando todos sus formatos están confirmados y todas las firmas obligatorias fueron levantadas.',
     'cannot_edit_closed'   => 'Este plan ya se cerró: es un documento del archivo y no se edita. Si hay que corregirlo, reábrelo primero.',
@@ -147,16 +152,18 @@ return [
     'setup_blocked_hint'   => 'Este plan es solo de consulta.',
     'state_closed'         => 'Cerrado',
 
-    // "Trabajadores", no "Cuadrilla": es como lo llamaba el sistema anterior
-    // (plan_workers) y como lo dice cualquiera en obra sin que se lo expliquen.
-    'crew_title'    => 'Trabajadores',
+    // «Trabajadores del proveedor» es la etiqueta literal del sistema anterior
+    // (`plans.workers`), y dice de quién son: los pone la contratista, no
+    // Hitachi. «Cuadrilla» la inventé yo y nadie la reconoció.
+    'crew_title'    => 'Trabajadores del proveedor',
     'crew_summary'  => '{0} Nadie firmó todavía|{1} 1 de :total firmó|[2,*] :signed de :total firmaron',
-    'crew_empty'    => 'Todavía no hay nadie. Añade al primer trabajador.',
+    'crew_empty'    => 'Todavía no hay nadie. Escanea el documento del primer trabajador.',
     'crew_add'      => 'Añadir trabajador',
     'crew_add_title'=> 'Añadir trabajador',
-    'crew_search_placeholder' => 'Buscar por nombre, apellido o documento…',
-    'crew_search_hint'        => 'Escribe parte del nombre o del documento.',
-    'crew_no_results'         => 'Nadie coincide con la búsqueda.',
+    // La misma frase que en obra: se escanea el DNI, no se busca por apellido.
+    'crew_search_placeholder' => 'Escanea o escribe el documento del trabajador…',
+    'crew_search_hint'        => 'Escribe el documento completo (8 dígitos).',
+    'crew_no_results'         => 'Ese documento no está registrado. Da de alta al trabajador primero.',
     'crew_remove'   => 'Quitar del plan',
     'crew_remove_confirm' => '¿Quitar a :name de este plan?',
     'crew_enrolled'     => 'Cara registrada',
@@ -190,19 +197,14 @@ return [
     'form_not_published'        => 'El formato :code todavía no está publicado: no se puede llenar.',
     'form_filled_cannot_remove' => 'No se puede quitar el formato :code: ya tiene respuestas, adjuntos o firmas. Vaciarlo borraría el documento de seguridad de ese día.',
 
-    'approvals_title'    => 'Aprobaciones',
-    'approvals_subtitle' => 'Quién firma el plan antes de ejecutarlo.',
+    // «Flujo de Aprobaciones» es como lo llama el sistema anterior, y describe
+    // mejor lo que es: una secuencia fija, no una lista que se edita.
+    'approvals_title'    => 'Flujo de aprobaciones',
+    'approvals_subtitle' => 'Se firman en orden. Escribe el documento del firmante para asignarlo.',
     'approvals_summary'  => '{0} Ninguna firmada|[1,*] :done de :total firmadas',
     'approvals_empty'    => 'Este plan no tiene aprobadores definidos.',
-    // El flujo de aprobación se configura en otro módulo y nadie lo encontraba:
-    // el enlace va aquí, que es donde se hace la pregunta.
-    'approvals_configure'      => 'Configurar el flujo',
-    'approvals_configure_hint' => 'Qué firmas exige un plan y quién puede darlas se define en Reglas de aprobación.',
-    'approvals_roles_link'     => 'Roles aprobadores',
     'approvals_add'      => 'Añadir aprobador',
     'approvals_add_title'=> 'Añadir un aprobador',
-    'approvals_remove'   => 'Quitar aprobador',
-    'approvals_remove_confirm' => '¿Quitar este aprobador del plan?',
     'approval_role'      => 'Rol que aprueba',
     'approval_person'    => 'Persona',
     'approval_unassigned'=> 'Sin asignar',
@@ -211,10 +213,22 @@ return [
     'approval_approved'  => 'Aprobado',
     'approval_pending'   => 'Pendiente',
     'approval_added'     => 'Aprobador añadido al plan.',
-    'approval_removed'   => 'Aprobador quitado del plan.',
     'approval_role_taken'=> 'Este plan ya tiene una aprobación de :role.',
-    'approval_signed_cannot_remove' => 'No se puede quitar este aprobador: ya firmó. Su firma es la aprobación del plan y no se borra.',
     'approval_rules_empty' => 'No quedan roles de aprobación libres para este plan.',
+
+    // Asignar y firmar
+    'approval_assign'    => 'Asignar firmante',
+    'approval_assign_hint' => 'Escanea o escribe el documento. Si la persona existe, sale su nombre.',
+    'approval_assigned'  => ':name queda asignado como firmante.',
+    'approval_change'    => 'Cambiar',
+    'approval_sign'      => 'Firmar',
+    'approval_person_taken' => ':name ya firma otro rol de este plan. Una misma persona no cubre dos firmas.',
+    'approval_signed_cannot_reassign' => 'Esta aprobación ya está firmada: no se cambia el firmante. La firma es la prueba de quién se hizo responsable.',
+    // Por qué una aprobación todavía no se puede firmar. El sistema anterior
+    // directamente las escondía; aquí se enseñan en gris con el motivo, que es
+    // mejor: se ve el camino completo sin poder saltárselo.
+    'approval_waits_crew'  => 'Primero tienen que firmar los trabajadores.',
+    'approval_waits_prior' => 'Espera la firma de :role.',
 
     'approver_role' => [
         'worker'         => 'Trabajador',

@@ -122,8 +122,10 @@ class WorkPlan extends Model
 
         // Fecha del trabajo (no la de alta del registro): es la que usa el
         // supervisor para encontrar "los planes de esta semana".
-        $query->when($request->filled('date_from'), fn ($q) => $q->where("{$tbl}.date_start", '>=', $request->date_from));
-        $query->when($request->filled('date_to'),   fn ($q) => $q->where("{$tbl}.date_start", '<=', $request->date_to));
+        // Se filtra por día aunque la columna lleve hora: pedir «hasta el 6» y
+        // perder el plan que empezó el 6 a las 12:26 no lo entendería nadie.
+        $query->when($request->filled('date_from'), fn ($q) => $q->where("{$tbl}.date_start", '>=', substr((string) $request->date_from, 0, 10) . ' 00:00:00'));
+        $query->when($request->filled('date_to'),   fn ($q) => $q->where("{$tbl}.date_start", '<=', substr((string) $request->date_to, 0, 10) . ' 23:59:59'));
 
         $query->when($request->filled('created_from'), fn ($q) => $q->where("{$tbl}.created_at", '>=', $request->created_from . ' 00:00:00'));
         $query->when($request->filled('created_to'),   fn ($q) => $q->where("{$tbl}.created_at", '<=', $request->created_to . ' 23:59:59'));
@@ -216,10 +218,13 @@ class WorkPlan extends Model
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
-    // Las fechas del plan son días de calendario, no instantes: se serializan
-    // como Y-m-d para que el navegador no las corra un día al aplicar su zona.
+    // Las fechas del plan llevan hora, y la hora importa: el sistema anterior
+    // las llama «Fecha y Hora de Inicio» y «Fecha y Hora de Fin», y de restar
+    // una de otra sale el «Tiempo Trabajado» que la ficha enseñaba. Se
+    // serializan sin zona (Y-m-d H:i) porque son la hora de la obra, no un
+    // instante UTC que el navegador deba reinterpretar.
     protected $casts = ['is_closed' => 'boolean', 'is_done' => 'boolean',
-                        'date_start' => 'date:Y-m-d', 'date_end' => 'date:Y-m-d'];
+                        'date_start' => 'datetime:Y-m-d H:i', 'date_end' => 'datetime:Y-m-d H:i'];
 
     public function country() { return $this->belongsTo(Country::class); }
     public function company() { return $this->belongsTo(Company::class); }
@@ -243,6 +248,58 @@ class WorkPlan extends Model
     public function isOpenForSetup(): bool
     {
         return ! $this->is_closed && ! $this->is_done && $this->locked_at === null;
+    }
+
+    /**
+     * Tiempo trabajado, en horas con dos decimales. `null` mientras falte una
+     * de las dos fechas — que es lo normal en un plan que sigue abierto.
+     *
+     * Es la unica medida de cuanto duro el trabajo, y el sistema anterior la
+     * enseñaba en su propia tarjeta de la ficha (`Plan#worked_time_hours`).
+     */
+    public function getWorkedHoursAttribute(): ?float
+    {
+        if (! $this->date_start || ! $this->date_end) {
+            return null;
+        }
+
+        $segundos = $this->date_end->getTimestamp() - $this->date_start->getTimestamp();
+
+        // Una fecha de fin anterior a la de inicio es un dato malo, no un
+        // trabajo de duracion negativa. Se calla en vez de enseñar «-3 horas».
+        return $segundos < 0 ? null : round($segundos / 3600, 2);
+    }
+
+    /**
+     * El mismo tiempo, escrito como lo lee un supervisor: «2 horas, 30 minutos».
+     * Los dias solo aparecen cuando los hay — y los hay: el plan mas largo de
+     * los datos reales duro 5 dias.
+     */
+    public function getWorkedTimeAttribute(): ?string
+    {
+        if ($this->worked_hours === null) {
+            return null;
+        }
+
+        $segundos = $this->date_end->getTimestamp() - $this->date_start->getTimestamp();
+        $partes = [];
+
+        foreach ([['time.days', intdiv($segundos, 86400)],
+                  ['time.hours', intdiv($segundos % 86400, 3600)],
+                  ['time.minutes', intdiv($segundos % 3600, 60)]] as [$clave, $cuantos]) {
+            if ($cuantos > 0) {
+                $partes[] = $cuantos . ' ' . trans_choice($clave, $cuantos);
+            }
+        }
+
+        if ($partes === []) {
+            return '0 ' . trans_choice('time.minutes', 0);
+        }
+
+        // «a, b y c» — la ultima coma se cambia por la conjuncion.
+        $ultima = array_pop($partes);
+
+        return $partes === [] ? $ultima : implode(', ', $partes) . ' ' . __('time.and') . ' ' . $ultima;
     }
 
     /** Por qué está cerrado — para poder decírselo al usuario, no solo negarle. */

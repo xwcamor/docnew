@@ -34,23 +34,51 @@ class SignatureController extends Controller
         return (bool) (\App\Models\Setting::get('docufiz.sequential_approvals') ?? false);
     }
 
+    /**
+     * Una persona tal y como puede salir en pantalla.
+     *
+     * El `num_doc` crudo no sale de aqui: se manda `safe_num_doc`, que llega
+     * como `******78` a quien no tenga `people.view_private_info`. Va en un
+     * metodo y no repetido en cada `map()` para que no se olvide en el
+     * siguiente sitio que haga falta.
+     */
+    protected function personaVisible(?\App\Models\Person $persona): ?array
+    {
+        return $persona ? [
+            'slug'     => $persona->slug,
+            'name'     => $persona->name,
+            'lastname' => $persona->lastname,
+            'list_name' => $persona->list_name,
+            'num_doc'  => $persona->safe_num_doc,
+        ] : null;
+    }
+
     public function show(WorkPlan $work_plan)
     {
         return inertia('FieldWork/Sign', [
             'plan' => $work_plan->only(['slug', 'code', 'description']),
+            // El documento va enmascarado, como en el resto: quien firma se
+            // reconoce por su nombre y por su cara, no por el DNI en pantalla.
+            // Esta pantalla se usa en obra, en una tablet que pasa de mano en
+            // mano, que es donde peor sienta tener 20 documentos a la vista.
             'people' => $work_plan->people()->with('person:id,slug,name,lastname,num_doc')->get()
                 ->map(fn ($p) => [
                     'slug' => $p->slug,
-                    'person' => $p->person->only(['slug', 'name', 'lastname', 'num_doc']),
+                    'person' => $this->personaVisible($p->person),
                     'signed' => $p->is_approved,
                 ]),
-            'approvals' => $work_plan->approvals()->with('person:id,slug,name,lastname,num_doc')->get()
+            'approvals' => $work_plan->approvals()
+                ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,approver_role,priority_level'])
+                ->get()
+                ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)
                 ->map(fn ($a) => [
                     'slug' => $a->slug,
-                    'person' => $a->person?->only(['slug', 'name', 'lastname', 'num_doc']),
+                    'role' => $a->approvalRule?->approver_role,
+                    'person' => $this->personaVisible($a->person),
                     'required' => $a->is_required,
                     'signed' => $a->is_approved,
-                ]),
+                ])
+                ->values(),
             'settings' => [
                 'timeoutSeconds' => (int) (\App\Models\Setting::get('docufiz.face_timeout_seconds') ?? 30),
                 'liveness' => (bool) (\App\Models\Setting::get('docufiz.face_liveness') ?? true),
@@ -155,7 +183,7 @@ class SignatureController extends Controller
             ->paginate(20)
             ->through(fn ($e) => [
                 'id' => $e->id,
-                'person' => $e->person->only(['slug', 'name', 'lastname', 'num_doc']),
+                'person' => $this->personaVisible($e->person),
                 'method' => $e->method,
                 'signed_at' => $e->signed_at,
                 'match_distance' => $e->match_distance,

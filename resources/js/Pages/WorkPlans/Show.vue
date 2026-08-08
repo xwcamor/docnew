@@ -8,7 +8,7 @@ import {
     ScheduleOutlined, LockOutlined, ToolOutlined, FormOutlined, IdcardOutlined,
     BankOutlined, EnvironmentOutlined, CalendarOutlined, DashboardOutlined,
     CheckCircleFilled, ExclamationCircleFilled, FileTextOutlined, TeamOutlined,
-    SafetyCertificateOutlined,
+    SafetyCertificateOutlined, HourglassOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -51,12 +51,19 @@ const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--c
 // Wrapper local para mantener call-sites compactos (fmt(...) en templates).
 const fmt = (d) => formatDateTimeFull(d);
 
-// Las fechas del plan son días de calendario (llegan Y-m-d): no se convierten
-// de zona horaria, solo se reordenan a dd-mm-aaaa.
+// Las fechas del plan llevan hora y son hora de obra (llegan «Y-m-d H:i»): no
+// se convierten de zona horaria, sólo se reordenan a dd-mm-aaaa hh:mm.
 const fmtDay = (v) => {
     if (!v) return '—';
     const [y, m, d] = String(v).slice(0, 10).split('-');
     return d ? `${d}-${m}-${y}` : String(v);
+};
+
+/** Fecha con hora. La hora es media información del plan, no un adorno. */
+const fmtMoment = (v) => {
+    if (!v) return '—';
+    const hora = String(v).slice(11, 16);
+    return hora ? `${fmtDay(v)} ${hora}` : fmtDay(v);
 };
 
 // Armar el plan (trabajadores, formatos, aprobadores) exige permiso Y que el
@@ -94,13 +101,34 @@ const donde = computed(() => [
     props.workPlan.work_area?.name,
 ].filter(Boolean).join(' · ') || '—');
 
-// Un plan de un día se lee como un día, no como "01-01-2026 → 01-01-2026".
-const mismoDia = computed(() =>
-    !props.workPlan.date_end || props.workPlan.date_end === props.workPlan.date_start);
+const dia = (v) => String(v ?? '').slice(0, 10);
+const hora = (v) => String(v ?? '').slice(11, 16);
 
-const cuando = computed(() => mismoDia.value
-    ? fmtDay(props.workPlan.date_start)
-    : `${fmtDay(props.workPlan.date_start)} → ${fmtDay(props.workPlan.date_end)}`);
+// Un plan que empieza y acaba el mismo día se lee como un día con dos horas
+// —«06-08-2026 · 12:26 → 21:30»—, no repitiendo la fecha dos veces. Casi todos
+// los planes reales son así: de 3 722, sólo un puñado cruzan la medianoche.
+const mismoDia = computed(() =>
+    !!props.workPlan.date_end && dia(props.workPlan.date_end) === dia(props.workPlan.date_start));
+
+/** El «Período de Trabajo» de la ficha anterior: inicio → fin, con horas. */
+const cuando = computed(() => {
+    const { date_start: ini, date_end: fin } = props.workPlan;
+
+    if (!ini) return '—';
+    if (!fin) return fmtMoment(ini);
+
+    return mismoDia.value
+        ? `${fmtDay(ini)} · ${hora(ini)} → ${hora(fin)}`
+        : `${fmtMoment(ini)} → ${fmtMoment(fin)}`;
+});
+
+/**
+ * «Tiempo Trabajado». Lo calcula el servidor (WorkPlan::getWorkedTimeAttribute)
+ * porque la frase va traducida y pluralizada; aquí sólo se decide qué poner
+ * cuando todavía no hay fin, que es lo normal en un plan del día en curso.
+ */
+const tiempoTrabajado = computed(() =>
+    props.workPlan.worked_time || t('work_plans.worked_time_open'));
 
 const formatosLlenos = computed(() => props.forms.filter((f) => f.status === 'confirmed').length);
 const firmasCrew     = computed(() => props.crew.filter((p) => p.signed).length);
@@ -254,10 +282,25 @@ const pendientes = computed(() => {
                                 <span class="wp-fact__value">{{ donde }}</span>
                             </div>
                             <div class="wp-fact">
-                                <span class="wp-fact__label"><CalendarOutlined /> {{ $t('work_plans.summary_when') }}</span>
+                                <span class="wp-fact__label"><CalendarOutlined /> {{ $t('work_plans.period_work') }}</span>
                                 <span class="wp-fact__value">
                                     {{ cuando }}
                                     <small v-if="mismoDia" class="muted">{{ $t('work_plans.summary_same_day') }}</small>
+                                </span>
+                            </div>
+                            <!-- Cuánto duró el trabajo. Era una tarjeta propia en
+                                 la ficha anterior y la había perdido al pasar las
+                                 fechas a día de calendario. -->
+                            <div class="wp-fact">
+                                <span class="wp-fact__label"><HourglassOutlined /> {{ $t('work_plans.worked_time') }}</span>
+                                <span class="wp-fact__value">{{ tiempoTrabajado }}</span>
+                            </div>
+                            <div class="wp-fact">
+                                <span class="wp-fact__label"><DashboardOutlined /> {{ $t('work_plans.is_done') }}</span>
+                                <span class="wp-fact__value">
+                                    <Tag :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
+                                        {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
+                                    </Tag>
                                 </span>
                             </div>
                             <!-- La orden de servicio solo cuando existe: un campo
@@ -308,11 +351,15 @@ const pendientes = computed(() => {
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.date_start') }}</span>
-                            <span class="spec-cell__value">{{ fmtDay(workPlan.date_start) }}</span>
+                            <span class="spec-cell__value">{{ fmtMoment(workPlan.date_start) }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.date_end') }}</span>
-                            <span class="spec-cell__value">{{ fmtDay(workPlan.date_end) }}</span>
+                            <span class="spec-cell__value">{{ fmtMoment(workPlan.date_end) }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('work_plans.worked_time') }}</span>
+                            <span class="spec-cell__value">{{ tiempoTrabajado }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.people_count') }}</span>
@@ -467,11 +514,14 @@ const pendientes = computed(() => {
                     :can-export="fieldWork.canExport"
                 />
 
+                <!-- El flujo espera a que la cuadrilla firme, como en el
+                     sistema anterior: `crewPending` es lo que lo bloquea. -->
                 <WorkPlanApprovalsCard
                     :plan-slug="workPlan.slug"
                     :approvals="approvals"
-                    :rules="setupOptions.approvalRules"
                     :can-edit="canSetup"
+                    :can-sign="fieldWork.canSign"
+                    :crew-pending="crew.length - firmasCrew"
                 />
             </template>
 

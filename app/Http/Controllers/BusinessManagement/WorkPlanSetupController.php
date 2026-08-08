@@ -37,46 +37,70 @@ class WorkPlanSetupController extends Controller
     // ── Cuadrilla ────────────────────────────────────────────────────────────
 
     /**
-     * Buscador de personas para asignar. Son 228 y crecen: no se manda el
-     * padrón entero a la ficha, se busca por nombre, apellido o documento.
-     * Devuelve JSON porque alimenta un select remoto, no una página.
+     * Búsqueda de una persona **por su documento**. No es un listado.
+     *
+     * Así se hace en obra y así lo hacía el sistema anterior: se escanea o se
+     * teclea el DNI («Escanea ó digite DNI»), y si aparece se enseña el nombre.
+     * Nunca se despliega el padrón — ni al abrir el desplegable, ni con la
+     * búsqueda vacía, ni con dos dígitos.
+     *
+     * Tres reglas, y las tres vienen de un fallo mío:
+     *
+     * 1. **Menos de `MINIMO_DOCUMENTO` caracteres no devuelve nada.** Antes,
+     *    con la búsqueda vacía, esto contestaba con 25 personas y su DNI
+     *    completo, y el selector lo llamaba solo al recibir el foco. Era un
+     *    volcado del padrón.
+     * 2. **Se busca por documento, no por nombre.** Buscar por nombre convierte
+     *    cualquier apellido común en un listado con documentos al lado.
+     * 3. **El documento vuelve enmascarado** salvo permiso. Lo que se enseña
+     *    para confirmar que es la persona correcta es el nombre.
      *
      * `exclude_assigned` lo usa el selector de la cuadrilla, que no puede
      * ofrecer a quien ya está dentro (hay índice único). El de aprobadores NO
      * lo manda: el supervisor que firma suele salir también en la cuadrilla.
      */
+    public const MINIMO_DOCUMENTO = 8;
+
     public function personCandidates(Request $request, WorkPlan $workPlan): JsonResponse
     {
         $q = trim((string) $request->get('q', ''));
+
+        // Sin documento suficiente no hay búsqueda. Se contesta con la lista
+        // vacía y el mínimo, para que la pantalla pueda decir qué falta en vez
+        // de quedarse en blanco sin explicación.
+        if (mb_strlen($q) < self::MINIMO_DOCUMENTO) {
+            return response()->json([
+                'people'  => [],
+                'minimum' => self::MINIMO_DOCUMENTO,
+                'partial' => true,
+            ]);
+        }
+
         $isPgsql = config('database.default') === 'pgsql';
 
         $personas = Person::query()
             ->where('is_active', true)
             ->when($request->boolean('exclude_assigned'),
                 fn ($query) => $query->whereNotIn('id', $workPlan->people()->pluck('person_id')))
-            ->when($q !== '', function ($query) use ($q, $isPgsql) {
+            ->when(true, function ($query) use ($q, $isPgsql) {
                 $needle = LikeQuery::contains($q);
-                $query->where(function ($qq) use ($needle, $isPgsql) {
-                    foreach (['name', 'lastname', 'num_doc'] as $col) {
-                        if ($isPgsql) {
-                            $qq->orWhereRaw("unaccent(lower(people.{$col})) LIKE unaccent(lower(?))", [$needle]);
-                        } else {
-                            $qq->orWhereRaw("people.{$col} LIKE ? ESCAPE '\\'", [$needle]);
-                        }
-                    }
-                });
+                $isPgsql
+                    ? $query->whereRaw('unaccent(lower(people.num_doc)) LIKE unaccent(lower(?))', [$needle])
+                    : $query->whereRaw("people.num_doc LIKE ? ESCAPE '\\'", [$needle]);
             })
             ->orderBy('lastname')
             ->orderBy('name')
-            ->limit(25)
+            ->limit(10)
             ->get(['id', 'slug', 'name', 'lastname', 'num_doc', 'doc_type']);
 
         return response()->json([
             'people' => $personas->map(fn ($p) => [
                 'slug'    => $p->slug,
-                'name'    => trim($p->name . ' ' . $p->lastname),
-                'num_doc' => $p->num_doc,
+                'name'    => $p->list_name,
+                'num_doc' => $p->safe_num_doc,
             ])->all(),
+            'minimum' => self::MINIMO_DOCUMENTO,
+            'partial' => false,
         ]);
     }
 
@@ -136,10 +160,21 @@ class WorkPlanSetupController extends Controller
             __('work_plans.approval_added'));
     }
 
-    public function removeApproval(WorkPlan $workPlan, WorkPlanApproval $workPlanApproval): RedirectResponse
+    /**
+     * Asigna quién firma una aprobación pendiente.
+     *
+     * No hay contraparte que la borre, a propósito: las aprobaciones las crea
+     * la regla del país al nacer el plan y pertenecen al flujo, no al plan.
+     */
+    public function assignApprover(Request $request, WorkPlan $workPlan, WorkPlanApproval $workPlanApproval): RedirectResponse
     {
-        return $this->run($workPlan, fn () => $this->armado->removeApproval($workPlan, $workPlanApproval),
-            __('work_plans.approval_removed'));
+        $datos = $request->validate(['person_slug' => ['required', 'string', 'size:22']]);
+
+        $persona = Person::where('slug', $datos['person_slug'])->where('is_active', true)->firstOrFail();
+
+        return $this->run($workPlan,
+            fn () => $this->armado->assignApprover($workPlan, $workPlanApproval, $persona),
+            __('work_plans.approval_assigned', ['name' => $persona->list_name]));
     }
 
     // ── Apoyo ────────────────────────────────────────────────────────────────

@@ -506,7 +506,10 @@ class PersonController extends Controller
             'lastname'   => $m->lastname,
             'full_name'  => $m->full_name,
             'doc_type'   => $m->doc_type,
-            'num_doc'    => $m->num_doc,
+            // Enmascarado salvo `people.view_private_info`. El registro de
+            // personas es donde estan todos los DNI juntos: si algo tiene que
+            // ir tapado por defecto es precisamente esta pantalla.
+            'num_doc'    => $m->safe_num_doc,
             'birthdate'  => $m->birthdate?->format('Y-m-d'),
             'country_id' => $m->country_id,
             'country'    => $m->relationLoaded('country') && $m->country

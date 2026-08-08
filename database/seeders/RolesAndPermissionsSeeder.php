@@ -39,7 +39,12 @@ class RolesAndPermissionsSeeder extends Seeder
         // un formato sin poder firmarlo.
         // signature_events.review: resolver la bandeja de firmas que quedaron
         // pendientes de revision.
-        foreach (['comments.view', 'comments.create', 'comments.delete', 'form_submissions.sign', 'signature_events.review'] as $perm) {
+        // people.view_private_info: ver el documento de identidad completo, la
+        // foto y la firma de una persona. Sin el, el DNI sale enmascarado
+        // (******78) y la foto y la firma no se sirven. Es el
+        // `users.display_private_info` del sistema anterior, pero por perfil en
+        // vez de por usuario, que es como se conceden aqui los permisos.
+        foreach (['comments.view', 'comments.create', 'comments.delete', 'form_submissions.sign', 'signature_events.review', 'people.view_private_info'] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 

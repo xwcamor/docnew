@@ -262,8 +262,10 @@ class WorkPlanController extends Controller
         return $asignados
             ->map(fn ($asignado) => [
                 'slug'      => $asignado->slug,
-                'name'      => $asignado->person?->full_name ?? '—',
-                'num_doc'   => $asignado->person?->num_doc,
+                'name'      => $asignado->person?->list_name ?? '—',
+                // Enmascarado salvo permiso: el JSON de Inertia viaja entero al
+                // navegador, asi que taparlo en la plantilla no tapa nada.
+                'num_doc'   => $asignado->person?->safe_num_doc,
                 'doc_type'  => $asignado->person?->doc_type,
                 'enrolled'  => $enroladas->has($asignado->person_id),
                 'signed'    => (bool) $asignado->is_approved || $asignado->signature_events_count > 0,
@@ -318,7 +320,7 @@ class WorkPlanController extends Controller
                 'slug'      => $a->slug,
                 'role'      => $a->approvalRule?->approver_role,
                 'rule_id'   => $a->approval_rule_id,
-                'person'    => $a->person ? ['slug' => $a->person->slug, 'name' => $a->person->full_name, 'num_doc' => $a->person->num_doc] : null,
+                'person'    => $a->person ? ['slug' => $a->person->slug, 'name' => $a->person->list_name, 'num_doc' => $a->person->safe_num_doc] : null,
                 'required'  => (bool) $a->is_required,
                 'signed'    => (bool) $a->is_approved || $a->signature_events_count > 0,
             ])
@@ -653,8 +655,12 @@ class WorkPlanController extends Controller
             'workstation'   => $m->relationLoaded('workstation') && $m->workstation ? ['id' => $m->workstation->id, 'name' => $m->workstation->name] : null,
             'work_area'     => $m->relationLoaded('workArea') && $m->workArea ? ['id' => $m->workArea->id, 'name' => $m->workArea->name] : null,
             'registered_by' => $m->relationLoaded('user') && $m->user ? ['id' => $m->user->id, 'name' => $m->user->name, 'email' => $m->user->email] : null,
-            'date_start' => $m->date_start?->format('Y-m-d'),
-            'date_end'   => $m->date_end?->format('Y-m-d'),
+            // Con hora: es «Fecha y hora de inicio», y de la diferencia sale el
+            // tiempo trabajado. Sin zona — es la hora de la obra, no un instante UTC.
+            'date_start'  => $m->date_start?->format('Y-m-d H:i'),
+            'date_end'    => $m->date_end?->format('Y-m-d H:i'),
+            'worked_time' => $m->worked_time,
+            'worked_hours'=> $m->worked_hours,
             'is_done'    => (bool) $m->is_done,
             'people_count'      => $m->people_count,
             'submissions_count' => $m->submissions_count,

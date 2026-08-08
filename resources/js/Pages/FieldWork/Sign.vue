@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onBeforeUnmount } from 'vue';
+import { computed, ref, onBeforeUnmount } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import { useFaceVerify } from '@/Composables/useFaceVerify';
+import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
     plan: Object,
@@ -22,6 +23,30 @@ const mensaje = ref('');
 const trabajando = ref(false);
 const reto = ref(null);         // { gesto, paso } mientras dura el reto de vida
 
+const { t } = useI18n();
+
+const firmadosCrew = computed(() => props.people.filter((p) => p.signed).length);
+
+/**
+ * Por qué una aprobación todavía no se puede firmar.
+ *
+ * El sistema anterior escondía las que no tocaban hasta que la cuadrilla
+ * hubiera firmado. Aquí se enseñan en gris con el motivo: se ve el camino
+ * entero sin poder saltárselo, que en obra evita la pregunta «¿y ahora qué?».
+ */
+const bloqueo = (a, i) => {
+    if (a.signed) return null;
+
+    if (a.role !== 'worker' && firmadosCrew.value < props.people.length) {
+        return t('work_plans.approval_waits_crew');
+    }
+
+    const previa = props.approvals.slice(0, i).find((p) => p.required && !p.signed);
+    const rol = previa?.role ? t('work_plans.approver_role.' + previa.role) : null;
+
+    return rol ? t('work_plans.approval_waits_prior', { role: rol }) : null;
+};
+
 let stream = null;
 const cara = useFaceVerify({
     sinMatchSegundos: props.settings?.timeoutSeconds ?? 20,
@@ -33,15 +58,17 @@ const cara = useFaceVerify({
  * movimiento, después volver al centro, que es la mitad que descarta una foto.
  */
 const INSTRUCCION = {
-    girar:   { gesto: 'Gira la cabeza hacia un lado', centro: 'Ahora vuelve a mirar al frente' },
-    asentir: { gesto: 'Asiente con la cabeza',        centro: 'Ahora vuelve a mirar al frente' },
+    girar:   { gesto: 'field_work.sign.turn_head', centro: 'field_work.sign.back_center' },
+    asentir: { gesto: 'field_work.sign.nod_head',  centro: 'field_work.sign.back_center' },
 };
 
 const textoReto = () => {
     if (!reto.value) return '';
-    if (reto.value.paso === 'encuadra') return 'Encuadra el rostro';
+    if (reto.value.paso === 'encuadra') return t('field_work.sign.frame_face');
 
-    return INSTRUCCION[reto.value.gesto]?.[reto.value.paso] ?? '';
+    const clave = INSTRUCCION[reto.value.gesto]?.[reto.value.paso];
+
+    return clave ? t(clave) : '';
 };
 
 async function firmar(fila, tipo, rol) {
@@ -62,16 +89,16 @@ async function firmar(fila, tipo, rol) {
             // que es justo lo que pasa la primera vez que alguien va a firmar.
             if (e?.response?.status !== 404) throw e;
 
-            mensaje.value = 'Esta persona no tiene su cara registrada. Manten el rostro encuadrado.';
+            mensaje.value = t('field_work.sign.no_face_registered');
             const enrol = await cara.enrolar(video.value, 3, (e2) => {
                 fase.value = e2.fase;
                 mensaje.value = e2.fase === 'muestra'
-                    ? `Registrando cara: ${e2.tomadas} de ${e2.total}`
-                    : 'Encuadra el rostro en la camara';
+                    ? t('field_work.sign.enroll_progress', { done: e2.tomadas, total: e2.total })
+                    : t('field_work.sign.frame_face');
             });
 
             if (enrol.estado !== 'listo') {
-                mensaje.value = 'No se pudo registrar la cara. Intentalo de nuevo con mejor luz.';
+                mensaje.value = t('field_work.sign.enroll_failed');
                 return;
             }
 
@@ -81,7 +108,7 @@ async function firmar(fila, tipo, rol) {
             });
 
             ({ data } = await axios.get(route('field_work.signatures.descriptors', fila.person.slug)));
-            mensaje.value = 'Cara registrada. Ahora firma.';
+            mensaje.value = t('field_work.sign.enroll_done');
         }
 
         const resultado = await cara.verificar(
@@ -96,13 +123,12 @@ async function firmar(fila, tipo, rol) {
         );
 
         if (resultado.estado === 'cancelada') {
-            mensaje.value = 'No se detecto a nadie frente a la camara. No se registro nada.';
+            mensaje.value = t('field_work.sign.nobody_found');
             return;
         }
 
         if (resultado.retoFallido) {
-            mensaje.value = 'La cara coincide pero no se completo el gesto. '
-                + 'La firma queda registrada y pendiente de revision del supervisor.';
+            mensaje.value = t('field_work.sign.challenge_failed');
         }
 
         // El servidor vuelve a comparar y decide: aqui no se afirma nada.
@@ -118,7 +144,7 @@ async function firmar(fila, tipo, rol) {
         mensaje.value = respuesta.data.message;
         router.reload({ only: ['people', 'approvals'] });
     } catch (e) {
-        mensaje.value = e?.response?.data?.message ?? 'No se pudo completar la firma.';
+        mensaje.value = e?.response?.data?.message ?? t('field_work.sign.failed');
     } finally {
         cara.cerrarCamara(stream);
         trabajando.value = false;
@@ -138,46 +164,51 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
         <div v-show="trabajando" class="firma-camara">
             <video ref="video" playsinline muted autoplay />
             <p class="firma-estado">
-                <span v-if="fase === 'buscando'">Buscando un rostro...</span>
-                <span v-else-if="fase === 'comparando'">Comparando ({{ distancia?.toFixed(3) }})</span>
-                <span v-else-if="fase === 'evidencia'">Sin coincidencia: tomando la foto para revision</span>
-                <span v-else-if="fase === 'encuadra'">Encuadra el rostro</span>
-                <span v-else-if="fase === 'muestra'">Registrando cara…</span>
+                <span v-if="fase === 'buscando'">{{ $t('field_work.sign.searching') }}</span>
+                <span v-else-if="fase === 'comparando'">{{ $t('field_work.sign.comparing') }}</span>
+                <span v-else-if="fase === 'evidencia'">{{ $t('field_work.sign.evidence') }}</span>
+                <span v-else-if="fase === 'encuadra'">{{ $t('field_work.sign.frame_face') }}</span>
+                <span v-else-if="fase === 'muestra'">{{ $t('field_work.sign.enrolling') }}</span>
                 <span v-else-if="fase === 'reto'" class="firma-reto">{{ textoReto() }}</span>
             </p>
         </div>
 
         <a-alert v-if="mensaje" :message="mensaje" type="info" show-icon class="mb-4" />
 
-        <!-- Mismo nombre que en la ficha del plan: "Trabajadores". -->
-        <a-card :title="$t('work_plans.crew_title')" size="small" class="mb-4">
+        <!-- Mismo nombre que en la ficha: «Trabajadores del proveedor». -->
+        <a-card :title="`${$t('work_plans.crew_title')} (${firmadosCrew}/${people.length})`" size="small" class="mb-4">
             <a-list :data-source="people" item-layout="horizontal">
                 <template #renderItem="{ item }">
                     <a-list-item>
-                        <a-list-item-meta
-                            :title="`${item.person.name} ${item.person.lastname}`"
-                            :description="item.person.num_doc" />
-                        <a-tag v-if="item.signed" color="green">Firmado</a-tag>
+                        <!-- El nombre. El documento llega ya enmascarado del
+                             servidor y no hace falta para reconocer a nadie:
+                             para eso está la cara delante de la cámara. -->
+                        <a-list-item-meta :title="item.person.list_name" />
+                        <a-tag v-if="item.signed" color="green">{{ $t('work_plans.crew_signed') }}</a-tag>
                         <a-button v-else type="primary" :disabled="trabajando"
                                   @click="firmar(item, 'work_plan_person', 'worker')">
-                            Firmar
+                            {{ $t('work_plans.approval_sign') }}
                         </a-button>
                     </a-list-item>
                 </template>
             </a-list>
         </a-card>
 
-        <a-card title="Aprobaciones" size="small">
+        <!-- Las aprobaciones esperan a que la cuadrilla termine, y cuando no se
+             pueden firmar se dice por qué en vez de dejar un botón muerto. -->
+        <a-card :title="$t('work_plans.approvals_title')" size="small">
             <a-list :data-source="approvals" item-layout="horizontal">
-                <template #renderItem="{ item }">
+                <template #renderItem="{ item, index }">
                     <a-list-item>
                         <a-list-item-meta
-                            :title="item.person ? `${item.person.name} ${item.person.lastname}` : 'Sin asignar'"
-                            :description="item.required ? 'Obligatoria' : 'Opcional'" />
-                        <a-tag v-if="item.signed" color="green">Aprobado</a-tag>
-                        <a-button v-else-if="item.person" :disabled="trabajando"
+                            :title="item.person ? item.person.list_name : $t('work_plans.approval_unassigned')"
+                            :description="bloqueo(item, index)
+                                || (item.required ? $t('work_plans.approval_required') : $t('work_plans.approval_optional'))" />
+                        <a-tag v-if="item.signed" color="green">{{ $t('work_plans.approval_approved') }}</a-tag>
+                        <a-button v-else-if="item.person" type="primary"
+                                  :disabled="trabajando || !!bloqueo(item, index)"
                                   @click="firmar(item, 'work_plan_approval', 'supervisor')">
-                            Firmar
+                            {{ $t('work_plans.approval_sign') }}
                         </a-button>
                     </a-list-item>
                 </template>

@@ -40,8 +40,13 @@ return [
     'workstation_needs_location' => 'Pick a site first',
     'work_area'            => 'Area',
     'work_area_help'       => 'Area of the facility being worked on.',
-    'date_start'           => 'Start date',
-    'date_end'             => 'End date',
+    // They carry a time, and they say so: that is what separates them from a
+    // calendar date and what makes "Worked time" mean anything.
+    'date_start'           => 'Start date and time',
+    'date_end'             => 'End date and time',
+    'period_work'          => 'Work period',
+    'worked_time'          => 'Worked time',
+    'worked_time_open'     => 'In progress',
     'is_done'              => 'Status',
     'is_done_help'         => 'A plan is done once every required form is confirmed and every mandatory signature has been collected.',
     'cannot_edit_closed'   => 'This plan is closed: it is an archived document and cannot be edited. Reopen it first if it needs correcting.',
@@ -144,14 +149,16 @@ return [
     'setup_blocked_hint'   => 'This plan is read-only.',
     'state_closed'         => 'Closed',
 
-    'crew_title'    => 'Workers',
+    // "Contractor workers" is the previous system's own label (`plans.workers`)
+    // and says whose they are: the contractor supplies them, not Hitachi.
+    'crew_title'    => 'Contractor workers',
     'crew_summary'  => '{0} Nobody signed yet|{1} 1 of :total signed|[2,*] :signed of :total signed',
-    'crew_empty'    => 'Nobody here yet. Add the first worker.',
+    'crew_empty'    => 'Nobody here yet. Scan the first worker’s document.',
     'crew_add'      => 'Add worker',
     'crew_add_title'=> 'Add worker',
-    'crew_search_placeholder' => 'Search by first name, last name or document…',
-    'crew_search_hint'        => 'Type part of the name or the document number.',
-    'crew_no_results'         => 'Nobody matches the search.',
+    'crew_search_placeholder' => 'Scan or type the worker’s document…',
+    'crew_search_hint'        => 'Type the full document number (8 digits).',
+    'crew_no_results'         => 'That document is not registered. Register the worker first.',
     'crew_remove'   => 'Remove from plan',
     'crew_remove_confirm' => 'Remove :name from this plan?',
     'crew_enrolled'     => 'Face enrolled',
@@ -185,17 +192,12 @@ return [
     'form_not_published'        => 'Form :code is not published yet: it cannot be filled in.',
     'form_filled_cannot_remove' => 'Cannot remove form :code: it already has answers, attachments or signatures. Dropping it would destroy that day’s safety record.',
 
-    'approvals_title'    => 'Approvals',
-    'approvals_subtitle' => 'Who signs off the plan before it runs.',
+    'approvals_title'    => 'Approval flow',
+    'approvals_subtitle' => 'Signed in order. Type the signer’s document to assign them.',
     'approvals_summary'  => '{0} None signed|[1,*] :done of :total signed',
     'approvals_empty'    => 'This plan has no approvers defined.',
-    'approvals_configure'      => 'Configure the flow',
-    'approvals_configure_hint' => 'Which signatures a plan requires, and who may give them, is set in Approval rules.',
-    'approvals_roles_link'     => 'Approver roles',
     'approvals_add'      => 'Add approver',
     'approvals_add_title'=> 'Add an approver',
-    'approvals_remove'   => 'Remove approver',
-    'approvals_remove_confirm' => 'Remove this approver from the plan?',
     'approval_role'      => 'Approving role',
     'approval_person'    => 'Person',
     'approval_unassigned'=> 'Unassigned',
@@ -204,10 +206,22 @@ return [
     'approval_approved'  => 'Approved',
     'approval_pending'   => 'Pending',
     'approval_added'     => 'Approver added to the plan.',
-    'approval_removed'   => 'Approver removed from the plan.',
     'approval_role_taken'=> 'This plan already has a :role approval.',
-    'approval_signed_cannot_remove' => 'Cannot remove this approver: they already signed. Their signature is the plan’s approval and is not deleted.',
     'approval_rules_empty' => 'No approval roles left for this plan.',
+
+    // Assign and sign
+    'approval_assign'    => 'Assign signer',
+    'approval_assign_hint' => 'Scan or type the document. If the person exists, their name appears.',
+    'approval_assigned'  => ':name is now the signer.',
+    'approval_change'    => 'Change',
+    'approval_sign'      => 'Sign',
+    'approval_person_taken' => ':name already signs another role on this plan. One person does not cover two signatures.',
+    'approval_signed_cannot_reassign' => 'This approval is already signed: the signer cannot be changed. The signature is the proof of who took responsibility.',
+    // Why an approval cannot be signed yet. The previous system simply hid
+    // these; showing them greyed out with the reason is better — the whole path
+    // is visible without being able to skip a step.
+    'approval_waits_crew'  => 'The workers have to sign first.',
+    'approval_waits_prior' => 'Waiting on the :role signature.',
 
     'approver_role' => [
         'worker'         => 'Worker',

@@ -155,17 +155,42 @@ class WorkPlanSetupService
         ]);
     }
 
-    /** Un aprobador que ya firmó no se quita: su firma es la aprobación misma. */
-    public function removeApproval(WorkPlan $plan, WorkPlanApproval $aprobacion): void
+    /**
+     * Le pone nombre a una aprobación pendiente.
+     *
+     * Es lo único que se hace con una aprobación desde la ficha, y es lo que
+     * hacía el sistema anterior: la fila ya existe —la creó la regla del país—
+     * y lo que falta es **quién** la firma. Se escribe el documento, si aparece
+     * se asigna, y a firmar.
+     *
+     * Una aprobación **no se borra**. Pertenece al flujo, no al plan: si el
+     * país exige la firma de un supervisor HSE, quitar la fila no quita la
+     * obligación, sólo la esconde. Y una ya firmada menos todavía — la firma es
+     * la prueba de que alguien se hizo responsable.
+     */
+    public function assignApprover(WorkPlan $plan, WorkPlanApproval $aprobacion, Person $persona): WorkPlanApproval
     {
         $this->assertOpen($plan);
         $this->assertBelongs($plan, $aprobacion->work_plan_id);
 
         if ($aprobacion->is_approved || $aprobacion->signatureEvents()->exists()) {
-            throw new \DomainException(__('work_plans.approval_signed_cannot_remove'));
+            throw new \DomainException(__('work_plans.approval_signed_cannot_reassign'));
         }
 
-        $aprobacion->delete();
+        // La misma persona no firma dos roles del mismo plan: seria la misma
+        // firma contada dos veces, y el plan parecería mas aprobado de lo que está.
+        $repetida = $plan->approvals()
+            ->where('person_id', $persona->id)
+            ->where('id', '!=', $aprobacion->id)
+            ->exists();
+
+        if ($repetida) {
+            throw new \DomainException(__('work_plans.approval_person_taken', ['name' => $persona->list_name]));
+        }
+
+        $aprobacion->update(['person_id' => $persona->id]);
+
+        return $aprobacion->refresh();
     }
 
     /**
