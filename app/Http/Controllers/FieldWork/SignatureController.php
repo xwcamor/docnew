@@ -271,6 +271,7 @@ class SignatureController extends Controller
         abort_unless($request->user()->can('signature_events.review'), 403);
 
         $pendientes = SignatureEvent::pendingReview()
+            ->delWorkspace()
             ->with(['person:id,slug,name,lastname,num_doc', 'files'])
             ->latest('signed_at')
             ->paginate(20)
@@ -298,6 +299,7 @@ class SignatureController extends Controller
     public function resolve(Request $request, SignatureEvent $signature_event)
     {
         abort_unless($request->user()->can('signature_events.review'), 403);
+        $this->soloDelWorkspace($signature_event);
 
         $datos = $request->validate([
             'accepted' => ['required', 'boolean'],
@@ -309,12 +311,30 @@ class SignatureController extends Controller
         return back()->with('success', __('Firma revisada.'));
     }
 
-    /** La evidencia no es publica: se sirve autenticada y con permiso. */
+    /** La evidencia no es publica: se sirve autenticada, con permiso y del propio workspace. */
     public function evidence(Request $request, \App\Models\EvidenceFile $evidence_file)
     {
         abort_unless($request->user()->can('signature_events.review'), 403);
+        $this->soloDelWorkspace($evidence_file->signatureEvent);
 
         return Storage::disk('local')->response($evidence_file->file_path);
+    }
+
+    /**
+     * La firma tiene que colgar de un plan del propio workspace.
+     *
+     * El permiso `signature_events.review` dice QUE puede revisar firmas, no
+     * DE QUIEN. Sin esto, con el id de la fila en la mano —o el de un fichero
+     * de evidencia— un admin resolvia la firma de otro contratista o se
+     * descargaba la foto de su trabajador. 404 y no 403: fuera del workspace
+     * esa fila no existe, y decir «no puedes» ya confirma que existe.
+     */
+    protected function soloDelWorkspace(?SignatureEvent $evento): void
+    {
+        abort_unless(
+            $evento !== null && SignatureEvent::query()->whereKey($evento->id)->delWorkspace()->exists(),
+            404,
+        );
     }
 
     /**

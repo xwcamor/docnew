@@ -41,6 +41,27 @@ class SignatureEvent extends Model
 
     public function scopePendingReview($q) { return $q->where('pending_review', true); }
 
+    /**
+     * Solo las firmas del workspace de quien mira.
+     *
+     * `signature_events` no lleva scope de workspace propio —solo `Auditable`—
+     * asi que una consulta suelta cruza contratistas. La bandeja de revision lo
+     * hacia: un admin con `signature_events.review` veia las firmas dudosas de
+     * TODOS, con nombre, documento y foto de gente que no es suya.
+     *
+     * Se acota por el plan del que cuelga la firma, que si tiene el scope. Es
+     * polimorfica, de ahi `whereHasMorph` sobre las tres tablas firmables: un
+     * `whereIn('signable_id', ...)` compararia ids de tablas distintas.
+     */
+    public function scopeDelWorkspace($q)
+    {
+        return $q->whereHasMorph(
+            'signable',
+            [WorkPlanPerson::class, WorkPlanApproval::class, FormSubmission::class],
+            fn ($s) => $s->whereIn('work_plan_id', WorkPlan::query()->select('id')),
+        );
+    }
+
     /** Verificada = la comparo el servidor y quedo por debajo del umbral. */
     public function isVerified(): bool
     {

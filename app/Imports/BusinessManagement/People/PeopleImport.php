@@ -58,8 +58,17 @@ class PeopleImport implements ToCollection, WithHeadingRow
     /** Count de people del tenant del actor (pre-import). */
     protected int $currentCount;
 
-    /** Tipos de documento admitidos — mismo enum que el formulario. */
-    protected const DOC_TYPES = ['DNI', 'CE', 'PASAPORTE'];
+    /**
+     * Tipos de documento admitidos, del catalogo del pais del actor.
+     *
+     * Era una lista escrita aqui —`['DNI', 'CE', 'PASAPORTE']`— que sobrevivio
+     * al paso del tipo de documento a catalogo: dar de alta el PTP desde la
+     * pantalla funcionaba y por Excel se rechazaba. Se resuelve una vez, en el
+     * constructor, porque si no se consulta la tabla una vez por fila.
+     *
+     * @var array<int, string>
+     */
+    protected array $docTypes;
 
     public function __construct(
         protected string $mode = 'update_or_create',
@@ -76,6 +85,16 @@ class PeopleImport implements ToCollection, WithHeadingRow
 
         // Snapshot del count actual del tenant (global scope de BelongsToTenant).
         $this->currentCount = Person::count();
+
+        // Mismo criterio que `ReglasDelDocumento`: manda el catalogo y, si el
+        // pais no tiene ninguno sembrado, los tres de siempre.
+        $delPais = DocumentType::query()
+            ->where('country_id', $user?->country_id)
+            ->where('is_active', true)
+            ->pluck('code')
+            ->all();
+
+        $this->docTypes = $delPais ?: PersonController::docTypesPorDefecto();
     }
 
     public function collection(Collection $rows): void
@@ -103,10 +122,10 @@ class PeopleImport implements ToCollection, WithHeadingRow
                 }
 
                 $docType = strtoupper((string) ($this->trimOrNull($row['doc_type'] ?? null) ?? 'DNI'));
-                if (! in_array($docType, self::DOC_TYPES, true)) {
+                if (! in_array($docType, $this->docTypes, true)) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('people.doc_type_invalid'),
+                        'message' => __('people.doc_type_invalid', ['types' => implode(', ', $this->docTypes)]),
                         'value'   => $docType,
                     ];
                     continue;

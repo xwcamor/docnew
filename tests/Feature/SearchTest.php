@@ -68,8 +68,30 @@ class SearchTest extends TestCase
             ->assertJsonPath('companies.0.label', 'Minera Andina');
 
         // Una persona se encuentra por su documento, que es como la buscan en obra.
+        // Se BUSCA por el numero entero y se DEVUELVE tapado: este actor no
+        // tiene `people.view_private_info`.
         $this->getJson(route('search', ['q' => '4455']))->assertOk()
             ->assertJsonPath('people.0.label', 'Rosa Huaman')
+            ->assertJsonPath('people.0.sub', 'DNI ******77');
+    }
+
+    /**
+     * El buscador global era la ultima puerta por la que salia el DNI entero.
+     *
+     * El resto de pantallas ya leen `safe_num_doc`; aqui se concatenaba
+     * `num_doc` a pelo, asi que cualquiera con `people.view` lo veia — que es
+     * justo lo que el permiso `people.view_private_info` existe para impedir.
+     */
+    public function test_el_buscador_solo_ensena_el_documento_entero_a_quien_puede_verlo(): void
+    {
+        Person::create(['slug' => Str::random(22), 'country_id' => 1, 'doc_type' => 'DNI',
+            'num_doc' => '44556677', 'name' => 'Rosa', 'lastname' => 'Huaman', 'tenant_id' => 1, 'created_by' => 1]);
+
+        Permission::firstOrCreate(['name' => 'people.view_private_info', 'guard_name' => 'web']);
+
+        $this->actingAs($this->actor('admin', ['people.view', 'people.view_private_info']));
+
+        $this->getJson(route('search', ['q' => '4455']))->assertOk()
             ->assertJsonPath('people.0.sub', 'DNI 44556677');
     }
 

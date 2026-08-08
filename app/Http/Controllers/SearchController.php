@@ -92,7 +92,10 @@ class SearchController extends Controller
             ->map(fn ($p) => [
                 'slug'  => $p->slug,
                 'label' => trim("{$p->name} {$p->lastname}"),
-                'sub'   => "{$p->doc_type} {$p->num_doc}",
+                // El buscador global era la ultima puerta por la que salia el
+                // documento entero: el resto de pantallas ya leen `safe_num_doc`.
+                // Se busca contra `num_doc` (arriba) y se pinta el tapado.
+                'sub'   => trim("{$p->doc_type} {$p->safe_num_doc}"),
             ])
             ->all();
     }
