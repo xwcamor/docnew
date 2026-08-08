@@ -274,7 +274,7 @@ class HandleInertiaRequests extends Middleware
     {
         // work_plans, people y companies son los módulos del día a día en obra;
         // sin su namespace aquí las cabeceras salían crudas (WORK_PLANS.CODE).
-        $namespaces = ['global', 'regions', 'languages', 'countries', 'locales', 'tenants', 'system_modules', 'settings', 'users', 'roles', 'customers', 'bitacora', 'audit_logs', 'sidebar', 'imports', 'notifications', 'auth', 'profile', 'subscriptions', 'plans', 'automations', 'dashboard', 'messages', 'comments', 'search', 'approvals', 'tools', 'locks', 'field_work', 'work_plans', 'people', 'companies', 'approval_rules', 'approver_roles'];
+        $namespaces = ['global', 'regions', 'languages', 'countries', 'locales', 'tenants', 'system_modules', 'settings', 'users', 'roles', 'customers', 'bitacora', 'audit_logs', 'sidebar', 'imports', 'notifications', 'auth', 'profile', 'subscriptions', 'plans', 'automations', 'dashboard', 'messages', 'comments', 'search', 'approvals', 'tools', 'locks', 'field_work', 'work_plans', 'people', 'companies', 'approval_rules', 'approver_roles', 'brands', 'form_templates'];
         $out = [];
         foreach ($namespaces as $ns) {
             $messages = trans($ns);

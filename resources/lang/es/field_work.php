@@ -48,7 +48,7 @@ return [
 
     // EPP: una fila por trabajador de la cuadrilla.
     'person_checklist' => [
-        'no_people' => 'El plan no tiene cuadrilla asignada: añade trabajadores para poder llenar este formato.',
+        'no_people' => 'El plan no tiene trabajadores asignados: añádelos para poder llenar este formato.',
     ],
 
     // IHM: una fila por herramienta.

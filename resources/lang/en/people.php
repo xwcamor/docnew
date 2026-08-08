@@ -44,7 +44,7 @@ return [
     'biometric'            => 'Face',
     'signatures'           => 'Signatures',
     'is_active'            => 'Status',
-    'is_active_help'       => 'If inactive, the person will not show up when building a plan crew.',
+    'is_active_help'       => 'If inactive, the person will not show up when assigning workers to a plan.',
     'filter_name'          => 'First or last name',
     'search_placeholder'   => 'Search by first or last name…',
     'trash_search_placeholder' => 'Search by name or document…',

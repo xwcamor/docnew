@@ -36,6 +36,7 @@ npm run dev
 | --- | --- |
 | `docs/PLAN.md` | Plan por fases |
 | `docs/FLUJO.md` | **Cómo se usa el sistema, de punta a punta** |
+| `docs/UI.md` | **Estándar de interfaz — de obligado cumplimiento en módulos nuevos** |
 | `docs/DOMINIO.md` | Qué es un plan, un formato, una firma |
 | `docs/BIOMETRIA.md` | Cómo se firma con reconocimiento facial |
 | `docs/MIGRACION.md` | Cómo se traen y se controlan los datos del sistema viejo |

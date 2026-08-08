@@ -44,7 +44,7 @@ return [
     'biometric'            => 'Rostro',
     'signatures'           => 'Firmas',
     'is_active'            => 'Estado',
-    'is_active_help'       => 'Si está inactiva, la persona no aparecerá al armar la cuadrilla de un plan.',
+    'is_active_help'       => 'Si está inactiva, la persona no aparecerá al asignar trabajadores a un plan.',
     'filter_name'          => 'Nombre o apellido',
     'search_placeholder'   => 'Buscar por nombre o apellido…',
     'trash_search_placeholder' => 'Buscar por nombre, apellido o documento…',

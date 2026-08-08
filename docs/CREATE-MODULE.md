@@ -1,5 +1,10 @@
 # Crear un módulo nuevo con `make:module`
 
+> **Antes de empezar: lee [`UI.md`](UI.md).** Es el estándar de interfaz y es de
+> obligado cumplimiento. Su lista de comprobación (§9) es lo último que hay que
+> repasar antes de dar un módulo por terminado, y `tests/Feature/UiStandardTest.php`
+> verifica automáticamente la parte que se puede verificar.
+
 Guía completa del scaffold del proyecto. Cómo generar un módulo nuevo clonando el master template **`Brand`**, qué hace el comando solo y qué queda para después.
 
 > **Cuándo usar esto**: cuando quieras un módulo de negocio nuevo. En DOCUFIZ los que faltan son catálogos de obra: sedes, puestos, áreas, cargos, nacionalidades, tipos de trabajo.

@@ -9,7 +9,7 @@ return [
     'id'            => 'N°',
 
     'index_title'    => 'Planes de trabajo',
-    'index_subtitle' => 'Trabajos programados en obra, con su empresa contratista, su cuadrilla y sus formatos de seguridad.',
+    'index_subtitle' => 'Trabajos programados en obra, con su empresa contratista, sus trabajadores y sus formatos de seguridad.',
     'create_title'   => 'Crear plan de trabajo',
     'create_subtitle'=> 'Registra el trabajo del día: quién lo ejecuta, de qué tipo es y dónde se hace.',
     'edit_title'     => 'Editar plan de trabajo',
@@ -46,7 +46,7 @@ return [
     'is_done_help'         => 'Un plan está terminado cuando todos sus formatos están confirmados y todas las firmas obligatorias fueron levantadas.',
     'cannot_edit_closed'   => 'Este plan ya se cerró: es un documento del archivo y no se edita. Si hay que corregirlo, reábrelo primero.',
     'is_closed'            => 'Cerrado',
-    'people_count'         => 'Cuadrilla',
+    'people_count'         => 'Trabajadores',
     'forms_count'          => 'Formatos',
     'registered_by'        => 'Registrado por',
 
@@ -57,6 +57,37 @@ return [
 
     'section_work'     => 'Trabajo y ubicación',
     'section_schedule' => 'Fechas',
+
+    // ── La ficha del plan: resumen (por defecto) y vista larga ──────────────
+    // El supervisor abre la ficha con el casco puesto: primero necesita saber
+    // qué trabajo es y cómo va. Los identificadores y las fechas de registro
+    // están en la vista larga, que es donde se buscan cuando se buscan.
+    'view_summary'  => 'Resumen',
+    'view_full'     => 'Todos los datos',
+    'view_hint'     => 'Cambiar de vista',
+
+    'summary_work'    => 'El trabajo',
+    'summary_no_desc' => 'Sin descripción',
+    'summary_where'   => 'Dónde',
+    'summary_when'    => 'Cuándo',
+    'summary_same_day'=> 'Un solo día',
+
+    'progress_title'      => 'Cómo va',
+    'progress_forms'      => 'Formatos llenos',
+    'progress_signatures' => 'Trabajadores que firmaron',
+    'progress_approvals'  => 'Aprobaciones firmadas',
+    'progress_count'      => ':done de :total',
+    'progress_empty'      => 'Nada asignado',
+
+    'missing_title'      => 'Falta para cerrarlo',
+    'missing_crew'       => 'Asignar los trabajadores: todavía no hay ninguno.',
+    'missing_forms'      => '{1} Llenar y confirmar 1 formato.|[2,*] Llenar y confirmar :count formatos.',
+    'missing_signatures' => '{1} Recoger la firma de 1 trabajador.|[2,*] Recoger las firmas de :count trabajadores.',
+    'missing_approvals'  => '{1} Falta 1 aprobación obligatoria: :roles.|[2,*] Faltan :count aprobaciones obligatorias: :roles.',
+    'missing_none'       => 'No falta nada: el plan ya se puede dar por terminado.',
+    'missing_done'       => 'El plan está terminado.',
+
+    'technical_title' => 'Datos del registro',
 
     'filter_search'            => 'Código, OS o descripción',
     'search_placeholder'       => 'Buscar por código, OS o descripción…',
@@ -111,32 +142,35 @@ return [
     ],
 
     // ── Armado del plan: cuadrilla, formatos y aprobadores ──────────────────
-    'setup_blocked_done'   => 'El plan está terminado: ya no se le cambia la cuadrilla, los formatos ni los aprobadores.',
-    'setup_blocked_closed' => 'El plan está cerrado: ya no se le cambia la cuadrilla, los formatos ni los aprobadores.',
+    'setup_blocked_done'   => 'El plan está terminado: ya no se le cambian los trabajadores, los formatos ni los aprobadores.',
+    'setup_blocked_closed' => 'El plan está cerrado: ya no se le cambian los trabajadores, los formatos ni los aprobadores.',
     'setup_blocked_hint'   => 'Este plan es solo de consulta.',
     'state_closed'         => 'Cerrado',
 
-    'crew_title'    => 'Cuadrilla',
-    'crew_subtitle' => 'Los trabajadores asignados a este plan: los que firman la charla de seguridad y los que salen en el checklist de EPP.',
-    'crew_empty'    => 'Todavía no hay nadie asignado. Añade al primer trabajador.',
+    // "Trabajadores", no "Cuadrilla": es como lo llamaba el sistema anterior
+    // (plan_workers) y como lo dice cualquiera en obra sin que se lo expliquen.
+    'crew_title'    => 'Trabajadores',
+    'crew_summary'  => '{0} Nadie firmó todavía|{1} 1 de :total firmó|[2,*] :signed de :total firmaron',
+    'crew_empty'    => 'Todavía no hay nadie. Añade al primer trabajador.',
     'crew_add'      => 'Añadir trabajador',
-    'crew_add_title'=> 'Añadir a la cuadrilla',
+    'crew_add_title'=> 'Añadir trabajador',
     'crew_search_placeholder' => 'Buscar por nombre, apellido o documento…',
     'crew_search_hint'        => 'Escribe parte del nombre o del documento.',
     'crew_no_results'         => 'Nadie coincide con la búsqueda.',
-    'crew_remove'   => 'Quitar de la cuadrilla',
-    'crew_remove_confirm' => '¿Quitar a :name de la cuadrilla de este plan?',
+    'crew_remove'   => 'Quitar del plan',
+    'crew_remove_confirm' => '¿Quitar a :name de este plan?',
     'crew_enrolled'     => 'Cara registrada',
     'crew_not_enrolled' => 'Sin cara registrada',
     'crew_signed'       => 'Firmó',
     'crew_pending'      => 'Sin firmar',
-    'crew_added'    => ':name se asignó a la cuadrilla.',
-    'crew_removed'  => 'El trabajador salió de la cuadrilla.',
-    'crew_already_assigned'     => ':name ya está en la cuadrilla de este plan.',
+    'crew_added'    => ':name se añadió al plan.',
+    'crew_removed'  => 'El trabajador se quitó del plan.',
+    'crew_already_assigned'     => ':name ya está en este plan.',
     'crew_signed_cannot_remove' => 'No se puede quitar a :name: ya firmó este plan. Su firma es la prueba de que estuvo en la obra y recibió la charla, así que el registro se conserva.',
 
     'forms_title'    => 'Formatos de seguridad',
-    'forms_subtitle' => 'Los exige el tipo de trabajo. Aquí puedes sumarle uno a este plan o quitarle el que no aplique.',
+    'forms_subtitle' => 'Los pone el tipo de trabajo. Aquí se suma o se quita uno.',
+    'forms_summary'  => '{0} Ninguno lleno|[1,*] :done de :total llenos',
     'forms_empty'    => 'El tipo de trabajo de este plan no exige ningún formato.',
     'forms_add'      => 'Añadir formato',
     'forms_add_title'=> 'Añadir un formato a este plan',
@@ -157,8 +191,14 @@ return [
     'form_filled_cannot_remove' => 'No se puede quitar el formato :code: ya tiene respuestas, adjuntos o firmas. Vaciarlo borraría el documento de seguridad de ese día.',
 
     'approvals_title'    => 'Aprobaciones',
-    'approvals_subtitle' => 'Quién tiene que firmar el plan antes de ejecutarlo. Las reglas del país proponen los roles; el nombre lo pones tú.',
+    'approvals_subtitle' => 'Quién firma el plan antes de ejecutarlo.',
+    'approvals_summary'  => '{0} Ninguna firmada|[1,*] :done de :total firmadas',
     'approvals_empty'    => 'Este plan no tiene aprobadores definidos.',
+    // El flujo de aprobación se configura en otro módulo y nadie lo encontraba:
+    // el enlace va aquí, que es donde se hace la pregunta.
+    'approvals_configure'      => 'Configurar el flujo',
+    'approvals_configure_hint' => 'Qué firmas exige un plan y quién puede darlas se define en Reglas de aprobación.',
+    'approvals_roles_link'     => 'Roles aprobadores',
     'approvals_add'      => 'Añadir aprobador',
     'approvals_add_title'=> 'Añadir un aprobador',
     'approvals_remove'   => 'Quitar aprobador',
@@ -196,7 +236,7 @@ return [
         'step3_title' => 'Vistas guardadas',
         'step3_body'  => 'Guarda tu combinación favorita de filtros + columnas + orden y aplícala después con un clic. Cada usuario tiene las suyas propias.',
         'step4_title' => 'Columnas',
-        'step4_body'  => 'De entrada se muestran solo las columnas que sirven en una tablet en obra. Aquí sumas sede, área, cuadrilla o descripción cuando trabajas en escritorio.',
+        'step4_body'  => 'De entrada se muestran solo las columnas que sirven en una tablet en obra. Aquí sumas sede, área, trabajadores o descripción cuando trabajas en escritorio.',
         'step5_title' => 'Exportar & Importar',
         'step5_body'  => 'Exporta a Excel/PDF/Word en segundo plano — se te notificará cuando esté listo. Importa desde Excel/CSV con vista previa antes de confirmar.',
         'step6_title' => 'Editar muchos a la vez',

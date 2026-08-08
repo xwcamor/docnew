@@ -48,7 +48,7 @@ return [
 
     // EPP: una fila por trabajador de la cuadrilla.
     'person_checklist' => [
-        'no_people' => 'This work plan has no crew assigned: add workers before filling this form.',
+        'no_people' => 'This work plan has no workers assigned: add them before filling this form.',
     ],
 
     // IHM: una fila por herramienta.

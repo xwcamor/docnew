@@ -66,5 +66,4 @@ return [
     'work_areas'         => 'Areas',
     'positions'          => 'Positions',
     'nationalities'      => 'Nationalities',
-    'approval_rules'     => 'Approval rules',
 ];

@@ -66,5 +66,4 @@ return [
     'work_areas'         => 'Áreas',
     'positions'          => 'Cargos',
     'nationalities'      => 'Nacionalidades',
-    'approval_rules'     => 'Reglas de aprobación',
 ];

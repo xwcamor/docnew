@@ -29,6 +29,7 @@ return [
     'add'                  => 'Add',
     'remove'               => 'Remove',
     'required'             => 'Required',
+    'save_filter'          => 'Save filter',
     'save'                 => 'Save',
     'general_data'         => 'General Data',
     'save_changes'         => 'Save changes',
