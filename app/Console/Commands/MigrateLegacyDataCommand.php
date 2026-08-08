@@ -21,6 +21,7 @@ use App\Models\Workstation;
 use App\Models\WorkType;
 use App\Services\Migration\LegacyFormMapper;
 use Illuminate\Console\Command;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -500,7 +501,7 @@ class MigrateLegacyDataCommand extends Command
 
         if ($renombrados > 0) {
             $this->warn(sprintf(
-                '  %d plan(es) traian un codigo repetido en la v1 y se les anadio un sufijo (-2, -3...): aqui el codigo es unico. El original se recupera por legacy_id.',
+                '  %d codigo(s) rehechos: en la v1 el ultimo bloque era la hora y se repetia. Aqui es el correlativo del dia (PE26-0608-0001). El original se recupera por legacy_id.',
                 $renombrados,
             ));
         }
@@ -518,38 +519,41 @@ class MigrateLegacyDataCommand extends Command
     }
 
     /**
-     * Los codigos de plan de la v1 se repiten: 3 526 distintos para 3 722
-     * planes. Aqui el codigo es unico por pais y workspace, asi que a las
-     * repeticiones se les anade un sufijo. Se calcula recorriendo el origen por
-     * id para que el resultado sea el mismo en cada pasada, y el codigo
-     * original siempre se puede recuperar por el legacy_id.
+     * Los codigos de plan se rehacen: los de la v1 se repiten.
      *
-     * @return array{0: array<int, string>, 1: int} [legacy_id => codigo, cuantos se renombraron]
+     * Alli el ultimo bloque era la **hora** de creacion, asi que dos planes
+     * registrados en el mismo minuto salian iguales: 3 526 codigos distintos
+     * para 3 722 planes, y algun dia con cuatro compartiendo codigo. Aqui ese
+     * bloque es el **correlativo del dia** (`PE26-0608-0001`), que es como los
+     * genera ahora la aplicacion — ver WorkPlanCodeGenerator.
+     *
+     * Se recorre el origen por id, asi que dos pasadas dan exactamente la misma
+     * numeracion. El codigo original siempre se recupera por el legacy_id.
+     *
+     * @return array{0: array<int, string>, 1: int} [legacy_id => codigo, cuantos cambiaron]
      */
     protected function codigosUnicos($viejo): array
     {
-        $usados = [];
+        $iso = strtoupper(Country::withTrashed()->whereKey($this->countryId)->value('iso_code') ?: 'XX');
+        $porDia = [];
         $codigos = [];
-        $renombrados = 0;
+        $cambiados = 0;
 
-        foreach ($viejo->table('plans')->orderBy('id')->select('id', 'code')->get() as $p) {
-            $codigo = $p->code;
-            $n = 1;
+        foreach ($viejo->table('plans')->orderBy('id')->select('id', 'code', 'date_start', 'created_at')->get() as $p) {
+            $dia = Carbon::parse($p->date_start ?: $p->created_at);
+            $prefijo = sprintf('%s%s-%s', $iso, $dia->format('y'), $dia->format('dm'));
 
-            while (isset($usados[mb_strtoupper($codigo)])) {
-                $n++;
-                $codigo = $p->code . '-' . $n;
-            }
+            $porDia[$prefijo] = ($porDia[$prefijo] ?? 0) + 1;
+            $codigo = $prefijo . '-' . str_pad((string) $porDia[$prefijo], 4, '0', STR_PAD_LEFT);
 
             if ($codigo !== $p->code) {
-                $renombrados++;
+                $cambiados++;
             }
 
-            $usados[mb_strtoupper($codigo)] = true;
             $codigos[$p->id] = $codigo;
         }
 
-        return [$codigos, $renombrados];
+        return [$codigos, $cambiados];
     }
 
     /** La cuadrilla del plan: quien estuvo asignado a cada trabajo. */

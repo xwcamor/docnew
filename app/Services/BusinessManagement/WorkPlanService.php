@@ -20,6 +20,10 @@ use Illuminate\Support\Facades\DB;
  */
 class WorkPlanService
 {
+    public function __construct(private readonly WorkPlanCodeGenerator $codigos)
+    {
+    }
+
     public function create(array $data): WorkPlan
     {
         $workPlan = new WorkPlan($data);
@@ -27,6 +31,18 @@ class WorkPlanService
         // formulario: siempre es el usuario de la sesión.
         $workPlan->user_id    = $data['user_id'] ?? auth()->id();
         $workPlan->created_by = auth()->id();
+
+        // El código lo pone el sistema, no la persona: es el correlativo del
+        // día del trabajo y por construcción no puede repetirse. Ver
+        // WorkPlanCodeGenerator, que explica por qué se dejó de usar la hora.
+        if (blank($workPlan->code)) {
+            $workPlan->code = $this->codigos->siguiente(
+                $workPlan->country_id,
+                $workPlan->tenant_id ?? auth()->user()?->tenant_id,
+                $workPlan->date_start,
+            );
+        }
+
         $workPlan->save();
         return $workPlan;
     }

@@ -97,17 +97,28 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertNotNull($planes->firstWhere('legacy_id', 3)->deleted_at);
     }
 
-    public function test_los_codigos_de_plan_repetidos_se_desambiguan_sin_perder_el_original(): void
+    /**
+     * Los codigos se rehacen enteros, no se parchean.
+     *
+     * En la v1 el ultimo bloque era la hora de creacion, asi que dos planes del
+     * mismo minuto salian identicos (3 722 planes, 3 526 codigos). Aqui ese
+     * bloque es el correlativo del dia del trabajo, que no puede chocar.
+     */
+    public function test_los_codigos_de_plan_se_rehacen_como_correlativo_del_dia(): void
     {
         $this->migrarTodo();
 
         $codigos = DB::table('work_plans')->whereNotNull('legacy_id')->orderBy('legacy_id')->pluck('code', 'legacy_id');
 
-        $this->assertSame('PE26-1501-0800', $codigos[1]);
-        $this->assertSame('PE26-1501-0800-2', $codigos[2]);
+        // Los dos planes que en la v1 compartian el codigo PE26-1501-0800.
+        $this->assertSame('PE26-1501-0001', $codigos[1]);
+        $this->assertSame('PE26-1501-0002', $codigos[2]);
 
-        // El codigo original se recupera siempre por el legacy_id.
-        $this->assertSame(2, DB::table('work_plans')->where('code', 'PE26-1501-0800-2')->value('legacy_id'));
+        // Y ninguno se repite, que es lo que se venia a arreglar.
+        $this->assertSame($codigos->count(), $codigos->unique()->count());
+
+        // El plan original se recupera siempre por el legacy_id.
+        $this->assertSame(2, DB::table('work_plans')->where('code', 'PE26-1501-0002')->value('legacy_id'));
     }
 
     public function test_solo_se_migran_los_catalogos_del_pais_que_usan_los_planes(): void
@@ -159,7 +170,7 @@ class MigrateLegacyDataTest extends TestCase
         $this->artisan('docufiz:migrate-data', ['paso' => 'personas'])->assertSuccessful();
 
         $this->artisan('docufiz:migrate-data', ['paso' => 'planes'])
-            ->expectsOutputToContain('codigo repetido')
+            ->expectsOutputToContain('codigo(s) rehechos')
             ->expectsOutputToContain('el plan es de otro pais')
             ->assertSuccessful();
     }

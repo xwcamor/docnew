@@ -99,20 +99,22 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
+                <!-- El código lo pone el sistema: es el correlativo del día y
+                     tiene que ser único. Antes se escribía a mano, que es como
+                     acababan repetidos. Al editar se muestra, no se toca. -->
                 <FormItem
                     :label="$t('work_plans.code')"
                     :tooltip="$t('work_plans.code_help')"
-                    required
                     :validate-status="form.errors.code ? 'error' : ''"
                     :help="form.errors.code"
                 >
                     <Input
-                        v-model:value="form.code"
+                        v-if="isEdit"
+                        :value="form.code"
                         size="large"
-                        :maxlength="255"
-                        autofocus
-                        :placeholder="$t('work_plans.code_placeholder')"
+                        disabled
                     />
+                    <p v-else class="code-auto">{{ $t('work_plans.code_auto') }}</p>
                 </FormItem>
 
                 <FormItem

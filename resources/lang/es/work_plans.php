@@ -21,8 +21,8 @@ return [
 
     // ── Campos ──────────────────────────────────────────────────────────────
     'code'                 => 'Código',
-    'code_help'            => 'Identificador del plan. Es único y no se repite: por ejemplo PE24-0412-0458.',
-    'code_placeholder'     => 'Ej: PE24-0412-0458',
+    'code_help'            => 'Lo genera el sistema al guardar: país, año, día del trabajo y el número que le toca ese día. No se repite nunca.',
+    'code_auto'            => 'Se asigna solo al guardar — el correlativo del día del trabajo.',
     'num_os'               => 'Orden de servicio',
     'num_os_help'          => 'Número de la orden de servicio del cliente, si la hay.',
     'num_os_placeholder'   => 'Ej: OS-2024-1187',

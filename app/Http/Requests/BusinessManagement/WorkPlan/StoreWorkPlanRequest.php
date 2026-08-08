@@ -45,10 +45,12 @@ class StoreWorkPlanRequest extends FormRequest
     public function rules(): array
     {
         return [
-            // El código identifica el plan y es único por tenant + país (índice
-            // parcial UPPER(code) de la tabla): la validación replica ese criterio.
+            // El código NO se pide: lo pone el sistema al guardar (correlativo
+            // del día, ver WorkPlanCodeGenerator). Se sigue aceptando si viene
+            // —importaciones, datos migrados— y entonces sí se valida único,
+            // porque el índice parcial UPPER(code) de la tabla lo exige igual.
             'code' => [
-                'required', 'string', 'max:255',
+                'nullable', 'string', 'max:255',
                 function ($attribute, $value, $fail) {
                     $exists = DB::table('work_plans')
                         ->whereNull('deleted_at')
