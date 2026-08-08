@@ -40,6 +40,8 @@ class LegacyDatabaseFixture
             $esquema->create($tabla, function ($t) use ($tabla) {
                 $t->id(); $t->string('num_doc'); $t->string('name'); $t->string('lastname');
                 $t->string('signature')->nullable(); $t->string('photo')->nullable();
+                // NOT NULL en la v1, en las tres tablas: todo el mundo trae una.
+                $t->unsignedBigInteger('nationality_id')->nullable();
                 $t->boolean('is_deleted')->default(false);
 
                 if ($tabla === 'workers') {
@@ -120,6 +122,13 @@ class LegacyDatabaseFixture
                 $t->boolean('is_deleted')->default(false);
             });
         }
+
+        // Plana y sin pais, como en la v1: dice de donde es la persona, no
+        // donde se trabaja.
+        $esquema->create('nationalities', function ($t) {
+            $t->id(); $t->string('name'); $t->string('flag')->nullable();
+            $t->boolean('is_active')->default(true); $t->boolean('is_deleted')->default(false);
+        });
 
         foreach (['severities', 'probabilities'] as $tabla) {
             $esquema->create($tabla, function ($t) {
@@ -268,19 +277,27 @@ class LegacyDatabaseFixture
             ['id' => 3, 'country_id' => 6, 'name_es' => 'Mecanico', 'name_en' => 'Mechanic', 'name_pt' => 'Mecanico', 'is_signature_approver' => false, 'is_active' => true, 'is_deleted' => false],
         ]);
 
+        // El catalogo de la v1: plano, con la bandera. El 5 es Venezuela, que
+        // en el volcado real son 9 de los 11 extranjeros.
+        $viejo->table('nationalities')->insert([
+            ['id' => 1, 'name' => 'Peru', 'flag' => 'pe', 'is_active' => true, 'is_deleted' => false],
+            ['id' => 5, 'name' => 'Venezuela', 'flag' => 've', 'is_active' => true, 'is_deleted' => false],
+        ]);
+
         $viejo->table('workers')->insert([
-            ['id' => 1, 'num_doc' => '10000001', 'name' => 'Trabajador', 'lastname' => 'Uno', 'company_id' => 1, 'position_id' => 1, 'signature' => 'firma-uno.webp', 'is_deleted' => false],
-            ['id' => 2, 'num_doc' => '10000002', 'name' => 'Trabajador', 'lastname' => 'Dos', 'company_id' => 1, 'position_id' => 1, 'signature' => null, 'is_deleted' => false],
-            ['id' => 3, 'num_doc' => '10000003', 'name' => 'Trabajador', 'lastname' => 'Tres', 'company_id' => 1, 'position_id' => 1, 'signature' => null, 'is_deleted' => false],
-            ['id' => 4, 'num_doc' => '10000003', 'name' => 'Trabajador', 'lastname' => 'Tres', 'company_id' => 2, 'position_id' => 1, 'signature' => null, 'is_deleted' => false],
+            ['id' => 1, 'num_doc' => '10000001', 'name' => 'Trabajador', 'lastname' => 'Uno', 'company_id' => 1, 'position_id' => 1, 'nationality_id' => 1, 'signature' => 'firma-uno.webp', 'is_deleted' => false],
+            // Extranjero: la nacionalidad es lo que decide que lleve carne y no DNI.
+            ['id' => 2, 'num_doc' => '10000002', 'name' => 'Trabajador', 'lastname' => 'Dos', 'company_id' => 1, 'position_id' => 1, 'nationality_id' => 5, 'signature' => null, 'is_deleted' => false],
+            ['id' => 3, 'num_doc' => '10000003', 'name' => 'Trabajador', 'lastname' => 'Tres', 'company_id' => 1, 'position_id' => 1, 'nationality_id' => 1, 'signature' => null, 'is_deleted' => false],
+            ['id' => 4, 'num_doc' => '10000003', 'name' => 'Trabajador', 'lastname' => 'Tres', 'company_id' => 2, 'position_id' => 1, 'nationality_id' => 1, 'signature' => null, 'is_deleted' => false],
         ]);
 
         $viejo->table('supervisors')->insert([
-            ['id' => 1, 'num_doc' => '20000001', 'name' => 'Supervisor', 'lastname' => 'Uno', 'signature' => null, 'is_deleted' => false],
+            ['id' => 1, 'num_doc' => '20000001', 'name' => 'Supervisor', 'lastname' => 'Uno', 'nationality_id' => 1, 'signature' => null, 'is_deleted' => false],
         ]);
 
         $viejo->table('hse_supervisors')->insert([
-            ['id' => 1, 'num_doc' => '30000001', 'name' => 'Hse', 'lastname' => 'Uno', 'signature' => null, 'is_deleted' => false],
+            ['id' => 1, 'num_doc' => '30000001', 'name' => 'Hse', 'lastname' => 'Uno', 'nationality_id' => 1, 'signature' => null, 'is_deleted' => false],
         ]);
 
         $viejo->table('user_details')->insert([

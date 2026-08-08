@@ -246,7 +246,9 @@ class WorkPlanController extends Controller
     {
         $asignados = $workPlan->people()
             ->with([
-                'person:id,slug,name,lastname,num_doc,doc_type',
+                'person:id,slug,name,lastname,num_doc,doc_type,nationality_id,country_id',
+                'person.nationality:id,code',
+                'person.country:id,name',
                 // El cargo de la persona EN LA EMPRESA DEL PLAN: la misma
                 // persona puede ser técnico en una contratista y supervisor en
                 // otra, y lo que se enseña es el de este trabajo.
@@ -276,6 +278,13 @@ class WorkPlanController extends Controller
                     // al navegador, así que taparlo en la plantilla no tapa nada.
                     'num_doc'   => $asignado->person?->safe_num_doc,
                     'doc_type'  => $asignado->person?->doc_type,
+                    // La nacionalidad SOLO cuando no es la del pais donde se
+                    // trabaja. En la v1 salia una banderita en las 391 filas, y
+                    // con el 97 % peruanos eso no informa de nada: es la misma
+                    // bandera repetida. Lo que importa es el que viene de fuera,
+                    // porque lleva carne de extranjeria y no DNI, y eso es lo
+                    // que el supervisor comprueba en la puerta.
+                    'foreign'   => $asignado->person?->foreign_nationality,
                     // El cargo, que es lo que la v1 ponía debajo del nombre.
                     'position'  => $asignado->person?->companyLinks->first()?->position?->code,
                     'signed'    => (bool) $asignado->is_approved || $firmadoEn !== null,

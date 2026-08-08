@@ -241,6 +241,34 @@ class Person extends Model
     }
 
     public function country() { return $this->belongsTo(Country::class); }
+    public function nationality() { return $this->belongsTo(Nationality::class); }
+
+    /**
+     * Su nacionalidad, **solo si no es la del pais donde trabaja**.
+     *
+     * En el sistema anterior salia una banderita en las 391 filas de la
+     * cuadrilla. Con el 97 % peruanos eso no informa: es la misma bandera
+     * repetida 380 veces, y el ojo deja de verla. Lo que hay que ver es el que
+     * viene de fuera —11 de 391— porque lleva carne de extranjeria en vez de
+     * DNI, y eso es justo lo que se comprueba en la puerta.
+     *
+     * Se compara el nombre del pais con el de la nacionalidad («Peru» /
+     * «Peru»), sin tildes, porque el catalogo de nacionalidades de la v1 es
+     * plano y no apunta a `countries`.
+     */
+    public function getForeignNationalityAttribute(): ?string
+    {
+        $codigo = $this->nationality?->code;
+
+        if ($codigo === null || $codigo === '') {
+            return null;
+        }
+
+        $limpio = fn (string $t) => mb_strtolower(preg_replace('/\p{Mn}/u',
+            '', \Normalizer::normalize($t, \Normalizer::FORM_D) ?: $t) ?? $t);
+
+        return $limpio($codigo) === $limpio((string) $this->country?->name) ? null : $codigo;
+    }
     public function companyLinks() { return $this->hasMany(PersonCompanyLink::class); }
     public function companies() { return $this->belongsToMany(Company::class, 'person_company_links'); }
     public function roles() { return $this->hasMany(PersonRole::class); }

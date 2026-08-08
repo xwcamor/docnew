@@ -219,6 +219,10 @@ class MigrateLegacyDataCommand extends Command
         // que los 372 tienen cargo.
         $cargos = $this->catalogoCargos($viejo);
 
+        // Y las nacionalidades, por lo mismo: `nationality_id` tambien es NOT
+        // NULL en la v1 y tampoco se traia.
+        $nacionalidades = $this->catalogoNacionalidades($viejo);
+
         $fuentes = [
             'workers'         => PersonRole::WORKER,
             'supervisors'     => PersonRole::SUPERVISOR,
@@ -240,7 +244,7 @@ class MigrateLegacyDataCommand extends Command
                 $porDocumento[$doc] ??= [
                     'name' => $f->name, 'lastname' => $f->lastname,
                     'roles' => [], 'empresas' => [], 'firmas' => [], 'legacy' => [],
-                    'nombres_vistos' => [],
+                    'nombres_vistos' => [], 'nacionalidad' => null,
                 ];
 
                 $p = &$porDocumento[$doc];
@@ -258,6 +262,10 @@ class MigrateLegacyDataCommand extends Command
                     $p['empresas'][$f->company_id] = $f->position_id ?? null;
                 }
 
+                // La misma persona puede salir en las tres tablas; la
+                // nacionalidad es de la persona, asi que con verla una vez basta.
+                $p['nacionalidad'] ??= $f->nationality_id ?? null;
+
                 if (! empty($f->signature)) {
                     $p['firmas'][$f->signature] = true;
                 }
@@ -273,18 +281,32 @@ class MigrateLegacyDataCommand extends Command
                 $conflictos[$doc] = array_keys($d['nombres_vistos']);
             }
 
+            // Por documento y NO por (tipo, documento): en la v1 el tipo no
+            // existe —solo hay `num_doc`— asi que la identidad es el numero.
+            // Filtrar por 'DNI' dejaba fuera al extranjero en cuanto su tipo
+            // pasa a ser 'CE', y su plan se quedaba sin el.
             $persona = Person::withTrashed()->where('country_id', $this->countryId)
-                ->where('doc_type', 'DNI')->where('num_doc', $doc)->first();
+                ->where('num_doc', $doc)->first();
+
+            $nacionalidadId = $d['nacionalidad'] ? ($nacionalidades[$d['nacionalidad']] ?? null) : null;
 
             if (! $persona) {
                 $persona = Person::create([
                     'slug' => Str::random(22), 'country_id' => $this->countryId,
-                    'doc_type' => 'DNI', 'num_doc' => $doc,
+                    'doc_type' => $this->tipoDeDocumento($nacionalidadId), 'num_doc' => $doc,
                     'name' => $d['name'], 'lastname' => $d['lastname'],
+                    'nationality_id' => $nacionalidadId,
                     'tenant_id' => $this->tenantId, 'created_by' => 1,
                     'legacy_table' => implode(', ', $d['legacy']),
                 ]);
                 $creadas++;
+            } elseif ($nacionalidadId && $persona->nationality_id === null) {
+                // Ya existia de una pasada anterior, cuando la nacionalidad no
+                // se traia: se le pone ahora, junto con su tipo de documento.
+                $persona->update([
+                    'nationality_id' => $nacionalidadId,
+                    'doc_type'       => $this->tipoDeDocumento($nacionalidadId),
+                ]);
             }
 
             foreach (array_keys($d['roles']) as $rol) {
@@ -938,9 +960,10 @@ class MigrateLegacyDataCommand extends Command
             return $cache;
         }
 
+        // Por documento a secas, por lo mismo que arriba: el tipo lo deduce la
+        // migracion a partir de la nacionalidad y no forma parte de la identidad.
         $porDocumento = DB::table('people')
             ->where('country_id', $this->countryId)
-            ->where('doc_type', 'DNI')
             ->pluck('id', 'num_doc');
 
         $cache = [];
@@ -1015,6 +1038,70 @@ class MigrateLegacyDataCommand extends Command
                 'code'                  => $f->name_es,
                 'is_signature_approver' => (bool) $f->is_signature_approver,
                 'is_active'             => (bool) $f->is_active,
+            ]);
+    }
+
+    /**
+     * Que documento lleva esta persona, deducido de su nacionalidad.
+     *
+     * La v1 no tiene columna de tipo de documento: todo es `num_doc` a secas, y
+     * aqui se estaba escribiendo «DNI» para los 391. Para 380 es cierto; para
+     * los 11 extranjeros no — un peruano no puede tener carne de extranjeria y
+     * un extranjero no puede tener DNI.
+     *
+     * **Es una deduccion, no un dato del origen**, y conviene saberlo. La
+     * sostiene el propio volcado: los 11 extranjeros tienen documento de nueve
+     * caracteres y los peruanos de ocho, sin una sola excepcion en cinco años.
+     * Aun asi, si alguno lleva PTP o pasaporte en vez de carne, hay que
+     * corregirlo a mano (queda anotado en docs/MIGRACION.md).
+     *
+     * Sin nacionalidad no se deduce nada: se deja el DNI de siempre.
+     */
+    protected function tipoDeDocumento(?int $nacionalidadId): string
+    {
+        if ($nacionalidadId === null) {
+            return 'DNI';
+        }
+
+        $codigo = \App\Models\Nationality::withTrashed()->whereKey($nacionalidadId)->value('code');
+
+        return $this->esDelPaisDeTrabajo((string) $codigo) ? 'DNI' : 'CE';
+    }
+
+    /** ¿La nacionalidad es la del pais donde se trabaja? */
+    protected function esDelPaisDeTrabajo(string $codigo): bool
+    {
+        $pais = \App\Models\Country::whereKey($this->countryId)->value('name');
+
+        $limpio = fn (string $t) => mb_strtolower(preg_replace('/\p{Mn}/u',
+            '', \Normalizer::normalize($t, \Normalizer::FORM_D) ?: $t) ?? $t);
+
+        return $limpio($codigo) === $limpio((string) $pais);
+    }
+
+    /**
+     * Nacionalidades. Se habia quedado sin migrar entera.
+     *
+     * En la v1 `workers.nationality_id` es NOT NULL: los 391 trabajadores traen
+     * una, y la ficha del plan la enseñaba con una banderita al lado del
+     * nombre. Aqui la tabla estaba vacia y la columna de la persona en nulo.
+     *
+     * El reparto real de esos 391: 380 Peru, 9 Venezuela, 1 Chile, 1 Argentina.
+     * Son once personas, pero son once que llevan carne de extranjeria en vez
+     * de DNI, y eso es justo lo que el supervisor necesita saber en la puerta.
+     *
+     * @return array<int, int> legacy_id => nationalities.id
+     */
+    protected function catalogoNacionalidades($viejo): array
+    {
+        return $this->catalogo($viejo, 'nationalities', fn ($f) => \App\Models\Nationality::withTrashed()
+            ->where('country_id', $this->countryId)
+            ->whereRaw('lower(code) = ?', [mb_strtolower($f->name)])
+            ->first(),
+            fn ($f) => [
+                'country_id' => $this->countryId,
+                'code'       => $f->name,
+                'is_active'  => (bool) $f->is_active,
             ]);
     }
 
@@ -1130,6 +1217,7 @@ class MigrateLegacyDataCommand extends Command
             'workstations'   => Workstation::class,
             'approval_rules' => ApprovalRule::class,
             'positions'      => \App\Models\Position::class,
+            'nationalities'  => \App\Models\Nationality::class,
         ][$tabla];
 
         $mapa = [];
@@ -1137,8 +1225,10 @@ class MigrateLegacyDataCommand extends Command
         $consulta = $viejo->table($tabla)->orderBy('id');
 
         // Los catalogos de la v1 son multipais; aqui solo se trae el que usan
-        // los planes. Workstations cuelga de la sede, no del pais.
-        if ($tabla !== 'workstations') {
+        // los planes. Workstations cuelga de la sede, y `nationalities` alli es
+        // una tabla plana sin pais —«Peru», «Venezuela»— porque no dice donde se
+        // trabaja sino de donde es la persona.
+        if (! in_array($tabla, ['workstations', 'nationalities'], true)) {
             $consulta->where('country_id', self::PAIS_LEGACY);
         }
 

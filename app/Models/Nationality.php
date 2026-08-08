@@ -22,7 +22,7 @@ class Nationality extends Model
     // de la demo se lo pasaba a `create()` y Eloquent lo tiraba en silencio, con
     // lo que la unica nacionalidad que existia salia en blanco en el selector.
     protected $fillable = [
-        'slug', 'country_id', 'code', 'is_active',
+        'slug', 'country_id', 'code', 'is_active', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 

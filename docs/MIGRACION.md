@@ -222,6 +222,35 @@ Un evento con foto y firma solo se marca como perdido si **ninguno** de sus dos 
 El paso **no falla si la carpeta no está**: avisa y sale bien. La ausencia de los ficheros no puede
 tumbar la migración.
 
+## La nacionalidad y el tipo de documento
+
+`workers.nationality_id` es NOT NULL en la v1 —los 391 trabajadores traen una— y
+no se migraba: la tabla quedaba vacía y la columna de la persona en nulo. Ya se
+trae, con su catálogo.
+
+El reparto real de los 391: **380 Perú, 9 Venezuela, 1 Chile, 1 Argentina.**
+
+Arrastra una segunda cosa. La v1 **no tiene tipo de documento** —todo es
+`num_doc` a secas— así que aquí se escribía «DNI» para los 391. Para 380 es
+cierto; para los 11 extranjeros no, porque un extranjero no puede tener DNI.
+Ahora el tipo se deduce de la nacionalidad: la del país donde se trabaja → DNI,
+cualquier otra → CE.
+
+> **Es una deducción, no un dato del origen.** La sostiene el propio volcado:
+> los 11 extranjeros tienen documento de nueve caracteres y los peruanos de
+> ocho, sin una sola excepción en cinco años. Aun así, si alguno lleva PTP o
+> pasaporte en vez de carné, hay que corregirlo a mano.
+
+En pantalla la nacionalidad **sólo se enseña cuando no es la del país donde se
+trabaja**. La v1 ponía una banderita en las 391 filas y con el 97 % peruanos eso
+no informa: es la misma bandera repetida y el ojo deja de verla. Lo que hay que
+ver es el que viene de fuera.
+
+De paso salió que la persona se buscaba por `(tipo, documento)` en dos sitios,
+con el tipo fijo en `DNI`. En cuanto el extranjero pasa a `CE` eso lo dejaba
+fuera y su plan se quedaba sin él. En la v1 el tipo no existe, así que la
+identidad es el número: ahora se busca sólo por documento.
+
 ## Los catálogos llegan bloqueados
 
 Tipos de trabajo, sedes, puestos, áreas, cargos y reglas de aprobación entran con el candado puesto

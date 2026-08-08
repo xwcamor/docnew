@@ -281,6 +281,60 @@ class MigrateLegacyDataTest extends TestCase
     }
 
     /**
+     * La nacionalidad llega, y con ella el tipo de documento correcto.
+     *
+     * Se habia quedado sin migrar entera: `workers.nationality_id` es NOT NULL
+     * en la v1 —los 391 trabajadores traen una— y aqui la tabla estaba vacia y
+     * la columna de la persona en nulo. El reparto real es 380 Peru, 9
+     * Venezuela, 1 Chile y 1 Argentina.
+     *
+     * Y arrastra algo mas: la v1 no tiene tipo de documento, asi que aqui se
+     * escribia «DNI» para los 391. Para 380 es cierto; para los 11 extranjeros
+     * no, porque un extranjero no puede tener DNI. El tipo se deduce de la
+     * nacionalidad.
+     */
+    public function test_la_nacionalidad_llega_y_decide_el_tipo_de_documento(): void
+    {
+        $this->migrarTodo();
+
+        $this->assertSame(2, DB::table('nationalities')->whereNotNull('legacy_id')->count());
+
+        $peruano = DB::table('people')->where('num_doc', '10000001')->first();
+        $extranjero = DB::table('people')->where('num_doc', '10000002')->first();
+
+        $nombre = fn ($id) => DB::table('nationalities')->where('id', $id)->value('code');
+
+        $this->assertSame('Peru', $nombre($peruano->nationality_id));
+        $this->assertSame('Venezuela', $nombre($extranjero->nationality_id));
+
+        // Y de ahi el documento: DNI el de aqui, carne el de fuera.
+        $this->assertSame('DNI', $peruano->doc_type);
+        $this->assertSame('CE', $extranjero->doc_type);
+    }
+
+    /**
+     * A quien ya se migro sin nacionalidad se le pone al repetir la migracion.
+     *
+     * Los 391 ya estan en la base sin ella, de la pasada anterior. Si solo se
+     * rellenara al crear la persona, se quedarian todos sin nacionalidad para
+     * siempre y habria que borrarlos y volver a empezar.
+     */
+    public function test_al_repetir_la_migracion_se_completa_la_nacionalidad_que_faltaba(): void
+    {
+        $this->migrarTodo();
+
+        // Se simula el estado en que quedo la base con la migracion vieja.
+        DB::table('people')->update(['nationality_id' => null, 'doc_type' => 'DNI']);
+
+        $this->migrarTodo();
+
+        $extranjero = DB::table('people')->where('num_doc', '10000002')->first();
+
+        $this->assertNotNull($extranjero->nationality_id);
+        $this->assertSame('CE', $extranjero->doc_type);
+    }
+
+    /**
      * El cargo del trabajador llega, y llega en el vinculo con su empresa.
      *
      * Se habia quedado fuera por completo: la migracion **capturaba**

@@ -43,6 +43,11 @@ const todosFirmaron = computed(() => props.crew.length > 0 && firmados.value ===
 const subtitulo = (fila) => [
     fila.position,
     [fila.doc_type, fila.num_doc].filter(Boolean).join(' '),
+    // La nacionalidad SOLO si no es la del país donde se trabaja. El servidor
+    // ya decide eso: aquí llega el nombre o no llega nada. Una banderita
+    // peruana en las 380 filas peruanas no informa de nada; la del que viene
+    // de fuera sí, porque lleva carné de extranjería y no DNI.
+    fila.foreign,
 ].filter(Boolean).join(' · ');
 
 const documento = ref('');
