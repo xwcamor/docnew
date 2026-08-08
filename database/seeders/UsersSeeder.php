@@ -16,7 +16,6 @@ use Illuminate\Support\Str;
  *
  *   - Empresa 1 (id=1):
  *       admin:  joe@example.com
- *       users:  jose@example.com, pedro@example.com
  *
  *
  *
@@ -35,9 +34,7 @@ class UsersSeeder extends Seeder
             ['email' => 'super@example.com', 'name' => 'Super Admin', 'tenant_id' => null, 'timezone' => 'UTC'],
 
             // Empresa 1
-            ['email' => 'joe@example.com', 'name' => 'Joe (Empresa 1 admin)', 'tenant_id' => 1, 'timezone' => 'America/Lima'],
-            ['email' => 'jose@example.com',  'name' => 'Jose Perez',              'tenant_id' => 1, 'timezone' => 'America/Lima'],
-            ['email' => 'pedro@example.com', 'name' => 'Pedro Ramirez',           'tenant_id' => 1, 'timezone' => 'America/Lima'],
+            ['email' => 'joe@example.com', 'name' => 'Joe (admin de Empresa 1)', 'tenant_id' => 1, 'timezone' => 'America/Lima'],
 
             // Empresa 2
 

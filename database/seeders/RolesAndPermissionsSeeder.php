@@ -190,8 +190,6 @@ class RolesAndPermissionsSeeder extends Seeder
         // distinto para probar visualmente los permisos. En la 1ª pasada (antes
         // de UsersSeeder) no existen y se omiten; en la 2ª se asignan.
         $workerAssignments = [
-            'jose@example.com'  => 'Empresa (solo lectura)',       // Empresa 1
-            'pedro@example.com' => 'Empresa (carga de muestras)',  // Empresa 1
         ];
         foreach ($workerAssignments as $email => $roleName) {
             $userModel = User::withoutGlobalScopes()->where('email', $email)->first();
