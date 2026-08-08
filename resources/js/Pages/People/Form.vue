@@ -5,7 +5,6 @@ import {
     Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker,
 } from 'ant-design-vue';
 import { IdcardOutlined } from '@ant-design/icons-vue';
-import dayjs from 'dayjs';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -38,11 +37,10 @@ const form = useForm({
 const filterOption = (input, option) =>
     String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase());
 
-// DatePicker trabaja con dayjs; el backend espera y devuelve 'YYYY-MM-DD'.
-const birthdate = computed({
-    get: () => (form.birthdate ? dayjs(form.birthdate) : null),
-    set: (v) => { form.birthdate = v ? v.format('YYYY-MM-DD') : null; },
-});
+// Con `value-format` el DatePicker habla en cadenas, igual que el backend: se
+// enlaza el campo directo. El computed que habia en medio convertia a dayjs y
+// llamaba a `.format()` sobre una cadena, asi que la fecha se borraba al
+// elegirla.
 
 const submit = () => {
     if (isEdit.value) {
@@ -194,7 +192,7 @@ const submit = () => {
                     :validate-status="form.errors.birthdate ? 'error' : ''"
                     :help="form.errors.birthdate"
                 >
-                    <DatePicker v-model:value="birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                    <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
                 </FormItem>
 
                 <FormItem

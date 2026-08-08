@@ -5,7 +5,6 @@ import {
     Form, FormItem, Input, Textarea, Switch, Space, Alert, Row, Col, Select, DatePicker,
 } from 'ant-design-vue';
 import { ScheduleOutlined } from '@ant-design/icons-vue';
-import dayjs from 'dayjs';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -50,13 +49,13 @@ const onLocationChange = () => { form.workstation_id = null; };
 const filterOption = (input, option) =>
     String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase());
 
-// DatePicker trabaja con dayjs; el backend espera y devuelve 'YYYY-MM-DD'.
-const dateModel = (field) => computed({
-    get: () => (form[field] ? dayjs(form[field]) : null),
-    set: (v) => { form[field] = v ? v.format('YYYY-MM-DD') : null; },
-});
-const dateStart = dateModel('date_start');
-const dateEnd   = dateModel('date_end');
+// Con `value-format` el DatePicker emite y recibe CADENAS, no dayjs, que es
+// justo lo que el backend espera. Se enlaza el campo directamente.
+//
+// Antes habia en medio un computed que devolvia un objeto dayjs y llamaba a
+// `.format()` sobre lo que recibia. Como lo que recibia era una cadena, al
+// elegir una fecha reventaba y el campo se quedaba vacio: se seleccionaba el
+// dia y se borraba solo.
 
 const submit = () => {
     if (isEdit.value) {
@@ -247,7 +246,7 @@ const submit = () => {
                             :validate-status="form.errors.date_start ? 'error' : ''"
                             :help="form.errors.date_start"
                         >
-                            <DatePicker v-model:value="dateStart" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                            <DatePicker v-model:value="form.date_start" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
                         </FormItem>
                     </Col>
                     <Col :xs="24" :md="12">
@@ -258,7 +257,7 @@ const submit = () => {
                             :validate-status="form.errors.date_end ? 'error' : ''"
                             :help="form.errors.date_end"
                         >
-                            <DatePicker v-model:value="dateEnd" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                            <DatePicker v-model:value="form.date_end" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
                         </FormItem>
                     </Col>
                 </Row>
