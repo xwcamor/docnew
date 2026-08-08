@@ -24,12 +24,34 @@ class PrivateInfo
     /** Cuantos digitos del final quedan a la vista. Dos, como en el anterior. */
     private const VISIBLES = 2;
 
-    /** Si este usuario puede ver documentos, fotos y firmas sin tapar. */
+    /**
+     * Si este usuario puede ver documentos, fotos y firmas sin tapar.
+     *
+     * Se pregunta con `hasPermissionTo()`, **no con `can()`**, y eso es
+     * deliberado: `Gate::before` le da todo al rol `super`, así que con `can()`
+     * el super vería los 231 documentos completos sin que nadie se lo haya
+     * concedido. Ser administrador del sistema no es lo mismo que tener por qué
+     * leer el DNI de un electricista.
+     *
+     * Es el único permiso de la aplicación que no se salta con el bypass, y por
+     * eso está aquí en vez de en el Gate. Quien de verdad lo necesite, se le
+     * concede — a super también, explícitamente.
+     */
     public static function visibleFor(?User $usuario = null): bool
     {
         $usuario ??= Auth::user();
 
-        return (bool) $usuario?->can('people.view_private_info');
+        if ($usuario === null) {
+            return false;
+        }
+
+        // `hasPermissionTo` lanza si el permiso todavía no existe (base recién
+        // migrada, seeders sin correr). Sin permiso, se tapa: es el lado seguro.
+        try {
+            return $usuario->hasPermissionTo('people.view_private_info');
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     /**

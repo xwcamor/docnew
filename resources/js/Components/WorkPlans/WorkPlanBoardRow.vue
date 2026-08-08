@@ -93,6 +93,14 @@ const etiqueta = computed(() => cuando.value || props.label);
 
             <div v-if="$slots.actions" class="wp-row__acts"><slot name="actions" /></div>
         </div>
+
+        <!-- Un control que necesita el ancho entero —un buscador, un selector—
+             va aquí, **fuera** de las acciones y en su propia línea.
+             Metido entre los botones empujaba la columna de la derecha a 200px
+             y dejaba el título con dos: «Supervisor» salía una letra por línea,
+             en vertical. Es el mismo fallo que rompía la tarjeta de formatos,
+             visto desde el otro lado. -->
+        <div v-if="$slots.wide" class="wp-row__wide"><slot name="wide" /></div>
     </li>
 </template>
 
@@ -132,6 +140,8 @@ const etiqueta = computed(() => cuando.value || props.label);
 .wp-row__why   { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); }
 
 .wp-row__side  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+/* Ocupa de la segunda columna al final: debajo del cuerpo, alineado con él. */
+.wp-row__wide  { grid-column: 2 / -1; margin-top: 8px; }
 .wp-row__tag   { margin: 0; white-space: nowrap; }
 .wp-row__acts  { display: inline-flex; align-items: center; gap: 6px; }
 /* Con guantes, a pleno sol (docs/UI.md §3). */

@@ -263,11 +263,13 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                             </Button>
                         </Tooltip>
                     </template>
+                </template>
 
-                    <!-- Asignar quién firma: se escribe el documento, nunca se
-                         despliega una lista. Va debajo de la fila porque el
-                         selector necesita el ancho entero. -->
-                    <div v-if="canEdit && !a.signed && abierta === a.slug" class="wp-assign">
+                <!-- Asignar quién firma. En su propia línea porque el selector
+                     necesita el ancho entero: metido entre los botones aplastaba
+                     el título hasta partirlo letra a letra. -->
+                <template v-if="canEdit && !a.signed && abierta === a.slug" #wide>
+                    <div class="wp-assign">
                         <!-- Ejecutante: lista corta de los que están en la obra.
                              Supervisor y HSE: buscador por documento. -->
                         <Select
@@ -301,5 +303,5 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
 /* La escalera la dibuja WorkPlanBoardRow con `chained`: es la misma fila que
    usan las otras dos columnas del tablero, para que no vuelvan a divergir. */
 .wp-rows { list-style: none; margin: 0; padding: 0; }
-.wp-assign { flex: 1 1 100%; min-width: 200px; margin-top: 6px; }
+.wp-assign { width: 100%; }
 </style>
