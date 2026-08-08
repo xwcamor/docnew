@@ -45,7 +45,7 @@ Salieron al poner la documentación al día. Ninguno impide trabajar, pero convi
 | --- | --- |
 | `CommentController::TYPES` está **vacío**: los comentarios no se pueden usar en ningún módulo, y los permisos `comments.*` no gatean nada | `app/Http/Controllers/.../CommentController.php` |
 | El seeder de roles asigna a tres usuarios de demostración perfiles con nombres que ya no existen; se saltan en silencio | `RolesAndPermissionsSeeder` |
-| `export` e `import` son gate real solo en `customers` y `brands`. En `companies`, `people`, `work_plans` y `form_templates` **exportar solo exige `.view`** | `routes/business_management.php` |
+| ~~`export` e `import` gateados por `.view`~~ — **corregido**: los cuatro piden `.export`. Y en personas el fichero salía además con el documento en crudo, saltándose el enmascarado de la pantalla; ahora se tapa en `buildQuery()`, que es por donde pasan los cuatro formatos | `routes/business_management.php` |
 | `edit_all` y `audit_log_view` están declarados como características de plan pero **ninguna ruta las comprueba**: solo se esconde el botón | `config/features.php` |
 | Tres ajustes heredados sembrados que nadie lee (`fleet_report.pdf_max_transformers`, `reports.frozen_retention_years`, `diagnostics.cell_alert_sev`) | `SettingsSeeder` |
 | El freno del login es por **email + IP**: para la misma contraseña repartida entre muchos correos no sirve. La defensa real sería 2FA, que no hay | `LoginController` |

@@ -253,6 +253,7 @@ return [
     'approval_sign'      => 'Firmar',
     'approval_no_one_with_role' => 'Ningún :role con ese documento. Comprueba que la persona tenga ese rol en su ficha.',
     'approval_pick_from_crew' => 'Elige a uno de los trabajadores del plan',
+    'approval_nobody_signed_yet' => 'Todavía no ha firmado nadie del plan. El ejecutante se elige entre los que ya firmaron: su firma es la que da esta aprobación.',
     'approval_worker_must_sign_first' => ':name todavía no ha firmado como trabajador. El ejecutante se elige entre los que ya firmaron: esa firma es la que da la aprobación.',
     'approval_signed_as_worker' => 'Con su firma de trabajador',
     'approval_not_in_crew' => ':name no está en este plan. El ejecutante tiene que ser uno de los trabajadores que salen a la obra.',

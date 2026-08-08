@@ -15,7 +15,7 @@ class GeneratePeopleWordJob extends BasePersonExportJob
     {
         $query     = $this->buildQuery();
         $count     = (clone $query)->count();
-        $people = $query->cursor();
+        $people = $this->taparDocumento($query->cursor());
         $tempFile  = tempnam(sys_get_temp_dir(), 'people_export') . '.docx';
 
         $opts = $this->options + ['timezone' => $this->userTimezone];

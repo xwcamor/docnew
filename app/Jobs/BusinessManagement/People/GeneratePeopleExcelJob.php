@@ -17,7 +17,7 @@ class GeneratePeopleExcelJob extends BasePersonExportJob
     {
         $query  = $this->buildQuery();
         $count  = (clone $query)->count();
-        $cursor = $query->cursor();
+        $cursor = $this->taparDocumento($query->cursor());
 
         $opts = $this->options + [
             'user_id'  => $this->userId,

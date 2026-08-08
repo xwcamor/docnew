@@ -15,7 +15,7 @@ class GeneratePeoplePdfJob extends BasePersonExportJob
     {
         $query      = $this->buildQuery();
         $totalCount = (clone $query)->count();
-        $people  = $query->cursor();
+        $people  = $this->taparDocumento($query->cursor());
 
         $title          = $this->options['title']                   ?? __('people.export_title');
         $orientation    = $this->options['orientation']             ?? 'portrait';

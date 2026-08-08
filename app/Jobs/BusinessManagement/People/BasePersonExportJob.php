@@ -155,6 +155,18 @@ abstract class BasePersonExportJob implements ShouldQueue
      * filtramos por tenant_id capturado en el constructor â€” el worker no tiene
      * la sesion del usuario para que el global scope BelongsToTenant funcione.
      */
+    /**
+     * ¿Quien pidio el fichero puede ver los documentos completos?
+     *
+     * Se resuelve aqui y no en cada formato porque el job corre en cola: no hay
+     * sesion, `auth()` esta vacio y `PrivateInfo::visibleFor()` sin usuario
+     * devuelve false. El usuario que lo pidio llega en `$this->userId`.
+     */
+    protected function puedeVerElDocumento(): bool
+    {
+        return \App\Support\PrivateInfo::visibleFor(\App\Models\User::find($this->userId));
+    }
+
     protected function buildQuery()
     {
         $scope = $this->options['scope'] ?? 'filtered';
@@ -196,6 +208,37 @@ abstract class BasePersonExportJob implements ShouldQueue
         $filters  = $this->options['filters'] ?? [];
         $fakeReq  = new \Illuminate\Http\Request($filters);
         return $base->filter($fakeReq);
+    }
+
+    /**
+     * Tapa el documento **al salir de la base**, no al pintarlo.
+     *
+     * El CSV escribia `$person->num_doc` en crudo y el PDF, el Excel y el Word
+     * pasan la coleccion entera a su plantilla: cuatro sitios donde acordarse,
+     * y un quinto formato nuevo que se olvidaria. Enmascarar aqui lo cubre
+     * todo de una vez y no hay forma de saltarselo escribiendo otra plantilla.
+     *
+     * Importa porque el enmascarado de la pantalla no servia de nada: bastaba
+     * pulsar «Exportar CSV» para bajarse los 228 documentos completos.
+     */
+    protected function taparDocumento($people)
+    {
+        if ($this->puedeVerElDocumento()) {
+            return $people;
+        }
+
+        // `map` y no `each` porque tres de los cuatro formatos recorren un
+        // `cursor()`: con `each` se materializaria la coleccion entera y un
+        // export de 200 000 personas se comeria la memoria. `map` sobre una
+        // LazyCollection sigue siendo perezoso.
+        return $people->map(function ($persona) {
+            if (filled($persona->num_doc)) {
+                // Solo el atributo en memoria. Nada de esto se guarda.
+                $persona->num_doc = \App\Support\PrivateInfo::enmascarar((string) $persona->num_doc);
+            }
+
+            return $persona;
+        });
     }
 
     /**

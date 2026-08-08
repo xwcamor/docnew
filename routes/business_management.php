@@ -203,8 +203,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('companies/{slug}/force_delete', [CompanyController::class, 'forceDelete'])->name('companies.force_delete');
     });
 
-    // 2) Exports (gated por plan_feature por formato)
-    Route::middleware('permission:companies.view')->group(function () {
+    // 2) Exports.
+    //
+    // Piden `.export`, no `.view`. Estaban gateados por `.view`, o sea que
+    // cualquiera que pudiera abrir el listado se bajaba el fichero entero — y
+    // en personas eso son los 228 documentos completos, saltandose el
+    // enmascarado de la pantalla de un solo clic. El permiso `.export` existe
+    // desde el principio y no lo comprobaba nadie.
+    Route::middleware('permission:companies.export')->group(function () {
         Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
             ->post('companies/export_excel', [CompanyController::class, 'exportExcel'])->name('companies.export_excel');
         Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
@@ -277,8 +283,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('people/{slug}/force_delete', [PersonController::class, 'forceDelete'])->name('people.force_delete');
     });
 
-    // 2) Exports (gated por plan_feature por formato)
-    Route::middleware('permission:people.view')->group(function () {
+    // 2) Exports.
+    //
+    // Piden `.export`, no `.view`. Estaban gateados por `.view`, o sea que
+    // cualquiera que pudiera abrir el listado se bajaba el fichero entero — y
+    // en personas eso son los 228 documentos completos, saltandose el
+    // enmascarado de la pantalla de un solo clic. El permiso `.export` existe
+    // desde el principio y no lo comprobaba nadie.
+    Route::middleware('permission:people.export')->group(function () {
         Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
             ->post('people/export_excel', [PersonController::class, 'exportExcel'])->name('people.export_excel');
         Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
@@ -355,8 +367,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('work_plans/{slug}/force_delete', [WorkPlanController::class, 'forceDelete'])->name('work_plans.force_delete');
     });
 
-    // 2) Exports (gated por plan_feature por formato)
-    Route::middleware('permission:work_plans.view')->group(function () {
+    // 2) Exports.
+    //
+    // Piden `.export`, no `.view`. Estaban gateados por `.view`, o sea que
+    // cualquiera que pudiera abrir el listado se bajaba el fichero entero — y
+    // en personas eso son los 228 documentos completos, saltandose el
+    // enmascarado de la pantalla de un solo clic. El permiso `.export` existe
+    // desde el principio y no lo comprobaba nadie.
+    Route::middleware('permission:work_plans.export')->group(function () {
         Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
             ->post('work_plans/export_excel', [WorkPlanController::class, 'exportExcel'])->name('work_plans.export_excel');
         Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])
@@ -455,8 +473,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('form_templates/{slug}/force_delete', [FormTemplateController::class, 'forceDelete'])->name('form_templates.force_delete');
     });
 
-    // 2) Exports (gated por plan_feature por formato)
-    Route::middleware('permission:form_templates.view')->group(function () {
+    // 2) Exports.
+    //
+    // Piden `.export`, no `.view`. Estaban gateados por `.view`, o sea que
+    // cualquiera que pudiera abrir el listado se bajaba el fichero entero — y
+    // en personas eso son los 228 documentos completos, saltandose el
+    // enmascarado de la pantalla de un solo clic. El permiso `.export` existe
+    // desde el principio y no lo comprobaba nadie.
+    Route::middleware('permission:form_templates.export')->group(function () {
         Route::middleware(['throttle:5,1', 'plan_feature:export_excel'])
             ->post('form_templates/export_excel', [FormTemplateController::class, 'exportExcel'])->name('form_templates.export_excel');
         Route::middleware(['throttle:5,1', 'plan_feature:export_pdf'])

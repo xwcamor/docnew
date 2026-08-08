@@ -245,6 +245,7 @@ return [
     'approval_sign'      => 'Sign',
     'approval_no_one_with_role' => 'No :role with that document. Check the person has that role on their record.',
     'approval_pick_from_crew' => 'Pick one of the plan’s workers',
+    'approval_nobody_signed_yet' => 'Nobody on the plan has signed yet. The executing worker is picked among those who already signed: their signature is what grants this approval.',
     'approval_worker_must_sign_first' => ':name has not signed as a worker yet. The executing worker is picked among those who already signed: that signature is what grants the approval.',
     'approval_signed_as_worker' => 'With their worker signature',
     'approval_not_in_crew' => ':name is not on this plan. The executing worker has to be one of the people going out on site.',

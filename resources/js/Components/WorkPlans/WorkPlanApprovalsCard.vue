@@ -194,9 +194,31 @@ const sinResultados = computed(() => {
  */
 const esEjecutante = (a) => a?.role === 'worker';
 
+/**
+ * Los del plan que **ya firmaron**, que son los únicos que pueden ser ejecutante.
+ *
+ * Su firma de trabajador es la que da la aprobación, así que designar a quien
+ * no ha firmado no tiene sentido: el servidor lo rechaza. Antes se ofrecía la
+ * cuadrilla entera y el error salía después de elegir — mejor no poder
+ * equivocarse que explicar el error.
+ */
+const ejecutantesPosibles = computed(() => props.crew
+    .filter((f) => f.signed)
+    .map((f) => ({ slug: f.person, name: f.name })));
+
 const opciones = computed(() => (esEjecutante(props.approvals.find((a) => a.slug === abierta.value))
-    ? props.crew.map((f) => ({ slug: f.person, name: f.name }))
+    ? ejecutantesPosibles.value
     : candidatos.value));
+
+/** Por qué la lista está vacía, que no es lo mismo en cada caso. */
+const sinOpciones = (a) => {
+    if (! esEjecutante(a)) return buscando.value ? undefined : sinResultados.value;
+    if (! props.crew.length) return t('work_plans.crew_empty');
+
+    // Hay gente en el plan pero nadie ha firmado todavía: eso es lo que falta,
+    // y decirlo evita buscar un nombre que no va a aparecer.
+    return ejecutantesPosibles.value.length ? undefined : t('work_plans.approval_nobody_signed_yet');
+};
 
 const abrir = (a) => {
     abierta.value = abierta.value === a.slug ? null : a.slug;
@@ -300,9 +322,7 @@ const firmar = (a) => router.get(
                             :placeholder="esEjecutante(a)
                                 ? $t('work_plans.approval_pick_from_crew')
                                 : $t('work_plans.approval_assign_hint')"
-                            :not-found-content="esEjecutante(a)
-                                ? $t('work_plans.crew_empty')
-                                : (buscando ? undefined : sinResultados)"
+                            :not-found-content="sinOpciones(a)"
                             style="width: 100%"
                             @search="esEjecutante(a) ? undefined : buscar($event)"
                             @change="(v) => asignar(a, v)"

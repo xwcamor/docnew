@@ -50,6 +50,8 @@ class GeneratePeopleCsvJob extends BasePersonExportJob
             $tz = $this->userTimezone;
             // chunkById usa cursor (WHERE id > X), constante en memoria.
             $this->buildQuery()->chunkById(1000, function ($people) use ($handle, $columns, $tz) {
+                $people = $this->taparDocumento($people);
+
                 foreach ($people as $person) {
                     $row = array_map(fn ($col) => match ($col) {
                         'id'         => $person->id,
