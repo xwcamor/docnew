@@ -64,24 +64,35 @@ trait DerivesAttributesFromLang
             'tenant_id'   => ['workspace', 'tenant'],
             'country_id'  => ['country'],
             'customer_id' => ['customer'],
-            'oil_type_id' => ['oil_type'],
             'region_id'   => ['region'],
             'language_id' => ['language'],
             'role_id'     => ['role'],
             'brand_id'    => ['brand'],
+            'position_id' => ['position'],
+            'person_id'   => ['person'],
         ];
         // Etiqueta canónica de la entidad (cross-módulo): el 'singular' del dueño.
         static $canonical = [
             'tenant_id'         => 'tenants.singular',
             'country_id'        => 'countries.singular',
             'customer_id'       => 'customers.singular',
-            'oil_type_id'       => 'oil_types.singular',
             'region_id'         => 'regions.singular',
             'language_id'       => 'languages.singular',
             'role_id'           => 'roles.singular',
             'brand_id'          => 'brands.singular',
             'locale_id'         => 'locales.singular',
             'default_locale_id' => 'locales.singular',
+            // Dominio de obra. Sin esto, el error de un FK del plan o de la
+            // persona sale rotulado con el nombre crudo de la columna.
+            'position_id'       => 'positions.singular',
+            'person_id'         => 'people.singular',
+            'company_id'        => 'companies.singular',
+            'work_type_id'      => 'work_types.singular',
+            'work_location_id'  => 'work_locations.singular',
+            'work_area_id'      => 'work_areas.singular',
+            'workstation_id'    => 'workstations.singular',
+            'nationality_id'    => 'nationalities.singular',
+            'form_template_id'  => 'form_templates.singular',
         ];
 
         $candidates = [];

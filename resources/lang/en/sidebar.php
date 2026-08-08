@@ -57,7 +57,7 @@ return [
     'group_master'       => 'Master data',
     'companies'          => 'Companies',
     'people'             => 'People',
-    'form_templates'     => 'Form templates',
+    'form_templates'     => 'Documents',
     'approval_rules'     => 'Approval rules',
     'approver_roles'     => 'Approver roles',
     'work_types'         => 'Work types',
@@ -66,5 +66,5 @@ return [
     'work_areas'         => 'Areas',
     'positions'          => 'Positions',
     'nationalities'      => 'Nationalities',
-    'document_types' => 'Document types',
+    'document_types'     => 'Document types',
 ];

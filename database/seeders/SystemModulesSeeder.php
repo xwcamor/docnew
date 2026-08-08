@@ -39,6 +39,13 @@ class SystemModulesSeeder extends Seeder
             // Customers — primer módulo de negocio real. Generado con make:module
             // como patrón clonable para los siguientes (Patients, Inventory, etc.).
             ['name' => 'Customers',      'permission_key' => 'customers'],
+            // Marcas. Faltaba, y no era inofensivo: `routes/business_management.php`
+            // gatea las TRECE rutas del modulo con `permission:brands.*`, y esos
+            // permisos no los creaba nadie. Resultado: cualquiera que no sea
+            // super recibia 403 en el modulo entero, y ningun admin podia
+            // delegarlo a un perfil porque los permisos no existian ni para
+            // asignarlos. El super entraba solo por el bypass de `Gate::before`.
+            ['name' => 'Brands',         'permission_key' => 'brands'],
 
             // DOCUFIZ — módulos del dominio de documentación de seguridad en obra.
             ['name' => 'Companies',      'permission_key' => 'companies'],

@@ -104,6 +104,11 @@ class HandleInertiaRequests extends Middleware
                 // sobrevive entre XHRs y los toasts aparecen en cada nav.
                 'success'      => fn () => $request->session()->pull('success'),
                 'error'        => fn () => $request->session()->pull('error'),
+                // Correo al que se acaba de enviar el enlace de recuperación.
+                // `ForgotPassword.vue` lo lee para sostener el «mira tu correo»
+                // si el usuario recarga la página: sin esto vuelve al
+                // formulario vacío y cree que no se envió nada.
+                'sent_to'      => fn () => $request->session()->pull('sent_to'),
                 // Enlace de "Compartir reporte" recién creado (url + email destinatario).
                 'shareCreated' => fn () => $request->session()->pull('shareCreated'),
                 // One-time-only API token returned by Workspaces > tokens.create.

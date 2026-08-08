@@ -293,8 +293,11 @@ return [
     'no_recent_items'         => 'Aún no hay elementos vistos',
     'cannot_delete_has_dependents' => 'No se puede eliminar: hay registros que dependen de este.',
     'has_dependents_warning'  => 'Este registro tiene datos relacionados',
-    'has_dependents_detail'   => '{1} :count :label está vinculado a este registro.|[2,*] :count :label están vinculados a este registro.',
-    'has_dependents_proceed'  => 'Eliminarlo (soft-delete) no los borra, pero quedarán apuntando a un registro eliminado.',
+    // Sin género: la etiqueta la pone cada módulo y puede ser femenina
+    // («2 ubicaciones están vinculados» era lo que salía). «Depende» vale para
+    // los dos.
+    'has_dependents_detail'   => '{1} :count :label depende de este registro.|[2,*] :count :label dependen de este registro.',
+    'has_dependents_proceed'  => 'Eliminarlo no borra esos registros, pero quedarán apuntando a un registro eliminado.',
 
     // Force-delete (hard delete) — solo super-admin, irreversible
     'force_delete'                => 'Eliminar definitivamente',

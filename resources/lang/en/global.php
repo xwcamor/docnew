@@ -291,8 +291,8 @@ return [
     'no_recent_items'         => 'No recent items yet',
     'cannot_delete_has_dependents' => 'Cannot delete: there are records that depend on this one.',
     'has_dependents_warning'  => 'This record has related data',
-    'has_dependents_detail'   => '{1} :count :label is linked to this record.|[2,*] :count :label are linked to this record.',
-    'has_dependents_proceed'  => 'Soft-deleting won\'t remove them, but they will reference a deleted record.',
+    'has_dependents_detail'   => '{1} :count :label depends on this record.|[2,*] :count :label depend on this record.',
+    'has_dependents_proceed'  => 'Deleting it does not remove them, but they will reference a deleted record.',
 
     // Force-delete (hard delete) — super-admin only, irreversible
     'force_delete'                => 'Permanently delete',

@@ -408,7 +408,10 @@ class MakeModuleCommand extends Command
             'Brand/'                     => "{$newSingular}/",
             "\\Brand\\"                  => "\\{$newSingular}\\",
             'Brand\\'                    => "{$newSingular}\\",
-            'Brand::class'               => "{$newSingular}::class",
+            // `Brand::` a secas cubre tanto `Brand::class` como las llamadas
+            // estaticas de las pruebas (`Brand::create(...)`, `Brand::where`),
+            // que antes viajaban al modulo nuevo sin renombrar.
+            'Brand::'                    => "{$newSingular}::",
             '\App\Models\Brand'          => "\\App\\Models\\{$newSingular}",
             'App\Models\Brand'           => "App\\Models\\{$newSingular}",
             'App\Models\\Brand'          => "App\\Models\\{$newSingular}",
@@ -754,19 +757,32 @@ class MakeModuleCommand extends Command
         $plural   = $this->plural($singular);
         $group    = $this->group;
 
-        // Feature tests (si existen — Brand puede no tener tests todavía).
-        $testDir = base_path('tests/Feature/BusinessManagement/Brands');
-        if (File::isDirectory($testDir)) {
-            foreach (File::files($testDir) as $file) {
-                $filename = $file->getFilename();
-                // BrandCrudTest.php → PatientCrudTest.php
-                $newFilename = preg_replace('/^Brand/', $singular, $filename);
-                $src = "tests/Feature/BusinessManagement/Brands/{$filename}";
-                $dst = "tests/Feature/{$group}/{$plural}/{$newFilename}";
-                $this->cloneFile($src, $dst);
-            }
-        } else {
-            $this->line('  SKIP tests/Feature/BusinessManagement/Brands (no existe — Brand aun sin tests)');
+        // Feature tests del molde.
+        //
+        // Esto buscaba un directorio `tests/Feature/BusinessManagement/Brands/`
+        // que NUNCA ha existido: los tests de Brand son ficheros sueltos
+        // (`BrandCrudTest.php`, `BrandScreensTest.php`…) en
+        // `tests/Feature/BusinessManagement/`. El generador imprimia «Brand aun
+        // sin tests» y **cada modulo nacia con cero pruebas**, aunque el molde
+        // tenga mas de veinte. Es la razon de fondo de que los defectos de
+        // familia —pantallas que no abren, «editar todo» que revienta— hayan
+        // sobrevivido en quince modulos: nadie los estaba mirando.
+        $moldeDir = base_path('tests/Feature/BusinessManagement');
+        $clonados = 0;
+
+        foreach (File::glob($moldeDir . '/Brand*Test.php') as $ruta) {
+            $filename = basename($ruta);
+            // BrandCrudTest.php → PatientCrudTest.php
+            $newFilename = preg_replace('/^Brand/', $singular, $filename);
+            $this->cloneFile(
+                "tests/Feature/BusinessManagement/{$filename}",
+                "tests/Feature/{$group}/{$plural}/{$newFilename}",
+            );
+            $clonados++;
+        }
+
+        if ($clonados === 0) {
+            $this->line('  SKIP tests/Feature/BusinessManagement/Brand*Test.php (el molde se quedo sin pruebas)');
         }
 
         // Unit tests.

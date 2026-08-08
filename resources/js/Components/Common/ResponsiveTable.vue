@@ -122,11 +122,31 @@ const mobileMeta = computed(() => {
     return [...primary, ...extra];
 });
 
+
+/**
+ * El valor de una celda, respetando un `dataIndex` ANIDADO.
+ *
+ * Ant Design admite `dataIndex: ['work_location', 'name']` y lo resuelve solo
+ * en la vista de tabla. Aquí no: `record[['work_location','name']]` convierte
+ * el array en la clave `"work_location,name"`, que no existe, y devuelve
+ * `undefined`. **En silencio** — la línea sale en blanco y nadie se entera.
+ *
+ * Pasaba en las vistas de lista y tarjeta, que son las que se usan en tablet, y
+ * alcanza a 24 columnas de 17 módulos. El síntoma real: dieciséis puestos de
+ * trabajo llamados «Celda 1» y «Tablero» sin la sede debajo que los distinguía,
+ * para quien hubiera dejado la vista en tarjetas (se recuerda en localStorage).
+ *
+ * Sólo se salvaban las columnas que además tenían plantilla `bodyCell` propia.
+ */
+const cellText = (record, dataIndex) => (Array.isArray(dataIndex)
+    ? dataIndex.reduce((v, k) => (v == null ? v : v[k]), record)
+    : record?.[dataIndex]);
+
 // Chips meta visibles PARA UN REGISTRO: oculta los que la columna marcó
 // `mobile.hideWhenZero` cuando su valor es 0/vacío (ej. conteos en 0 de
 // Customers — evita el ruido "0 0"). El resto se muestra siempre.
 const visibleMeta = (record) => mobileMeta.value.filter(col =>
-    !(col.mobile?.hideWhenZero && !(Number(record[col.dataIndex]) > 0))
+    !(col.mobile?.hideWhenZero && !(Number(cellText(record, col.dataIndex)) > 0))
 );
 
 // ─── Mobile pagination ───────────────────────────────────────────────────
@@ -263,14 +283,14 @@ const onRowClick = (record) => ({
                             <span class="rt-row__chip rt-row__chip--ico">
                                 <component :is="col.mobile.icon" class="rt-row__chip-ico" />
                                 <span class="rt-row__chip-val">
-                                    <slot name="bodyCell" :column="col" :record="record" :index="0" :text="record[col.dataIndex]" :isMobile="true">{{ record[col.dataIndex] }}</slot>
+                                    <slot name="bodyCell" :column="col" :record="record" :index="0" :text="cellText(record, col.dataIndex)" :isMobile="true">{{ cellText(record, col.dataIndex) }}</slot>
                                 </span>
                             </span>
                         </Tooltip>
                         <span v-else class="rt-row__chip">
                             <span class="rt-row__chip-label">{{ col.title }}</span>
                             <span class="rt-row__chip-val">
-                                <slot name="bodyCell" :column="col" :record="record" :index="0" :text="record[col.dataIndex]" :isMobile="true">{{ record[col.dataIndex] }}</slot>
+                                <slot name="bodyCell" :column="col" :record="record" :index="0" :text="cellText(record, col.dataIndex)" :isMobile="true">{{ cellText(record, col.dataIndex) }}</slot>
                             </span>
                         </span>
                     </template>
@@ -356,20 +376,20 @@ const onRowClick = (record) => ({
                         <span class="rt-card__chip rt-card__chip--ico">
                             <component :is="col.mobile.icon" class="rt-card__chip-ico" />
                             <span class="rt-card__chip-val">
-                                <slot name="bodyCell" :column="col" :record="record" :index="0" :text="record[col.dataIndex]" :isMobile="true">{{ record[col.dataIndex] }}</slot>
+                                <slot name="bodyCell" :column="col" :record="record" :index="0" :text="cellText(record, col.dataIndex)" :isMobile="true">{{ cellText(record, col.dataIndex) }}</slot>
                             </span>
                         </span>
                     </Tooltip>
                     <span v-else-if="!isMobile" class="rt-card__chip">
                         <span class="rt-card__chip-label">{{ col.title }}</span>
                         <span class="rt-card__chip-val">
-                            <slot name="bodyCell" :column="col" :record="record" :index="0" :text="record[col.dataIndex]" :isMobile="true">{{ record[col.dataIndex] }}</slot>
+                            <slot name="bodyCell" :column="col" :record="record" :index="0" :text="cellText(record, col.dataIndex)" :isMobile="true">{{ cellText(record, col.dataIndex) }}</slot>
                         </span>
                     </span>
                     <div v-else class="rt-card__meta-row">
                         <span class="rt-card__meta-label">{{ col.title }}</span>
                         <span class="rt-card__meta-value">
-                            <slot name="bodyCell" :column="col" :record="record" :index="0" :text="record[col.dataIndex]" :isMobile="true">{{ record[col.dataIndex] }}</slot>
+                            <slot name="bodyCell" :column="col" :record="record" :index="0" :text="cellText(record, col.dataIndex)" :isMobile="true">{{ cellText(record, col.dataIndex) }}</slot>
                         </span>
                     </div>
                 </template>

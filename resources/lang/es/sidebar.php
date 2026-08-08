@@ -52,12 +52,12 @@ return [
     // DOCUFIZ
     'group_field'        => 'Trabajo en obra',
     'work_plans'         => 'Planes de trabajo',
-    'form_submissions'   => 'Formatos llenados',
+    'form_submissions'   => 'Documentos llenados',
     'signature_events'   => 'Firmas por revisar',
     'group_master'       => 'Maestros',
     'companies'          => 'Empresas',
     'people'             => 'Personas',
-    'form_templates'     => 'Plantillas de formato',
+    'form_templates'     => 'Documentos',
     'approval_rules'     => 'Reglas de aprobación',
     'approver_roles'     => 'Roles aprobadores',
     'work_types'         => 'Tipos de trabajo',
@@ -66,5 +66,5 @@ return [
     'work_areas'         => 'Áreas',
     'positions'          => 'Cargos',
     'nationalities'      => 'Nacionalidades',
-    'document_types' => 'Tipos de documento',
+    'document_types'     => 'Tipos de documento',
 ];

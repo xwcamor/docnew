@@ -109,8 +109,8 @@ class RolesAndPermissionsSeeder extends Seeder
         $bizModules = ['companies', 'people', 'work_plans', 'form_templates', 'form_submissions'];
         $noDelete   = ['view', 'show', 'create', 'edit', 'export', 'import']; // todo salvo delete
 
-        // Supervisor de obra: arma el plan del dia, registra a su cuadrilla y
-        // aprueba. No elimina nada ni toca las plantillas de formato.
+        // Supervisor de obra: arma el plan del dia, registra a sus trabajadores
+        // y aprueba. No elimina nada ni toca el catalogo de documentos.
         $supervisorPerms = array_merge(
             $pick('work_plans',       $noDelete),
             $pick('people',           ['view', 'show', 'create', 'edit', 'export']),
@@ -141,7 +141,7 @@ class RolesAndPermissionsSeeder extends Seeder
 
         $profiles = [
             'Supervisor de obra' => [
-                'desc'  => 'Arma el plan de trabajo del dia, registra a su cuadrilla, llena y firma los formatos, y revisa las firmas que quedaron pendientes. No elimina registros.',
+                'desc'  => 'Arma el plan de trabajo del dia, registra a sus trabajadores, llena y firma los documentos, y revisa las firmas que quedaron pendientes. No elimina registros.',
                 'perms' => $supervisorPerms,
             ],
             'Usuario de campo' => [

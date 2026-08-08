@@ -27,12 +27,17 @@ Route::prefix('auth_management')->name('auth_management.')->group(function () {
 // Forgot & Reset Password
 // ------------------------------
 // Los POST llevan throttle agresivo para mitigar enumeración de emails y
-// abuso del servicio de mail. 5 intentos / minuto por IP es el patrón
-// estándar de Laravel para password reset.
+// abuso del servicio de mail.
 Route::middleware('guest')->group(function () {
     Route::get('password/reset', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    // 20 y no los 5 de costumbre: para un invitado la clave del freno es la IP,
+    // y los 26 usuarios migrados —que solo pueden entrar por aquí, porque su
+    // contraseña es aleatoria— estrenan el sistema desde la misma oficina,
+    // detrás de un mismo NAT. Con 5, el sexto se comía un 429 crudo: el
+    // manejador de `bootstrap/app.php` se salta a los no autenticados, así que
+    // ni siquiera es un aviso dentro del diseño de acceso.
     Route::post('password/email', [ForgotPasswordController::class, 'sendResetLinkEmail'])
-        ->middleware('throttle:5,1')
+        ->middleware('throttle:20,1')
         ->name('password.email');
     Route::get('password/reset/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
     Route::post('password/reset', [ResetPasswordController::class, 'reset'])
