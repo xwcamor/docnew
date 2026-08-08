@@ -14,13 +14,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * FormTemplate — catálogo de marcas/fabricantes de transformadores (ABB, Siemens…).
+ * FormTemplate — un **documento** de los que se llenan en obra: el AST, el Pare
+ * Tome 5, la inspección de EPP, la de herramientas.
  *
- * Metadato descriptivo del transformador (NO es eje de diagnóstico). Es un
- * catálogo PER-TENANT: cada workspace tiene su propio catálogo de marcas, por
- * eso usa BelongsToTenantOrGlobal (con bypass de super). Mantiene SoftDeletes + Auditable
- * + HasFavorites. Campos: `name`, `code` (slug técnico), `sort_order`, `is_active`,
- * `tenant_id`.
+ * En pantalla se llaman «documentos», que es como se dicen en obra y como los
+ * llamaba el sistema anterior (`plan_documents`, `f1_documents`).
+ * `form_templates` es el nombre de la tabla.
+ *
+ * El docblock que había aquí describía un catálogo de marcas de
+ * transformadores: viene de que el módulo se generó clonando `Brand`, y
+ * mencionaba una columna `sort_order` que esta tabla no tiene.
+ *
+ * Es PER-TENANT (BelongsToTenantOrGlobal, con bypass de super) y mantiene
+ * SoftDeletes + Auditable + HasFavorites. Columnas propias: `country_id`,
+ * `code`, `name`, `kind`, `status`, `version`, `requires_signature`,
+ * `pdf_template`, `published_at`, `is_active`.
  */
 class FormTemplate extends Model
 {
@@ -49,6 +57,12 @@ class FormTemplate extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by')->withTrashed();
+    }
+
+    /** El país al que pertenece el documento (columna NOT NULL). */
+    public function country(): BelongsTo
+    {
+        return $this->belongsTo(Country::class);
     }
 
     public function deleter(): BelongsTo
@@ -96,6 +110,16 @@ class FormTemplate extends Model
             $q->where("{$tbl}.is_active", filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
         });
 
+        // Publicado / borrador. Es la pregunta que se hace de verdad en este
+        // listado —«cuáles puede usar ya un plan»— y no se podía filtrar.
+        $query->when($request->filled('status'), function ($q) use ($request, $tbl) {
+            $q->where("{$tbl}.status", (string) $request->status);
+        });
+
+        $query->when($request->filled('kind'), function ($q) use ($request, $tbl) {
+            $q->where("{$tbl}.kind", (string) $request->kind);
+        });
+
         $query->when($request->filled('created_from'), fn ($q) => $q->where("{$tbl}.created_at", '>=', $request->created_from . ' 00:00:00'));
         $query->when($request->filled('created_to'),   fn ($q) => $q->where("{$tbl}.created_at", '<=', $request->created_to . ' 23:59:59'));
         $query->when($request->filled('updated_from'), fn ($q) => $q->where("{$tbl}.updated_at", '>=', $request->updated_from . ' 00:00:00'));
@@ -134,7 +158,7 @@ class FormTemplate extends Model
             // Orden por workspace: nombre vía left join (nulls = global).
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'name', 'code', 'is_active', 'version', 'created_at', 'updated_at']) && in_array($direction, ['asc', 'desc'])) {
+        } elseif (in_array($sort, ['id', 'name', 'code', 'is_active', 'status', 'kind', 'version', 'created_at', 'updated_at']) && in_array($direction, ['asc', 'desc'])) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 
@@ -149,13 +173,21 @@ class FormTemplate extends Model
         return [
             ['key' => 'name',       'label' => __('form_templates.name'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'code',       'label' => __('form_templates.code'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'status',     'label' => __('form_templates.status'),   'type' => 'enum',    'operators' => ['=', '!='], 'options' => [
+                ['value' => 'draft',     'label' => __('form_templates.status_draft')],
+                ['value' => 'published', 'label' => __('form_templates.status_published')],
+                ['value' => 'archived',  'label' => __('form_templates.status_archived')],
+            ]],
+            ['key' => 'kind',       'label' => __('form_templates.kind'),     'type' => 'enum',    'operators' => ['=', '!='], 'options' => [
+                ['value' => self::STRUCTURED,  'label' => __('form_templates.kind_structured')],
+                ['value' => self::UPLOAD_ONLY, 'label' => __('form_templates.kind_upload_only')],
+                ['value' => self::HYBRID,      'label' => __('form_templates.kind_hybrid')],
+            ]],
             ['key' => 'is_active',  'label' => __('form_templates.is_active'), 'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
-
-    use SoftDeletes;
 
     // `name` es el nombre de verdad del formato — «AST (Análisis de Seguridad en
     // el Trabajo)»—, no el código. Faltaba, y `scopeFilter()` ya lo daba por
@@ -170,6 +202,9 @@ class FormTemplate extends Model
     public const STRUCTURED  = 'structured';
     public const UPLOAD_ONLY = 'upload_only';
     public const HYBRID      = 'hybrid';
+
+    /** Los tres, para validar el formulario y pintar el selector. */
+    public const KINDS = [self::STRUCTURED, self::UPLOAD_ONLY, self::HYBRID];
 
     public function sections() { return $this->hasMany(FormSection::class)->orderBy('position'); }
     public function fields() { return $this->hasManyThrough(FormField::class, FormSection::class); }

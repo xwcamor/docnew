@@ -52,7 +52,11 @@ class FormTemplatesExport implements FromCollection, WithEvents, WithTitle
             'id'         => ['heading' => __('form_templates.id'),        'value' => fn($c, $i) => $c->id],
             'name'       => ['heading' => __('form_templates.name'),      'value' => fn($c, $i) => $c->name],
             'code'       => ['heading' => __('form_templates.code'),      'value' => fn($c, $i) => $c->code],
-            'version' => ['heading' => __('form_templates.version'), 'value' => fn($c, $i) => $c->sort_order ?? ''],
+            // `sort_order` no existe en `form_templates` (resto del clon de
+            // `Brand`): la columna «Versión» salia siempre vacia en el Excel.
+            'version'    => ['heading' => __('form_templates.version'), 'value' => fn($c, $i) => (string) $c->version],
+            'kind'       => ['heading' => __('form_templates.kind'),      'value' => fn($c, $i) => __('form_templates.kind_' . $c->kind)],
+            'status'     => ['heading' => __('form_templates.status'),    'value' => fn($c, $i) => __('form_templates.status_' . $c->status)],
             'is_active'  => ['heading' => __('form_templates.is_active'), 'value' => fn($c, $i) => $c->state_text],
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c, $i) => $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c, $i) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT)],

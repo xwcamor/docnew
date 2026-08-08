@@ -17,7 +17,17 @@ class StoreFormTemplateRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        $vacio = blank($this->input('code'));
+
         $this->deriveCodeFromName();
+
+        // El código se deriva del nombre cuando se deja en blanco, y el nombre
+        // de un documento es largo de verdad — «AST (Análisis de Seguridad en
+        // el Trabajo)» pasa de 40. Sin recortar, quien no escribe código recibe
+        // un error de longitud sobre un campo que ni ha tocado.
+        if ($vacio && filled($this->input('code'))) {
+            $this->merge(['code' => mb_substr((string) $this->input('code'), 0, 40)]);
+        }
     }
 
     public function authorize(): bool
@@ -49,8 +59,11 @@ class StoreFormTemplateRequest extends FormRequest
                     }
                 },
             ],
+            // `code` es NOT NULL en la tabla, no nullable: se deriva del nombre
+            // cuando se deja en blanco, así que exigirlo aquí no le pide nada
+            // más al usuario y cierra el hueco por el que se colaba un null.
             'code'       => [
-                'nullable', 'string', 'max:40',
+                'required', 'string', 'max:40',
                 function ($attribute, $value, $fail) {
                     if ($value === null || $value === '') return;
                     $exists = DB::table('form_templates')
@@ -67,6 +80,13 @@ class StoreFormTemplateRequest extends FormRequest
             // lo pedía, así que crear un formato desde la pantalla reventaba con
             // un 23502 de Postgres. Es el mismo campo que llevan los catálogos.
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
+            // Cómo se llena el documento. La columna existía y la pantalla no
+            // dejaba elegirla, así que todo nacía `structured` — y un
+            // `structured` sin campos no se puede publicar. Como todavía no hay
+            // pantalla para definir campos (PENDIENTES #15), eso dejaba el
+            // módulo sin ninguna salida: nada de lo que se creara aquí llegaba
+            // nunca a un plan.
+            'kind'       => ['sometimes', 'required', Rule::in(\App\Models\FormTemplate::KINDS)],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

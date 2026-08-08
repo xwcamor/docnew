@@ -4,13 +4,16 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
 } from 'ant-design-vue';
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { FileOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import FormFooter from '@/Components/Common/FormFooter.vue';
+import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
+
+const { t } = useI18n();
 
 const props = defineProps({
     formTemplate:     { type: Object, default: null },
@@ -27,8 +30,29 @@ const form = useForm({
     country_id: props.formTemplate?.country_id ?? props.defaultCountryId ?? null,
     name:       props.formTemplate?.name ?? '',
     code:       props.formTemplate?.code ?? '',
+    // Cómo se llena. La columna existía y no había forma de elegirla desde la
+    // pantalla: todo nacía «con campos», y un documento con campos y sin
+    // ninguno no se puede publicar — o sea, nada de lo creado aquí llegaba a un
+    // plan. Todavía no hay pantalla para definir campos (PENDIENTES #15), así
+    // que «sólo foto del papel» es hoy el único camino completo.
+    kind:       props.formTemplate?.kind ?? 'structured',
     is_active:  props.formTemplate?.is_active ?? true,
 });
+
+const kindOptions = computed(() => [
+    { value: 'structured',  label: t('form_templates.kind_structured') },
+    { value: 'upload_only', label: t('form_templates.kind_upload_only') },
+    { value: 'hybrid',      label: t('form_templates.kind_hybrid') },
+]);
+
+// Publicado = no se cambia cómo se llena: hay entregas que se rellenaron con
+// esa forma. Sale deshabilitado y diciendo por qué, no fallando al guardar.
+const kindLocked = computed(() => isEdit.value && props.formTemplate?.status !== 'draft');
+
+// Aviso sólo cuando importa: documento con campos propios y sin ninguno todavía.
+const warnNoFieldScreen = computed(() =>
+    form.kind !== 'upload_only' && (props.formTemplate?.fields_count ?? 0) === 0,
+);
 
 const submit = () => {
     if (isEdit.value) {
@@ -48,7 +72,7 @@ const submit = () => {
             :title="isEdit ? $t('global.edit') + ' ' + $t('form_templates.record') : $t('form_templates.new')"
             :subtitle="isEdit ? formTemplate.name : $t('form_templates.create_subtitle')"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><FileOutlined /></template>
         </SectionHeader>
 
         <div class="form-body">
@@ -71,23 +95,7 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <FormItem
-                    :label="$t('form_templates.country')"
-                    :tooltip="$t('form_templates.country_help')"
-                    required
-                    :validate-status="form.errors.country_id ? 'error' : ''"
-                    :help="form.errors.country_id"
-                >
-                    <Select
-                        v-model:value="form.country_id"
-                        size="large"
-                        show-search
-                        :options="countryOptions"
-                        :filter-option="(i, o) => String(o.label ?? '').toLowerCase().includes(String(i).toLowerCase())"
-                        :placeholder="$t('global.select')"
-                    />
-                </FormItem>
-
+                <!-- Lo que identifica al documento va arriba: su nombre. -->
                 <FormItem
                     :label="$t('form_templates.name')"
                     :tooltip="$t('form_templates.name_help')"
@@ -105,19 +113,73 @@ const submit = () => {
                     />
                 </FormItem>
 
+                <!-- Código y país son cortos: van por pares. Una fila sólo se
+                     pinta en dos columnas si lleva `form-grid`; parte en lg. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('form_templates.code')"
+                            :tooltip="$t('form_templates.code_help')"
+                            :validate-status="form.errors.code ? 'error' : ''"
+                            :help="form.errors.code"
+                        >
+                            <Input
+                                v-model:value="form.code"
+                                size="large"
+                                :maxlength="40"
+                                :placeholder="$t('form_templates.code')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('form_templates.country')"
+                            :tooltip="$t('form_templates.country_help')"
+                            required
+                            :validate-status="form.errors.country_id ? 'error' : ''"
+                            :help="form.errors.country_id"
+                        >
+                            <Select
+                                v-model:value="form.country_id"
+                                size="large"
+                                show-search
+                                :options="countryOptions"
+                                :filter-option="(i, o) => String(o.label ?? '').toLowerCase().includes(String(i).toLowerCase())"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
+
+                <!-- Cómo se llena: con campos en la tablet, sólo foto del papel
+                     o las dos cosas. Decide qué se le pide al trabajador en
+                     obra y si el documento se puede publicar. -->
                 <FormItem
-                    :label="$t('form_templates.code')"
-                    :tooltip="$t('form_templates.code_help')"
-                    :validate-status="form.errors.code ? 'error' : ''"
-                    :help="form.errors.code"
+                    :label="$t('form_templates.kind')"
+                    :tooltip="$t('form_templates.kind_help')"
+                    required
+                    :validate-status="form.errors.kind ? 'error' : ''"
+                    :help="form.errors.kind || (kindLocked ? $t('form_templates.kind_locked_published') : '')"
                 >
-                    <Input
-                        v-model:value="form.code"
+                    <Select
+                        v-model:value="form.kind"
                         size="large"
-                        :maxlength="40"
-                        :placeholder="$t('form_templates.code')"
+                        :options="kindOptions"
+                        :disabled="kindLocked"
                     />
                 </FormItem>
+
+                <Alert
+                    v-if="warnNoFieldScreen"
+                    type="warning"
+                    show-icon
+                    :message="$t('form_templates.publish_blocked_no_fields')"
+                    class="mb-4"
+                />
 
                 <FormItem
                     v-if="isEdit"

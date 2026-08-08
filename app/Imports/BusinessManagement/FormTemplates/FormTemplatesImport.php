@@ -53,11 +53,24 @@ class FormTemplatesImport implements ToCollection, WithHeadingRow
     /** Count de form_templates del tenant del actor (pre-import). */
     protected int $currentCount;
 
+    /**
+     * Pais del actor.
+     *
+     * `form_templates.country_id` es NOT NULL y el import creaba sin el: dar de
+     * alta documentos por Excel reventaba con el mismo 23502 de Postgres que
+     * reventaba en el formulario. El fichero no trae pais —un import de
+     * documentos es del pais de quien importa—, asi que se toma del usuario y,
+     * si no tiene, la fila se rechaza con un motivo en vez de reventar.
+     */
+    protected ?int $countryId;
+
     public function __construct(
         protected string $mode = 'update_or_create',
         protected bool $dryRun = false,
     ) {
         $user = Auth::user();
+
+        $this->countryId = $user?->country_id;
 
         // Limite del plan del usuario. Sin tenant/plan â†’ sin limite.
         if ($user && $user->tenant) {
@@ -193,6 +206,16 @@ class FormTemplatesImport implements ToCollection, WithHeadingRow
                         'action'      => 'updated',
                     ];
                 } else {
+                    // Sin pais no hay alta posible: la columna es NOT NULL.
+                    if ($this->countryId === null) {
+                        $this->errors[] = [
+                            'row'     => $absoluteRow,
+                            'message' => __('form_templates.import_country_missing'),
+                            'value'   => $name,
+                        ];
+                        continue;
+                    }
+
                     // Antes de crear, validar limite del plan.
                     if ($this->maxRecords > 0 && $this->maxRecords !== PHP_INT_MAX) {
                         if (($this->currentCount + $newRecordsCount) >= $this->maxRecords) {
@@ -209,6 +232,7 @@ class FormTemplatesImport implements ToCollection, WithHeadingRow
                     FormTemplate::create([
                         'name'        => $name,
                         'code'        => $code,
+                        'country_id'  => $this->countryId,
                         'is_active'   => true,
                         'created_by'  => Auth::id(),
                         // tenant_id lo autorellena BelongsToTenant (tenant del actor);

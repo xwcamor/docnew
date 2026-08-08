@@ -3,7 +3,7 @@
 import { computed } from 'vue';
 import { Button, Space } from 'ant-design-vue';
 import { Link } from '@inertiajs/vue3';
-import { TeamOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons-vue';
+import { FileOutlined, PlusOutlined, UploadOutlined } from '@ant-design/icons-vue';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 
 const { canUse } = usePlanFeatures();
@@ -20,7 +20,7 @@ defineEmits(['clear-filters', 'open-import']);
 
 <template>
     <div class="empty-state">
-        <TeamOutlined class="empty-state__icon" />
+        <FileOutlined class="empty-state__icon" />
         <h3 v-if="hasFilters">{{ $t('global.no_results') }}</h3>
         <h3 v-else>{{ $t('global.no_records') }}</h3>
         <p v-if="hasFilters">{{ $t('global.try_adjust_filters') }}</p>

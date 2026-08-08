@@ -5,7 +5,7 @@ import {
     Card, Tag, Space, Alert, Button, Popconfirm, Tooltip,
 } from 'ant-design-vue';
 import { router } from '@inertiajs/vue3';
-import { TagsOutlined } from '@ant-design/icons-vue';
+import { FileOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -29,6 +29,27 @@ const { formatDateTimeFull } = useDateFormat();
 
 const publicando = ref(false);
 const esBorrador = computed(() => props.formTemplate.status !== 'published');
+
+// Un documento «con campos» y sin ninguno no se puede publicar: el constructor
+// lo rechaza. El botón sale deshabilitado y dice por qué, en vez de fallar al
+// pulsarlo. Mientras no exista la pantalla para definir campos (PENDIENTES #15),
+// el camino que sí funciona es «sólo foto del papel».
+const noSePuedePublicar = computed(() =>
+    esBorrador.value
+    && props.formTemplate.kind !== 'upload_only'
+    && (props.formTemplate.fields_count ?? 0) === 0,
+);
+
+const textoKind = computed(() => `form_templates.kind_${props.formTemplate.kind ?? 'structured'}`);
+
+// `archived` existe en la tabla y no lo pinta nadie: sin esto un documento
+// archivado decía «Borrador», que es otra cosa.
+const textoEstado = computed(() => `form_templates.status_${props.formTemplate.status ?? 'draft'}`);
+const colorEstado = computed(() => ({
+    published: 'success',
+    draft:     'orange',
+    archived:  'default',
+}[props.formTemplate.status] ?? 'orange'));
 
 const alternarPublicacion = () => {
     publicando.value = true;
@@ -55,16 +76,17 @@ const fmt = (d) => formatDateTimeFull(d);
             :title="formTemplate.name"
             :icon-bg="iconBg"
         >
-            <template #icon><TagsOutlined /></template>
+            <template #icon><FileOutlined /></template>
             <template #subtitle>
-                <Space :size="6">
+                <Space :size="6" wrap>
                     <Tag v-if="isDeleted" color="red" :bordered="false">{{ $t('global.deleted') }}</Tag>
                     <Tag v-else :color="formTemplate.is_active ? 'success' : 'default'" :bordered="false">
                         {{ formTemplate.is_active ? $t('global.active') : $t('global.inactive') }}
                     </Tag>
-                    <Tag :color="esBorrador ? 'default' : 'success'" :bordered="false">
-                        {{ $t(esBorrador ? 'form_templates.status_draft' : 'form_templates.status_published') }}
-                    </Tag>
+                    <!-- Borrador en naranja, publicado en verde: color Y palabra. -->
+                    <Tag :color="colorEstado" :bordered="false">{{ $t(textoEstado) }}</Tag>
+                    <Tag color="blue" :bordered="false">{{ $t(textoKind) }}</Tag>
+                    <span v-if="formTemplate.code" class="muted">{{ formTemplate.code }}</span>
                 </Space>
             </template>
             <template #actions>
@@ -72,19 +94,27 @@ const fmt = (d) => formatDateTimeFull(d);
                      sólo ofrece los publicados. Sin este botón, uno creado desde
                      la pantalla se quedaba en borrador para siempre y ningún
                      plan podía usarlo. -->
-                <Tooltip v-if="can('form_templates.edit') && !isDeleted" :title="$t(esBorrador ? 'form_templates.publish_hint' : 'form_templates.unpublish_hint')">
-                    <Popconfirm
-                        :title="$t(esBorrador ? 'form_templates.publish_confirm' : 'form_templates.unpublish_confirm')"
-                        :ok-text="$t(esBorrador ? 'form_templates.publish' : 'form_templates.unpublish')"
-                        :cancel-text="$t('global.cancel')"
-                        placement="bottomRight"
-                        @confirm="alternarPublicacion"
-                    >
-                        <Button :type="esBorrador ? 'primary' : 'default'" :loading="publicando">
-                            {{ $t(esBorrador ? 'form_templates.publish' : 'form_templates.unpublish') }}
-                        </Button>
-                    </Popconfirm>
-                </Tooltip>
+                <template v-if="can('form_templates.edit') && !isDeleted">
+                    <!-- Sin campos definidos no se puede publicar: deshabilitado
+                         y con el motivo, que un botón que falla al pulsarlo es
+                         peor que un botón que no está. -->
+                    <Tooltip v-if="noSePuedePublicar" :title="$t('form_templates.publish_blocked_no_fields')">
+                        <Button disabled>{{ $t('form_templates.publish') }}</Button>
+                    </Tooltip>
+                    <Tooltip v-else :title="$t(esBorrador ? 'form_templates.publish_hint' : 'form_templates.unpublish_hint')">
+                        <Popconfirm
+                            :title="$t(esBorrador ? 'form_templates.publish_confirm' : 'form_templates.unpublish_confirm')"
+                            :ok-text="$t(esBorrador ? 'form_templates.publish' : 'form_templates.unpublish')"
+                            :cancel-text="$t('global.cancel')"
+                            placement="bottomRight"
+                            @confirm="alternarPublicacion"
+                        >
+                            <Button :type="esBorrador ? 'primary' : 'default'" :loading="publicando">
+                                {{ $t(esBorrador ? 'form_templates.publish' : 'form_templates.unpublish') }}
+                            </Button>
+                        </Popconfirm>
+                    </Tooltip>
+                </template>
 
                 <EntityShowActions
                     module="form_templates"
@@ -118,10 +148,28 @@ const fmt = (d) => formatDateTimeFull(d);
             </template>
         </Alert>
 
+        <!-- En una tablet con guantes nadie descubre un tooltip: el motivo por el
+             que no se puede publicar se dice en la pantalla, no al pasar por
+             encima del botón. -->
+        <Alert
+            v-if="noSePuedePublicar && !isDeleted"
+            type="warning"
+            show-icon
+            class="deleted-alert"
+            :message="$t('form_templates.publish_blocked_no_fields')"
+        />
+        <Alert
+            v-else-if="esBorrador && !isDeleted"
+            type="info"
+            show-icon
+            class="deleted-alert"
+            :message="$t('form_templates.publish_hint')"
+        />
+
         <EntityShowTabs :show-history="canSeeAudit" :history-count="activity.length">
             <template #general>
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
-                    <template #title><TagsOutlined /> {{ $t('global.general_info') }}</template>
+                    <template #title><FileOutlined /> {{ $t('global.general_info') }}</template>
                     <div class="spec-grid">
                         <!-- ID y slug: solo el super (datos técnicos), y van primero. -->
                         <div v-if="isSuper" class="spec-cell">
@@ -139,6 +187,32 @@ const fmt = (d) => formatDateTimeFull(d);
                         <div v-if="formTemplate.code" class="spec-cell">
                             <span class="spec-cell__label">{{ $t('form_templates.code') }}</span>
                             <span class="spec-cell__value"><code>{{ formTemplate.code }}</code></span>
+                        </div>
+                        <!-- El país decide qué catálogos ofrece y qué planes lo
+                             pueden usar: se pedía al crear y luego no se veía. -->
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('form_templates.country') }}</span>
+                            <span class="spec-cell__value">{{ formTemplate.country_name ?? '—' }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('form_templates.kind') }}</span>
+                            <span class="spec-cell__value">{{ $t(textoKind) }}</span>
+                        </div>
+                        <!-- La versión salía siempre vacía: la ficha leía
+                             `sort_order`, columna que no existe en esta tabla. -->
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('form_templates.version') }}</span>
+                            <span class="spec-cell__value">{{ formTemplate.version }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('form_templates.status') }}</span>
+                            <span class="spec-cell__value">
+                                <Tag :color="colorEstado" :bordered="false">{{ $t(textoEstado) }}</Tag>
+                            </span>
+                        </div>
+                        <div v-if="formTemplate.published_at" class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('form_templates.published_at') }}</span>
+                            <span class="spec-cell__value">{{ fmt(formTemplate.published_at) }}</span>
                         </div>
                         <!-- Estado: siempre al final. -->
                         <div class="spec-cell">

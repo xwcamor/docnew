@@ -56,6 +56,27 @@ class FormTemplateCrudTest extends TestCase
         return $u;
     }
 
+    /** El super: es el unico que ve la papelera. */
+    private function super(): User
+    {
+        Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 's']);
+        $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $u->assignRole('super');
+        $u->givePermissionTo(Permission::all());
+
+        return $u;
+    }
+
+    /** Un documento cualquiera, ya guardado. */
+    private function documento(array $extra = []): FormTemplate
+    {
+        return FormTemplate::create(array_merge([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1,
+            'code' => 'AST', 'name' => 'Analisis de Seguridad', 'kind' => FormTemplate::STRUCTURED,
+            'status' => 'draft', 'version' => 1,
+        ], $extra));
+    }
+
     /**
      * Un formato nuevo se guarda. Sin más.
      *
@@ -153,19 +174,233 @@ class FormTemplateCrudTest extends TestCase
     /** Las pantallas del módulo abren, que es lo que nadie había comprobado. */
     public function test_las_pantallas_del_modulo_abren(): void
     {
-        $plantilla = FormTemplate::create([
-            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1,
-            'code' => 'AST', 'name' => 'Analisis de Seguridad', 'kind' => FormTemplate::STRUCTURED,
-            'status' => 'draft', 'version' => 1,
-        ]);
+        $plantilla = $this->documento();
 
         $this->actingAs($this->admin());
 
-        foreach (['index', 'create'] as $pantalla) {
+        foreach (['index', 'create', 'edit_all'] as $pantalla) {
             $this->get(route("business_management.form_templates.{$pantalla}"))->assertOk();
         }
         foreach (['show', 'edit', 'delete'] as $pantalla) {
             $this->get(route("business_management.form_templates.{$pantalla}", $plantilla->slug))->assertOk();
         }
+
+        // La papelera es sólo del super.
+        $this->actingAs($this->super())
+            ->get(route('business_management.form_templates.trash'))->assertOk();
+    }
+
+    /**
+     * Duplicar reventaba igual que crear, y por lo mismo.
+     *
+     * El servicio copiaba `is_active` y `version` y se dejaba fuera
+     * `country_id`, que es NOT NULL: el 23502 de Postgres salía tal cual al
+     * pulsar el botón de copiar de cualquier fila del listado. Es el mismo
+     * agujero del alta, en el otro camino, y quedaba abierto.
+     */
+    public function test_duplicar_un_documento_no_revienta_y_conserva_el_pais(): void
+    {
+        $plantilla = $this->documento(['kind' => FormTemplate::UPLOAD_ONLY, 'name' => 'Hoja suelta']);
+
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.form_templates.duplicate', $plantilla->slug))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $copia = FormTemplate::where('id', '!=', $plantilla->id)->firstOrFail();
+
+        $this->assertSame(1, $copia->country_id);
+        // Y la copia se llena igual que el original: un «sólo foto del papel»
+        // que saliera «con campos» ya no se podría publicar nunca.
+        $this->assertSame(FormTemplate::UPLOAD_ONLY, $copia->kind);
+        // Nace en borrador: es un documento nuevo, no una versión.
+        $this->assertSame('draft', $copia->status);
+        $this->assertSame(1, (int) $copia->version);
+    }
+
+    /**
+     * Cómo se llena el documento se elige desde la pantalla.
+     *
+     * La columna `kind` existía y el formulario no la ofrecía, así que todo
+     * nacía «con campos» — y un documento con campos y sin ninguno no se puede
+     * publicar. Como todavía no hay pantalla para definir campos, eso dejaba el
+     * módulo sin ninguna salida: nada de lo creado aquí llegaba a un plan.
+     */
+    public function test_se_elige_como_se_llena_y_asi_se_puede_publicar(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.form_templates.store'), [
+            'country_id' => 1, 'name' => 'Hoja suelta', 'code' => 'HOJA',
+            'kind' => FormTemplate::UPLOAD_ONLY,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $plantilla = FormTemplate::where('code', 'HOJA')->firstOrFail();
+        $this->assertSame(FormTemplate::UPLOAD_ONLY, $plantilla->kind);
+
+        // Y con eso ya se publica: el camino completo desde la pantalla.
+        $this->post(route('business_management.form_templates.publish', $plantilla->slug))
+            ->assertSessionHas('success');
+
+        $this->assertSame('published', $plantilla->fresh()->status);
+    }
+
+    /** Un `kind` inventado no entra. */
+    public function test_como_se_llena_solo_acepta_los_tres_valores(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.form_templates.store'), [
+            'country_id' => 1, 'name' => 'Raro', 'code' => 'RARO', 'kind' => 'lo_que_sea',
+        ])->assertSessionHasErrors('kind');
+
+        $this->assertDatabaseMissing('form_templates', ['name' => 'Raro']);
+    }
+
+    /** Editar guarda de verdad: se comprueba la fila, no el 302. */
+    public function test_editar_guarda_la_fila(): void
+    {
+        $plantilla = $this->documento();
+
+        $this->actingAs($this->admin());
+
+        $this->put(route('business_management.form_templates.update', $plantilla->slug), [
+            'country_id' => 1,
+            'name'       => 'AST (Análisis de Seguridad en el Trabajo)',
+            'code'       => 'AST',
+            'kind'       => FormTemplate::HYBRID,
+            'is_active'  => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $plantilla->refresh();
+        $this->assertSame('AST (Análisis de Seguridad en el Trabajo)', $plantilla->name);
+        $this->assertSame(FormTemplate::HYBRID, $plantilla->kind);
+    }
+
+    /**
+     * Borrar el código y guardar tampoco puede reventar.
+     *
+     * `form_templates.code` es NOT NULL. El campo se manda vacío, Laravel lo
+     * convierte en `null` y la pantalla de editar —que no derivaba el código del
+     * nombre como sí hace la de alta— lo escribía tal cual: otro 23502 de
+     * Postgres en la cara del usuario, esta vez al editar.
+     */
+    public function test_editar_sin_codigo_deriva_uno_y_no_revienta(): void
+    {
+        $plantilla = $this->documento();
+
+        $this->actingAs($this->admin());
+
+        $this->put(route('business_management.form_templates.update', $plantilla->slug), [
+            'country_id' => 1, 'name' => 'Pare Tome 5', 'code' => null,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $plantilla->refresh();
+        $this->assertSame('pare_tome_5', $plantilla->code);
+    }
+
+    /**
+     * Y el código derivado cabe en la columna.
+     *
+     * Los nombres de verdad son largos —«AST (Análisis de Seguridad en el
+     * Trabajo)» pasa de 40— y el código se deriva del nombre: sin recortar,
+     * quien deja el código en blanco recibía un error de longitud sobre un campo
+     * que ni había tocado.
+     */
+    public function test_un_nombre_largo_sin_codigo_no_da_error_de_longitud(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.form_templates.store'), [
+            'country_id' => 1,
+            'name'       => 'AST (Analisis de Seguridad en el Trabajo) para trabajos en altura',
+            'kind'       => FormTemplate::UPLOAD_ONLY,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $plantilla = FormTemplate::firstOrFail();
+        $this->assertNotNull($plantilla->code);
+        $this->assertLessThanOrEqual(40, mb_strlen($plantilla->code));
+    }
+
+    /**
+     * Un documento publicado no cambia de forma de llenarse.
+     *
+     * Pasar de «sólo foto del papel» a «con campos» con entregas ya hechas
+     * cambiaría qué se le exige a algo que ya está cerrado y firmado.
+     */
+    public function test_publicado_no_cambia_como_se_llena(): void
+    {
+        $plantilla = $this->documento([
+            'kind' => FormTemplate::UPLOAD_ONLY, 'status' => 'published', 'published_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin());
+
+        $this->put(route('business_management.form_templates.update', $plantilla->slug), [
+            'country_id' => 1, 'name' => $plantilla->name, 'code' => 'AST',
+            'kind' => FormTemplate::STRUCTURED,
+        ])->assertSessionHasErrors('kind');
+
+        $this->assertSame(FormTemplate::UPLOAD_ONLY, $plantilla->fresh()->kind);
+    }
+
+    /**
+     * El listado dice cuáles están publicados.
+     *
+     * Enseñaba activo/inactivo, que aquí no es lo que importa: lo que decide si
+     * un plan puede usar un documento es la publicación, y no se veía. Se podía
+     * tener el catálogo entero en borrador sin enterarse.
+     */
+    public function test_el_listado_trae_la_publicacion_de_cada_documento(): void
+    {
+        $this->documento(['name' => 'En borrador', 'code' => 'B1']);
+        $this->documento(['name' => 'Ya publicado', 'code' => 'P1', 'status' => 'published']);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.form_templates.index'))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->has('form_templates.data', 2)
+                ->where('form_templates.data.0.status', 'published')
+                ->where('form_templates.data.1.status', 'draft'));
+    }
+
+    /** Y se puede filtrar por publicación, que es la pregunta real del listado. */
+    public function test_se_filtra_por_publicacion(): void
+    {
+        $this->documento(['name' => 'En borrador', 'code' => 'B1']);
+        $this->documento(['name' => 'Ya publicado', 'code' => 'P1', 'status' => 'published']);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.form_templates.index', ['status' => 'published']))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->has('form_templates.data', 1)
+                ->where('form_templates.data.0.name', 'Ya publicado'));
+    }
+
+    /**
+     * La ficha trae el país y la versión.
+     *
+     * La versión salía siempre vacía porque leía `sort_order`, columna que no
+     * existe en esta tabla; y el país se pedía al crear y luego no aparecía en
+     * ningún sitio.
+     */
+    public function test_la_ficha_trae_pais_version_y_cuantos_campos_tiene(): void
+    {
+        $plantilla = $this->documento(['version' => 3]);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.form_templates.show', $plantilla->slug))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->where('formTemplate.version', 3)
+                ->where('formTemplate.country_id', 1)
+                ->where('formTemplate.country_name', 'Peru')
+                ->where('formTemplate.kind', FormTemplate::STRUCTURED)
+                // Con esto la ficha sabe deshabilitar «Publicar» y decir por qué,
+                // en vez de dejar que falle al pulsarlo.
+                ->where('formTemplate.fields_count', 0));
     }
 }

@@ -91,9 +91,22 @@ class FormTemplateService
     }
 
     /**
-     * Clona el formTemplate. Sufijo "(copia)" con sanity guard de 100 intentos.
-     * El `cod` no se copia (es unique por tenant â€” se deja en null para que
-     * el usuario lo ajuste manualmente al editar el clon).
+     * Clona el documento. Sufijo "(copia)" con sanity guard de 100 intentos.
+     *
+     * Duplicar reventaba con dos NOT NULL a la vez, los dos heredados del clon
+     * de `Brand`:
+     *
+     *   - `country_id` no se copiaba — el mismo 23502 de Postgres que reventaba
+     *     al crear, por el otro camino;
+     *   - `code` se ponia a `null` a proposito «para que el usuario lo ajuste»,
+     *     pero en esta tabla `code` tampoco es nullable.
+     *
+     * Tampoco copiaba `kind`, asi que la copia de un «solo foto del papel»
+     * salia «con campos» y ya no habia forma de publicarla.
+     *
+     * La copia nace en borrador y en la version 1: es un documento nuevo, no
+     * una version del original — para eso esta `FormTemplateBuilder::
+     * nuevaVersion()`.
      */
     public function duplicate(FormTemplate $formTemplate): ?FormTemplate
     {
@@ -119,14 +132,49 @@ class FormTemplateService
                 if ($i > 100) return null;
             }
 
-            $clone = new FormTemplate($formTemplate->only(['is_active', 'version']));
-            $clone->name       = $candidate;
-            $clone->code       = null;
-            $clone->created_by = auth()->id();
+            $clone = new FormTemplate($formTemplate->only([
+                'country_id', 'kind', 'requires_signature', 'pdf_template', 'is_active',
+            ]));
+            $clone->name         = $candidate;
+            $clone->code         = $this->codigoLibre($formTemplate->code);
+            $clone->status       = 'draft';
+            $clone->published_at = null;
+            $clone->version      = 1;
+            $clone->created_by   = auth()->id();
             $clone->save();
 
             return $clone;
         });
+    }
+
+    /**
+     * Un codigo libre para la copia, a partir del del original.
+     *
+     * `code` es NOT NULL y unico dentro del workspace, asi que la copia no
+     * puede quedarse sin el ni repetirlo: AST → AST_2, AST_3… Recortado a 40,
+     * que es lo que admite la columna.
+     */
+    protected function codigoLibre(?string $original): string
+    {
+        $base = trim((string) $original);
+        if ($base === '') {
+            $base = 'doc';
+        }
+
+        for ($i = 2; $i <= 100; $i++) {
+            $candidato = mb_substr($base, 0, 40 - mb_strlen("_{$i}")) . "_{$i}";
+
+            $tomado = FormTemplate::withTrashed()
+                ->whereRaw('LOWER(code) = LOWER(?)', [$candidato])
+                ->exists();
+
+            if (! $tomado) {
+                return $candidato;
+            }
+        }
+
+        // Fallback: nunca deberia llegar aqui, pero antes que devolver null.
+        return mb_substr($base, 0, 30) . '_' . \Illuminate\Support\Str::random(6);
     }
 
     // â”€â”€â”€ Bulk ops â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

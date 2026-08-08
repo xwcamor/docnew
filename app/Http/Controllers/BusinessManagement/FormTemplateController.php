@@ -28,7 +28,7 @@ class FormTemplateController extends Controller
     use \App\Traits\BuildsRecordAudit;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
 
-    /** Pone el candado a la marca (super → nivel sistema; admin → nivel tenant). */
+    /** Pone el candado al documento (super → nivel sistema; admin → nivel tenant). */
     public function lock(Request $request, FormTemplate $formTemplate): RedirectResponse
     {
         return $this->applyLock($formTemplate, $request);
@@ -81,6 +81,10 @@ class FormTemplateController extends Controller
             'exportLimits' => \App\Models\Setting::getExportLimits('form_templates'),
             'filters' => [
                 'name'         => array_values($names),
+                'code'         => $request->get('code', ''),
+                // Publicado / borrador: la pregunta real de este listado, y no
+                // se podia ni filtrar ni ver.
+                'status'       => $request->get('status', null),
                 'is_active'    => $request->filled('is_active')
                     ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
                     : null,
@@ -123,7 +127,7 @@ class FormTemplateController extends Controller
 
     public function show(Request $request, FormTemplate $formTemplate)
     {
-        $formTemplate->load(['creator:id,name,email', 'deleter:id,name,email', 'locker:id,name']);
+        $formTemplate->load(['creator:id,name,email', 'deleter:id,name,email', 'locker:id,name', 'country:id,name,iso_code']);
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
@@ -134,7 +138,7 @@ class FormTemplateController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -177,10 +181,10 @@ class FormTemplateController extends Controller
     }
 
     /**
-     * Alta rápida de marca desde un select de otro módulo (ej. el form de
-     * trafos) sin salir de la página. Misma validación que store() — incluye
-     * unicidad insensible a acentos/mayúsculas, así que bloquea duplicados —
-     * pero responde JSON con la marca creada para inyectarla en el select.
+     * Alta rápida de un documento desde un select de otro módulo, sin salir de
+     * la página. Misma validación que store() — incluye unicidad insensible a
+     * acentos/mayúsculas, así que bloquea duplicados — pero responde JSON con
+     * el documento creado para inyectarlo en el select.
      * Gated por permission:form_templates.create (super/admin pasan por sus permisos).
      */
     public function quickStore(StoreFormTemplateRequest $request, FormTemplateService $service): \Illuminate\Http\JsonResponse
@@ -475,6 +479,17 @@ class FormTemplateController extends Controller
             // que es lo que decide si un plan puede usarlo.
             'status'     => $m->status,
             'published_at' => $m->published_at,
+            // El pais es obligatorio en la tabla y no llegaba a la ficha: se
+            // pedia al crear y luego no se veia en ninguna parte. Un documento
+            // pertenece a un pais y eso decide que planes pueden usarlo.
+            'country_id'   => $m->country_id,
+            'country_name' => $m->country?->name,
+            'requires_signature' => (bool) $m->requires_signature,
+            // Cuantos campos tiene definidos. Es lo que decide si «Publicar»
+            // puede funcionar: un documento «con campos» y sin ninguno no se
+            // publica, y el boton tiene que salir deshabilitado diciendolo, no
+            // fallar al pulsarlo.
+            'fields_count' => $m->fields()->count(),
             'is_active'  => $m->is_active,
             'tenant_id'  => $m->tenant_id,
             'is_locked'  => $m->is_locked,
@@ -747,11 +762,11 @@ class FormTemplateController extends Controller
     protected function buildExportOptions(Request $request, string $format): array
     {
         // Sin 'id' (no se exporta). La columna `tenant` (workspace) SOLO es
-        // exportable por super: el resto ve únicamente marcas de su propio
+        // exportable por super: el resto ve únicamente documentos de su propio
         // tenant. Gate de seguridad real (no basta ocultarla en el front).
         $isSuper = $request->user()?->hasRole('super') ?? false;
         $allowedColumns = array_values(array_filter([
-            'name', 'code', 'version', 'is_active',
+            'name', 'code', 'kind', 'status', 'version', 'is_active',
             $isSuper ? 'tenant' : null,
             'created_at', 'updated_at', 'creator',
         ]));

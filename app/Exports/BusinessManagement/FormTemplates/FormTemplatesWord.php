@@ -55,7 +55,10 @@ class FormTemplatesWord
             'id'         => ['heading' => __('form_templates.id'),        'value' => fn($c) => (string) $c->id],
             'name'       => ['heading' => __('form_templates.name'),      'value' => fn($c) => (string) $c->name],
             'code'       => ['heading' => __('form_templates.code'),      'value' => fn($c) => (string) $c->code],
-            'version' => ['heading' => __('form_templates.version'), 'value' => fn($c) => (string) ($c->sort_order ?? '')],
+            // `sort_order` no existe en esta tabla: salia siempre vacia.
+            'version'    => ['heading' => __('form_templates.version'), 'value' => fn($c) => (string) $c->version],
+            'kind'       => ['heading' => __('form_templates.kind'),      'value' => fn($c) => __('form_templates.kind_' . $c->kind)],
+            'status'     => ['heading' => __('form_templates.status'),    'value' => fn($c) => __('form_templates.status_' . $c->status)],
             'is_active'  => ['heading' => __('form_templates.is_active'), 'value' => fn($c) => $c->state_text],
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c) => (string) $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) ?? ''],

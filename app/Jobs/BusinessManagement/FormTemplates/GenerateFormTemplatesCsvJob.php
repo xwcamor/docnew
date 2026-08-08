@@ -32,7 +32,13 @@ class GenerateFormTemplatesCsvJob extends BaseFormTemplateExportJob
                 'id'         => __('form_templates.id'),
                 'name'       => __('form_templates.name'),
                 'code'       => __('form_templates.code'),
-                'sort_order' => __('form_templates.sort_order'),
+                // Era `sort_order`: ni la columna existe en esta tabla ni existia
+                // la clave `form_templates.sort_order`, asi que el CSV salia con
+                // la cabecera literal sin traducir y la celda vacia. Ademas el
+                // frontend pide `version`, que aqui no estaba contemplada.
+                'version'    => __('form_templates.version'),
+                'kind'       => __('form_templates.kind'),
+                'status'     => __('form_templates.status'),
                 'is_active'  => __('form_templates.is_active'),
                 'slug'       => 'Slug',
                 'created_at' => __('global.created_at'),
@@ -49,7 +55,9 @@ class GenerateFormTemplatesCsvJob extends BaseFormTemplateExportJob
                         'id'         => $formTemplate->id,
                         'name'       => $formTemplate->name,
                         'code'       => $formTemplate->code ?? '',
-                        'sort_order' => $formTemplate->sort_order ?? '',
+                        'version'    => (string) $formTemplate->version,
+                        'kind'       => __('form_templates.kind_' . $formTemplate->kind),
+                        'status'     => __('form_templates.status_' . $formTemplate->status),
                         'is_active'  => $formTemplate->is_active ? '1' : '0',
                         'slug'       => $formTemplate->slug,
                         'created_at' => $formTemplate->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT),

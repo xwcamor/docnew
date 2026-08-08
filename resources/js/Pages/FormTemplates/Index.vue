@@ -538,6 +538,20 @@ const goDelete = (record) => router.visit(route('business_management.form_templa
                         <Tag v-else color="purple" :bordered="false">{{ $t('global.platform') }}</Tag>
                     </template>
 
+                    <!-- Publicación: lo que decide si un plan puede usar el
+                         documento. Color Y palabra — naranja borrador, verde
+                         publicado. Nunca sólo el color. -->
+                    <template v-else-if="column.key === 'publication'">
+                        <span class="pill" :class="record.status === 'published' ? 'pill--ok' : 'pill--draft'">
+                            <span class="pill__dot" />
+                            {{ $t(`form_templates.status_${record.status ?? 'draft'}`) }}
+                        </span>
+                    </template>
+
+                    <template v-else-if="column.key === 'kind'">
+                        {{ $t(`form_templates.kind_${record.kind ?? 'structured'}`) }}
+                    </template>
+
                     <template v-else-if="column.key === 'status'">
                         <span class="pill" :class="record.is_active ? 'pill--ok' : 'pill--off'">
                             <span class="pill__dot" />
@@ -664,6 +678,9 @@ const goDelete = (record) => router.visit(route('business_management.form_templa
 .pill--ok  .pill__dot { background: #1d7a44; box-shadow: 0 0 0 3px rgba(29,122,68,0.12); }
 .pill--off { color: #6a6d70; background: var(--color-surface-alt, #f3f4f6); border-color: var(--color-border, #e5e7eb); }
 .pill--off .pill__dot { background: #9aa0a6; }
+/* Borrador = naranja, según la tabla de estados de docs/UI.md §5. */
+.pill--draft { color: #96580d; background: rgba(217,132,18,0.10); border-color: rgba(217,132,18,0.22); }
+.pill--draft .pill__dot { background: #d98412; box-shadow: 0 0 0 3px rgba(217,132,18,0.12); }
 
 /* Cabecera minimal + filas aireadas + hover suave. */
 .grid-card :deep(.ant-table-thead > tr > th) {

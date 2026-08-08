@@ -3,14 +3,35 @@
 namespace App\Http\Requests\BusinessManagement\FormTemplate;
 
 use App\Http\Requests\Concerns\DerivesAttributesFromLang;
+use App\Http\Requests\Concerns\DerivesCodeFromName;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 class UpdateFormTemplateRequest extends FormRequest
 {
     use DerivesAttributesFromLang;
+    use DerivesCodeFromName;
 
     protected $attributeNamespace = 'form_templates';
+
+    /**
+     * Igual que el alta.
+     *
+     * Esto no estaba, y `code` es NOT NULL: vaciar el campo Código y guardar
+     * mandaba `''`, que el middleware de Laravel convierte en `null`, y el
+     * update reventaba con un 23502 de Postgres en la cara del usuario. El
+     * mismo fallo que tenía el país, en la pantalla de editar.
+     */
+    protected function prepareForValidation(): void
+    {
+        $vacio = blank($this->input('code'));
+
+        $this->deriveCodeFromName();
+
+        if ($vacio && filled($this->input('code'))) {
+            $this->merge(['code' => mb_substr((string) $this->input('code'), 0, 40)]);
+        }
+    }
 
     public function authorize(): bool
     {
@@ -20,6 +41,27 @@ class UpdateFormTemplateRequest extends FormRequest
             return false;
         }
         return true;
+    }
+
+    /**
+     * Un documento publicado no cambia de forma de llenarse.
+     *
+     * Pasar de «con campos» a «sólo foto del papel» —o al revés— con entregas
+     * ya hechas cambiaría qué se le exige a una entrega que ya está cerrada. La
+     * pantalla lo saca deshabilitado y dice por qué; esto es la otra mitad.
+     */
+    public function withValidator($validator): void
+    {
+        $formTemplate = $this->route('formTemplate');
+
+        $validator->after(function ($v) use ($formTemplate) {
+            if (! is_object($formTemplate) || ! $this->has('kind')) {
+                return;
+            }
+            if ($formTemplate->status !== 'draft' && $this->input('kind') !== $formTemplate->kind) {
+                $v->errors()->add('kind', __('form_templates.kind_locked_published'));
+            }
+        });
     }
 
     public function rules(): array
@@ -50,8 +92,9 @@ class UpdateFormTemplateRequest extends FormRequest
                     }
                 },
             ],
+            // NOT NULL en la tabla: ver `prepareForValidation()`.
             'code'       => [
-                'nullable', 'string', 'max:40',
+                'required', 'string', 'max:40',
                 function ($attribute, $value, $fail) use ($formTemplateId) {
                     if ($value === null || $value === '') return;
                     $exists = DB::table('form_templates')
@@ -69,6 +112,10 @@ class UpdateFormTemplateRequest extends FormRequest
             // lo pedía, así que crear un formato desde la pantalla reventaba con
             // un 23502 de Postgres. Es el mismo campo que llevan los catálogos.
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
+            // Cómo se llena. Sólo se admite mientras esté en borrador: cambiarlo
+            // en uno publicado alteraría la forma de rellenar un documento que
+            // ya tiene entregas. Ver `withValidator()`.
+            'kind'       => ['sometimes', 'required', Rule::in(\App\Models\FormTemplate::KINDS)],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }
