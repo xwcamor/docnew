@@ -481,7 +481,7 @@ class MigrateLegacyDataCommand extends Command
                     'description'      => $p->description,
                     'date_start'       => $this->fecha($p->date_start),
                     'date_end'         => $this->fecha($p->date_end),
-                    'is_locked'        => (bool) $p->is_locked,
+                    'is_closed'        => (bool) $p->is_locked,
                     'is_done'          => (bool) $p->is_done,
                     'legacy_id'        => $p->id,
                     'tenant_id'        => $this->tenantId,

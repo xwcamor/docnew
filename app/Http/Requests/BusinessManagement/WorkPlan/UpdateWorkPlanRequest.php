@@ -25,11 +25,15 @@ class UpdateWorkPlanRequest extends FormRequest
 
     public function authorize(): bool
     {
-        // Registro BLOQUEADO (Lockable): no se edita hasta desbloquearlo.
+        // Dos cierres distintos: el candado administrativo del trait Lockable,
+        // y el cierre del propio trabajo del día. Cualquiera de los dos deja el
+        // plan en solo lectura.
         $workPlan = $this->route('workPlan');
-        if (is_object($workPlan) && $workPlan->is_locked) {
+
+        if (is_object($workPlan) && ($workPlan->is_locked || $workPlan->is_closed)) {
             return false;
         }
+
         return true;
     }
 

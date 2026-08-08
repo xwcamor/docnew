@@ -20,7 +20,7 @@ export const workPlansFilterFields = (t, {
         { value: true,  label: t('work_plans.state_done')    },
         { value: false, label: t('work_plans.state_pending') },
     ]},
-    { key: 'is_locked',        label: t('work_plans.is_locked'),      type: 'select', options: [
+    { key: 'is_closed',        label: t('work_plans.is_closed'),      type: 'select', options: [
         { value: true,  label: t('work_plans.state_locked')   },
         { value: false, label: t('work_plans.state_unlocked') },
     ]},
@@ -36,7 +36,7 @@ export const workPlansEmptyFilters = () => ({
     work_type_id: [],
     work_location_id: [],
     is_done: null,
-    is_locked: null,
+    is_closed: null,
     work_date: null,
     created_at: null,
     only_favorites: false,
@@ -49,7 +49,7 @@ export const hydrateWorkPlansFilters = (server) => ({
     work_type_id:     Array.isArray(server.work_type_id) ? server.work_type_id : [],
     work_location_id: Array.isArray(server.work_location_id) ? server.work_location_id : [],
     is_done:          server.is_done ?? null,
-    is_locked:        server.is_locked ?? null,
+    is_closed:        server.is_closed ?? null,
     work_date: (server.date_from && server.date_to)
         ? [dayjs(server.date_from), dayjs(server.date_to)]
         : null,
@@ -66,7 +66,7 @@ export const workPlansFiltersToQuery = (f) => ({
     work_type_id:     f.work_type_id?.length ? f.work_type_id : undefined,
     work_location_id: f.work_location_id?.length ? f.work_location_id : undefined,
     is_done:          f.is_done ?? undefined,
-    is_locked:        f.is_locked ?? undefined,
+    is_closed:        f.is_closed ?? undefined,
     date_from:        f.work_date?.[0]?.format('YYYY-MM-DD') ?? undefined,
     date_to:          f.work_date?.[1]?.format('YYYY-MM-DD') ?? undefined,
     created_from:     f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
@@ -84,8 +84,8 @@ export const workPlansFiltersSummary = (f, t) => {
     if (f.is_done !== null && f.is_done !== undefined) {
         parts.push(`${t('work_plans.is_done')}: ${f.is_done ? t('work_plans.state_done') : t('work_plans.state_pending')}`);
     }
-    if (f.is_locked !== null && f.is_locked !== undefined) {
-        parts.push(`${t('work_plans.is_locked')}: ${f.is_locked ? t('work_plans.state_locked') : t('work_plans.state_unlocked')}`);
+    if (f.is_closed !== null && f.is_closed !== undefined) {
+        parts.push(`${t('work_plans.is_closed')}: ${f.is_closed ? t('work_plans.state_locked') : t('work_plans.state_unlocked')}`);
     }
     if (f.work_date)  parts.push(`${t('work_plans.date_start')}: ${f.work_date[0]?.format('YYYY-MM-DD')} → ${f.work_date[1]?.format('YYYY-MM-DD')}`);
     if (f.created_at) parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
@@ -102,7 +102,7 @@ export const serializeSavedFilters = (f) => ({
     work_type_id:     f.work_type_id ?? [],
     work_location_id: f.work_location_id ?? [],
     is_done:          f.is_done ?? null,
-    is_locked:        f.is_locked ?? null,
+    is_closed:        f.is_closed ?? null,
     work_date:  f.work_date?.[0]
         ? [f.work_date[0].format('YYYY-MM-DD'), f.work_date[1]?.format('YYYY-MM-DD')]
         : null,
@@ -118,7 +118,7 @@ export const deserializeSavedFilters = (f = {}) => ({
     work_type_id:     Array.isArray(f.work_type_id) ? f.work_type_id : [],
     work_location_id: Array.isArray(f.work_location_id) ? f.work_location_id : [],
     is_done:          f.is_done ?? null,
-    is_locked:        f.is_locked ?? null,
+    is_closed:        f.is_closed ?? null,
     work_date:  f.work_date?.[0]  ? [dayjs(f.work_date[0]),  dayjs(f.work_date[1])]  : null,
     created_at: f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
     only_favorites: f.only_favorites ?? false,

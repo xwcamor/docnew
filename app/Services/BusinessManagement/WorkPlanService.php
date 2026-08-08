@@ -20,8 +20,10 @@ use Illuminate\Support\Facades\DB;
  */
 class WorkPlanService
 {
-    public function __construct(private readonly WorkPlanCodeGenerator $codigos)
-    {
+    public function __construct(
+        private readonly WorkPlanCodeGenerator $codigos,
+        private readonly WorkPlanSetupService $armado,
+    ) {
     }
 
     public function create(array $data): WorkPlan
@@ -44,6 +46,13 @@ class WorkPlanService
         }
 
         $workPlan->save();
+
+        // Los aprobadores por defecto salen de las reglas de aprobación del
+        // país: quedan propuestos sin persona asignada, para que el supervisor
+        // ponga el nombre. Es lo que impide que un plan salga a obra sin firma
+        // de HSE porque alguien no se acordó de pedirla.
+        $this->armado->seedApprovalsFromRules($workPlan);
+
         return $workPlan;
     }
 
@@ -146,7 +155,7 @@ class WorkPlanService
             $clone->code       = $candidate;
             $clone->user_id    = auth()->id() ?? $workPlan->user_id;
             $clone->is_done    = false;
-            $clone->is_locked  = false;
+            $clone->is_closed  = false;
             $clone->created_by = auth()->id();
             $clone->save();
 

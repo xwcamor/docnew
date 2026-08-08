@@ -19,7 +19,7 @@ use Illuminate\Support\Str;
  *
  * NO tiene `name` ni `is_active`: se identifica por `code` (PE24-0412-0458) y su
  * estado es de avance, no de catálogo — `is_done` (todo firmado y confirmado) e
- * `is_locked` (cerrado, ya no se toca). Es PER-TENANT, por eso usa
+ * `is_closed` (el supervisor lo dio por cerrado). Es PER-TENANT, por eso usa
  * BelongsToTenantOrGlobal. Mantiene SoftDeletes + Auditable + HasFavorites.
  */
 class WorkPlan extends Model
@@ -116,8 +116,8 @@ class WorkPlan extends Model
             $q->where("{$tbl}.is_done", filter_var($request->is_done, FILTER_VALIDATE_BOOLEAN));
         });
 
-        $query->when($request->filled('is_locked'), function ($q) use ($request, $tbl) {
-            $q->where("{$tbl}.is_locked", filter_var($request->is_locked, FILTER_VALIDATE_BOOLEAN));
+        $query->when($request->filled('is_closed'), function ($q) use ($request, $tbl) {
+            $q->where("{$tbl}.is_closed", filter_var($request->is_closed, FILTER_VALIDATE_BOOLEAN));
         });
 
         // Fecha del trabajo (no la de alta del registro): es la que usa el
@@ -175,7 +175,7 @@ class WorkPlan extends Model
         } elseif ($sort === 'work_location') {
             $query->leftJoin('work_locations', "{$tbl}.work_location_id", '=', 'work_locations.id')
                   ->orderBy('work_locations.name', $direction);
-        } elseif (in_array($sort, ['id', 'code', 'num_os', 'description', 'date_start', 'date_end', 'is_done', 'is_locked', 'created_at', 'updated_at'], true)) {
+        } elseif (in_array($sort, ['id', 'code', 'num_os', 'description', 'date_start', 'date_end', 'is_done', 'is_closed', 'created_at', 'updated_at'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 
@@ -199,7 +199,7 @@ class WorkPlan extends Model
             ['key' => 'work_type_id',     'label' => __('work_plans.work_type'),     'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['work_types'] ?? []],
             ['key' => 'work_location_id', 'label' => __('work_plans.work_location'), 'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['work_locations'] ?? []],
             ['key' => 'is_done',          'label' => __('work_plans.is_done'),       'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'is_locked',        'label' => __('work_plans.is_locked'),     'type' => 'boolean', 'operators' => ['=']],
+            ['key' => 'is_closed',        'label' => __('work_plans.is_closed'),     'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'date_start',       'label' => __('work_plans.date_start'),    'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'date_end',         'label' => __('work_plans.date_end'),      'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'created_at',       'label' => __('global.created_at'),        'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
@@ -212,13 +212,13 @@ class WorkPlan extends Model
     protected $fillable = [
         'slug', 'country_id', 'company_id', 'work_type_id', 'work_location_id',
         'workstation_id', 'work_area_id', 'user_id', 'code', 'num_os', 'description',
-        'date_start', 'date_end', 'is_locked', 'is_done', 'legacy_id',
+        'date_start', 'date_end', 'is_closed', 'is_done', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
     // Las fechas del plan son días de calendario, no instantes: se serializan
     // como Y-m-d para que el navegador no las corra un día al aplicar su zona.
-    protected $casts = ['is_locked' => 'boolean', 'is_done' => 'boolean',
+    protected $casts = ['is_closed' => 'boolean', 'is_done' => 'boolean',
                         'date_start' => 'date:Y-m-d', 'date_end' => 'date:Y-m-d'];
 
     public function country() { return $this->belongsTo(Country::class); }
@@ -232,6 +232,91 @@ class WorkPlan extends Model
     public function people() { return $this->hasMany(WorkPlanPerson::class); }
     public function approvals() { return $this->hasMany(WorkPlanApproval::class); }
     public function submissions() { return $this->hasMany(FormSubmission::class); }
+    /** Lo que se le añadió o se le quitó al estándar del tipo de trabajo. */
+    public function formTemplateOverrides() { return $this->hasMany(WorkPlanFormTemplate::class); }
+
+    /**
+     * Si se puede tocar la composición del plan (cuadrilla, formatos exigidos,
+     * aprobadores). Un plan cerrado, terminado o con candado administrativo ya
+     * es un documento del archivo: se consulta, no se arma.
+     */
+    public function isOpenForSetup(): bool
+    {
+        return ! $this->is_closed && ! $this->is_done && $this->locked_at === null;
+    }
+
+    /** Por qué está cerrado — para poder decírselo al usuario, no solo negarle. */
+    public function setupBlockedReason(): ?string
+    {
+        return match (true) {
+            $this->locked_at !== null => __('locks.cannot_edit_locked'),
+            (bool) $this->is_done     => __('work_plans.setup_blocked_done'),
+            $this->is_closed          => __('work_plans.setup_blocked_closed'),
+            default                   => null,
+        };
+    }
+
+    /**
+     * Los formatos que este plan exige de verdad: el estándar del tipo de
+     * trabajo, más los extras del plan, menos los que se le quitaron.
+     *
+     * Un formato con entrega SIEMPRE entra, aunque ya no esté en el estándar:
+     * un papel que alguien llenó y firmó no puede desaparecer de la ficha
+     * porque después se haya cambiado el catálogo.
+     *
+     * @return \Illuminate\Support\Collection<int, array{template: FormTemplate, is_required: bool, source: string}>
+     */
+    public function expectedFormTemplates(): \Illuminate\Support\Collection
+    {
+        $overrides = ($this->relationLoaded('formTemplateOverrides')
+            ? $this->formTemplateOverrides
+            : $this->formTemplateOverrides()->get())->keyBy('form_template_id');
+
+        $esperados = collect();
+
+        $estandar = $this->workType ? $this->workType->formTemplates()->published()->get() : collect();
+
+        foreach ($estandar as $plantilla) {
+            $override = $overrides->get($plantilla->id);
+            if ($override && ! $override->is_included) {
+                continue;
+            }
+            $esperados->put($plantilla->id, [
+                'template'    => $plantilla,
+                'is_required' => (bool) ($override?->is_required ?? $plantilla->pivot->is_required),
+                'source'      => 'work_type',
+            ]);
+        }
+
+        $extraIds = $overrides->filter(fn ($o) => $o->is_included)
+            ->keys()
+            ->reject(fn ($id) => $esperados->has($id))
+            ->all();
+
+        foreach (FormTemplate::whereIn('id', $extraIds)->get() as $plantilla) {
+            $esperados->put($plantilla->id, [
+                'template'    => $plantilla,
+                'is_required' => (bool) $overrides[$plantilla->id]->is_required,
+                'source'      => 'extra',
+            ]);
+        }
+
+        // Red de seguridad: lo que ya se llenó se sigue viendo aunque el
+        // catálogo haya cambiado después.
+        $conEntrega = $this->submissions()->pluck('form_template_id')
+            ->reject(fn ($id) => $esperados->has($id))
+            ->all();
+
+        foreach (FormTemplate::whereIn('id', $conEntrega)->get() as $plantilla) {
+            $esperados->put($plantilla->id, [
+                'template'    => $plantilla,
+                'is_required' => false,
+                'source'      => 'submitted',
+            ]);
+        }
+
+        return $esperados;
+    }
 
     /** El plan esta completo cuando todo formato exigido esta confirmado y toda
      *  aprobacion obligatoria esta aprobada. Lo decide el servidor, nunca el formulario. */

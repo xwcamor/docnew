@@ -588,7 +588,7 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                                 <span class="pill__dot" />
                                 {{ record.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
                             </span>
-                            <Tooltip v-if="record.is_locked" :title="$t('work_plans.state_locked')">
+                            <Tooltip v-if="record.is_closed" :title="$t('work_plans.state_locked')">
                                 <Tag color="gold" :bordered="false"><LockOutlined /></Tag>
                             </Tooltip>
                         </Space>

@@ -18,7 +18,7 @@ export const workPlansExportableColumns = (t, { isSuper = false } = {}) => [
     { key: 'date_start',    label: t('work_plans.date_start'),    default: true  },
     { key: 'date_end',      label: t('work_plans.date_end'),      default: false },
     { key: 'is_done',       label: t('work_plans.is_done'),       default: true  },
-    { key: 'is_locked',     label: t('work_plans.is_locked'),     default: false },
+    { key: 'is_closed',     label: t('work_plans.is_closed'),     default: false },
     { key: 'people_count',  label: t('work_plans.people_count'),  default: false },
     { key: 'registered_by', label: t('work_plans.registered_by'), default: false },
     ...(isSuper ? [{ key: 'tenant', label: t('tenants.singular'), default: false }] : []),

@@ -1508,6 +1508,25 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 }
 .ff-add { min-height: 48px; font-weight: 600; }
 
+/* ── Composicion del plan: cuadrilla, formatos y aprobadores ─────────────────
+   La ficha del plan lista lo mismo que un checklist —una fila por persona, por
+   formato o por aprobador, con sus etiquetas de estado y un boton— asi que
+   reutiliza .ff-items/.ff-item y solo agrega la columna de estado y la de
+   acciones. Vive aqui, con el resto de la familia .ff-, para que la ficha y las
+   pantallas de obra no diverjan. */
+.ff-item__main { flex: 1 1 240px; min-width: 0; }
+.ff-item__name strong { font-weight: 600; }
+.ff-item__sub  { display: block; margin-top: 2px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+.ff-item__meta { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; flex-shrink: 0; }
+.ff-item__acts { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.ff-item__acts .ant-btn { min-height: 44px; }
+/* Nota bajo el titulo de la tarjeta: para que se explique sola. */
+.ff-cardhint { margin: 0 0 12px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+/* Fila para armar (selector + boton): se apila sola en pantalla chica. */
+.ff-addrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.ff-addrow__grow { flex: 1 1 240px; min-width: 0; }
+.ff-addrow .ant-btn, .ff-addrow .ant-select-selector { min-height: 44px; }
+
 /* ── Tablet en vertical y movil: todo apilado, nada de scroll horizontal ─── */
 @media (max-width: 900px) {
     .ff-row__body { grid-template-columns: 1fr; }
@@ -1521,4 +1540,9 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
     .ff-row__head .ff-row__all { flex: 1 1 auto; }
     .ff-actions { margin: 16px -14px -14px; }
     .ff-actions .ant-btn { flex: 1 1 0; }
+    /* La fila de la cuadrilla se apila: nombre arriba, estado y boton debajo,
+       a ancho completo para poder pulsarlos con guantes. */
+    .ff-item__acts { width: 100%; }
+    .ff-item__acts .ant-btn { flex: 1 1 0; }
+    .ff-addrow > * { width: 100%; }
 }

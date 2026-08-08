@@ -64,7 +64,7 @@ class WorkPlansWord
             'date_start'    => ['heading' => __('work_plans.date_start'),    'value' => fn($c) => (string) ($c->date_start?->format('Y-m-d') ?? '')],
             'date_end'      => ['heading' => __('work_plans.date_end'),      'value' => fn($c) => (string) ($c->date_end?->format('Y-m-d') ?? '')],
             'is_done'       => ['heading' => __('work_plans.is_done'),       'value' => fn($c) => $c->state_text],
-            'is_locked'     => ['heading' => __('work_plans.is_locked'),     'value' => fn($c) => $c->is_locked ? __('global.yes') : __('global.no')],
+            'is_closed'     => ['heading' => __('work_plans.is_closed'),     'value' => fn($c) => $c->is_closed ? __('global.yes') : __('global.no')],
             'people_count'  => ['heading' => __('work_plans.people_count'),  'value' => fn($c) => (string) ($c->people_count ?? 0)],
             'registered_by' => ['heading' => __('work_plans.registered_by'), 'value' => fn($c) => (string) ($c->user?->name ?? '—')],
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c) => (string) $c->slug],

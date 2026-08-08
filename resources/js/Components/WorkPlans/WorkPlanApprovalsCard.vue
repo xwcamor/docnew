@@ -1,0 +1,172 @@
+<script setup>
+import { ref } from 'vue';
+import { router } from '@inertiajs/vue3';
+import {
+    Card, Tag, Button, Select, SelectOption, Popconfirm, Tooltip, Switch,
+} from 'ant-design-vue';
+import {
+    SafetyCertificateOutlined, DeleteOutlined, PlusOutlined,
+} from '@ant-design/icons-vue';
+import { useI18n } from '@/Plugins/i18n';
+
+/**
+ * Aprobaciones del plan: quién tiene que firmarlo antes de que se ejecute.
+ *
+ * Los roles salen de `approval_rules` —trabajador, supervisor, supervisor HSE—
+ * y al crear el plan quedan propuestos sin persona. Aquí se le pone nombre a
+ * cada uno, se marca si la firma es obligatoria (una obligatoria sin levantar
+ * impide dar el plan por terminado) y se puede añadir o quitar un aprobador.
+ *
+ * Una aprobación ya firmada no se quita: la firma ES la aprobación.
+ */
+const props = defineProps({
+    planSlug:  { type: String, required: true },
+    approvals: { type: Array,  default: () => [] },
+    rules:     { type: Array,  default: () => [] },
+    canEdit:   { type: Boolean, default: false },
+});
+
+const { t } = useI18n();
+
+const regla = ref(undefined);
+const persona = ref(undefined);
+const obligatoria = ref(true);
+const candidatos = ref([]);
+const buscando = ref(false);
+const guardando = ref(false);
+const quitando = ref(null);
+
+// Nombre legible del rol. Si llegara un rol que el catálogo no conoce se
+// muestra su código: mejor un texto raro que una fila en blanco.
+const rotulo = (rol) => (rol ? t('work_plans.approver_role.' + rol) : '—');
+
+let temporizador = null;
+const buscar = (texto) => {
+    clearTimeout(temporizador);
+    temporizador = setTimeout(async () => {
+        buscando.value = true;
+        try {
+            const { data } = await axios.get(
+                route('business_management.work_plans.crew.candidates', props.planSlug),
+                { params: { q: texto } },
+            );
+            candidatos.value = data.people;
+        } finally {
+            buscando.value = false;
+        }
+    }, 250);
+};
+
+const anadir = () => {
+    if (!regla.value) return;
+    guardando.value = true;
+    router.post(
+        route('business_management.work_plans.approvals.store', props.planSlug),
+        { approval_rule_id: regla.value, person_slug: persona.value ?? null, is_required: obligatoria.value },
+        {
+            preserveScroll: true,
+            onFinish: () => {
+                guardando.value = false;
+                regla.value = undefined;
+                persona.value = undefined;
+                candidatos.value = [];
+            },
+        },
+    );
+};
+
+const quitar = (a) => {
+    quitando.value = a.slug;
+    router.delete(
+        route('business_management.work_plans.approvals.destroy', [props.planSlug, a.slug]),
+        { preserveScroll: true, onFinish: () => { quitando.value = null; } },
+    );
+};
+</script>
+
+<template>
+    <Card :bodyStyle="{ padding: 18 }" class="info-card">
+        <template #title>
+            <SafetyCertificateOutlined /> {{ $t('work_plans.approvals_title') }} ({{ approvals.length }})
+        </template>
+
+        <p class="ff-cardhint">{{ $t('work_plans.approvals_subtitle') }}</p>
+
+        <p v-if="!approvals.length" class="ff-empty">{{ $t('work_plans.approvals_empty') }}</p>
+
+        <ul v-else class="ff-items">
+            <li v-for="a in approvals" :key="a.slug" class="ff-item">
+                <div class="ff-item__main ff-item__name">
+                    <strong>{{ rotulo(a.role) }}</strong>
+                    <span class="ff-item__sub">
+                        {{ a.person ? a.person.name + ' · ' + (a.person.num_doc || '—') : $t('work_plans.approval_unassigned') }}
+                    </span>
+                </div>
+
+                <div class="ff-item__meta">
+                    <Tag :color="a.required ? 'red' : 'default'" :bordered="false">
+                        {{ a.required ? $t('work_plans.approval_required') : $t('work_plans.approval_optional') }}
+                    </Tag>
+                    <Tag :color="a.signed ? 'success' : 'warning'" :bordered="false">
+                        {{ a.signed ? $t('work_plans.approval_approved') : $t('work_plans.approval_pending') }}
+                    </Tag>
+                </div>
+
+                <div v-if="canEdit" class="ff-item__acts">
+                    <Tooltip v-if="a.signed" :title="$t('work_plans.approval_signed_cannot_remove')">
+                        <Button size="small" type="text" disabled><DeleteOutlined /></Button>
+                    </Tooltip>
+                    <Popconfirm
+                        v-else
+                        :title="$t('work_plans.approvals_remove_confirm')"
+                        :ok-text="$t('work_plans.approvals_remove')"
+                        :cancel-text="$t('global.cancel')"
+                        placement="topRight"
+                        @confirm="quitar(a)"
+                    >
+                        <Button size="small" type="text" danger :loading="quitando === a.slug">
+                            <DeleteOutlined />
+                        </Button>
+                    </Popconfirm>
+                </div>
+            </li>
+        </ul>
+
+        <div v-if="canEdit" class="ff-addrow">
+            <Select
+                v-model:value="regla"
+                class="ff-addrow__grow"
+                allow-clear
+                :disabled="!rules.length"
+                :placeholder="rules.length ? $t('work_plans.approval_role') : $t('work_plans.approval_rules_empty')"
+            >
+                <SelectOption v-for="r in rules" :key="r.id" :value="r.id">{{ rotulo(r.role) }}</SelectOption>
+            </Select>
+            <Select
+                v-model:value="persona"
+                class="ff-addrow__grow"
+                show-search
+                allow-clear
+                :filter-option="false"
+                :loading="buscando"
+                :placeholder="$t('work_plans.approval_person')"
+                :not-found-content="buscando ? undefined : $t('work_plans.crew_no_results')"
+                @search="buscar"
+                @focus="buscar('')"
+            >
+                <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
+                    {{ p.name }} — {{ p.num_doc }}
+                </SelectOption>
+            </Select>
+            <Switch
+                v-model:checked="obligatoria"
+                :checked-children="$t('work_plans.approval_required')"
+                :un-checked-children="$t('work_plans.approval_optional')"
+            />
+            <Button type="primary" :disabled="!regla" :loading="guardando" @click="anadir">
+                <template #icon><PlusOutlined /></template>
+                {{ $t('work_plans.approvals_add') }}
+            </Button>
+        </div>
+    </Card>
+</template>

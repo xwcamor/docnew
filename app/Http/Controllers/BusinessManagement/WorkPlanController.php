@@ -99,8 +99,8 @@ class WorkPlanController extends Controller
                 'is_done'      => $request->filled('is_done')
                     ? filter_var($request->is_done, FILTER_VALIDATE_BOOLEAN)
                     : null,
-                'is_locked'    => $request->filled('is_locked')
-                    ? filter_var($request->is_locked, FILTER_VALIDATE_BOOLEAN)
+                'is_closed'    => $request->filled('is_closed')
+                    ? filter_var($request->is_closed, FILTER_VALIDATE_BOOLEAN)
                     : null,
                 'date_from'    => $request->get('date_from', ''),
                 'date_to'      => $request->get('date_to', ''),
@@ -206,6 +206,8 @@ class WorkPlanController extends Controller
             )->resolve()
             : [];
 
+        $user = $request->user();
+
         return inertia('WorkPlans/Show', [
             'workPlan' => array_merge(
                 $this->payload($workPlan, withAudit: true),
@@ -213,7 +215,148 @@ class WorkPlanController extends Controller
             ),
             'recordAudit'  => $this->recordAuditMeta($workPlan),
             'activity'     => $activity,
+            // La ficha del plan es el puesto de mando del supervisor: desde
+            // aquí ve su cuadrilla, sus formatos y sus firmas, y entra a las
+            // pantallas de obra. Todo se resuelve en esta consulta para no
+            // dejar al frontend pidiendo datos de a poco.
+            'crew'         => $this->crewPayload($workPlan),
+            'forms'        => $this->formsPayload($workPlan),
+            'approvals'    => $this->approvalsPayload($workPlan),
+            'setupOptions' => $this->setupOptions($workPlan),
+            'setup'        => [
+                // Se puede armar el plan: permiso + plan abierto. Los dos hacen
+                // falta, y el motivo se muestra para no dejar botones muertos.
+                'can'    => ($user?->can('work_plans.edit') ?? false) && $workPlan->isOpenForSetup(),
+                'reason' => $workPlan->setupBlockedReason(),
+            ],
+            'fieldWork'    => [
+                'canOpenForms' => $user?->can('form_submissions.view') ?? false,
+                'canSign'      => $user?->can('form_submissions.sign') ?? false,
+                'canExport'    => $user?->can('form_submissions.export') ?? false,
+            ],
         ]);
+    }
+
+    /**
+     * La cuadrilla con lo único que importa mirar antes de salir a obra: si la
+     * persona tiene la cara enrolada (sin eso no puede firmar con
+     * reconocimiento) y si ya firmó (y por tanto ya no se la puede quitar).
+     */
+    protected function crewPayload(WorkPlan $workPlan): array
+    {
+        $asignados = $workPlan->people()
+            ->with('person:id,slug,name,lastname,num_doc,doc_type')
+            ->withCount('signatureEvents')
+            ->get();
+
+        // Quién tiene cara enrolada, en UNA consulta. No se usa la relación
+        // `activeBiometric` porque su latestOfMany deja el `person_id` sin
+        // calificar y no se le puede acotar la lista de columnas — y aquí no se
+        // quiere traer el descriptor facial entero para pintar una etiqueta.
+        $enroladas = \App\Models\PersonBiometric::query()
+            ->whereIn('person_id', $asignados->pluck('person_id'))
+            ->where('is_active', true)
+            ->pluck('person_id')
+            ->flip();
+
+        return $asignados
+            ->map(fn ($asignado) => [
+                'slug'      => $asignado->slug,
+                'name'      => $asignado->person?->full_name ?? '—',
+                'num_doc'   => $asignado->person?->num_doc,
+                'doc_type'  => $asignado->person?->doc_type,
+                'enrolled'  => $enroladas->has($asignado->person_id),
+                'signed'    => (bool) $asignado->is_approved || $asignado->signature_events_count > 0,
+            ])
+            ->all();
+    }
+
+    /**
+     * Los formatos que el plan exige de verdad (estándar del tipo de trabajo ±
+     * los cambios de este plan), cada uno con el estado de su entrega.
+     */
+    protected function formsPayload(WorkPlan $workPlan): array
+    {
+        $entregas = $workPlan->submissions()
+            ->withCount(['answers', 'attachments'])
+            ->get()
+            ->keyBy('form_template_id');
+
+        return $workPlan->expectedFormTemplates()
+            ->map(function ($item) use ($entregas) {
+                $plantilla = $item['template'];
+                $entrega   = $entregas->get($plantilla->id);
+                $conDatos  = $entrega && ($entrega->status === 'confirmed'
+                    || $entrega->answers_count > 0 || $entrega->attachments_count > 0);
+
+                return [
+                    'slug'        => $plantilla->slug,
+                    'code'        => $plantilla->code,
+                    'kind'        => $plantilla->kind,
+                    'required'    => $item['is_required'],
+                    'source'      => $item['source'],
+                    'status'      => $entrega->status ?? 'pending',
+                    'submission'  => $entrega->slug ?? null,
+                    // Se avisa en la ficha, no al pulsar: un formato lleno no se
+                    // quita, y esconderlo detrás de un error sería peor.
+                    'can_remove'  => ! $conDatos,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /** Quién tiene que aprobar el plan, si su firma es obligatoria y si ya firmó. */
+    protected function approvalsPayload(WorkPlan $workPlan): array
+    {
+        return $workPlan->approvals()
+            ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,approver_role,priority_level'])
+            ->withCount('signatureEvents')
+            ->get()
+            ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)
+            ->map(fn ($a) => [
+                'slug'      => $a->slug,
+                'role'      => $a->approvalRule?->approver_role,
+                'rule_id'   => $a->approval_rule_id,
+                'person'    => $a->person ? ['slug' => $a->person->slug, 'name' => $a->person->full_name, 'num_doc' => $a->person->num_doc] : null,
+                'required'  => (bool) $a->is_required,
+                'signed'    => (bool) $a->is_approved || $a->signature_events_count > 0,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Lo que se puede añadir: formatos publicados que el plan todavía no exige
+     * y reglas de aprobación libres. Se calcula en el servidor porque depende
+     * de lo que el plan ya tiene.
+     */
+    protected function setupOptions(WorkPlan $workPlan): array
+    {
+        $yaExigidos = $workPlan->expectedFormTemplates()->keys()->all();
+        $yaAprueban = $workPlan->approvals()->pluck('approval_rule_id')->all();
+
+        return [
+            'formTemplates' => \App\Models\FormTemplate::query()
+                ->published()
+                ->whereNotIn('id', $yaExigidos)
+                ->orderBy('code')
+                ->get(['id', 'slug', 'code', 'kind'])
+                ->map(fn ($t) => ['slug' => $t->slug, 'code' => $t->code, 'kind' => $t->kind])
+                ->all(),
+            'approvalRules' => \App\Models\ApprovalRule::query()
+                ->where('is_active', true)
+                ->where('country_id', $workPlan->country_id)
+                ->whereNotIn('id', $yaAprueban)
+                ->orderBy('priority_level')
+                ->get(['id', 'approver_role', 'priority_level', 'is_required'])
+                ->map(fn ($r) => [
+                    'id'          => $r->id,
+                    'role'        => $r->approver_role,
+                    'is_required' => (bool) $r->is_required,
+                ])
+                ->all(),
+        ];
     }
 
     public function create()
@@ -267,8 +410,12 @@ class WorkPlanController extends Controller
 
     public function edit(WorkPlan $workPlan)
     {
-        // Registro bloqueado (Lockable): ni se abre el formulario de edición.
+        // Dos cierres distintos, los dos valen. `is_locked` es el candado
+        // administrativo del trait Lockable; `is_closed` es que el supervisor
+        // dio el trabajo del día por terminado. Un plan cerrado ya es un
+        // documento del archivo: se consulta, no se edita.
         abort_if($workPlan->is_locked, 403, __('locks.cannot_edit_locked'));
+        abort_if($workPlan->is_closed, 403, __('work_plans.cannot_edit_closed'));
 
         return inertia('WorkPlans/Form', [
             'workPlan' => $this->payload($workPlan),
@@ -513,6 +660,9 @@ class WorkPlanController extends Controller
             'submissions_count' => $m->submissions_count,
             'tenant_id'  => $m->tenant_id,
             'is_locked'  => $m->is_locked,
+            // El candado propio del plan (columna `is_locked`), que el accesor
+            // del trait Lockable tapa. Ver WorkPlan::getIsClosedAttribute().
+            'is_closed'  => $m->is_closed,
             'lock_scope' => $m->lock_scope,
             'is_favorite' => (bool) ($m->is_favorite ?? false),
             'created_at' => $m->created_at,

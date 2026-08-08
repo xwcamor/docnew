@@ -16,24 +16,30 @@ class FormSubmissionController extends Controller
     {
     }
 
-    /** Los formatos que exige el tipo de trabajo del plan, con su estado. */
+    /**
+     * Los formatos que exige el plan, con su estado.
+     *
+     * La lista sale de `expectedFormTemplates()` y no del tipo de trabajo a
+     * secas: el supervisor pudo sumarle un formato a este plan o quitarle uno
+     * que no aplica. La pantalla de obra tiene que mostrar lo mismo que la
+     * ficha del plan, o el que llena y el que arma no hablan del mismo trabajo.
+     */
     public function index(Request $request, WorkPlan $work_plan)
     {
-        $exigidos = $work_plan->workType->formTemplates()->published()->get();
         $entregas = $work_plan->submissions()->get()->keyBy('form_template_id');
 
         return inertia('FieldWork/Forms', [
             'plan' => $work_plan->only(['slug', 'code', 'description']),
-            'templates' => $exigidos->map(fn ($t) => [
-                'slug'   => $t->slug,
-                'code'   => $t->code,
-                'kind'   => $t->kind,
-                'required' => (bool) $t->pivot->is_required,
-                'status' => $entregas[$t->id]->status ?? 'pending',
+            'templates' => $work_plan->expectedFormTemplates()->map(fn ($item) => [
+                'slug'   => $item['template']->slug,
+                'code'   => $item['template']->code,
+                'kind'   => $item['template']->kind,
+                'required' => $item['is_required'],
+                'status' => $entregas[$item['template']->id]->status ?? 'pending',
                 // Slug de la entrega, para poder pedir su PDF. Solo existe
                 // cuando el formato ya se abrio alguna vez.
-                'submission' => $entregas[$t->id]->slug ?? null,
-            ]),
+                'submission' => $entregas[$item['template']->id]->slug ?? null,
+            ])->values(),
             // El PDF saca el documento del sistema, asi que lo ve quien puede
             // exportar: el supervisor y el auditor, no el usuario de campo.
             'canExport' => (bool) $request->user()?->can('form_submissions.export'),

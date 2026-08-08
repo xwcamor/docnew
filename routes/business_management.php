@@ -4,6 +4,7 @@ use App\Http\Controllers\BusinessManagement\CustomerHierarchyController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\BusinessManagement\FormTemplateController;
 use App\Http\Controllers\BusinessManagement\WorkPlanController;
+use App\Http\Controllers\BusinessManagement\WorkPlanSetupController;
 use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Http\Controllers\BusinessManagement\CompanyController;
 use App\Http\Controllers\BusinessManagement\BrandController;
@@ -400,6 +401,27 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('work_plans/{workPlan}/lock',   [WorkPlanController::class, 'lock'])->name('work_plans.lock');
         Route::post('work_plans/{workPlan}/unlock', [WorkPlanController::class, 'unlock'])->name('work_plans.unlock');
+    });
+
+    // 6) Composición del plan: cuadrilla, formatos exigidos y aprobadores.
+    // Va con work_plans.edit y no con los permisos de campo: armar el plan es
+    // trabajo del supervisor. El usuario de campo llena y firma lo que ya está
+    // armado; no decide quién entra a la obra ni qué formatos se exigen.
+    // Los hijos se enlazan por slug, como todo el resto: el id es correlativo.
+    // `withoutScopedBindings` porque el scoping automático de Laravel buscaría
+    // relaciones llamadas `workPlanPeople`/`workPlanApprovals`, y aquí se
+    // llaman `people` y `approvals`. Que el hijo sea de ESTE plan lo comprueba
+    // el servicio, que además es donde vale para las llamadas internas.
+    Route::middleware('permission:work_plans.edit')->group(function () {
+        Route::get('work_plans/{workPlan}/crew/candidates',              [WorkPlanSetupController::class, 'personCandidates'])->name('work_plans.crew.candidates');
+        Route::post('work_plans/{workPlan}/crew',                        [WorkPlanSetupController::class, 'addPerson'])->name('work_plans.crew.store');
+        Route::delete('work_plans/{workPlan}/crew/{workPlanPerson:slug}', [WorkPlanSetupController::class, 'removePerson'])->name('work_plans.crew.destroy')->withoutScopedBindings();
+
+        Route::post('work_plans/{workPlan}/forms',                  [WorkPlanSetupController::class, 'addForm'])->name('work_plans.forms.store');
+        Route::delete('work_plans/{workPlan}/forms/{formTemplate}', [WorkPlanSetupController::class, 'removeForm'])->name('work_plans.forms.destroy');
+
+        Route::post('work_plans/{workPlan}/approvals',                           [WorkPlanSetupController::class, 'addApproval'])->name('work_plans.approvals.store');
+        Route::delete('work_plans/{workPlan}/approvals/{workPlanApproval:slug}', [WorkPlanSetupController::class, 'removeApproval'])->name('work_plans.approvals.destroy')->withoutScopedBindings();
     });
 
 
