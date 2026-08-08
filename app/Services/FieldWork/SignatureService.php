@@ -4,6 +4,7 @@ namespace App\Services\FieldWork;
 
 use App\Models\EvidenceFile;
 use App\Models\Person;
+use App\Models\PersonSignature;
 use App\Models\Setting;
 use App\Models\SignatureEvent;
 use Illuminate\Database\Eloquent\Model;
@@ -246,6 +247,77 @@ class SignatureService
             'height'    => $alto,
             'taken_at'  => now(),
         ]);
+    }
+
+    /**
+     * La firma trazada de una persona: se guarda **una vez** y se reutiliza.
+     *
+     * Es la logica del sistema anterior, que yo no habia portado. Alli la firma
+     * vive en `workers.signature` y en cada plan se guarda el marcador
+     * `signed_by_IA`, que significa «la de siempre»:
+     *
+     *     already_signed = worker.signature.present? && worker.signature != "signed_by_IA"
+     *     if already_signed && !wants_to_replace_signature
+     *       params[:signature] = "signed_by_IA"
+     *
+     * O sea: la primera vez se le pide a la persona que firme; a partir de ahi
+     * solo la foto. Tiene sentido en obra —nadie va a redibujar su firma cinco
+     * veces al dia con el dedo— y ademas es lo que hace que la firma sea
+     * reconocible entre planes: si cada dia se traza de nuevo, cada dia es
+     * distinta y no prueba nada.
+     *
+     * Aqui la firma vive en `person_signatures`, con `valid_from`/`valid_to`:
+     * al reemplazarla la anterior se cierra en vez de sobrescribirse, porque
+     * los documentos ya firmados tienen que seguir apuntando a la que se uso.
+     */
+    public function firmaVigente(Person $persona): ?PersonSignature
+    {
+        return $persona->signatures()
+            ->whereNull('valid_to')
+            ->latest('valid_from')
+            ->first();
+    }
+
+    /**
+     * Guarda una firma nueva y jubila la anterior.
+     *
+     * @param  string  $base64  el trazo, tal y como sale del lienzo
+     */
+    public function guardarFirma(Person $persona, string $base64): PersonSignature
+    {
+        $binario = base64_decode(preg_replace('#^data:image/\w+;base64,#', '', $base64), true);
+
+        if ($binario === false) {
+            throw new \InvalidArgumentException('La firma no es una imagen valida.');
+        }
+
+        // Una firma es un trazo sobre fondo transparente: 480 px de ancho basta
+        // para imprimirla en el PDF y pesa unos 4 KB. No se comprime con
+        // `comprimir()` porque ese metodo aplana a WebP opaco y la firma se
+        // pinta sobre el papel del formato.
+        $hash = hash('sha256', $binario);
+
+        return DB::transaction(function () use ($persona, $binario, $hash) {
+            $vigente = $this->firmaVigente($persona);
+
+            // La misma firma otra vez no crea una version nueva: seria ruido en
+            // el historial y un archivo duplicado.
+            if ($vigente && $vigente->sha256 === $hash) {
+                return $vigente;
+            }
+
+            $vigente?->update(['valid_to' => now()]);
+
+            $ruta = sprintf('firmas/%s/%s.png', now()->format('Y/m'), Str::random(24));
+            Storage::disk('local')->put($ruta, $binario);
+
+            return $persona->signatures()->create([
+                'file_path'  => $ruta,
+                'sha256'     => $hash,
+                'source'     => 'drawn',
+                'valid_from' => now(),
+            ]);
+        });
     }
 
     /** Resolucion de una firma que quedo pendiente de revision. */

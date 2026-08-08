@@ -53,30 +53,58 @@ class SignatureController extends Controller
         ] : null;
     }
 
-    public function show(WorkPlan $work_plan)
+    /**
+     * La pantalla de firma, **de una sola persona**.
+     *
+     * Se llega con `?target=<slug>` desde la fila concreta de la ficha, que es
+     * de donde se pulsa Firmar. Antes esta pantalla repetía las tres listas del
+     * plan entero: había que volver a buscar a la persona que acababas de
+     * elegir, y con la cámara abierta y guantes puestos eso es un paso de más.
+     *
+     * Cada fila trae **si esa persona ya tiene firma guardada**, porque cambia
+     * lo que hay que pedirle: con firma en archivo sólo se toma la foto; sin
+     * ella hay que capturarla. Es lo que hacía el sistema anterior con el
+     * marcador `signed_by_IA`.
+     */
+    public function show(Request $request, WorkPlan $work_plan)
     {
+        $personas = $work_plan->people()->with('person:id,slug,name,lastname,num_doc')->get();
+        $aprobaciones = $work_plan->approvals()
+            ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,name,approver_role,priority_level'])
+            ->get()
+            ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99);
+
+        // Quién tiene firma en archivo, en UNA consulta.
+        $conFirma = \App\Models\PersonSignature::query()
+            ->whereNull('valid_to')
+            ->whereIn('person_id', $personas->pluck('person_id')->merge($aprobaciones->pluck('person_id'))->filter()->unique())
+            ->pluck('person_id')
+            ->flip();
+
         return inertia('FieldWork/Sign', [
             'plan' => $work_plan->only(['slug', 'code', 'description']),
+            // Sobre quién se abre. Sin esto la pantalla es un listado y hay que
+            // volver a elegir a la persona que ya elegiste en la ficha.
+            'target' => $request->string('target')->toString() ?: null,
             // El documento va enmascarado, como en el resto: quien firma se
             // reconoce por su nombre y por su cara, no por el DNI en pantalla.
             // Esta pantalla se usa en obra, en una tablet que pasa de mano en
             // mano, que es donde peor sienta tener 20 documentos a la vista.
-            'people' => $work_plan->people()->with('person:id,slug,name,lastname,num_doc')->get()
-                ->map(fn ($p) => [
-                    'slug' => $p->slug,
-                    'person' => $this->personaVisible($p->person),
-                    'signed' => $p->is_approved,
-                ]),
-            'approvals' => $work_plan->approvals()
-                ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,approver_role,priority_level'])
-                ->get()
-                ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)
+            'people' => $personas->map(fn ($p) => [
+                'slug' => $p->slug,
+                'person' => $this->personaVisible($p->person),
+                'signed' => $p->is_approved,
+                'has_signature' => $conFirma->has($p->person_id),
+            ]),
+            'approvals' => $aprobaciones
                 ->map(fn ($a) => [
                     'slug' => $a->slug,
                     'role' => $a->approvalRule?->approver_role,
+                    'rule_name' => $a->approvalRule?->name,
                     'person' => $this->personaVisible($a->person),
                     'required' => $a->is_required,
                     'signed' => $a->is_approved,
+                    'has_signature' => $a->person_id && $conFirma->has($a->person_id),
                 ])
                 ->values(),
             'settings' => [
@@ -120,6 +148,12 @@ class SignatureController extends Controller
             'descriptor'    => ['nullable', 'array', 'size:128'],
             'descriptor.*'  => ['numeric'],
             'photo'         => ['nullable', 'string'],
+            // El trazo, si la persona no tiene firma en archivo o si pidio
+            // cambiarla. Cuando ya la tiene y no la cambia, esto no viaja: se
+            // reutiliza la guardada, que es lo que hacia la v1 con el marcador
+            // `signed_by_IA`.
+            'signature'     => ['nullable', 'string'],
+            'replace_signature' => ['nullable', 'boolean'],
             'latitude'      => ['nullable', 'numeric', 'between:-90,90'],
             'longitude'     => ['nullable', 'numeric', 'between:-180,180'],
             'device_id'     => ['nullable', 'string', 'max:255'],
@@ -162,6 +196,20 @@ class SignatureController extends Controller
                         ?? $a->approvalRule?->approver_role)->filter()->unique()->implode(', '),
                 ]));
             }
+        }
+
+        // La firma trazada se guarda ANTES del evento y una sola vez: a partir
+        // de aqui esa persona ya no vuelve a dibujarla, sólo pone la cara.
+        //
+        // Sin firma en archivo es obligatoria. Es lo unico que la foto no puede
+        // sustituir: la foto prueba que estuvo, la firma es lo que va impreso
+        // en el documento que ve el inspector.
+        $tieneFirma = $this->firmas->firmaVigente($persona) !== null;
+
+        if (filled($datos['signature'] ?? null)) {
+            $this->firmas->guardarFirma($persona, $datos['signature']);
+        } elseif (! $tieneFirma) {
+            abort(422, __('field_work.sign.signature_required', ['name' => $persona->list_name]));
         }
 
         $evento = $this->firmas->firmar(

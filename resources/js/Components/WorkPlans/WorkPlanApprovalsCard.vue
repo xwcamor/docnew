@@ -210,7 +210,9 @@ const asignar = (a, personSlug) => {
     );
 };
 
-const firmar = () => router.get(route('field_work.signatures.show', props.planSlug));
+// Sobre esta aprobación, no sobre el plan entero.
+const firmar = (a) => router.get(
+    route('field_work.signatures.show', props.planSlug), { target: a.slug });
 </script>
 
 <template>
@@ -258,7 +260,7 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                             v-if="canSign && a.person"
                             :title="bloqueo(a) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
                         >
-                            <Button size="small" type="primary" :disabled="!!bloqueo(a)" @click="firmar">
+                            <Button size="small" type="primary" :disabled="!!bloqueo(a)" @click="firmar(a)">
                                 {{ $t('work_plans.approval_sign') }}
                             </Button>
                         </Tooltip>

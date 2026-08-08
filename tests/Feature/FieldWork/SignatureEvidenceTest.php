@@ -126,6 +126,66 @@ class SignatureEvidenceTest extends TestCase
         );
     }
 
+    /**
+     * La firma trazada se guarda una vez y se reutiliza.
+     *
+     * Es la lógica del sistema anterior, que no había portado: allí la firma
+     * vive en `workers.signature` y en cada plan se guarda el marcador
+     * `signed_by_IA`, que significa «la de siempre». La primera vez se le pide a
+     * la persona que firme; a partir de ahí sólo la foto.
+     *
+     * No es sólo comodidad: una firma redibujada cada día es distinta cada día,
+     * y entonces no prueba nada. La gracia es que sea la misma.
+     */
+    public function test_la_firma_trazada_se_guarda_una_vez_y_se_reutiliza(): void
+    {
+        Storage::fake('local');
+
+        [$persona, $plan] = $this->escenario();
+        $firmas = app(SignatureService::class);
+
+        $this->assertNull($firmas->firmaVigente($persona), 'no deberia tener firma todavia');
+
+        $trazo = $this->base64($this->capturaDe(200, 80));
+        $primera = $firmas->guardarFirma($persona, $trazo);
+
+        Storage::disk('local')->assertExists($primera->file_path);
+        $this->assertStringEndsWith('.png', $primera->file_path);
+        $this->assertSame('drawn', $primera->source);
+        $this->assertNull($primera->valid_to);
+
+        // El mismo trazo otra vez no crea una version nueva: seria ruido en el
+        // historial y un archivo duplicado.
+        $this->assertSame($primera->id, $firmas->guardarFirma($persona->fresh(), $trazo)->id);
+        $this->assertSame(1, $persona->signatures()->count());
+    }
+
+    /**
+     * Al cambiarla, la anterior se jubila en vez de sobrescribirse.
+     *
+     * Los documentos ya firmados tienen que seguir apuntando a la firma que se
+     * usó ese día. Sobrescribir el archivo cambiaría retroactivamente lo que
+     * dice un documento que ya vio un inspector.
+     */
+    public function test_al_reemplazar_la_firma_la_anterior_se_conserva(): void
+    {
+        Storage::fake('local');
+
+        [$persona] = $this->escenario();
+        $firmas = app(SignatureService::class);
+
+        $vieja = $firmas->guardarFirma($persona, $this->base64($this->capturaDe(200, 80)));
+        $nueva = $firmas->guardarFirma($persona->fresh(), $this->base64($this->capturaDe(220, 90)));
+
+        $this->assertNotSame($vieja->id, $nueva->id);
+        $this->assertNotNull($vieja->fresh()->valid_to, 'la anterior deberia quedar cerrada');
+        $this->assertNull($nueva->valid_to);
+
+        // El archivo viejo sigue ahí: es a lo que apuntan los documentos firmados.
+        Storage::disk('local')->assertExists($vieja->file_path);
+        $this->assertSame($nueva->id, $firmas->firmaVigente($persona->fresh())->id);
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     /** @return array{0:Person,1:WorkPlan} */

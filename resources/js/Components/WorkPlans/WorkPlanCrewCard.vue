@@ -108,10 +108,10 @@ const quitar = (fila) => {
     );
 };
 
-// Firmar se hace en la pantalla de obra, que abre la cámara. El botón vive aquí
-// —al lado de la persona que le falta— y no en un menú aparte del que nadie
-// sabía que existía.
-const firmar = () => router.get(route('field_work.signatures.show', props.planSlug));
+// Firmar abre la cámara **sobre esta persona**. El `target` es lo que evita
+// llegar a un listado y tener que volver a buscar a quien acabas de elegir.
+const firmar = (fila) => router.get(
+    route('field_work.signatures.show', props.planSlug), { target: fila.slug });
 </script>
 
 <template>
@@ -137,7 +137,7 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
             >
                 <template #actions>
                     <Tooltip v-if="canSign && !fila.signed" :title="$t('work_plans.crew_sign_hint', { name: fila.name })">
-                        <Button size="small" type="primary" @click="firmar">
+                        <Button size="small" type="primary" @click="firmar(fila)">
                             <template #icon><EditOutlined /></template>
                             {{ $t('work_plans.approval_sign') }}
                         </Button>
