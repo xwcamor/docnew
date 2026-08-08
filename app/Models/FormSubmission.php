@@ -17,7 +17,10 @@ class FormSubmission extends Model
                            'status', 'observations', 'submitted_by', 'submitted_at',
                            'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
                            'legacy_id', 'legacy_table'];
-    protected $casts = ['submitted_at' => 'datetime'];
+
+    // `nonconformities` NO va en $fillable a proposito: es un numero derivado de
+    // las respuestas. Lo calcula FormFindingsService y nadie mas lo escribe.
+    protected $casts = ['submitted_at' => 'datetime', 'nonconformities' => 'integer'];
 
     /**
      * Las rutas se enlazan por slug, como en todo el resto del proyecto.

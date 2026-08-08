@@ -190,6 +190,14 @@ return [
     'forms_pdf_hint'     => 'Descargar el :code en PDF',
     'forms_subtitle' => 'Los pone el tipo de trabajo. Aquí se suma o se quita uno.',
     'forms_summary'  => '{0} Ninguno lleno|[1,*] :done de :total llenos',
+
+    // Lo que salio mal en un formato. Es el entero `observations` de la v1, que
+    // los cuatro formatos recalculaban solos y era lo que el supervisor leia de
+    // un vistazo en la ficha. Un EPP confirmado con tres arneses en mal estado
+    // no es lo mismo que uno confirmado y limpio.
+    'findings_count' => '{1} 1 observación|[2,*] :count observaciones',
+    'findings_hint'  => '{1} Una respuesta salió no conforme. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.|[2,*] :count respuestas salieron no conformes. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.',
+    'forms_findings' => '{1} 1 observación|[2,*] :count observaciones',
     'forms_empty'    => 'El tipo de trabajo de este plan no exige ningún formato.',
     'forms_add'      => 'Añadir formato',
     'forms_add_title'=> 'Añadir un formato a este plan',

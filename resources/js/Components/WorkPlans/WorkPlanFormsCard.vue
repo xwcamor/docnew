@@ -45,6 +45,10 @@ const enElPlan    = computed(() => props.forms.filter((f) => f.included));
 const confirmados = computed(() => enElPlan.value.filter((f) => f.status === 'confirmed').length);
 const todosLlenos = computed(() => enElPlan.value.length > 0 && confirmados.value === enElPlan.value.length);
 
+// Todo lo que salió mal en el plan, sumado. Es el dato que decide si la jornada
+// salió limpia, y sin él la cabecera dice «4 de 4» en verde igual.
+const observaciones = computed(() => enElPlan.value.reduce((n, f) => n + (f.findings || 0), 0));
+
 // El PDF sólo tiene sentido con el formato cerrado: en borrador sería un
 // documento a medias con firmas que aún pueden cambiar.
 const conPdf = (f) => f.submission && f.status === 'confirmed';
@@ -101,6 +105,12 @@ const alternar = (f, valor) => {
             <Tag :color="todosLlenos ? 'success' : 'warning'" :bordered="false">
                 {{ $tc('work_plans.forms_summary', confirmados, { done: confirmados, total: enElPlan.length }) }}
             </Tag>
+            <!-- «4 de 4 llenos» en verde y tres arneses rotos dentro es la misma
+                 cabecera que un día limpio. El total va al lado, no en su
+                 lugar: las dos cosas son ciertas. -->
+            <Tag v-if="observaciones" color="error" :bordered="false">
+                {{ $tc('work_plans.forms_findings', observaciones, { count: observaciones }) }}
+            </Tag>
         </template>
 
         <p v-if="!forms.length" class="ff-empty">{{ $t('work_plans.forms_empty') }}</p>
@@ -114,6 +124,7 @@ const alternar = (f, valor) => {
                 :subtitle="subtitulo(f)"
                 :when="f.status === 'confirmed' ? f.confirmed_at : null"
                 :label="f.included ? $t('field_work.status.' + f.status) : ''"
+                :findings="f.included ? (f.findings || 0) : 0"
             >
                 <template #actions>
                     <template v-if="f.included">

@@ -184,6 +184,14 @@ return [
     'forms_pdf_hint'     => 'Download :code as PDF',
     'forms_subtitle' => 'The work type sets them. Add or drop one here.',
     'forms_summary'  => '{0} None filled in|[1,*] :done of :total filled in',
+
+    // What came out wrong in a form. It is v1's integer `observations`, which
+    // the four formats recalculated by themselves and was what the supervisor
+    // read at a glance. A confirmed EPP with three worn harnesses is not the
+    // same as a confirmed clean one.
+    'findings_count' => '{1} 1 finding|[2,*] :count findings',
+    'findings_hint'  => '{1} One answer came out non-conforming. The form still closes: what it cannot do is close without a record of it.|[2,*] :count answers came out non-conforming. The form still closes: what it cannot do is close without a record of it.',
+    'forms_findings' => '{1} 1 finding|[2,*] :count findings',
     'forms_empty'    => 'This plan’s work type does not require any form.',
     'forms_add'      => 'Add form',
     'forms_add_title'=> 'Add a form to this plan',

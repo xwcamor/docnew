@@ -154,17 +154,25 @@ lógica por lógica qué hacía la v1, qué hace DOCUFIZ y si el cambio fue
 deliberado. **Lo que queda por comparar está listado al final de ese documento**,
 y hasta que se haga no se puede dar por portado:
 
-- Los cuatro formatos (`f1_document`…`f4_document`) tenían lógica propia por
-  tabla — `recalculate_observations_and_confirmation`, `sync_f3_document_workers`.
-  Aquí es un motor genérico y hay que verificar formato por formato.
+- ~~Los cuatro formatos (`f1_document`…`f4_document`) tenían lógica propia por
+  tabla~~ — **comparada**. El cálculo de `observations` está portado como
+  `form_submissions.nonconformities` (`FormFindingsService`) y
+  `sync_f3_document_workers` no hace falta: el campo compuesto recompone las
+  filas contra la cuadrilla actual. Ver §4 de `COMPARACION-V1.md`.
+  **Queda una decisión del dueño**: la v1 contaba como observación el «No
+  aplica» en vez del «No conforme», y al recontar con la regla correcta salen
+  150 416 observaciones en EPP porque los operarios usaron «No conforme» para
+  las dos cosas (de 100 000 respuestas, «No aplica» no aparece ni una vez).
 - `plan_exports_controller`: exportación a ZIP y PDF por formato.
-- `Plan#lock_plan_if_all_conditions_met`: la v1 cierra el plan **sola** cuando hay
-  `date_end` y no quedan aprobaciones obligatorias sin firmar. Aquí el cierre es
-  manual. Falta decidirlo con el dueño.
+- ~~`Plan#lock_plan_if_all_conditions_met`~~ — portado y ampliado
+  (`WorkPlanCompletionService`).
 - `must_have_at_least_one_document_and_worker`: la v1 no deja guardar un plan sin
-  al menos un formato y un trabajador. Aquí sí se puede.
+  al menos un formato y un trabajador. Aquí sí se puede (sí se exige para
+  **cerrarlo**).
 - `settings.num_doc_minimum` por país: aquí está fijo en 8 (Perú), en
-  `WorkPlanSetupController::MINIMO_DOCUMENTO`.
+  `WorkPlanSetupController::MINIMO_DOCUMENTO`. **La v1 lo siembra en 7 para los
+  siete países**, así que el mínimo de aquí es más estricto que el de allá y
+  puede estar rechazando documentos válidos.
 
 ### Estado de la interfaz
 

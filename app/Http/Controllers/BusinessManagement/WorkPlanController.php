@@ -362,6 +362,11 @@ class WorkPlanController extends Controller
                     // el documento de seguridad de ese día.
                     'can_toggle'  => ! $conDatos && ! $obligatorioDelTipo,
                     'has_content' => $conDatos,
+                    // Cuántas cosas salieron mal. Es el entero `observations` de
+                    // la v1, que era lo que el supervisor leía de un vistazo en
+                    // la ficha: un EPP confirmado con tres arneses en mal estado
+                    // no es lo mismo que uno confirmado y limpio.
+                    'findings'    => (int) ($entrega->nonconformities ?? 0),
                 ];
             })
             ->values()

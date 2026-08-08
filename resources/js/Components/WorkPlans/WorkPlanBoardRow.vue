@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Tag, Tooltip } from 'ant-design-vue';
 import {
-    CheckCircleFilled, ClockCircleOutlined, LockOutlined, MinusCircleOutlined,
+    CheckCircleFilled, ClockCircleOutlined, LockOutlined, MinusCircleOutlined, WarningFilled,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -44,9 +44,18 @@ const props = defineProps({
     reason:   { type: String, default: '' },
     /** Encadena esta fila con la siguiente. Sólo el flujo de aprobaciones. */
     chained:  { type: Boolean, default: false },
+    /**
+     * Cuántas cosas salieron mal en esta fila. Cero no se pinta.
+     *
+     * Es el entero `observations` del sistema anterior, que los cuatro formatos
+     * recalculaban solos y era lo que el supervisor leía de un vistazo: un EPP
+     * confirmado con tres arneses en mal estado no es lo mismo que uno
+     * confirmado y limpio, y con sólo la etiqueta verde los dos se ven igual.
+     */
+    findings: { type: Number, default: 0 },
 });
 
-const { t } = useI18n();
+const { t, tc } = useI18n();
 
 const MARCAS = {
     done:     CheckCircleFilled,
@@ -88,6 +97,15 @@ const etiqueta = computed(() => cuando.value || props.label);
             <Tooltip v-if="etiqueta" :title="when ? t('work_plans.crew_signed_at', { when: cuando }) : etiqueta">
                 <Tag :color="color" :bordered="false" class="wp-row__tag">
                     <component :is="marca" /> {{ etiqueta }}
+                </Tag>
+            </Tooltip>
+
+            <!-- Va junto a la etiqueta de estado, no en su lugar: las dos cosas
+                 son ciertas a la vez —el formato está confirmado Y tiene tres
+                 observaciones— y sustituir una por otra escondería una. -->
+            <Tooltip v-if="findings > 0" :title="tc('work_plans.findings_hint', findings, { count: findings })">
+                <Tag color="error" :bordered="false" class="wp-row__tag">
+                    <WarningFilled /> {{ tc('work_plans.findings_count', findings, { count: findings }) }}
                 </Tag>
             </Tooltip>
 

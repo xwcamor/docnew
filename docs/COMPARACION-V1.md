@@ -242,15 +242,114 @@ no aparece en ningún sitio de la v1: la inventé yo.
 
 ---
 
-## 4. Lo que queda por comparar
+## 4. La lógica de cálculo de los cuatro formatos
 
-Honestamente, esto cubre el plan y su flujo de firmas. **No** se ha comparado
-todavía, y hasta que se haga no se puede dar por portado:
+Comparada. Los cuatro tenían un `set_completed` que corría después de cada
+guardado y escribía dos columnas: `observations` (un ENTERO: cuántas casillas
+salieron mal) e `is_confirmed`. Las reglas:
 
-- [ ] `f1_document`…`f4_document` — la v1 tiene una tabla por formato con su
-      lógica propia (`recalculate_observations_and_confirmation`,
-      `sync_f3_document_workers`). Aquí es un motor genérico. Hay que comprobar
-      formato por formato que no se perdió ninguna regla de cálculo.
+| Formato | Regla de la v1 | Aquí |
+| --- | --- | --- |
+| AST (`f1`) | cuenta los peligros con `risk_value <= 15` | igual, pero contra la última banda que declare la plantilla, no contra un 15 escrito a mano: un formato de otro país puede traer otra matriz |
+| PTF (`f2`) | lo mismo — el banco de preguntas **no** cuenta | igual, incluido que el banco de preguntas no cuenta |
+| EPP (`f3`) | cuenta las respuestas con valor `0` | cuenta las **negativas**. Ver abajo |
+| IHM (`f4`) | igual que EPP | igual que EPP |
+
+`observations` no se pudo reutilizar como nombre porque en DOCUFIZ ya existe y
+es otra cosa —texto libre, donde la migración escribe los permisos y
+herramientas adicionales del AST—. La columna nueva es
+`form_submissions.nonconformities`, la calcula `FormFindingsService` y nadie la
+escribe a mano.
+
+### La divergencia deliberada: qué respuesta cuenta
+
+En la v1, `set_completed` contaba `answers.count(0)`. El `0` del formulario de
+EPP es el botón **«No aplica»**, y el `2` —**«No conforme»**— quedaba fuera. Un
+trabajador sin arnés porque el trabajo no es en altura sumaba observación; uno
+con el arnés roto, no. Es un error, no una regla, y aquí se cuenta lo que no
+está conforme.
+
+**Consecuencia sobre los datos migrados, que hay que decidir.** Al recontar los
+cinco años con la regla correcta salen **150 416 observaciones en EPP y 43 523
+en IHM**. El motivo es que la v1 no distinguía: de 100 000 respuestas de EPP,
+66 827 dicen «No conforme», 32 623 «Conforme» y **«No aplica» no aparece ni una
+sola vez**. Es decir, los operarios usaron el botón de «no conforme» también
+para «este trabajador no lleva ese equipo», porque el otro botón nunca se usó.
+
+El número es una lectura fiel de lo que quedó registrado —en los PDF de la v1
+esas casillas dicen «No conforme» literalmente—, pero no es un historial de
+seguridad utilizable. Tres salidas posibles, y es decisión del dueño:
+
+1. dejarlo como está y tratar el número como válido sólo de aquí en adelante;
+2. reinterpretar el histórico (marcar los EPP anteriores al corte como no
+   comparables);
+3. no contar el histórico y arrancar el contador en cero para lo migrado.
+
+De aquí en adelante el dato sí es limpio: el formulario tiene los tres botones
+y «No aplica» no suma.
+
+### Lo que NO bloquea
+
+Tener observaciones no impide confirmar el formato ni cerrar el plan. En la v1
+tampoco: `lock_plan_if_all_conditions_met` sólo mira `date_end` y las
+aprobaciones obligatorias firmadas, así que un plan con un EPP observado se
+cerraba igual. Y tiene que ser así — un arnés en mal estado hay que poder
+registrarlo y cerrar la jornada, con su medida de corrección al lado.
+
+### `sync_f3_document_workers`
+
+No hace falta portarlo. Allí las filas del EPP eran registros propios
+(`f3_document_workers`) que había que sincronizar a mano cuando cambiaba la
+cuadrilla. Aquí `PersonChecklistField.vue` recompone las filas contra la
+cuadrilla actual en cada apertura: quien entró después sale con su fila vacía y
+quien salió deja de aparecer.
+
+---
+
+## 5. Lo que salió al comparar: las respuestas migradas no se veían
+
+Buscando el cálculo de arriba salió un defecto que no tiene que ver con la v1
+sino con la migración a este sistema. **Las 14 435 entregas migradas se abrían
+en blanco.**
+
+`LegacyFormMapper` escribía las filas en castellano —`respuesta`, `pregunta`,
+`herramienta`— y los campos compuestos del motor leen `answer`, `question` y
+`tool`. El nombre del ítem sí cuadraba, porque esa clave se llama igual en los
+dos sitios, así que la pantalla mostraba la lista de EPP completa y **ninguna
+respuesta marcada**.
+
+No saltó antes porque el PDF aplana el JSON tal cual, sin buscar claves
+concretas: el documento impreso salía perfecto. Y no era cosmético — abrir un
+EPP migrado y pulsar Guardar sobrescribía con nulos cinco años de respuestas,
+porque la pantalla creía que no había ninguna.
+
+Lo mismo en la matriz de riesgo, por el lado contrario: la v1 tiene cuatro
+columnas de texto —actividad → peligro → **riesgo** → control, donde el riesgo
+es la consecuencia («Agotamiento de recurso natural»)— y aparte el valor de la
+matriz. La migración usaba esos nombres, que son los correctos; el componente
+llamaba `riesgo` al número. Además:
+
+- la migración nunca escribía `nivel`, así que los 3 657 AST y 3 662 PTF salían
+  sin banda de color y con cero observaciones;
+- **`ast_risks` no se traía**: el catálogo de consecuencias de la v1 se perdió
+  entero, y con él la columna que la pantalla podía ofrecer.
+
+Corregido: manda el nombre del dominio (`riesgo` = texto, `valor_riesgo` =
+número, `nivel` = banda), el componente tiene su cuarta columna, el catálogo se
+migra, y una migración de datos renombra las claves y calcula el `nivel` de lo
+ya migrado. La prueba `test_las_claves_son_las_que_lee_el_motor` fija el
+contrato entre las dos mitades.
+
+---
+
+## 6. Lo que queda por comparar
+
+Honestamente, esto cubre el plan, su flujo de firmas y el cálculo de los cuatro
+formatos. **No** se ha comparado todavía, y hasta que se haga no se puede dar
+por portado:
+
 - [ ] `plan_exports_controller` — la exportación a ZIP y los PDF por formato.
-- [ ] `settings.num_doc_minimum` por país — aquí está fijo en 8 (Perú).
-      `WorkPlanSetupController::MINIMO_DOCUMENTO`.
+- [ ] `settings.num_doc_minimum` por país — aquí está fijo en 8 (Perú), en
+      `WorkPlanSetupController::MINIMO_DOCUMENTO`. **Ojo: la v1 lo siembra en 7
+      para los siete países**, así que el mínimo de aquí es más estricto que el
+      de allá y puede estar rechazando documentos válidos.

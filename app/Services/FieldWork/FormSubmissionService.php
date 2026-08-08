@@ -91,6 +91,13 @@ class FormSubmissionService
                 );
             }
 
+            $entrega = $entrega->fresh('answers');
+
+            // Las no conformidades se recalculan solas en cada guardado, como el
+            // `after_save :set_completed` de los cuatro formatos de la v1. Es un
+            // numero derivado: nadie lo escribe a mano.
+            app(FormFindingsService::class)->recalcular($entrega);
+
             return $entrega->fresh('answers');
         });
     }
@@ -154,6 +161,13 @@ class FormSubmissionService
             'submitted_at' => now(),
             'submitted_by' => auth()->id() ?? $entrega->submitted_by,
         ]);
+
+        // Confirmar NO exige que salga limpio, igual que en la v1: alli
+        // `lock_plan_if_all_conditions_met` sólo miraba `date_end` y las
+        // aprobaciones, así que un plan con un EPP observado se cerraba. Un
+        // arnés en mal estado hay que poder registrarlo y cerrarlo el mismo día,
+        // con su medida de corrección al lado. Lo que sí queda es el número.
+        app(FormFindingsService::class)->recalcular($entrega);
 
         // Confirmar el último formato puede ser lo que cierre el plan. El cierre
         // exige el plan completo —firmas, formatos y aprobaciones—, así que
