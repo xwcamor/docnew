@@ -170,8 +170,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $assignments = [
             'super@example.com' => $superAdmin,  // platform owner
             'joe@example.com'             => $admin,        // Empresa 1 admin
-            'yugi@example.com'             => $admin,        // Empresa 2 admin
-            'independiente@example.com'     => $admin,        // Independiente (admin de su propio workspace)
         ];
 
         foreach ($assignments as $email => $role) {
@@ -194,8 +192,6 @@ class RolesAndPermissionsSeeder extends Seeder
         $workerAssignments = [
             'jose@example.com'  => 'Empresa (solo lectura)',       // Empresa 1
             'pedro@example.com' => 'Empresa (carga de muestras)',  // Empresa 1
-            'luis@example.com'  => 'Soporte (editor)',             // Empresa 2
-            'ana@example.com'   => 'Soporte (editor full)',        // Empresa 2
         ];
         foreach ($workerAssignments as $email => $roleName) {
             $userModel = User::withoutGlobalScopes()->where('email', $email)->first();

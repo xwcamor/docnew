@@ -14,15 +14,13 @@ use Illuminate\Database\Seeder;
  * sistema con varios tiers a la vez:
  *
  *   Empresa 1  (joe)  → enterprise  — todo desbloqueado
- *   Empresa 2  (yugi)  → pro         — features de equipo, sin API
- *   Independiente       → basic       — profesional solo, sin equipo
  *
  * El tier `free` lo cubre el workspace "Estudio Pérez" (ExamplePersonalWorkspaceSeeder),
  * que justamente NO tiene suscripción — eso ES estar en free.
  *
  * El plan se deriva de la suscripción vigente; NO hay columna `tenants.plan`.
  *
- * Idempotente y canónico: borra las suscripciones previas de estos 3 tenants
+ * Idempotente y canónico: borra las suscripciones previas del tenant
  * y recrea el estado intencional. Re-correrlo siempre deja el demo base limpio.
  */
 class ExampleSubscriptionsSeeder extends Seeder
@@ -32,11 +30,9 @@ class ExampleSubscriptionsSeeder extends Seeder
         // tenant_id => plan pago.
         $paidAssignments = [
             1 => 'enterprise',
-            2 => 'pro',
-            3 => 'basic',
         ];
 
-        $demoTenantIds = [1, 2, 3];
+        $demoTenantIds = [1];
 
         // Limpieza: dejamos el demo base en su estado canónico. Estas son
         // suscripciones de ejemplo, no histórico real — hard delete está bien.

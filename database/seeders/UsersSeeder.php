@@ -18,12 +18,7 @@ use Illuminate\Support\Str;
  *       admin:  joe@example.com
  *       users:  jose@example.com, pedro@example.com
  *
- *   - Empresa 2 (id=2):
- *       admin:  yugi@example.com
- *       users:  luis@example.com, ana@example.com
  *
- *   - Independiente (id=3):
- *       admin/unico: independiente@example.com
  *
  * Passwords default "123456" para dev. Cambiar en produccion.
  * Idempotente: usa updateOrCreate por email.
@@ -45,12 +40,8 @@ class UsersSeeder extends Seeder
             ['email' => 'pedro@example.com', 'name' => 'Pedro Ramirez',           'tenant_id' => 1, 'timezone' => 'America/Lima'],
 
             // Empresa 2
-            ['email' => 'yugi@example.com', 'name' => 'Yugi (Empresa 2 admin)', 'tenant_id' => 2, 'timezone' => 'America/Lima'],
-            ['email' => 'luis@example.com',  'name' => 'Luis Castro',             'tenant_id' => 2, 'timezone' => 'America/Lima'],
-            ['email' => 'ana@example.com',   'name' => 'Ana Torres',              'tenant_id' => 2, 'timezone' => 'America/Lima'],
 
             // Independiente — un solo usuario, sin equipo
-            ['email' => 'independiente@example.com', 'name' => 'Independiente', 'tenant_id' => 3, 'timezone' => 'America/Lima'],
         ];
 
         foreach ($users as $data) {
@@ -76,6 +67,6 @@ class UsersSeeder extends Seeder
             DB::statement("SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 0) + 1, false)");
         }
 
-        $this->command?->info('Users seeded: ' . count($users) . ' (1 super + 3 admins + 4 workers).');
+        $this->command?->info('Usuarios de ejemplo sembrados: ' . count($users) . ' (el super y los del workspace Empresa 1).');
     }
 }

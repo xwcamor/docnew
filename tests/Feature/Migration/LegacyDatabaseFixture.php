@@ -54,6 +54,21 @@ class LegacyDatabaseFixture
             $t->string('name'); $t->string('lastname'); $t->string('cellphone')->nullable();
         });
 
+        // `users` y `profiles`: el primer volcado vino sin ellas y el completo
+        // si las trae, asi que la migracion tiene que funcionar de las dos
+        // formas. Estan vacias por defecto; conBaseCompleta() las llena.
+        $esquema->create('users', function ($t) {
+            $t->id(); $t->string('email'); $t->string('encrypted_password');
+            $t->string('real_password')->nullable();
+            $t->unsignedBigInteger('profile_id')->nullable();
+            $t->unsignedBigInteger('country_id')->default(1);
+            $t->boolean('is_hidden')->default(false);
+        });
+
+        $esquema->create('profiles', function ($t) {
+            $t->id(); $t->string('name'); $t->boolean('is_deleted')->default(false);
+        });
+
         // ── catalogos ────────────────────────────────────────────────────────
         $esquema->create('work_types', function ($t) {
             $t->id(); $t->unsignedBigInteger('country_id'); $t->string('name_es');
@@ -256,6 +271,13 @@ class LegacyDatabaseFixture
             ['id' => 2, 'user_id' => 2, 'name' => 'Usuario', 'lastname' => 'Dos', 'cellphone' => '999999999'],
         ]);
 
+        $viejo->table('profiles')->insert([
+            ['id' => 1, 'name' => 'Super', 'is_deleted' => false],
+            ['id' => 2, 'name' => 'Admin', 'is_deleted' => false],
+            ['id' => 3, 'name' => 'Company Supervisor', 'is_deleted' => false],
+            ['id' => 4, 'name' => 'User Regular', 'is_deleted' => false],
+        ]);
+
         // El catalogo de la v1 es multipais: el 6 (Brasil) no se migra.
         $viejo->table('work_types')->insert([
             ['id' => 1, 'country_id' => 1, 'name_es' => 'Estandar', 'is_active' => true, 'is_deleted' => false],
@@ -396,6 +418,30 @@ class LegacyDatabaseFixture
         $viejo->table('f4_document_items')->insert([
             ['id' => 1, 'f4_document_tool_id' => 1, 'ihm_item_id' => 1, 'answer' => 1, 'created_at' => $ahora, 'updated_at' => $ahora],
             ['id' => 2, 'f4_document_tool_id' => 1, 'ihm_item_id' => 2, 'answer' => 2, 'created_at' => $ahora, 'updated_at' => $ahora],
+        ]);
+    }
+
+    /**
+     * Llena `users` como en la base completa: correo real, hash de Devise y
+     * perfil. El primer volcado vino sin esto, y la migracion tiene que
+     * aprovecharlo cuando esta.
+     *
+     * El hash es bcrypt de "secreto123" con prefijo `$2a$`, que es el que
+     * escribe Devise. Que PHP lo acepte es justo lo que se quiere comprobar.
+     */
+    public static function conBaseCompleta(): void
+    {
+        $viejo = \Illuminate\Support\Facades\DB::connection('legacy');
+        $hash = str_replace('$2y$', '$2a$', password_hash('secreto123', PASSWORD_BCRYPT));
+
+        $viejo->table('users')->insert([
+            ['id' => 1, 'email' => 'jefe@empresa.test',       'encrypted_password' => $hash, 'real_password' => 'secreto123', 'profile_id' => 2, 'country_id' => 1, 'is_hidden' => false],
+            ['id' => 2, 'email' => 'supervisor@empresa.test', 'encrypted_password' => $hash, 'real_password' => null,          'profile_id' => 3, 'country_id' => 1, 'is_hidden' => false],
+            ['id' => 3, 'email' => 'campo@empresa.test',      'encrypted_password' => $hash, 'real_password' => null,          'profile_id' => 4, 'country_id' => 1, 'is_hidden' => true],
+        ]);
+
+        $viejo->table('user_details')->insert([
+            ['id' => 3, 'user_id' => 3, 'name' => 'Usuario', 'lastname' => 'Tres', 'cellphone' => null],
         ]);
     }
 }

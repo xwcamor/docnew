@@ -11,8 +11,6 @@ use Illuminate\Support\Str;
  *
  * Cada tenant es una "empresa cliente" del SaaS:
  *   - Empresa 1     (id=1) → admin: joe@example.com
- *   - Empresa 2     (id=2) → admin: yugi@example.com
- *   - Independiente (id=3) → admin: independiente@example.com
  *
  * Cada tenant tiene un system_user invisible asociado al final del seed
  * (creado por TenantSystemUserService). Ese usuario es el dueno de los
@@ -35,8 +33,6 @@ class TenantsSeeder extends Seeder
 
         $tenants = [
             ['id' => 1, 'name' => 'Empresa 1',     'address' => 'Av. Industrial 1234, Urb. Las Praderas, Lima — Perú'],
-            ['id' => 2, 'name' => 'Empresa 2',     'address' => 'Calle Los Transformadores 567, Cerro Colorado, Arequipa — Perú'],
-            ['id' => 3, 'name' => 'Independiente',  'address' => 'Jr. Eléctrico 89, Wanchaq, Cusco — Perú'],
         ];
 
         // Timezone explícito en cada workspace seed. Sin esto, el booted()
@@ -66,7 +62,7 @@ class TenantsSeeder extends Seeder
             DB::statement("SELECT setval('tenants_id_seq', COALESCE((SELECT MAX(id) FROM tenants), 0) + 1, false)");
         }
 
-        $this->command?->info('Tenants seeded: Empresa 1 (id=1), Empresa 2 (id=2), Independiente (id=3).');
+        $this->command?->info('Tenant sembrado: Empresa 1 (id=1). Es el unico: los de demostracion se quitaron.');
 
         // System users — invisibles, duenos de los tokens API. Idempotente.
         $service = app(\App\Services\SystemManagement\TenantSystemUserService::class);

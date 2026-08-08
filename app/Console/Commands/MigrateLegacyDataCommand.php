@@ -335,65 +335,240 @@ class MigrateLegacyDataCommand extends Command
      * `user_details`, que tiene una fila por usuario. Lo que no viene del origen
      * no se inventa: ni contrasena, ni correo real, ni permisos.
      */
+    /**
+     * Los usuarios que entran al sistema.
+     *
+     * El primer volcado vino con `users` vacia —el dueno la excluyo a
+     * proposito— y solo quedaba `user_details`, que trae el nombre y nada mas.
+     * Con la base completa si esta, y entonces se aprovecha entera: correo,
+     * contrasena y perfil.
+     *
+     * **La contrasena se conserva.** Devise (Rails) y Laravel usan el mismo
+     * bcrypt, y `password_verify` de PHP acepta indistintamente los prefijos
+     * `$2a$` y `$2y$`, asi que el hash se copia tal cual y la gente entra con
+     * la que ya tenia. Si Devise estaba configurado con `pepper`, no valdra:
+     * por eso el comando avisa de que hay que probarlo con un usuario antes de
+     * dar por bueno el corte.
+     *
+     * Lo que **no** se copia es `users.real_password`, la columna donde la v1
+     * guardaba la contrasena en claro. Ver avisarDeLaContrasenaEnClaro().
+     */
     protected function migrarUsuarios(): void
     {
         $this->info('── Usuarios de la aplicacion ──');
         $viejo = DB::connection('legacy');
 
-        $viejos = $viejo->table('user_details')->orderBy('user_id')->get();
-        $rol = Role::where('guard_name', 'web')->where('name', self::ROL_MINIMO)->first();
-        $localeId = Country::find($this->countryId)?->default_locale_id
-            ?? DB::table('locales')->min('id');
+        $completos = $viejo->table('users')->exists();
+        $nombres = $viejo->table('user_details')->get()->keyBy('user_id');
+        $perfiles = $this->perfilesAroles($viejo);
 
-        $creados = $actualizados = 0;
+        $viejos = $completos
+            ? $viejo->table('users')->orderBy('id')->get()
+            : $nombres->values();
+
+        $rolMinimo = Role::where('guard_name', 'web')->where('name', self::ROL_MINIMO)->first();
+        $localeId = Country::find($this->countryId)?->default_locale_id ?? DB::table('locales')->min('id');
+
+        $creados = $actualizados = $conPerfil = 0;
+        $sinPerfil = [];
 
         foreach ($viejos as $v) {
-            $existente = User::withTrashed()->withoutGlobalScopes()
-                ->where('legacy_id', $v->user_id)->first();
+            $legacyId = $completos ? $v->id : $v->user_id;
+            $detalle = $nombres[$legacyId] ?? null;
+            $nombre = $detalle ? trim("{$detalle->name} {$detalle->lastname}") : "Usuario {$legacyId}";
+
+            $existente = User::withTrashed()->withoutGlobalScopes()->where('legacy_id', $legacyId)->first();
 
             $datos = [
-                'name'       => trim("{$v->name} {$v->lastname}"),
-                // Provisional y a la vista de que lo es: el dueno los sustituye
-                // por los correos reales antes de dar acceso.
-                'email'      => sprintf('usuario%d@pendiente.local', $v->user_id),
+                'name'       => $nombre,
+                'email'      => $completos && filled($v->email)
+                    ? $v->email
+                    : sprintf('usuario%d@pendiente.local', $legacyId),
                 'country_id' => $this->countryId,
                 'locale_id'  => $localeId,
                 'tenant_id'  => $this->tenantId,
-                'is_active'  => true,
-                'legacy_id'  => $v->user_id,
+                'is_active'  => $completos ? ! (bool) ($v->is_hidden ?? false) : true,
+                'legacy_id'  => $legacyId,
             ];
 
             if ($existente) {
-                // La contrasena no se toca al re-correr: puede que ya la hayan cambiado.
+                // La contrasena no se pisa al re-correr: puede que ya la hayan cambiado aqui.
                 $existente->update($datos);
                 $actualizados++;
+                $usuario = $existente;
+            } else {
+                // Nace con una contrasena aleatoria larga que no conoce nadie
+                // —tampoco este comando, que no la escribe en ningun sitio—.
+                $usuario = User::create($datos + ['password' => Str::password(48)]);
+                $creados++;
 
-                continue;
+                // Y si la v1 traia el hash, se pone encima. Va por el
+                // constructor de consultas a proposito: el cast `hashed` del
+                // modelo comprueba que el coste del hash coincida con el de
+                // esta aplicacion, y el de Devise no tiene por que. Escribir la
+                // columna directa conserva el hash exacto, que es lo unico que
+                // importa para que `password_verify` siga valiendo.
+                $hash = $completos ? $this->hashUtilizable($v->encrypted_password ?? null) : null;
+
+                if ($hash !== null) {
+                    DB::table('users')->where('id', $usuario->id)->update(['password' => $hash]);
+                    $usuario->refresh();
+                }
             }
 
-            // No hay contrasena que migrar. Se pone una aleatoria larga que no
-            // conoce nadie —tampoco este comando, que no la escribe en ningun
-            // sitio— y se entra por "olvide mi contrasena".
-            $usuario = User::create($datos + ['password' => Str::password(48)]);
+            $rol = $completos ? ($perfiles[$v->profile_id ?? null] ?? null) : null;
 
             if ($rol) {
-                $usuario->assignRole($rol);
+                $usuario->syncRoles([$rol]);
+                $conPerfil++;
+            } elseif ($rolMinimo && $usuario->roles()->count() === 0) {
+                $usuario->assignRole($rolMinimo);
+                $sinPerfil[] = $legacyId;
             }
-
-            $creados++;
         }
 
         $destino = User::withTrashed()->withoutGlobalScopes()->whereNotNull('legacy_id')->count();
         $this->linea('usuarios', $viejos->count(), $destino, "{$creados} nuevos, {$actualizados} actualizados");
 
-        if (! $rol) {
-            $this->warn(sprintf('  No existe el rol "%s": los usuarios quedan sin permisos. Asignalos a mano.', self::ROL_MINIMO));
-        } else {
-            $this->line(sprintf('  Rol asignado: "%s". El origen no dice quien es que; revisa y ajusta.', self::ROL_MINIMO));
+        $completos
+            ? $this->resumenConBaseCompleta($conPerfil, $sinPerfil, count($viejos))
+            : $this->resumenSoloConDetalles();
+
+        $this->avisarDeLaContrasenaEnClaro($viejo);
+    }
+
+    /**
+     * El hash de Devise, en la forma que Laravel reconoce.
+     *
+     * Devise escribe bcrypt con prefijo `$2a$` y Laravel con `$2y$`. Son el
+     * mismo algoritmo y `password_verify` acepta los dos, pero
+     * `password_get_info()` **no reconoce `$2a$`**: devuelve algo = null. Y de
+     * eso depende `Hash::isHashed()`, que es lo que usa el cast `hashed` del
+     * modelo para decidir si tiene que hashear.
+     *
+     * O sea: guardar el hash de Devise tal cual lo vuelve a hashear, en
+     * silencio, y **ningun usuario migrado podria entrar**. No falla nada, no
+     * avisa nadie: simplemente la contrasena correcta deja de valer.
+     *
+     * Reescribir el prefijo lo arregla, y es seguro: comprobado que
+     * `password_verify` sigue valiendo, tambien con contrasenas que llevan
+     * bytes no ASCII, que es el unico caso en que `$2a$` y `$2y$` se
+     * diferenciaron alguna vez.
+     */
+    protected function hashUtilizable(?string $hash): ?string
+    {
+        if (blank($hash)) {
+            return null;
         }
 
+        $hash = str_starts_with($hash, '$2a$') ? '$2y$' . substr($hash, 4) : $hash;
+
+        // Si aun asi no lo reconoce, no es bcrypt y no sirve de nada guardarlo.
+        return password_get_info($hash)['algo'] !== null ? $hash : null;
+    }
+
+    /**
+     * `profiles` de la v1 → roles de aqui.
+     *
+     * El mapeo sale de lo que significan, no de los nombres: "Company
+     * Supervisor" es el supervisor de obra y "User Regular" el usuario de campo.
+     */
+    protected function perfilesAroles($viejo): array
+    {
+        if (! $this->tablaExiste($viejo, 'profiles')) {
+            return [];
+        }
+
+        $equivalencias = [
+            'super'              => 'super',
+            'admin'              => 'admin',
+            'company supervisor' => 'Supervisor de obra',
+            'user regular'       => self::ROL_MINIMO,
+        ];
+
+        $mapa = [];
+
+        foreach ($viejo->table('profiles')->get() as $p) {
+            $nombre = $equivalencias[mb_strtolower(trim($p->name))] ?? null;
+
+            if ($nombre === null) {
+                continue;
+            }
+
+            $rol = Role::where('guard_name', 'web')->where('name', $nombre)->first();
+
+            if ($rol) {
+                $mapa[$p->id] = $rol;
+            }
+        }
+
+        return $mapa;
+    }
+
+    protected function resumenConBaseCompleta(int $conPerfil, array $sinPerfil, int $total): void
+    {
+        $this->line(sprintf('  Correos y contrasenas reales migrados: %d de %d con su perfil de la v1.', $conPerfil, $total));
+
+        if ($sinPerfil !== []) {
+            $this->warn(sprintf('  %d usuario(s) sin perfil reconocible quedaron como "%s": %s',
+                count($sinPerfil), self::ROL_MINIMO, implode(', ', array_slice($sinPerfil, 0, 10))));
+        }
+
+        $this->line('  Las contrasenas son el hash de la v1: la gente entra con la que ya tenia.');
+        $this->warn('  PRUEBALO con un usuario antes del corte. Si Devise usaba "pepper", los hashes no valdran');
+        $this->line('  y habra que forzar "olvide mi contrasena" para todos.');
+    }
+
+    protected function resumenSoloConDetalles(): void
+    {
+        $this->warn('  La tabla `users` de la v1 vino VACIA: solo hay nombres en `user_details`.');
         $this->line('  Correos provisionales usuarioN@pendiente.local — hay que reemplazarlos por los reales.');
-        $this->line('  Contrasenas aleatorias sin registrar: no hay columna para forzar el cambio en el primer ingreso.');
+        $this->line(sprintf('  Rol asignado: "%s". Sin `users` no se sabe quien es que.', self::ROL_MINIMO));
+        $this->line('  Contrasenas aleatorias sin registrar: se entra por "olvide mi contrasena".');
+    }
+
+    /**
+     * La v1 guardaba la contrasena en claro en `users.real_password`.
+     *
+     * No se migra —aqui solo vive el hash— pero conviene decirlo: mientras esa
+     * base exista, esas contrasenas son legibles por cualquiera que la abra, y
+     * la gente reutiliza contrasenas en otros sitios.
+     */
+    protected function avisarDeLaContrasenaEnClaro($viejo): void
+    {
+        if (! $this->columnaExiste($viejo, 'users', 'real_password')) {
+            return;
+        }
+
+        $enClaro = $viejo->table('users')->whereNotNull('real_password')->where('real_password', '!=', '')->count();
+
+        if ($enClaro === 0) {
+            return;
+        }
+
+        $this->newLine();
+        $this->error(sprintf('  AVISO: la v1 guarda %d contrasena(s) EN CLARO en users.real_password.', $enClaro));
+        $this->line('  No se migran: aqui solo se guarda el hash. Pero mientras esa base exista son legibles');
+        $this->line('  para cualquiera que la abra, y la gente repite contrasenas en otros sitios.');
+        $this->line('  Vacia esa columna en la v1 en cuanto termine el corte.');
+    }
+
+    protected function tablaExiste($viejo, string $tabla): bool
+    {
+        try {
+            return $viejo->getSchemaBuilder()->hasTable($tabla);
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    protected function columnaExiste($viejo, string $tabla, string $columna): bool
+    {
+        try {
+            return $viejo->getSchemaBuilder()->hasColumn($tabla, $columna);
+        } catch (\Throwable) {
+            return false;
+        }
     }
 
     // ── Planes de trabajo ────────────────────────────────────────────────────

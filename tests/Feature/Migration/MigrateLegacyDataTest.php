@@ -33,10 +33,13 @@ class MigrateLegacyDataTest extends TestCase
         DB::table('countries')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
 
-        Role::firstOrCreate(
-            ['name' => 'Usuario de campo', 'guard_name' => 'web'],
-            ['slug' => Str::random(22), 'description' => 'Rol de menos privilegios'],
-        );
+        // Los roles a los que la migracion mapea los perfiles de la v1.
+        foreach (['super', 'admin', 'Supervisor de obra', 'Usuario de campo'] as $rol) {
+            Role::firstOrCreate(
+                ['name' => $rol, 'guard_name' => 'web'],
+                ['slug' => Str::random(22), 'description' => $rol],
+            );
+        }
 
         LegacyDatabaseFixture::levantar();
         LegacyDatabaseFixture::sembrar();
@@ -47,6 +50,63 @@ class MigrateLegacyDataTest extends TestCase
     {
         $this->artisan('docufiz:migrate-formats')->assertSuccessful();
         $this->artisan('docufiz:migrate-data', ['paso' => 'todo'])->assertSuccessful();
+    }
+
+    /**
+     * Con la base completa se aprovechan el correo, la contrasena y el perfil.
+     *
+     * El primer volcado vino con `users` vacia y solo se pudo reconstruir el
+     * nombre. Con la base entera no hay que inventar nada: la gente entra con
+     * su correo y su contrasena de siempre, y con el perfil que ya tenia.
+     */
+    public function test_con_la_base_completa_se_migran_correo_contrasena_y_perfil(): void
+    {
+        LegacyDatabaseFixture::conBaseCompleta();
+        $this->migrarTodo();
+
+        $porLegacy = fn (int $id) => User::withoutGlobalScopes()->where('legacy_id', $id)->sole();
+
+        $this->assertSame('jefe@empresa.test', $porLegacy(1)->email);
+        $this->assertSame('supervisor@empresa.test', $porLegacy(2)->email);
+
+        // El hash de Devise (`$2a$`) lo entiende PHP tal cual: no hay que
+        // resetear la contrasena de nadie.
+        $this->assertTrue(password_verify('secreto123', $porLegacy(1)->password));
+
+        // Y cada perfil de la v1 cae en su rol de aqui.
+        $this->assertTrue($porLegacy(1)->hasRole('admin'));
+        $this->assertTrue($porLegacy(2)->hasRole('Supervisor de obra'));
+        $this->assertTrue($porLegacy(3)->hasRole('Usuario de campo'));
+
+        // `is_hidden` en la v1 es un usuario dado de baja.
+        $this->assertFalse((bool) $porLegacy(3)->is_active);
+    }
+
+    /** Sin `users`, el comportamiento de antes: nombre y poco mas. */
+    public function test_sin_la_tabla_users_los_correos_son_provisionales(): void
+    {
+        $this->migrarTodo();
+
+        $usuario = User::withoutGlobalScopes()->where('legacy_id', 1)->sole();
+
+        $this->assertSame('usuario1@pendiente.local', $usuario->email);
+        $this->assertTrue($usuario->hasRole('Usuario de campo'));
+    }
+
+    /** La contrasena en claro de la v1 no se copia, y se avisa de que existe. */
+    public function test_avisa_de_las_contrasenas_en_claro_y_no_las_migra(): void
+    {
+        LegacyDatabaseFixture::conBaseCompleta();
+
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+        $this->artisan('docufiz:migrate-data', ['paso' => 'usuarios'])
+            ->expectsOutputToContain('EN CLARO')
+            ->assertSuccessful();
+
+        $usuario = User::withoutGlobalScopes()->where('legacy_id', 1)->sole();
+
+        $this->assertNotSame('secreto123', $usuario->password);
+        $this->assertStringStartsWith('$2', $usuario->password);
     }
 
     // ── usuarios ─────────────────────────────────────────────────────────────

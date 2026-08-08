@@ -62,18 +62,8 @@ class DatabaseSeeder extends Seeder
             //    JSON. Idempotente: si están todos, no hace nada.
             CustomPermissionsSeeder::class,
 
-            // ── Roles custom de demostracion en Empresa 1 y 2 + asignacion a
-            //    sus workers. Demuestra el patron real de delegacion en un
-            //    workspace con team_management. Idempotente.
-            ExampleTenantRolesSeeder::class,
-
-            // ── Workspace "Estudio Perez" — admin solo, plan free (sin
-            //    suscripcion). Cubre el tier free del demo base.
-            ExamplePersonalWorkspaceSeeder::class,
-
-            // ── Suscripciones del demo base: Empresa 1 → enterprise,
-            //    Empresa 2 → pro, Independiente → basic. El plan se deriva
-            //    de la suscripcion vigente.
+            // ── Suscripcion del unico workspace: Empresa 1 → enterprise.
+            //    El plan se deriva de la suscripcion vigente.
             ExampleSubscriptionsSeeder::class,
 
             // Aqui iban los clientes, transformadores y muestras de TRAFODEX.
