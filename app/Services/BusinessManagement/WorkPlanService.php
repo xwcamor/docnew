@@ -23,6 +23,7 @@ class WorkPlanService
     public function __construct(
         private readonly WorkPlanCodeGenerator $codigos,
         private readonly WorkPlanSetupService $armado,
+        private readonly WorkPlanCompletionService $cierre,
     ) {
     }
 
@@ -56,10 +57,20 @@ class WorkPlanService
         return $workPlan;
     }
 
+    /**
+     * Al guardar se comprueba si el plan ya puede darse por cerrado.
+     *
+     * Es el `after_save :lock_plan_if_all_conditions_met` del sistema anterior,
+     * y aqui el disparador que importa es poner la hora de fin: lo normal es
+     * que las firmas ya estén y lo último que llega sea el fin de jornada.
+     */
     public function update(WorkPlan $workPlan, array $data): WorkPlan
     {
         $workPlan->update($data);
-        return $workPlan;
+
+        $this->cierre->evaluar($workPlan);
+
+        return $workPlan->refresh();
     }
 
     /**

@@ -117,7 +117,34 @@ La comprobación que vale está en `WorkPlan::expectedFormTemplates()`, no sólo
 el servicio: hay planes migrados con exclusiones hechas antes de que existiera la
 regla, y un AST excluido en su día no puede seguir sin aparecer.
 
-### 1.7 El nombre se lista por el apellido
+### 1.7 El plan se cierra solo
+
+`Plan#lock_plan_if_all_conditions_met`, repetido en `PlanApproval#lock_plan`:
+
+```ruby
+if date_end.present? && plan_approvals.where(is_required: true, is_approved: false).none?
+  update_columns(is_locked: true, is_done: true)
+```
+
+**Cerró 3 297 de los 3 653 planes vivos. Ninguno a mano.** Aquí `is_done` sólo se
+ponía editando el plan, así que el 90% se habría quedado abierto para siempre y
+la lista de pendientes no habría servido de nada.
+
+Portado en `WorkPlanCompletionService`, disparado desde los mismos dos sitios:
+al guardar el plan (la hora de fin suele ser lo último que llega) y al firmarse
+una aprobación. Se respeta que **no mire si los formatos están confirmados** —en
+obra el documento lo cierra la firma del que autoriza—, porque cambiarlo
+desalinearía los planes migrados con los nuevos.
+
+Con una condición añadida: **el plan tiene que tener al menos un trabajador y un
+formato**. En la v1 no hacía falta escribirla porque
+`must_have_at_least_one_document_and_worker` impedía guardar un plan vacío —el
+plan se creaba de un envío con todo dentro—. Aquí el plan se crea primero y se
+arma después, así que la misma regla se comprueba donde significa lo mismo: un
+plan vacío no llega a ser documento cerrado. Ninguno de los 3 297 cambia de
+resultado.
+
+### 1.8 El nombre se lista por el apellido
 
 `Worker#str_complete_name_pro` devolvía `lastname + name`. Portado como
 `Person::getListNameAttribute()`.
@@ -218,10 +245,5 @@ todavía, y hasta que se haga no se puede dar por portado:
       `sync_f3_document_workers`). Aquí es un motor genérico. Hay que comprobar
       formato por formato que no se perdió ninguna regla de cálculo.
 - [ ] `plan_exports_controller` — la exportación a ZIP y los PDF por formato.
-- [ ] `Plan#lock_plan_if_all_conditions_met` — la v1 cierra el plan sola cuando
-      hay `date_end` y no quedan aprobaciones obligatorias sin firmar. Aquí el
-      cierre es manual. **Falta decidirlo**, y probablemente hay que portarlo.
-- [ ] `must_have_at_least_one_document_and_worker` — la v1 no deja guardar un
-      plan sin al menos un formato y un trabajador. Aquí sí se puede.
 - [ ] `settings.num_doc_minimum` por país — aquí está fijo en 8 (Perú).
       `WorkPlanSetupController::MINIMO_DOCUMENTO`.

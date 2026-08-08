@@ -226,6 +226,15 @@ return [
     // Why an approval cannot be signed yet. The previous system simply hid
     // these; showing them greyed out with the reason is better — the whole path
     // is visible without being able to skip a step.
+    // What the plan still needs to close itself. The previous system's two
+    // conditions, and no others.
+    'close_needs_date_end'  => 'The end time of the work is missing.',
+    // The v1 messages, word for word. There they blocked saving; here they
+    // block closing, because the plan is assembled after it is created.
+    'close_needs_crew'      => 'It must have at least 1 worker.',
+    'close_needs_forms'     => 'It must have at least 1 form.',
+    'close_needs_approvals' => '{1} 1 mandatory approval is missing.|[2,*] :count mandatory approvals are missing.',
+
     'approval_waits_crew'  => 'The workers have to sign first.',
     'approval_waits_prior' => 'Waiting on the :role signature.',
 

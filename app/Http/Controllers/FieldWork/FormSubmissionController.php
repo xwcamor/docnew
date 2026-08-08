@@ -60,14 +60,19 @@ class FormSubmissionController extends Controller
             ],
             'answers' => $entrega->answers()->get(),
             'missing' => $this->formatos->faltantes($entrega),
-            // La cuadrilla del plan: el checklist de EPP es una fila por
+            // Los trabajadores del plan: el checklist de EPP es una fila por
             // trabajador, y esa lista no vive en la plantilla sino en el plan.
+            // Es el `sync_f3_document_workers` de la v1, resuelto al pintar en
+            // vez de con filas duplicadas en la base.
             'people'  => $work_plan->people()->with('person')->get()
                 ->filter(fn ($asignado) => $asignado->person !== null)
                 ->map(fn ($asignado) => [
                     'slug' => $asignado->person->slug,
-                    'name' => trim($asignado->person->name . ' ' . $asignado->person->lastname),
-                    'doc'  => $asignado->person->num_doc,
+                    'name' => $asignado->person->list_name,
+                    // Enmascarado salvo permiso, como en el resto. Esta pantalla
+                    // se llena en una tablet que pasa de mano en mano: es el
+                    // peor sitio para tener veinte documentos a la vista.
+                    'doc'  => $asignado->person->safe_num_doc,
                 ])->values(),
         ]);
     }

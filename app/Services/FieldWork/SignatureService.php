@@ -134,6 +134,15 @@ class SignatureService
                 $firmable->forceFill(['is_approved' => true])->save();
             }
 
+            // Y con la ultima firma obligatoria el plan se cierra solo, como en
+            // el sistema anterior (`PlanApproval#lock_plan`). Sin esto el plan
+            // se queda abierto para siempre: alli se cerraron asi 3 297 de
+            // 3 653 planes, ninguno a mano.
+            if ($firmable instanceof \App\Models\WorkPlanApproval && $firmable->workPlan) {
+                app(\App\Services\BusinessManagement\WorkPlanCompletionService::class)
+                    ->evaluar($firmable->workPlan);
+            }
+
             return $evento;
         });
     }

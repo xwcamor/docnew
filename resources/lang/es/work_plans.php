@@ -233,6 +233,16 @@ return [
     // Por qué una aprobación todavía no se puede firmar. El sistema anterior
     // directamente las escondía; aquí se enseñan en gris con el motivo, que es
     // mejor: se ve el camino completo sin poder saltárselo.
+    // Lo que le falta al plan para cerrarse solo. Las dos condiciones del
+    // sistema anterior, ni una más.
+    'close_needs_date_end'  => 'Falta la hora de fin del trabajo.',
+    // Literalmente los mensajes de la v1: «Debe tener al menos 1 trabajador» /
+    // «...1 documento». Allí impedían guardar; aquí impiden cerrar, porque el
+    // plan se arma después de crearse.
+    'close_needs_crew'      => 'Debe tener al menos 1 trabajador.',
+    'close_needs_forms'     => 'Debe tener al menos 1 formato.',
+    'close_needs_approvals' => '{1} Falta 1 aprobación obligatoria.|[2,*] Faltan :count aprobaciones obligatorias.',
+
     'approval_waits_crew'  => 'Primero tienen que firmar los trabajadores.',
     'approval_waits_prior' => 'Espera la firma de :role.',
 

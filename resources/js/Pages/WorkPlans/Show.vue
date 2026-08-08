@@ -150,6 +150,14 @@ const pendientes = computed(() => {
 
     const lista = [];
 
+    // La hora de fin es la que cierra el plan, y faltaba de esta lista: el
+    // supervisor firmaba todo, veía «no falta nada» y el plan seguía abierto.
+    // El cierre es automático (WorkPlanCompletionService), así que si no llega
+    // es porque falta esto o una aprobación obligatoria.
+    if (!props.workPlan.date_end) {
+        lista.push(t('work_plans.close_needs_date_end'));
+    }
+
     if (!props.crew.length) {
         lista.push(t('work_plans.missing_crew'));
     } else if (firmasCrew.value < props.crew.length) {
