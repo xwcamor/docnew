@@ -163,7 +163,8 @@ return [
     'crew_add_title'=> 'Añadir trabajador',
     // La misma frase que en obra: se escanea el DNI, no se busca por apellido.
     'crew_search_placeholder' => 'Escanea o escribe el documento del trabajador…',
-    'crew_search_hint'        => 'Escribe el documento completo (8 dígitos).',
+    'crew_search_hint' => '{1} Escribe 1 carácter o más del documento.|[2,*] Escanea el documento o escribe sus :count dígitos: se añade solo.',
+    'crew_keep_typing' => 'Hay documentos que empiezan así. Sigue escribiendo hasta el final.',
     'crew_no_results'         => 'Ese documento no está registrado. Da de alta al trabajador primero.',
     'crew_remove'   => 'Quitar del plan',
     'crew_remove_confirm' => '¿Quitar a :name de este plan?',
@@ -252,6 +253,8 @@ return [
     'approval_sign'      => 'Firmar',
     'approval_no_one_with_role' => 'Ningún :role con ese documento. Comprueba que la persona tenga ese rol en su ficha.',
     'approval_pick_from_crew' => 'Elige a uno de los trabajadores del plan',
+    'approval_worker_must_sign_first' => ':name todavía no ha firmado como trabajador. El ejecutante se elige entre los que ya firmaron: esa firma es la que da la aprobación.',
+    'approval_signed_as_worker' => 'Con su firma de trabajador',
     'approval_not_in_crew' => ':name no está en este plan. El ejecutante tiene que ser uno de los trabajadores que salen a la obra.',
     'approval_wrong_role' => ':name no es :role. Sólo puede firmar esa aprobación quien tenga ese rol en su ficha de trabajador.',
     'approval_person_taken' => ':name ya firma otro rol de este plan. Una misma persona no cubre dos firmas.',

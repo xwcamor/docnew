@@ -222,11 +222,29 @@ class WorkPlanSetupService
         // anterior ni la primera versión de esto lo comprobaban: los dos
         // buscaban por documento en las 231 personas del padrón, y se podía
         // poner como responsable de la obra a quien no estuvo en ella.
-        if ($rol === ApproverRole::WORKER) {
-            $enElPlan = $plan->people()->where('person_id', $persona->id)->exists();
+        $comoTrabajador = null;
 
-            if (! $enElPlan) {
+        if ($rol === ApproverRole::WORKER) {
+            $comoTrabajador = $plan->people()->where('person_id', $persona->id)->first();
+
+            if (! $comoTrabajador) {
                 throw new \DomainException(__('work_plans.approval_not_in_crew', [
+                    'name' => $persona->list_name,
+                ]));
+            }
+
+            // Y tiene que haber firmado ya, como trabajador.
+            //
+            // Designar ejecutante a quien todavía no ha firmado deja la
+            // aprobación esperando una firma que esa persona va a dar igual en
+            // la otra columna: acabaría firmando dos veces el mismo día, el
+            // mismo plan, delante de la misma cámara, y la segunda no prueba
+            // nada que no probara la primera.
+            //
+            // El ejecutante se elige ENTRE LOS QUE YA FIRMARON, y esa firma es
+            // la que vale — la aprobación se da por hecha abajo.
+            if (! $this->firmoComoTrabajador($comoTrabajador)) {
+                throw new \DomainException(__('work_plans.approval_worker_must_sign_first', [
                     'name' => $persona->list_name,
                 ]));
             }
@@ -257,7 +275,26 @@ class WorkPlanSetupService
 
         $aprobacion->update(['person_id' => $persona->id]);
 
+        // El ejecutante ya firmó: la aprobación queda dada con esa firma.
+        //
+        // No se crea un evento nuevo. La evidencia es la que ya existe —su foto
+        // y su firma de trabajador de este mismo plan—, y duplicarla haría
+        // parecer que hubo dos comprobaciones donde hubo una. La ficha lee la
+        // hora de la firma del trabajador (`approvalsPayload`).
+        if ($comoTrabajador) {
+            $aprobacion->update(['is_approved' => true]);
+
+            // Designar al ejecutante puede ser lo último que faltaba.
+            app(WorkPlanCompletionService::class)->evaluar($plan);
+        }
+
         return $aprobacion->refresh();
+    }
+
+    /** ¿Este trabajador ya firmó en este plan? */
+    protected function firmoComoTrabajador(WorkPlanPerson $asignado): bool
+    {
+        return (bool) $asignado->is_approved || $asignado->signatureEvents()->exists();
     }
 
     /**

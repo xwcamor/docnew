@@ -106,6 +106,17 @@ const estado = (a) => {
     return a.required ? 'pending' : 'optional';
 };
 
+/**
+ * Al ejecutante se le designa, no se le vuelve a pedir la firma.
+ *
+ * Su aprobación queda dada en el momento en que se le designa, porque para
+ * poder designarlo tiene que haber firmado ya como trabajador. Eso es lo que
+ * dice esta línea, para que nadie busque un botón que no está.
+ */
+const comoFirmo = (a) => (a.signs_as_worker && a.signed
+    ? t('work_plans.approval_signed_as_worker')
+    : '');
+
 const etiqueta = (a) => {
     if (a.signed) return t('work_plans.approval_approved');
     if (bloqueo(a)) return t('work_plans.approval_pending');
@@ -235,7 +246,7 @@ const firmar = (a) => router.get(
                 chained
                 :state="estado(a)"
                 :title="nombre(a)"
-                :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
+                :subtitle="[a.person ? a.person.name : $t('work_plans.approval_unassigned'), comoFirmo(a)].filter(Boolean).join(' · ')"
                 :when="a.signed ? a.signed_at : null"
                 :label="etiqueta(a)"
                 :reason="bloqueo(a) || ''"
@@ -256,8 +267,14 @@ const firmar = (a) => router.get(
                             </Button>
                         </Tooltip>
 
+                        <!-- El ejecutante NO lleva botón de firmar: la
+                             aprobación se da con la firma que ya dio como
+                             trabajador de este mismo plan. Pedírsela otra vez
+                             sería la misma persona, el mismo día, el mismo
+                             plan y la misma cámara, y la segunda no prueba
+                             nada que no probara la primera. -->
                         <Tooltip
-                            v-if="canSign && a.person"
+                            v-if="canSign && a.person && !a.signs_as_worker"
                             :title="bloqueo(a) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
                         >
                             <Button size="small" type="primary" :disabled="!!bloqueo(a)" @click="firmar(a)">

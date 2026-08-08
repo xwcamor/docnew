@@ -2,9 +2,11 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
-    Card, Tag, Button, Select, SelectOption, Popconfirm, Tooltip,
+    Card, Tag, Button, Input, Popconfirm, Tooltip,
 } from 'ant-design-vue';
-import { TeamOutlined, DeleteOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons-vue';
+import {
+    TeamOutlined, DeleteOutlined, EditOutlined, IdcardOutlined, LoadingOutlined,
+} from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
@@ -43,24 +45,37 @@ const subtitulo = (fila) => [
     [fila.doc_type, fila.num_doc].filter(Boolean).join(' '),
 ].filter(Boolean).join(' · ');
 
-const candidatos = ref([]);
+const documento = ref('');
 const buscando = ref(false);
-const elegido = ref(undefined);
 const guardando = ref(false);
 const quitando = ref(null);
-const parcial = ref(true);   // lo escrito todavía no llega a un documento
+const aviso = ref('');       // qué pasa con lo que hay escrito
+const minimo = ref(7);       // lo dice el servidor; 7 es el de la v1
 
-// Antirrebote: en obra se teclea con guantes y salen ráfagas de eventos; sin
-// esto cada letra sería una consulta.
+// Antirrebote: en obra se teclea con guantes y el lector de códigos manda los
+// dígitos de golpe. Sin esto cada carácter sería una consulta.
 let temporizador = null;
 
+/**
+ * Se escribe el documento y la persona entra sola. **Sin desplegable.**
+ *
+ * Así se trabaja en la puerta: se escanea el DNI o se teclea, y ya está. El
+ * sistema anterior tenía aquí un select2 —y esto también— que obligaba a
+ * teclear el documento entero y ADEMÁS elegir de una lista de un solo elemento,
+ * con guantes y a pleno sol. Dos gestos para una decisión que ya estaba tomada
+ * al terminar de teclear.
+ *
+ * Se añade sólo con coincidencia EXACTA y única: «4001» encaja con veinte
+ * documentos y no se puede adivinar cuál, así que hasta que no sea exacta no
+ * se toca nada. Y por debajo del mínimo ni se pregunta, para que el buscador
+ * no acabe siendo un volcado del padrón.
+ */
 const buscar = (texto) => {
     clearTimeout(temporizador);
-    const q = (texto || '').trim();
+    const q = String(texto ?? '').trim();
+    aviso.value = '';
 
-    // Sin texto no se pregunta nada. El servidor tampoco contestaría, pero así
-    // ni se gasta la llamada ni se parpadea un «no hay resultados» que mentiría.
-    if (!q) { candidatos.value = []; parcial.value = true; return; }
+    if (q.length < minimo.value) return;
 
     temporizador = setTimeout(async () => {
         buscando.value = true;
@@ -69,33 +84,35 @@ const buscar = (texto) => {
                 route('business_management.work_plans.crew.candidates', props.planSlug),
                 { params: { q, exclude_assigned: 1 } },
             );
-            candidatos.value = data.people;
-            parcial.value = !!data.partial;
+
+            minimo.value = data.minimum ?? minimo.value;
+
+            if (data.exact) {
+                anadir(data.exact.slug);
+
+                return;
+            }
+
+            // Ni exacta ni nada parecido: o no está dado de alta, o ya está en
+            // el plan. Las dos cosas se dicen, que no es lo mismo.
+            aviso.value = data.people.length
+                ? t('work_plans.crew_keep_typing')
+                : t('work_plans.crew_no_results');
         } finally {
             buscando.value = false;
         }
     }, 250);
 };
 
-// Un documento a medias no es «no existe nadie»: es «sigue escribiendo». Decir
-// lo primero manda al supervisor a dar de alta a alguien que ya está.
-const sinResultados = computed(() => (parcial.value
-    ? t('work_plans.crew_search_hint')
-    : t('work_plans.crew_no_results')));
-
-const anadir = () => {
-    if (!elegido.value) return;
+const anadir = (slug) => {
     guardando.value = true;
     router.post(
         route('business_management.work_plans.crew.store', props.planSlug),
-        { person_slug: elegido.value },
+        { person_slug: slug },
         {
             preserveScroll: true,
-            onFinish: () => {
-                guardando.value = false;
-                elegido.value = undefined;
-                candidatos.value = [];
-            },
+            onSuccess: () => { documento.value = ''; aviso.value = ''; },
+            onFinish: () => { guardando.value = false; },
         },
     );
 };
@@ -171,35 +188,38 @@ const firmar = (fila) => router.get(
             </WorkPlanBoardRow>
         </ul>
 
-        <div v-if="canEdit" class="ff-addrow">
-            <Select
-                v-model:value="elegido"
-                class="ff-addrow__grow"
-                show-search
+        <div v-if="canEdit" class="wp-add">
+            <!-- Un input, no un desplegable: se escanea o se teclea el
+                 documento y la persona entra sola en cuanto coincide. -->
+            <Input
+                v-model:value="documento"
+                size="large"
                 allow-clear
-                :filter-option="false"
-                :loading="buscando"
+                inputmode="numeric"
+                autocomplete="off"
+                :maxlength="20"
+                :disabled="guardando"
                 :placeholder="$t('work_plans.crew_search_placeholder')"
-                :not-found-content="buscando ? undefined : sinResultados"
-                @search="buscar"
+                @update:value="buscar"
+                @press-enter="buscar(documento)"
             >
-                <!-- El nombre, y sólo el nombre: es lo que confirma que es la
-                     persona correcta. El documento ya lo escribió quien busca. -->
-                <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
-                    {{ p.name }}
-                </SelectOption>
-            </Select>
-            <Tooltip :title="$t('work_plans.crew_add')">
-                <Button type="primary" :disabled="!elegido" :loading="guardando" @click="anadir">
-                    <template #icon><PlusOutlined /></template>
-                    {{ $t('work_plans.crew_add') }}
-                </Button>
-            </Tooltip>
+                <template #prefix><IdcardOutlined /></template>
+                <template v-if="buscando || guardando" #suffix><LoadingOutlined /></template>
+            </Input>
+
+            <p class="wp-add__hint" :class="{ 'is-bad': aviso === $t('work_plans.crew_no_results') }">
+                {{ aviso || $tc('work_plans.crew_search_hint', minimo, { count: minimo }) }}
+            </p>
         </div>
+
     </Card>
 </template>
 
 <style scoped>
+.wp-add { margin-top: 14px; }
+.wp-add__hint { margin: 6px 2px 0; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+.wp-add__hint.is-bad { color: var(--color-error, #BB0000); }
+
 /* La lista no pone nada: cada fila es WorkPlanBoardRow, que es la misma en las
    tres columnas del tablero. */
 .wp-rows { list-style: none; margin: 0; padding: 0; }

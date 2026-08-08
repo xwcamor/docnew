@@ -388,6 +388,17 @@ class WorkPlanController extends Controller
             ->orderBy('signed_at')
             ->pluck('signed_at', 'signable_id');
 
+        // El ejecutante no firma aparte: vale la firma que ya dio como
+        // trabajador de este plan, y de ahí sale la hora. Sin esto la fila
+        // quedaría aprobada pero sin hora, que en las otras dos columnas sí se
+        // enseña y aquí no — la misma información contada de dos maneras.
+        $firmasDeCuadrilla = \App\Models\SignatureEvent::query()
+            ->where('signable_type', (new \App\Models\WorkPlanPerson)->getMorphClass())
+            ->whereIn('signable_id', $workPlan->people()->pluck('id'))
+            ->join('work_plan_people as wpp', 'wpp.id', '=', 'signature_events.signable_id')
+            ->orderBy('signature_events.signed_at')
+            ->pluck('signature_events.signed_at', 'wpp.person_id');
+
         return $aprobaciones
             ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)
             ->map(fn ($a) => [
@@ -401,7 +412,12 @@ class WorkPlanController extends Controller
                 'person'    => $a->person ? ['slug' => $a->person->slug, 'name' => $a->person->list_name, 'num_doc' => $a->person->safe_num_doc] : null,
                 'required'  => (bool) $a->is_required,
                 'signed'    => (bool) $a->is_approved || $firmas->get($a->id) !== null,
-                'signed_at' => $firmas->get($a->id),
+                // La suya si la hay; si es el ejecutante, la que dio como
+                // trabajador.
+                'signed_at' => $firmas->get($a->id) ?? $firmasDeCuadrilla->get($a->person_id),
+                // Al ejecutante no se le pide firma: ya firmó. La ficha no
+                // tiene que ofrecer un botón que no hace falta.
+                'signs_as_worker' => $a->approvalRule?->approver_role === \App\Models\ApproverRole::WORKER,
             ])
             ->values()
             ->all();

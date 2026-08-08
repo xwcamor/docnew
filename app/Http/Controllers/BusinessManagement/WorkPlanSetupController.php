@@ -5,6 +5,7 @@ namespace App\Http\Controllers\BusinessManagement;
 use App\Http\Controllers\Controller;
 use App\Models\ApprovalRule;
 use App\Models\FormTemplate;
+use App\Models\ApproverRole;
 use App\Models\Person;
 use App\Models\WorkPlan;
 use App\Models\WorkPlanApproval;
@@ -117,10 +118,21 @@ class WorkPlanSetupController extends Controller
             // Esto es sólo el filtro de la búsqueda; la regla que vale está en
             // WorkPlanSetupService::assignApprover(), porque una petición hecha
             // a mano no pasa por este selector.
-            ->when($request->filled('role'), fn ($query) => $query->whereHas(
-                'roles',
-                fn ($q) => $q->where('role', $request->string('role'))->where('is_active', true),
-            ))
+            // El ejecutante sale de los trabajadores de ESTE plan y, ademas,
+            // de los que YA FIRMARON: su firma de trabajador es la que da la
+            // aprobacion, asi que designar a quien no ha firmado dejaria la
+            // fila esperando una segunda firma que no aporta nada. Ver
+            // WorkPlanSetupService::assignApprover().
+            ->when((string) $request->string('role') === ApproverRole::WORKER,
+                fn ($query) => $query->whereIn('id', $workPlan->people()
+                    ->where(fn ($q) => $q->where('is_approved', true)->orWhereHas('signatureEvents'))
+                    ->pluck('person_id')))
+            // Supervisor y HSE no estan en la cuadrilla: lo que se exige es el rol.
+            ->when($request->filled('role') && (string) $request->string('role') !== ApproverRole::WORKER,
+                fn ($query) => $query->whereHas(
+                    'roles',
+                    fn ($q) => $q->where('role', $request->string('role'))->where('is_active', true),
+                ))
             ->when(true, function ($query) use ($q, $isPgsql) {
                 $needle = LikeQuery::contains($q);
                 $isPgsql
@@ -132,12 +144,28 @@ class WorkPlanSetupController extends Controller
             ->limit(10)
             ->get(['id', 'slug', 'name', 'lastname', 'num_doc', 'doc_type']);
 
+        // ¿Lo que se tecleó ES un documento, y de una sola persona?
+        //
+        // Es lo que permite que la pantalla no tenga desplegable: en obra se
+        // escanea el DNI y la persona entra sola. Un desplegable ahí obliga a
+        // teclear el documento entero y ADEMÁS elegir de una lista de un solo
+        // elemento, con guantes y a pleno sol.
+        //
+        // Se exige coincidencia EXACTA y única: «4001» encaja con veinte
+        // documentos y no se puede adivinar cuál. Mientras no sea exacta no se
+        // añade nada — la búsqueda por parecido sigue existiendo para decir si
+        // hay alguien o no, pero no decide por nadie.
+        $exacta = $personas->filter(fn ($p) => $p->num_doc === $q);
+
         return response()->json([
             'people' => $personas->map(fn ($p) => [
                 'slug'    => $p->slug,
                 'name'    => $p->list_name,
                 'num_doc' => $p->safe_num_doc,
             ])->all(),
+            'exact' => $exacta->count() === 1
+                ? ['slug' => $exacta->first()->slug, 'name' => $exacta->first()->list_name]
+                : null,
             'minimum' => $minimo,
             'partial' => false,
         ]);

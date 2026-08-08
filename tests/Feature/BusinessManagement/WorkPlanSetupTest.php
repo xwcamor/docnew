@@ -665,11 +665,65 @@ class WorkPlanSetupTest extends TestCase
         $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('error');
         $this->assertNull($aprobacion->fresh()->person_id);
 
-        // Y en cuanto entra en la cuadrilla, sí.
-        $this->asignar($plan, $fuera);
+        // Entrar en la cuadrilla no basta: además tiene que haber firmado.
+        $asignado = $this->asignar($plan, $fuera);
+
+        $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('error');
+        $this->assertNull($aprobacion->fresh()->person_id);
+
+        // Con la firma puesta, sí.
+        $asignado->forceFill(['is_approved' => true])->save();
 
         $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('success');
         $this->assertSame($fuera->id, $aprobacion->fresh()->person_id);
+    }
+
+    /**
+     * El ejecutante no vuelve a firmar: vale la firma que ya dio.
+     *
+     * Es la misma persona, el mismo día, el mismo plan y la misma cámara. La
+     * segunda firma no prueba nada que no probara la primera, y en la ficha
+     * salía un botón «Firmar» al lado de alguien que aparecía como firmado dos
+     * columnas más a la izquierda.
+     *
+     * Por eso designarlo YA da la aprobación por hecha, sin crear un evento de
+     * firma nuevo: la evidencia es la que existe, y duplicarla haría parecer
+     * que hubo dos comprobaciones donde hubo una.
+     */
+    public function test_designar_al_ejecutante_da_la_aprobacion_con_su_firma_de_trabajador(): void
+    {
+        $plan = $this->plan();
+        $aprobacion = $this->aprobacion($plan, $this->regla('worker', 1, true));
+
+        $persona = $this->persona('Beto', 'Cruz', '40000051', ['worker']);
+        $this->asignar($plan, $persona)->forceFill(['is_approved' => true])->save();
+
+        $this->actingAs($this->supervisor());
+        $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            ['person_slug' => $persona->slug],
+        )->assertSessionHas('success');
+
+        $aprobacion->refresh();
+        $this->assertTrue((bool) $aprobacion->is_approved, 'la aprobación tenía que quedar dada');
+        $this->assertSame(0, $aprobacion->signatureEvents()->count(), 'no se duplica la evidencia');
+    }
+
+    /** Y el buscador tampoco ofrece a quien aún no ha firmado. */
+    public function test_el_buscador_de_ejecutantes_solo_ofrece_a_los_que_ya_firmaron(): void
+    {
+        $plan = $this->plan();
+        $firmo    = $this->persona('Ana', 'Paz', '40000052', ['worker']);
+        $sinFirmar = $this->persona('Beto', 'Cruz', '40000053', ['worker']);
+
+        $this->asignar($plan, $firmo)->forceFill(['is_approved' => true])->save();
+        $this->asignar($plan, $sinFirmar);
+
+        $this->actingAs($this->supervisor());
+        $ruta = route('business_management.work_plans.crew.candidates', $plan->slug);
+
+        $this->getJson($ruta . '?role=worker&q=40000052')->assertOk()->assertJsonCount(1, 'people');
+        $this->getJson($ruta . '?role=worker&q=40000053')->assertOk()->assertJsonCount(0, 'people');
     }
 
     /** Y el buscador tampoco lo ofrece: filtra por el rol que se está asignando. */
@@ -880,6 +934,40 @@ class WorkPlanSetupTest extends TestCase
             ->assertOk()
             ->assertJsonCount(0, 'people')
             ->assertJsonPath('minimum', 7);
+    }
+
+    /**
+     * La coincidencia exacta es lo que deja quitar el desplegable.
+     *
+     * En la puerta se escanea el DNI y la persona tiene que entrar sola. Para
+     * eso el buscador dice si lo tecleado ES un documento —exacto y de una
+     * sola persona— o sólo se le parece: «4001» encaja con veinte y no se
+     * puede adivinar cuál, así que ahí no se añade nada.
+     */
+    public function test_el_buscador_dice_cuando_lo_tecleado_es_un_documento_exacto(): void
+    {
+        $plan = $this->plan();
+        $this->persona('Nora', 'Paz', '40000009');
+        $this->persona('Hugo', 'Salas', '40000010');
+        $this->actingAs($this->supervisor());
+
+        $ruta = route('business_management.work_plans.crew.candidates', $plan->slug);
+
+        // Parcial: hay dos que empiezan igual, así que no hay exacta.
+        $this->getJson($ruta . '?q=4000000')
+            ->assertOk()
+            ->assertJsonPath('exact', null);
+
+        // Completo: exacta y única — la pantalla lo añade sin preguntar.
+        $this->getJson($ruta . '?q=40000009')
+            ->assertOk()
+            ->assertJsonPath('exact.name', 'Paz Nora');
+
+        // Y un documento que no existe tampoco inventa una exacta.
+        $this->getJson($ruta . '?q=99999999')
+            ->assertOk()
+            ->assertJsonCount(0, 'people')
+            ->assertJsonPath('exact', null);
     }
 
     /** El ajuste no viene sembrado en las pruebas: se pone aqui. */
