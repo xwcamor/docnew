@@ -9,7 +9,17 @@
  *
  * FORMA DEL VALOR que emite (una respuesta por fila, con su `row`):
  *
- *   { actividad, peligro, control, severidad, probabilidad, riesgo, nivel }
+ *   { actividad, peligro, riesgo, control, severidad, probabilidad,
+ *     valor_riesgo, nivel }
+ *
+ * `riesgo` es TEXTO: la consecuencia («Agotamiento de recurso natural»), que en
+ * la v1 es la columna `name_risk` y va entre el peligro y el control. El numero
+ * de la matriz es `valor_riesgo`.
+ *
+ * Aqui se llamaba `riesgo` al numero, y como la migracion —que sigue el nombre
+ * del dominio— escribia el texto en `riesgo` y el numero en `valor_riesgo`, los
+ * 3 657 AST migrados salian con la consecuencia donde va el numero y sin banda
+ * de color. Manda el nombre del dominio, que ademas es el de la v1.
  *
  * `severidad` y `probabilidad` son obligatorias porque es lo que exige
  * FormSubmissionService::validarValor() para este tipo. El resto acompaña.
@@ -31,6 +41,7 @@ const emit = defineEmits(['update:value']);
 const config = computed(() => props.field?.config ?? {});
 const actividades = computed(() => catalogo(config.value, 'activities'));
 const peligros = computed(() => catalogo(config.value, 'dangers'));
+const riesgos = computed(() => catalogo(config.value, 'risks'));
 const controles = computed(() => catalogo(config.value, 'controls'));
 const severidades = computed(() => catalogo(config.value, 'severities', 'severidades'));
 const probabilidades = computed(() => catalogo(config.value, 'probabilities', 'probabilidades'));
@@ -91,13 +102,13 @@ function nivelRiesgo(valor) {
 function conRiesgo(fila) {
     const riesgo = valorRiesgo(fila);
 
-    return { ...fila, riesgo, nivel: nivelRiesgo(riesgo) };
+    return { ...fila, valor_riesgo: riesgo, nivel: nivelRiesgo(riesgo) };
 }
 
 function filaVacia() {
     return {
-        actividad: null, peligro: null, control: null,
-        severidad: null, probabilidad: null, riesgo: null, nivel: null,
+        actividad: null, peligro: null, riesgo: null, control: null,
+        severidad: null, probabilidad: null, valor_riesgo: null, nivel: null,
     };
 }
 
@@ -125,7 +136,7 @@ function quitar(indice) {
                 <span class="ff-row__num">{{ i + 1 }}</span>
 
                 <span v-if="fila.nivel" class="ff-risk" :class="`is-${fila.nivel}`">
-                    {{ $t(`field_work.risk_matrix.level_${fila.nivel}`) }} · {{ fila.riesgo }}
+                    {{ $t(`field_work.risk_matrix.level_${fila.nivel}`) }} · {{ fila.valor_riesgo }}
                 </span>
                 <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
 
@@ -157,6 +168,14 @@ function quitar(indice) {
                         :value="fila.peligro" :options="peligros" :readonly="readonly"
                         :placeholder="$t('field_work.risk_matrix.search')"
                         @update:value="cambiar(i, 'peligro', $event)" />
+                </div>
+
+                <div class="ff-cell">
+                    <label class="ff-label">{{ $t('field_work.risk_matrix.risk') }}</label>
+                    <CatalogSelect
+                        :value="fila.riesgo" :options="riesgos" :readonly="readonly"
+                        :placeholder="$t('field_work.risk_matrix.search')"
+                        @update:value="cambiar(i, 'riesgo', $event)" />
                 </div>
 
                 <div class="ff-cell ff-cell--wide">

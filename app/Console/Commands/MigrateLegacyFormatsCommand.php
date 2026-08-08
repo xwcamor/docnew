@@ -102,6 +102,12 @@ class MigrateLegacyFormatsCommand extends Command
         return [
             'actividades'   => $nombres('ast_activities'),
             'peligros'      => $nombres('ast_dangers'),
+            // `ast_risks` no se traia y era una columna entera del AST y del
+            // PTF: en la v1 la fila es actividad → peligro → RIESGO → control,
+            // donde el riesgo es la consecuencia («Agotamiento de recurso
+            // natural»). Sin el catalogo, la pantalla no tenia de donde
+            // ofrecerlo y lo migrado se quedaba sin sitio donde enseñarlo.
+            'riesgos'       => $nombres('ast_risks'),
             'controles'     => $nombres('ast_controls'),
             'equipos'       => $nombres('ast_equipments'),
             'objetivos'     => $nombres('ast_objetives'),
@@ -193,6 +199,7 @@ class MigrateLegacyFormatsCommand extends Command
             'config' => [
                 'activities'    => $cat['actividades'],
                 'dangers'       => $cat['peligros'],
+                'risks'         => $cat['riesgos'],
                 'controls'      => $cat['controles'],
                 'severities'    => $cat['severidades'],
                 'probabilities' => $cat['probabilidades'],
@@ -211,8 +218,8 @@ class MigrateLegacyFormatsCommand extends Command
         $c->agregarCampo($s2, ['code' => 'observaciones', 'field_type' => 'textarea']);
 
         $c->publicar($t);
-        $this->info(sprintf('AST: matriz con %d actividades, %d peligros y %d controles.',
-            count($cat['actividades']), count($cat['peligros']), count($cat['controles'])));
+        $this->info(sprintf('AST: matriz con %d actividades, %d peligros, %d riesgos y %d controles.',
+            count($cat['actividades']), count($cat['peligros']), count($cat['riesgos']), count($cat['controles'])));
     }
 
     /** PTF — Pare y Tome 5: banco de preguntas mas la matriz de riesgo. */
@@ -232,7 +239,7 @@ class MigrateLegacyFormatsCommand extends Command
             'code' => 'matriz_de_riesgo', 'field_type' => 'risk_matrix',
             'config' => [
                 'activities' => $cat['actividades'], 'dangers' => $cat['peligros'],
-                'controls' => $cat['controles'],
+                'risks' => $cat['riesgos'], 'controls' => $cat['controles'],
                 'severities' => $cat['severidades'], 'probabilities' => $cat['probabilidades'],
                 'matrix' => $cat['matriz']['valores'], 'levels' => $cat['matriz']['niveles'],
             ],

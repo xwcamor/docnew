@@ -390,9 +390,9 @@ class MigrateLegacyDataTest extends TestCase
         $filas = $this->respuestasDe('PTF', 'preguntas');
 
         $this->assertCount(1, $filas);
-        $this->assertSame('Si', $filas[0][0]['respuesta']);
-        $this->assertSame('No', $filas[0][1]['respuesta']);
-        $this->assertSame('Tienes permiso?', $filas[0][0]['pregunta']);
+        $this->assertSame('Si', $filas[0][0]['answer']);
+        $this->assertSame('No', $filas[0][1]['answer']);
+        $this->assertSame('Tienes permiso?', $filas[0][0]['question']);
     }
 
     public function test_el_epp_llega_por_trabajador_y_apunta_a_la_persona_de_destino(): void
@@ -402,9 +402,9 @@ class MigrateLegacyDataTest extends TestCase
         $filas = $this->respuestasDe('EPP', 'epp_por_trabajador');
 
         $this->assertCount(1, $filas);
-        $this->assertSame('Conforme', $filas[0]['items'][0]['respuesta']);
+        $this->assertSame('Conforme', $filas[0]['items'][0]['answer']);
         // Sin respuesta en la v1 se queda sin respuesta.
-        $this->assertNull($filas[0]['items'][1]['respuesta']);
+        $this->assertNull($filas[0]['items'][1]['answer']);
         $this->assertSame('Cambiar casco', $filas[0]['correction_measure']);
 
         $persona = DB::table('work_plan_people')->where('legacy_id', 1)->value('person_id');
@@ -418,10 +418,10 @@ class MigrateLegacyDataTest extends TestCase
         $filas = $this->respuestasDe('IHM', 'inspeccion_de_herramientas');
 
         $this->assertCount(1, $filas);
-        $this->assertSame('Amoladora', $filas[0]['herramienta']);
+        $this->assertSame('Amoladora', $filas[0]['tool']);
         $this->assertFalse($filas[0]['habilitada']);
-        $this->assertSame('Cumple', $filas[0]['items'][0]['respuesta']);
-        $this->assertSame('No cumple', $filas[0]['items'][1]['respuesta']);
+        $this->assertSame('Cumple', $filas[0]['items'][0]['answer']);
+        $this->assertSame('No cumple', $filas[0]['items'][1]['answer']);
     }
 
     // ── evidencias ───────────────────────────────────────────────────────────

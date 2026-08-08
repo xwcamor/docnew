@@ -89,9 +89,9 @@ class LegacyFormMapperTest extends TestCase
             [1 => 'Tienes el permiso?', 2 => 'Conoces el plan de emergencia?'],
         );
 
-        $this->assertSame('Tienes el permiso?', $lista[0]['pregunta']);
-        $this->assertSame('Si', $lista[0]['respuesta']);
-        $this->assertSame('No', $lista[1]['respuesta']);
+        $this->assertSame('Tienes el permiso?', $lista[0]['question']);
+        $this->assertSame('Si', $lista[0]['answer']);
+        $this->assertSame('No', $lista[1]['answer']);
     }
 
     public function test_el_checklist_de_epp_va_por_persona_y_arrastra_la_correccion(): void
@@ -108,7 +108,7 @@ class LegacyFormMapperTest extends TestCase
         $this->assertSame(7, $valor['legacy_plan_worker_id']);
         $this->assertSame('Cambiar casco', $valor['correction_measure']);
         $this->assertSame('Casco', $valor['items'][0]['item']);
-        $this->assertSame('No conforme', $valor['items'][0]['respuesta']);
+        $this->assertSame('No conforme', $valor['items'][0]['answer']);
     }
 
     public function test_el_checklist_de_ihm_va_por_herramienta(): void
@@ -119,9 +119,9 @@ class LegacyFormMapperTest extends TestCase
             [5 => 'Guardas y dispositivos de seguridad.'],
         );
 
-        $this->assertSame('Amoladora', $valor['herramienta']);
+        $this->assertSame('Amoladora', $valor['tool']);
         $this->assertFalse($valor['habilitada']);
-        $this->assertSame('No cumple', $valor['items'][0]['respuesta']);
+        $this->assertSame('No cumple', $valor['items'][0]['answer']);
     }
 
     public function test_los_textos_del_ast_que_la_plantilla_no_reproduce_acaban_en_observaciones(): void
@@ -132,6 +132,64 @@ class LegacyFormMapperTest extends TestCase
         $this->assertStringContainsString('Herramientas adicionales: Arnes, linea de vida', $texto);
 
         $this->assertNull($this->mapa->observacionesAst(null, ''));
+    }
+
+    /**
+     * Las claves que escribe la migracion son las que lee la pantalla.
+     *
+     * Aqui se escribian en castellano —`respuesta`, `pregunta`, `herramienta`—
+     * y los campos compuestos del motor leen `answer`, `question` y `tool`.
+     * Resultado: las 14 435 entregas migradas se abrian **en blanco**. El nombre
+     * del item si cuadraba, porque esa clave se llama igual en los dos sitios, y
+     * ninguna respuesta salia marcada.
+     *
+     * No salto antes porque el PDF aplana el JSON tal cual, sin buscar claves
+     * concretas: el papel salia perfecto y la pantalla vacia. Y no era cosmetico
+     * — abrir un EPP migrado y pulsar Guardar sobrescribia con nulos las
+     * respuestas reales, porque la pantalla creia que no habia ninguna.
+     *
+     * Esta prueba compara contra los nombres que leen PersonChecklistField.vue,
+     * ToolChecklistField.vue y QuestionBankField.vue. Si alguien cambia un lado,
+     * salta aqui y no en obra.
+     */
+    public function test_las_claves_son_las_que_lee_el_motor(): void
+    {
+        $epp = $this->mapa->checklistDePersona(
+            ['plan_worker_id' => 1], [['epp_item_id' => 1, 'answer' => 2]], [1 => 'Casco'], 7,
+        );
+        $this->assertSame(LegacyFormMapper::CLAVES_DE_ITEM, array_keys($epp['items'][0]));
+
+        $ihm = $this->mapa->checklistDeHerramienta(
+            ['name' => 'Amoladora'], [['ihm_item_id' => 5, 'answer' => 2]], [5 => 'Guardas'],
+        );
+        $this->assertSame(LegacyFormMapper::CLAVES_DE_ITEM, array_keys($ihm['items'][0]));
+        $this->assertArrayHasKey('tool', $ihm, 'ToolChecklistField.vue lee `tool`, no `herramienta`');
+
+        $ptf = $this->mapa->bancoDePreguntas([['ptf_question_id' => 3, 'answer' => 1]], [3 => '¿Permiso?']);
+        $this->assertSame(LegacyFormMapper::CLAVES_DE_PREGUNTA, array_keys($ptf[0]));
+    }
+
+    /**
+     * La matriz separa la consecuencia del numero.
+     *
+     * En la v1 la fila es actividad → peligro → **riesgo** → control, donde el
+     * riesgo es la consecuencia en texto (`name_risk`), y aparte va el valor de
+     * la matriz (`risk_value`, del 1 al 25). El componente llamaba `riesgo` al
+     * numero, asi que los 3 657 AST migrados salian con la consecuencia donde va
+     * el numero y sin banda de color. Manda el nombre del dominio, que es el de
+     * la v1.
+     */
+    public function test_la_matriz_separa_la_consecuencia_del_valor(): void
+    {
+        $filas = $this->mapa->matrizDeRiesgo(
+            [['id' => 1, 'name' => 'Excavacion']],
+            [['f1_document_activity_id' => 1, 'name_danger' => 'Caida', 'name_risk' => 'Fracturas',
+              'name_control' => 'Señalizar', 'severity_id' => 2, 'probability_id' => 3, 'risk_value' => 12]],
+            [2 => 'c2'], [3 => 'p3'], 'f1_document_activity_id',
+        );
+
+        $this->assertSame('Fracturas', $filas[0]['riesgo'], 'el riesgo es la consecuencia, en texto');
+        $this->assertSame(12, $filas[0]['valor_riesgo'], 'el numero de la matriz va aparte');
     }
 
     public function test_los_marcadores_de_la_v1_no_son_archivos(): void

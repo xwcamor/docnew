@@ -113,7 +113,7 @@ class LegacyDatabaseFixture
         });
 
         // Catalogos que alimentan las plantillas del motor.
-        foreach (['ast_activities', 'ast_dangers', 'ast_controls', 'ast_equipments', 'ast_objetives',
+        foreach (['ast_activities', 'ast_dangers', 'ast_risks', 'ast_controls', 'ast_equipments', 'ast_objetives',
                   'epp_items', 'ihm_items', 'ihm_tools', 'ptf_questions'] as $tabla) {
             $esquema->create($tabla, function ($t) {
                 $t->id(); $t->string('name_es'); $t->string('name_pt')->nullable(); $t->string('name_en')->nullable();
@@ -333,6 +333,9 @@ class LegacyDatabaseFixture
 
         $viejo->table('ast_activities')->insert($catalogo(['Izaje', 'Limpieza']));
         $viejo->table('ast_dangers')->insert($catalogo(['Carga suspendida']));
+        // `ast_risks` es la consecuencia: la columna que va entre el peligro y
+        // el control y que la migracion no traia.
+        $viejo->table('ast_risks')->insert($catalogo(['Golpe por caida de carga']));
         $viejo->table('ast_controls')->insert($catalogo(['Delimitar area']));
         $viejo->table('ast_equipments')->insert($catalogo(['Grua', 'Escalera']));
         $viejo->table('ast_objetives')->insert($catalogo(['Fin de trabajo']));

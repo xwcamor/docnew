@@ -18,6 +18,27 @@ namespace App\Services\Migration;
 class LegacyFormMapper
 {
     /**
+     * Las claves de una fila las fija el motor, no esta clase.
+     *
+     * Aqui se escribian en castellano —`respuesta`, `pregunta`, `herramienta`—
+     * mientras los campos compuestos del front leen `answer`, `question` y
+     * `tool`. El resultado es que las 14 435 entregas migradas se abrian **en
+     * blanco**: los nombres de los items cuadraban (esa clave si coincidia) y
+     * ninguna respuesta salia marcada.
+     *
+     * No salto antes porque el PDF aplana el JSON tal cual, sin buscar claves
+     * concretas: el papel salia perfecto y la pantalla vacia. Y era peor que
+     * cosmetico — abrir un EPP migrado y darle a guardar sobrescribia con nulos
+     * cinco años de respuestas.
+     *
+     * Lo leen PersonChecklistField.vue, ToolChecklistField.vue y
+     * QuestionBankField.vue. La prueba `test_las_claves_son_las_que_lee_el_motor`
+     * las fija.
+     */
+    public const CLAVES_DE_ITEM = ['item_id', 'item', 'answer'];
+    public const CLAVES_DE_PREGUNTA = ['pregunta_id', 'question', 'answer'];
+
+    /**
      * Las respuestas numericas de la v1 no significan lo mismo en cada formato,
      * y en ningun caso son el indice de la lista de opciones. Salen de leer las
      * vistas originales (show_pdf_page1.erb de cada formato), que es donde
@@ -126,8 +147,8 @@ class LegacyFormMapper
 
             $lista[] = [
                 'pregunta_id' => $id,
-                'pregunta'    => $preguntas[$id] ?? null,
-                'respuesta'   => $this->etiqueta(self::RESPUESTAS_PTF, $r['answer'] ?? null),
+                'question'    => $preguntas[$id] ?? null,
+                'answer'      => $this->etiqueta(self::RESPUESTAS_PTF, $r['answer'] ?? null),
             ];
         }
 
@@ -149,9 +170,9 @@ class LegacyFormMapper
             $id = (int) $r['epp_item_id'];
 
             $lista[] = [
-                'item_id'   => $id,
-                'item'      => $items[$id] ?? null,
-                'respuesta' => $this->etiqueta(self::RESPUESTAS_EPP, $r['answer'] ?? null),
+                'item_id' => $id,
+                'item'    => $items[$id] ?? null,
+                'answer'  => $this->etiqueta(self::RESPUESTAS_EPP, $r['answer'] ?? null),
             ];
         }
 
@@ -180,14 +201,14 @@ class LegacyFormMapper
             $id = (int) $i['ihm_item_id'];
 
             $lista[] = [
-                'item_id'   => $id,
-                'item'      => $catalogo[$id] ?? null,
-                'respuesta' => $this->etiqueta(self::RESPUESTAS_IHM, $i['answer'] ?? null),
+                'item_id' => $id,
+                'item'    => $catalogo[$id] ?? null,
+                'answer'  => $this->etiqueta(self::RESPUESTAS_IHM, $i['answer'] ?? null),
             ];
         }
 
         return [
-            'herramienta'        => $herramienta['name'],
+            'tool'               => $herramienta['name'],
             'habilitada'         => isset($herramienta['is_enabled']) ? (bool) $herramienta['is_enabled'] : null,
             'medida_correctiva'  => $herramienta['correction_measure'] ?? null,
             'responsable'        => $herramienta['responsible'] ?? null,

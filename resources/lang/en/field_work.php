@@ -68,6 +68,7 @@ return [
     'risk_matrix' => [
         'activity'     => 'Activity',
         'danger'       => 'Hazard',
+        'risk'         => 'Risk',
         'control'      => 'Control',
         'severity'     => 'Severity',
         'probability'  => 'Probability',

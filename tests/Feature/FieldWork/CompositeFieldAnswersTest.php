@@ -71,7 +71,8 @@ class CompositeFieldAnswersTest extends TestCase
         $this->assertSame('Excavacion manual', $filas[0]->value_json['actividad']);
         $this->assertSame('c2', $filas[0]->value_json['severidad']);
         $this->assertSame('p3', $filas[0]->value_json['probabilidad']);
-        $this->assertSame(6, $filas[0]->value_json['riesgo']);
+        $this->assertSame('Contusiones y fracturas', $filas[0]->value_json['riesgo']);
+        $this->assertSame(6, $filas[0]->value_json['valor_riesgo']);
         $this->assertSame('alto', $filas[0]->value_json['nivel']);
         $this->assertSame('bajo', $filas[1]->value_json['nivel']);
     }
@@ -270,10 +271,14 @@ class CompositeFieldAnswersTest extends TestCase
         return [
             'actividad'    => 'Excavacion manual',
             'peligro'      => 'Caida de personas al mismo nivel',
+            // `riesgo` es la consecuencia, en texto, como en la v1: la fila va
+            // actividad → peligro → riesgo → control. El numero de la matriz es
+            // `valor_riesgo`.
+            'riesgo'       => 'Contusiones y fracturas',
             'control'      => 'Delimitar y señalizar el area',
             'severidad'    => $severidad,
             'probabilidad' => $probabilidad,
-            'riesgo'       => $riesgo,
+            'valor_riesgo' => $riesgo,
             'nivel'        => $nivel,
         ];
     }
