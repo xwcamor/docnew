@@ -528,6 +528,14 @@ html, body { overflow-x: clip; }
        fichas .sap-show). En dark cae a --color-page-bg (ver bloque dark). */
     --sap-page-bg:             #e9edf2;
 
+    /* Alto de la barra superior. Las paginas arrancan justo debajo, asi que es
+       lo unico que hay que descontarle al alto de la ventana para que la pagina
+       llegue exactamente al borde de abajo. Antes se descontaban 110px —un
+       numero que no correspondia a nada— y las paginas terminaban 66px antes
+       del borde: con una lista corta, la barra de seleccion masiva quedaba
+       flotando a media pantalla con el fondo gris debajo. */
+    --shell-bar-h: 44px;
+
     /* Borders */
     --color-border:            #e5e7eb;
     --color-border-soft:       #f0f0f0;
@@ -1032,7 +1040,7 @@ html[data-theme="dark"] .lift:hover {
    ════════════════════════════════════════════════════════════════════════════ */
 
 /* Fondo de página gris-azulado (bleed para cubrir todo el área de contenido). */
-.sap-index { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - 110px); }
+.sap-index { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - var(--shell-bar-h, 44px)); display: flex; flex-direction: column; }
 @media (max-width: 768px) {
     .sap-index { margin: -16px; padding: 16px; }
     /* En mobile el bleed es -16px (el contenedor padea 16, no 24). */
@@ -1216,7 +1224,9 @@ html[data-theme="dark"] .lift:hover {
    Da: fondo gris, franja blanca de título full-bleed, cuerpo sin fondo blanco,
    campos apilados (label izq + input der), footer toolbar fino full-bleed.
    ════════════════════════════════════════════════════════════════════════════ */
-.sap-form { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - 110px); }
+/* La pagina en columna para que la barra de acciones baje al pie: ver el bloque
+   de `.form-footer--floating` mas abajo. */
+.sap-form { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - var(--shell-bar-h, 44px)); display: flex; flex-direction: column; }
 /* Franja blanca del título a borde completo. */
 .sap-form .section-header {
     background: var(--color-surface, #fff);
@@ -1240,12 +1250,25 @@ html[data-theme="dark"] .lift:hover {
 .sap-form .form-section-title--spaced { margin-top: 18px; }
 /* Asterisco de obligatorio más fuerte. */
 .sap-form .ant-form-item-required::before { color: #e0182d; font-size: 1.05em; font-weight: 700; }
-/* Footer toolbar fino full-bleed (-52 = padding .sap-form 24 + body/card 28). */
-.sap-form .form-footer--floating { margin: 12px -52px 0; padding: 8px 52px; }
+/* Barra de acciones al PIE, no flotando justo debajo del ultimo campo.
+   Los margenes negativos la sacan a borde completo y comen los rellenos para
+   que apoye en el borde real. Horizontal: -52 = 24 de la pagina + 28 del
+   cuerpo/tarjeta.
+
+   Cada eslabon ENTRE la pagina y la barra se vuelve columna elastica. Va con
+   `:has` en vez de nombrar las clases una por una porque el envoltorio cambia
+   segun la pagina —unas usan `.form-body`, otras una tarjeta— y asi no toca las
+   que no tienen barra flotante (papeleras, editar todo). */
+.sap-form > *:has(.form-footer--floating),
+.sap-form > * > *:has(.form-footer--floating),
+.sap-form > * > * > *:has(.form-footer--floating) { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+/* Doble clase a proposito: el estilo `scoped` del componente trae su propio
+   `margin-top` y, a igual especificidad, gana el que Vite inyecta ultimo. */
+.sap-form .form-footer.form-footer--floating { margin: auto -52px -48px; padding: 8px 52px 14px; }
 @media (max-width: 768px) {
     .sap-form { margin: -16px; padding: 16px; }
     .sap-form .section-header { margin: -16px -16px 16px; padding: 14px 16px; }
-    .sap-form .form-footer--floating { margin: 12px -32px 0; padding: 8px 16px; }
+    .sap-form .form-footer.form-footer--floating { margin: auto -32px -40px; padding: 8px 16px 14px; }
 }
 
 /* ── Ficha (Show): franja blanca del título full-bleed sobre fondo gris ──────
@@ -1253,7 +1276,7 @@ html[data-theme="dark"] .lift:hover {
    columnas a 100% (por eso es una clase aparte de .sap-form, que sí hace eso y
    rompería los layouts de las fichas). Las tarjetas del Show quedan con su estilo
    propio (blancas). Trafos NO la usa (su ficha tiene layout propio). */
-.sap-show { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - 110px); }
+.sap-show { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - var(--shell-bar-h, 44px)); }
 .sap-show .section-header {
     background: var(--color-surface, #fff);
     margin: -24px -24px 20px;
