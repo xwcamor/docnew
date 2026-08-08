@@ -68,6 +68,7 @@ const fmt = (d) => formatDateTimeFull(d);
                     :can-delete="can('approval_rules.delete')"
                     :can-see-audit="canSeeAudit"
                     :is-super="isSuper"
+                    :lock="approvalRule.lock"
                     :is-global="approvalRule.tenant_id === null"
                 />
             </template>

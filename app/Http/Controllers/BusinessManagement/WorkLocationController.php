@@ -23,6 +23,23 @@ use Illuminate\Http\Request;
 class WorkLocationController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesRecordLocking;
+
+    /**
+     * Pone el candado. En un catalogo no es una formalidad: mientras este
+     * puesto, la fila no se edita, no se borra, no se desactiva y las masivas
+     * la saltan. Lo que trajo la migracion nace asi.
+     */
+    public function lock(Request $request, WorkLocation $workLocation): RedirectResponse
+    {
+        return $this->applyLock($workLocation, $request);
+    }
+
+    /** Saca el candado. Un admin no puede quitar uno que puso el sistema. */
+    public function unlock(Request $request, WorkLocation $workLocation): RedirectResponse
+    {
+        return $this->applyUnlock($workLocation, $request);
+    }
 
     public function index(Request $request, WorkLocationService $service)
     {
@@ -103,7 +120,10 @@ class WorkLocationController extends Controller
             : [];
 
         return inertia('WorkLocations/Show', [
-            'workLocation' => $this->payload($workLocation, withAudit: true, service: $service),
+            'workLocation' => array_merge(
+                $this->payload($workLocation, withAudit: true, service: $service),
+                ['lock' => $this->lockMeta($workLocation, $request)],
+            ),
             // Lo que cuelga de esta fila: es la respuesta a "¿por que no me deja
             // borrarla?" puesta antes de que la pregunta se haga.
             'usages'      => $service->usados($workLocation),
@@ -140,6 +160,9 @@ class WorkLocationController extends Controller
 
     public function edit(Request $request, WorkLocation $workLocation, WorkLocationService $service)
     {
+        // Bloqueado: ni se abre el formulario.
+        abort_if($workLocation->is_locked, 403, __('locks.cannot_edit_locked'));
+
         return inertia('WorkLocations/Form', [
             'workLocation' => $this->payload($workLocation, service: $service),
             'countryOptions'   => $this->countryOptions(),
@@ -149,6 +172,9 @@ class WorkLocationController extends Controller
 
     public function update(UpdateWorkLocationRequest $request, WorkLocation $workLocation, WorkLocationService $service): RedirectResponse
     {
+        // Bloqueado: el formulario no se abre, pero el POST puede llegar igual.
+        abort_if($workLocation->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->update($workLocation, $request->validated());
 
         return redirect()
@@ -162,6 +188,9 @@ class WorkLocationController extends Controller
      */
     public function delete(WorkLocation $workLocation, WorkLocationService $service)
     {
+        // Bloqueado: ni se abre la confirmacion.
+        abort_if($workLocation->is_locked, 403, __('locks.cannot_delete_locked'));
+
         return inertia('WorkLocations/Delete', [
             'workLocation' => $this->payload($workLocation, service: $service),
             'blockedReason' => $service->motivoParaNoBorrar($workLocation),
@@ -170,6 +199,9 @@ class WorkLocationController extends Controller
 
     public function deleteSave(DeleteWorkLocationRequest $request, WorkLocation $workLocation, WorkLocationService $service): RedirectResponse
     {
+        // Bloqueado: y tampoco por la puerta de atras.
+        abort_if($workLocation->is_locked, 403, __('locks.cannot_delete_locked'));
+
         try {
             $service->delete($workLocation, $request->validated()['deleted_description']);
         } catch (\DomainException $e) {
@@ -187,6 +219,9 @@ class WorkLocationController extends Controller
     /** Desactivar: la alternativa al borrado cuando la fila ya esta en uso. */
     public function deactivate(WorkLocation $workLocation, WorkLocationService $service): RedirectResponse
     {
+        // Desactivar tambien es cambiarlo: los planes nuevos dejarian de verlo.
+        abort_if($workLocation->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->deactivate($workLocation);
 
         return redirect()
@@ -261,7 +296,15 @@ class WorkLocationController extends Controller
     public function bulkDelete(BulkDeleteWorkLocationRequest $request, WorkLocationService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkDelete($data['ids'], $data['deleted_description']);
+
+        // Las bloqueadas se apartan antes de llegar al servicio: una masiva no
+        // es sitio para saltarse un candado sin que nadie lo vea.
+        [$permitidos, $bloqueados] = $this->splitLockedIds(WorkLocation::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $resultado = $service->bulkDelete($permitidos, $data['deleted_description']);
 
         if ($resultado['count'] === 0) {
             return back()->with('error', __('work_locations.bulk_all_protected', ['count' => $resultado['skipped']]));
@@ -273,6 +316,9 @@ class WorkLocationController extends Controller
         if ($resultado['skipped'] > 0) {
             $msg .= ' · ' . __('work_locations.bulk_skipped_protected', ['count' => $resultado['skipped']]);
         }
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
 
         return back()
             ->with('success', $msg)
@@ -282,9 +328,20 @@ class WorkLocationController extends Controller
     public function bulkSetActive(BulkSetActiveWorkLocationRequest $request, WorkLocationService $service): RedirectResponse
     {
         $data = $request->validated();
-        $cambiados = $service->bulkSetActive($data['ids'], (bool) $data['is_active']);
 
-        return back()->with('success', __('global.updated_success') . " ({$cambiados})");
+        [$permitidos, $bloqueados] = $this->splitLockedIds(WorkLocation::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $cambiados = $service->bulkSetActive($permitidos, (bool) $data['is_active']);
+
+        $msg = __('global.updated_success') . " ({$cambiados})";
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function undoLastDelete(Request $request, WorkLocationService $service): RedirectResponse

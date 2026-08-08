@@ -136,6 +136,98 @@ abstract class CatalogTestCase extends TestCase
         }
     }
 
+    // ── El candado ───────────────────────────────────────────────────────────
+
+    /**
+     * Con el candado puesto, la fila no se toca por ninguna de las puertas.
+     *
+     * En un catalogo el bloqueo pesa mas que en lo demas: renombrar una sede o
+     * un tipo de trabajo cambia de golpe lo que dicen todos los planes que la
+     * citan, cerrados y firmados incluidos. Por eso lo que trajo la migracion
+     * de la v1 nace bloqueado.
+     *
+     * Se comprueban las cuatro puertas y no solo el formulario, porque esconder
+     * el boton no es proteger nada: el PUT y el DELETE llegan igual si alguien
+     * los manda a mano.
+     */
+    public function test_una_fila_bloqueada_no_se_edita_ni_se_borra(): void
+    {
+        $fila = $this->unaFila();
+        $fila->lock($this->makeSuper());
+
+        $this->actingAs($this->admin());
+        $modulo = $this->moduleKey();
+
+        $this->assertProhibido($this->get(route("business_management.{$modulo}.edit", $fila->slug)));
+        $this->assertProhibido($this->get(route("business_management.{$modulo}.delete", $fila->slug)));
+
+        // El PUT y el DELETE se cortan en `authorize()` del FormRequest, que
+        // corre antes de validar: con el cuerpo vacio la respuesta sigue siendo
+        // «bloqueado» y no «falta el nombre».
+        $this->assertProhibido($this->put(route("business_management.{$modulo}.update", $fila->slug), []));
+        $this->assertProhibido($this->delete(route("business_management.{$modulo}.deleteSave", $fila->slug), [
+            'deleted_description' => 'da igual lo que ponga aqui',
+        ]));
+
+        // Y sigue ahi: ni borrada ni en la papelera.
+        $this->assertNull($fila->fresh()->deleted_at);
+    }
+
+    /** Consultarla si se puede: el candado impide cambiarla, no leerla. */
+    public function test_una_fila_bloqueada_se_sigue_viendo(): void
+    {
+        $fila = $this->unaFila();
+        $fila->lock($this->makeSuper());
+
+        $this->actingAs($this->admin());
+
+        $this->get(route("business_management.{$this->moduleKey()}.show", $fila->slug))->assertOk();
+    }
+
+    /**
+     * Un admin no puede quitar un candado que puso el sistema.
+     *
+     * Es la jerarquia del trait: `lock_scope = 'super'` solo lo saca el super.
+     * Los catalogos que llegaron de la v1 estan justo asi, y esa es la idea —
+     * que no se deshaga la referencia del sistema anterior desde el panel de un
+     * workspace.
+     */
+    public function test_el_admin_no_saca_un_candado_del_sistema(): void
+    {
+        $fila = $this->unaFila();
+        $fila->lock($this->makeSuper());
+        $modulo = $this->moduleKey();
+
+        $this->actingAs($this->admin());
+        $this->assertProhibido($this->post(route("business_management.{$modulo}.unlock", $fila->slug)));
+        $this->assertTrue($fila->fresh()->is_locked);
+
+        // El super si.
+        $this->actingAs($this->makeSuper());
+        $this->post(route("business_management.{$modulo}.unlock", $fila->slug));
+        $this->assertFalse($fila->fresh()->is_locked);
+
+        // Y una vez suelta, se vuelve a editar.
+        $this->actingAs($this->admin());
+        $this->get(route("business_management.{$modulo}.edit", $fila->slug))->assertOk();
+    }
+
+    /** Una masiva tampoco es una puerta trasera: las bloqueadas se apartan. */
+    public function test_una_masiva_no_se_lleva_por_delante_una_bloqueada(): void
+    {
+        $bloqueada = $this->unaFila();
+        $bloqueada->lock($this->makeSuper());
+
+        $this->actingAs($this->admin());
+
+        $this->post(route("business_management.{$this->moduleKey()}.bulk_delete"), [
+            'ids' => [$bloqueada->id],
+            'deleted_description' => 'limpieza de catalogo',
+        ]);
+
+        $this->assertNull($bloqueada->fresh()->deleted_at);
+    }
+
     /**
      * Un 403 en una peticion de navegador no se ve como un 403: el manejador de
      * errores redirige al panel con un aviso. Comprobamos lo que el usuario ve

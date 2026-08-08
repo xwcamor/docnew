@@ -684,10 +684,18 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('approval_rules/{approvalRule}/deleteSave', [ApprovalRuleController::class, 'deleteSave'])->name('approval_rules.deleteSave');
     });
 
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('approval_rules/{approvalRule}/lock',   [ApprovalRuleController::class, 'lock'])->name('approval_rules.lock');
+        Route::post('approval_rules/{approvalRule}/unlock', [ApprovalRuleController::class, 'unlock'])->name('approval_rules.unlock');
+    });
+
 
     // ── WorkTypes ── que clase de maniobra es, y que papeles exige.
-    // Sin exportar ni importar (el catalogo es corto: un puñado por pais) y sin
-    // lock ni duplicar, por lo mismo que ApprovalRules.
+    // Sin exportar ni importar (el catalogo es corto: un puñado por pais) ni
+    // duplicar. Lock si: ver mas abajo.
 
     // 1) Papelera + restaurar + borrado definitivo (solo super)
     Route::middleware('role:super')->group(function () {
@@ -733,6 +741,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('permission:work_types.delete')->group(function () {
         Route::get('work_types/{workType}/delete',        [WorkTypeController::class, 'delete'])->name('work_types.delete');
         Route::delete('work_types/{workType}/deleteSave', [WorkTypeController::class, 'deleteSave'])->name('work_types.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('work_types/{workType}/lock',   [WorkTypeController::class, 'lock'])->name('work_types.lock');
+        Route::post('work_types/{workType}/unlock', [WorkTypeController::class, 'unlock'])->name('work_types.unlock');
     });
 
     // ── WorkLocations ── Dónde se trabaja: cada plan de trabajo sale de una sede.
@@ -786,6 +802,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('work_locations/{workLocation}/deleteSave', [WorkLocationController::class, 'deleteSave'])->name('work_locations.deleteSave');
     });
 
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('work_locations/{workLocation}/lock',   [WorkLocationController::class, 'lock'])->name('work_locations.lock');
+        Route::post('work_locations/{workLocation}/unlock', [WorkLocationController::class, 'unlock'])->name('work_locations.unlock');
+    });
+
     // ── Workstations ── Los puestos de cada sede. Un plan de trabajo se hace en uno de ellos.
     // Sin exportar ni importar: es un catalogo de un puñado de filas que se
     // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
@@ -835,6 +859,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('permission:workstations.delete')->group(function () {
         Route::get('workstations/{workstation}/delete',        [WorkstationController::class, 'delete'])->name('workstations.delete');
         Route::delete('workstations/{workstation}/deleteSave', [WorkstationController::class, 'deleteSave'])->name('workstations.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('workstations/{workstation}/lock',   [WorkstationController::class, 'lock'])->name('workstations.lock');
+        Route::post('workstations/{workstation}/unlock', [WorkstationController::class, 'unlock'])->name('workstations.unlock');
     });
 
     // ── WorkAreas ── La parte de la sede donde se trabaja: es lo que se anota en el plan.
@@ -888,6 +920,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('work_areas/{workArea}/deleteSave', [WorkAreaController::class, 'deleteSave'])->name('work_areas.deleteSave');
     });
 
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('work_areas/{workArea}/lock',   [WorkAreaController::class, 'lock'])->name('work_areas.lock');
+        Route::post('work_areas/{workArea}/unlock', [WorkAreaController::class, 'unlock'])->name('work_areas.unlock');
+    });
+
     // ── Positions ── Qué hace cada persona en obra, y cuáles de esos cargos pueden firmar una aprobación.
     // Sin exportar ni importar: es un catalogo de un puñado de filas que se
     // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
@@ -939,6 +979,14 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::delete('positions/{position}/deleteSave', [PositionController::class, 'deleteSave'])->name('positions.deleteSave');
     });
 
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('positions/{position}/lock',   [PositionController::class, 'lock'])->name('positions.lock');
+        Route::post('positions/{position}/unlock', [PositionController::class, 'unlock'])->name('positions.unlock');
+    });
+
     // ── Nationalities ── La nacionalidad que se anota en la ficha de cada persona.
     // Sin exportar ni importar: es un catalogo de un puñado de filas que se
     // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
@@ -988,5 +1036,13 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('permission:nationalities.delete')->group(function () {
         Route::get('nationalities/{nationality}/delete',        [NationalityController::class, 'delete'])->name('nationalities.delete');
         Route::delete('nationalities/{nationality}/deleteSave', [NationalityController::class, 'deleteSave'])->name('nationalities.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('nationalities/{nationality}/lock',   [NationalityController::class, 'lock'])->name('nationalities.lock');
+        Route::post('nationalities/{nationality}/unlock', [NationalityController::class, 'unlock'])->name('nationalities.unlock');
     });
 });

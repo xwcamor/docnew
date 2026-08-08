@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\Lockable;
 use App\Traits\BelongsToTenantOrGlobal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ class Nationality extends Model
     use HasFactory;
     use Auditable;
     use SoftDeletes;
+    use Lockable;
     use BelongsToTenantOrGlobal;
 
     // `code` es el texto que se lee en la ficha de la persona —«Peruana»,

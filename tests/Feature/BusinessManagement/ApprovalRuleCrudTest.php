@@ -308,6 +308,44 @@ class ApprovalRuleCrudTest extends TestCase
         $this->assertProhibido($this->actingAs($this->admin())->get(route('business_management.approval_rules.trash')));
     }
 
+    // ── El candado ───────────────────────────────────────────────────────────
+
+    /**
+     * Una regla bloqueada no se edita ni se borra.
+     *
+     * Una regla dice quien tiene que firmar un plan. Cambiarla a mitad de una
+     * obra cambia lo que se le exige a lo que ya esta en marcha, y las tres que
+     * vinieron de la v1 son precisamente las que llevan firmadas miles de
+     * veces. De ahi que lleguen bloqueadas.
+     */
+    public function test_una_regla_bloqueada_no_se_edita_ni_se_borra(): void
+    {
+        $regla = $this->regla(ApproverRole::SUPERVISOR, 1);
+
+        $super = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $super->assignRole(Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Test super']));
+        $regla->lock($super);
+
+        $this->actingAs($this->admin());
+
+        $this->assertProhibido($this->get(route('business_management.approval_rules.edit', $regla->slug)));
+        $this->assertProhibido($this->put(route('business_management.approval_rules.update', $regla->slug), [
+            'country_id' => 1, 'approver_role' => ApproverRole::HSE_SUPERVISOR, 'priority_level' => 9,
+        ]));
+        $this->assertProhibido($this->delete(route('business_management.approval_rules.deleteSave', $regla->slug), [
+            'deleted_description' => 'ya no hace falta',
+        ]));
+
+        $regla->refresh();
+        $this->assertSame(ApproverRole::SUPERVISOR, $regla->approver_role);
+        $this->assertSame(1, $regla->priority_level);
+        $this->assertNull($regla->deleted_at);
+
+        // Y un admin no puede quitar un candado que puso el sistema.
+        $this->assertProhibido($this->post(route('business_management.approval_rules.unlock', $regla->slug)));
+        $this->assertTrue($regla->fresh()->is_locked);
+    }
+
     /** El listado trae los catalogos de los selectores: sin ellos no se filtra. */
     public function test_el_listado_trae_los_catalogos_de_los_selectores(): void
     {

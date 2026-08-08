@@ -14,6 +14,15 @@ class UpdateWorkAreaRequest extends FormRequest
 
     public function authorize(): bool
     {
+        // Registro BLOQUEADO (Lockable): no se edita hasta desbloquearlo.
+        // Va aqui y no en el controlador porque `authorize()` corre ANTES de
+        // validar: si no, un cuerpo invalido devolveria «falta el nombre» en
+        // vez de «esta bloqueado», que es lo que pasa de verdad.
+        $workArea = $this->route('workArea');
+        if (is_object($workArea) && $workArea->is_locked) {
+            return false;
+        }
+
         return true;
     }
 

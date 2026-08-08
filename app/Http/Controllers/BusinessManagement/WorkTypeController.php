@@ -34,6 +34,23 @@ use Illuminate\Http\Request;
 class WorkTypeController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesRecordLocking;
+
+    /**
+     * Pone el candado. En un catalogo no es una formalidad: mientras este
+     * puesto, la fila no se edita, no se borra, no se desactiva y las masivas
+     * la saltan. Lo que trajo la migracion nace asi.
+     */
+    public function lock(Request $request, WorkType $workType): RedirectResponse
+    {
+        return $this->applyLock($workType, $request);
+    }
+
+    /** Saca el candado. Un admin no puede quitar uno que puso el sistema. */
+    public function unlock(Request $request, WorkType $workType): RedirectResponse
+    {
+        return $this->applyUnlock($workType, $request);
+    }
 
     public function index(Request $request, WorkTypeService $service)
     {
@@ -119,13 +136,18 @@ class WorkTypeController extends Controller
             : [];
 
         return inertia('WorkTypes/Show', [
-            'workType'      => $this->payload($workType, withAudit: true),
+            'workType'      => array_merge(
+                $this->payload($workType, withAudit: true),
+                ['lock' => $this->lockMeta($workType, $request)],
+            ),
             // La matriz se edita aquí mismo: cambiar qué papeles exige un tipo
             // es lo que más se hace, y no debería obligar a abrir el formulario
             // entero (donde de paso se toca el país, que es otra magnitud).
             'formTemplates' => $service->matrizDeFormatos($workType),
             'openPlans'     => $service->planesAbiertos($workType),
-            'canEditForms'  => $request->user()?->can('work_types.edit') ?? false,
+            // Con el candado puesto la matriz se lee pero no se toca: cambiar
+            // qué papeles exige el tipo alcanza a todos los planes abiertos.
+            'canEditForms'  => ($request->user()?->can('work_types.edit') ?? false) && ! $workType->is_locked,
             'recordAudit'   => $this->recordAuditMeta($workType),
             'activity'      => $activity,
         ]);
@@ -161,6 +183,9 @@ class WorkTypeController extends Controller
 
     public function edit(WorkType $workType, WorkTypeService $service)
     {
+        // Bloqueado: ni se abre el formulario.
+        abort_if($workType->is_locked, 403, __('locks.cannot_edit_locked'));
+
         return inertia('WorkTypes/Form', [
             'workType'      => $this->payload($workType),
             'formTemplates' => $service->matrizDeFormatos($workType),
@@ -171,6 +196,9 @@ class WorkTypeController extends Controller
 
     public function update(UpdateWorkTypeRequest $request, WorkType $workType, WorkTypeService $service): RedirectResponse
     {
+        // Bloqueado: el formulario no se abre, pero el POST puede llegar igual.
+        abort_if($workType->is_locked, 403, __('locks.cannot_edit_locked'));
+
         // Se cuentan los planes ANTES de guardar: si el cambio incluye el país,
         // después ya no sería el mismo conjunto de planes el que se avisa.
         $abiertos = $service->planesAbiertos($workType);
@@ -190,6 +218,9 @@ class WorkTypeController extends Controller
      */
     public function updateFormTemplates(UpdateFormTemplatesRequest $request, WorkType $workType, WorkTypeService $service): RedirectResponse
     {
+        // Bloqueado: cambiar que formatos exige el tipo alcanza a todos los planes abiertos.
+        abort_if($workType->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $abiertos = $service->planesAbiertos($workType);
         $cambios  = $service->sincronizarFormatos($workType, $request->validated()['form_templates']);
 
@@ -222,6 +253,9 @@ class WorkTypeController extends Controller
 
     public function delete(WorkType $workType, WorkTypeService $service)
     {
+        // Bloqueado: ni se abre la confirmacion.
+        abort_if($workType->is_locked, 403, __('locks.cannot_delete_locked'));
+
         return inertia('WorkTypes/Delete', [
             'workType' => $this->payload($workType),
             // Un tipo con planes abiertos detrás no se borra a la ligera: esos
@@ -235,6 +269,9 @@ class WorkTypeController extends Controller
 
     public function deleteSave(DeleteWorkTypeRequest $request, WorkType $workType, WorkTypeService $service): RedirectResponse
     {
+        // Bloqueado: y tampoco por la puerta de atras.
+        abort_if($workType->is_locked, 403, __('locks.cannot_delete_locked'));
+
         $service->delete($workType, $request->validated()['deleted_description']);
 
         $this->storeUndoableDelete([$workType->id]);
@@ -333,7 +370,15 @@ class WorkTypeController extends Controller
     public function bulkDelete(BulkDeleteWorkTypeRequest $request, WorkTypeService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkDelete($data['ids'], $data['deleted_description']);
+
+        // Los bloqueados se apartan antes de llegar al servicio: una masiva no
+        // es sitio para saltarse un candado sin que nadie lo vea.
+        [$permitidos, $bloqueados] = $this->splitLockedIds(WorkType::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $resultado = $service->bulkDelete($permitidos, $data['deleted_description']);
 
         if (! empty($resultado['queued'])) {
             return back()->with('success', __('global.bulk_in_queue', ['count' => $resultado['count']]));
@@ -341,8 +386,13 @@ class WorkTypeController extends Controller
 
         $this->storeUndoableDelete($resultado['deleted']);
 
+        $msg = __('global.deleted_success') . ' (' . $resultado['count'] . ')';
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+
         return back()
-            ->with('success', __('global.deleted_success') . ' (' . $resultado['count'] . ')')
+            ->with('success', $msg)
             ->with('recentDelete', ['count' => $resultado['count'], 'seconds' => 60]);
     }
 
@@ -369,13 +419,24 @@ class WorkTypeController extends Controller
     public function bulkSetActive(BulkSetActiveWorkTypeRequest $request, WorkTypeService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkSetActive($data['ids'], (bool) $data['is_active']);
+
+        [$permitidos, $bloqueados] = $this->splitLockedIds(WorkType::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $resultado = $service->bulkSetActive($permitidos, (bool) $data['is_active']);
 
         if (! empty($resultado['queued'])) {
             return back()->with('success', __('global.bulk_in_queue', ['count' => $resultado['count']]));
         }
 
-        return back()->with('success', __('global.updated_success') . " ({$resultado['changed']})");
+        $msg = __('global.updated_success') . " ({$resultado['changed']})";
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+
+        return back()->with('success', $msg);
     }
 
     protected function payload(WorkType $m, bool $withAudit = false): array

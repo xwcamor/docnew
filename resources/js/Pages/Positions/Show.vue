@@ -63,6 +63,7 @@ const fmt = (d) => formatDateTimeFull(d);
                     :can-delete="can('positions.delete')"
                     :can-see-audit="canSeeAudit"
                     :is-super="isSuper"
+                    :lock="position.lock"
                     :is-global="position.tenant_id === null"
                 />
             </template>

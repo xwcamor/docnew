@@ -509,6 +509,57 @@ class WorkTypeCrudTest extends TestCase
         $this->assertSame(1, $tipo->fresh()->formTemplates()->count());
     }
 
+    // ── El candado ───────────────────────────────────────────────────────────
+
+    /**
+     * Un tipo bloqueado no se edita, y su matriz de formatos tampoco.
+     *
+     * Es lo que hace que el candado valga la pena aqui: el pivote se lee EN
+     * VIVO, asi que quitarle el AST a «Izaje» alcanza a los planes abiertos en
+     * el momento en que se guarda. Un catalogo que llego de la v1 no deberia
+     * poder cambiar eso sin que alguien quite el candado a proposito.
+     */
+    public function test_un_tipo_bloqueado_no_se_edita_ni_cambia_sus_formatos(): void
+    {
+        $tipo = $this->tipo('Izaje');
+        $ast  = $this->formato('AST');
+        $tipo->formTemplates()->sync([$ast->id => ['is_required' => true]]);
+
+        $super = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $super->assignRole(Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Test super']));
+        $tipo->lock($super);
+
+        $this->actingAs($this->admin());
+
+        $this->assertProhibido($this->get(route('business_management.work_types.edit', $tipo->slug)));
+        $this->assertProhibido($this->put(route('business_management.work_types.update', $tipo->slug), [
+            'country_id' => 1, 'code' => 'Otro',
+        ]));
+        $this->assertProhibido($this->put(route('business_management.work_types.form_templates.update', $tipo->slug), [
+            'form_templates' => [],
+        ]));
+
+        $this->assertSame('Izaje', $tipo->fresh()->code);
+        $this->assertSame(1, $tipo->fresh()->formTemplates()->count());
+    }
+
+    /** La ficha se abre igual, pero con la matriz en modo lectura. */
+    public function test_la_ficha_de_un_tipo_bloqueado_no_ofrece_tocar_la_matriz(): void
+    {
+        $tipo = $this->tipo('Izaje');
+
+        $super = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $super->assignRole(Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Test super']));
+        $tipo->lock($super);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_types.show', $tipo->slug))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->where('canEditForms', false)
+                ->where('workType.lock.is_locked', true));
+    }
+
     public function test_la_papelera_es_solo_del_super(): void
     {
         $this->assertProhibido($this->actingAs($this->admin())->get(route('business_management.work_types.trash')));

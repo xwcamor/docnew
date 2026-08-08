@@ -103,6 +103,7 @@ const guardar = () => {
                     :can-delete="can('work_types.delete')"
                     :can-see-audit="canSeeAudit"
                     :is-super="isSuper"
+                    :lock="workType.lock"
                     :is-global="workType.tenant_id === null"
                 />
             </template>

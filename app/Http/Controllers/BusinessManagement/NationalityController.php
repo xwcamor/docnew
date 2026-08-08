@@ -23,6 +23,23 @@ use Illuminate\Http\Request;
 class NationalityController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesRecordLocking;
+
+    /**
+     * Pone el candado. En un catalogo no es una formalidad: mientras este
+     * puesto, la fila no se edita, no se borra, no se desactiva y las masivas
+     * la saltan. Lo que trajo la migracion nace asi.
+     */
+    public function lock(Request $request, Nationality $nationality): RedirectResponse
+    {
+        return $this->applyLock($nationality, $request);
+    }
+
+    /** Saca el candado. Un admin no puede quitar uno que puso el sistema. */
+    public function unlock(Request $request, Nationality $nationality): RedirectResponse
+    {
+        return $this->applyUnlock($nationality, $request);
+    }
 
     public function index(Request $request, NationalityService $service)
     {
@@ -103,7 +120,10 @@ class NationalityController extends Controller
             : [];
 
         return inertia('Nationalities/Show', [
-            'nationality' => $this->payload($nationality, withAudit: true, service: $service),
+            'nationality' => array_merge(
+                $this->payload($nationality, withAudit: true, service: $service),
+                ['lock' => $this->lockMeta($nationality, $request)],
+            ),
             // Lo que cuelga de esta fila: es la respuesta a "¿por que no me deja
             // borrarla?" puesta antes de que la pregunta se haga.
             'usages'      => $service->usados($nationality),
@@ -140,6 +160,9 @@ class NationalityController extends Controller
 
     public function edit(Request $request, Nationality $nationality, NationalityService $service)
     {
+        // Bloqueado: ni se abre el formulario.
+        abort_if($nationality->is_locked, 403, __('locks.cannot_edit_locked'));
+
         return inertia('Nationalities/Form', [
             'nationality' => $this->payload($nationality, service: $service),
             'countryOptions'   => $this->countryOptions(),
@@ -149,6 +172,9 @@ class NationalityController extends Controller
 
     public function update(UpdateNationalityRequest $request, Nationality $nationality, NationalityService $service): RedirectResponse
     {
+        // Bloqueado: el formulario no se abre, pero el POST puede llegar igual.
+        abort_if($nationality->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->update($nationality, $request->validated());
 
         return redirect()
@@ -162,6 +188,9 @@ class NationalityController extends Controller
      */
     public function delete(Nationality $nationality, NationalityService $service)
     {
+        // Bloqueado: ni se abre la confirmacion.
+        abort_if($nationality->is_locked, 403, __('locks.cannot_delete_locked'));
+
         return inertia('Nationalities/Delete', [
             'nationality' => $this->payload($nationality, service: $service),
             'blockedReason' => $service->motivoParaNoBorrar($nationality),
@@ -170,6 +199,9 @@ class NationalityController extends Controller
 
     public function deleteSave(DeleteNationalityRequest $request, Nationality $nationality, NationalityService $service): RedirectResponse
     {
+        // Bloqueado: y tampoco por la puerta de atras.
+        abort_if($nationality->is_locked, 403, __('locks.cannot_delete_locked'));
+
         try {
             $service->delete($nationality, $request->validated()['deleted_description']);
         } catch (\DomainException $e) {
@@ -187,6 +219,9 @@ class NationalityController extends Controller
     /** Desactivar: la alternativa al borrado cuando la fila ya esta en uso. */
     public function deactivate(Nationality $nationality, NationalityService $service): RedirectResponse
     {
+        // Desactivar tambien es cambiarlo: los planes nuevos dejarian de verlo.
+        abort_if($nationality->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->deactivate($nationality);
 
         return redirect()
@@ -261,7 +296,15 @@ class NationalityController extends Controller
     public function bulkDelete(BulkDeleteNationalityRequest $request, NationalityService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkDelete($data['ids'], $data['deleted_description']);
+
+        // Las bloqueadas se apartan antes de llegar al servicio: una masiva no
+        // es sitio para saltarse un candado sin que nadie lo vea.
+        [$permitidos, $bloqueados] = $this->splitLockedIds(Nationality::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $resultado = $service->bulkDelete($permitidos, $data['deleted_description']);
 
         if ($resultado['count'] === 0) {
             return back()->with('error', __('nationalities.bulk_all_protected', ['count' => $resultado['skipped']]));
@@ -273,6 +316,9 @@ class NationalityController extends Controller
         if ($resultado['skipped'] > 0) {
             $msg .= ' · ' . __('nationalities.bulk_skipped_protected', ['count' => $resultado['skipped']]);
         }
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
 
         return back()
             ->with('success', $msg)
@@ -282,9 +328,20 @@ class NationalityController extends Controller
     public function bulkSetActive(BulkSetActiveNationalityRequest $request, NationalityService $service): RedirectResponse
     {
         $data = $request->validated();
-        $cambiados = $service->bulkSetActive($data['ids'], (bool) $data['is_active']);
 
-        return back()->with('success', __('global.updated_success') . " ({$cambiados})");
+        [$permitidos, $bloqueados] = $this->splitLockedIds(Nationality::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $cambiados = $service->bulkSetActive($permitidos, (bool) $data['is_active']);
+
+        $msg = __('global.updated_success') . " ({$cambiados})";
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function undoLastDelete(Request $request, NationalityService $service): RedirectResponse

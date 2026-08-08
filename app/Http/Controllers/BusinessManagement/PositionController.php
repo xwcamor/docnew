@@ -23,6 +23,23 @@ use Illuminate\Http\Request;
 class PositionController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesRecordLocking;
+
+    /**
+     * Pone el candado. En un catalogo no es una formalidad: mientras este
+     * puesto, la fila no se edita, no se borra, no se desactiva y las masivas
+     * la saltan. Lo que trajo la migracion nace asi.
+     */
+    public function lock(Request $request, Position $position): RedirectResponse
+    {
+        return $this->applyLock($position, $request);
+    }
+
+    /** Saca el candado. Un admin no puede quitar uno que puso el sistema. */
+    public function unlock(Request $request, Position $position): RedirectResponse
+    {
+        return $this->applyUnlock($position, $request);
+    }
 
     public function index(Request $request, PositionService $service)
     {
@@ -103,7 +120,10 @@ class PositionController extends Controller
             : [];
 
         return inertia('Positions/Show', [
-            'position' => $this->payload($position, withAudit: true, service: $service),
+            'position' => array_merge(
+                $this->payload($position, withAudit: true, service: $service),
+                ['lock' => $this->lockMeta($position, $request)],
+            ),
             // Lo que cuelga de esta fila: es la respuesta a "¿por que no me deja
             // borrarla?" puesta antes de que la pregunta se haga.
             'usages'      => $service->usados($position),
@@ -140,6 +160,9 @@ class PositionController extends Controller
 
     public function edit(Request $request, Position $position, PositionService $service)
     {
+        // Bloqueado: ni se abre el formulario.
+        abort_if($position->is_locked, 403, __('locks.cannot_edit_locked'));
+
         return inertia('Positions/Form', [
             'position' => $this->payload($position, service: $service),
             'countryOptions'   => $this->countryOptions(),
@@ -149,6 +172,9 @@ class PositionController extends Controller
 
     public function update(UpdatePositionRequest $request, Position $position, PositionService $service): RedirectResponse
     {
+        // Bloqueado: el formulario no se abre, pero el POST puede llegar igual.
+        abort_if($position->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->update($position, $request->validated());
 
         return redirect()
@@ -162,6 +188,9 @@ class PositionController extends Controller
      */
     public function delete(Position $position, PositionService $service)
     {
+        // Bloqueado: ni se abre la confirmacion.
+        abort_if($position->is_locked, 403, __('locks.cannot_delete_locked'));
+
         return inertia('Positions/Delete', [
             'position' => $this->payload($position, service: $service),
             'blockedReason' => $service->motivoParaNoBorrar($position),
@@ -170,6 +199,9 @@ class PositionController extends Controller
 
     public function deleteSave(DeletePositionRequest $request, Position $position, PositionService $service): RedirectResponse
     {
+        // Bloqueado: y tampoco por la puerta de atras.
+        abort_if($position->is_locked, 403, __('locks.cannot_delete_locked'));
+
         try {
             $service->delete($position, $request->validated()['deleted_description']);
         } catch (\DomainException $e) {
@@ -187,6 +219,9 @@ class PositionController extends Controller
     /** Desactivar: la alternativa al borrado cuando la fila ya esta en uso. */
     public function deactivate(Position $position, PositionService $service): RedirectResponse
     {
+        // Desactivar tambien es cambiarlo: los planes nuevos dejarian de verlo.
+        abort_if($position->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->deactivate($position);
 
         return redirect()
@@ -261,7 +296,15 @@ class PositionController extends Controller
     public function bulkDelete(BulkDeletePositionRequest $request, PositionService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkDelete($data['ids'], $data['deleted_description']);
+
+        // Las bloqueadas se apartan antes de llegar al servicio: una masiva no
+        // es sitio para saltarse un candado sin que nadie lo vea.
+        [$permitidos, $bloqueados] = $this->splitLockedIds(Position::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $resultado = $service->bulkDelete($permitidos, $data['deleted_description']);
 
         if ($resultado['count'] === 0) {
             return back()->with('error', __('positions.bulk_all_protected', ['count' => $resultado['skipped']]));
@@ -273,6 +316,9 @@ class PositionController extends Controller
         if ($resultado['skipped'] > 0) {
             $msg .= ' · ' . __('positions.bulk_skipped_protected', ['count' => $resultado['skipped']]);
         }
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
 
         return back()
             ->with('success', $msg)
@@ -282,9 +328,20 @@ class PositionController extends Controller
     public function bulkSetActive(BulkSetActivePositionRequest $request, PositionService $service): RedirectResponse
     {
         $data = $request->validated();
-        $cambiados = $service->bulkSetActive($data['ids'], (bool) $data['is_active']);
 
-        return back()->with('success', __('global.updated_success') . " ({$cambiados})");
+        [$permitidos, $bloqueados] = $this->splitLockedIds(Position::class, $data['ids']);
+        if (empty($permitidos)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
+        }
+
+        $cambiados = $service->bulkSetActive($permitidos, (bool) $data['is_active']);
+
+        $msg = __('global.updated_success') . " ({$cambiados})";
+        if (! empty($bloqueados)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+
+        return back()->with('success', $msg);
     }
 
     public function undoLastDelete(Request $request, PositionService $service): RedirectResponse

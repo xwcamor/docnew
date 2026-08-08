@@ -10,6 +10,15 @@ class DeletePositionRequest extends FormRequest
     {
         // Que la fila se pueda borrar (que nadie la use) lo decide el servicio:
         // aqui solo se exige el motivo.
+        // Registro BLOQUEADO (Lockable): no se elimina hasta desbloquearlo.
+        // Va aqui y no en el controlador porque `authorize()` corre ANTES de
+        // validar: si no, un cuerpo invalido devolveria «falta el nombre» en
+        // vez de «esta bloqueado», que es lo que pasa de verdad.
+        $position = $this->route('position');
+        if (is_object($position) && $position->is_locked) {
+            return false;
+        }
+
         return true;
     }
 

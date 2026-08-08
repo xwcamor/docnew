@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\Lockable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -25,6 +26,7 @@ class ApprovalRule extends Model
     use HasFactory;
     use Auditable;
     use SoftDeletes;
+    use Lockable;
 
     // `name` es como se llama esa firma en la obra: «Supervisor Autorizante -
     // HITACHI», no el rol genérico. El rol dice qué clase de persona firma; el

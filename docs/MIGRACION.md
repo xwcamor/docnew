@@ -222,10 +222,32 @@ Un evento con foto y firma solo se marca como perdido si **ninguno** de sus dos 
 El paso **no falla si la carpeta no está**: avisa y sale bien. La ausencia de los ficheros no puede
 tumbar la migración.
 
+## Los catálogos llegan bloqueados
+
+Tipos de trabajo, sedes, puestos, áreas, cargos y reglas de aprobación entran con el candado puesto
+(`Lockable`, nivel `super`). No es celo: el catálogo se lee **en vivo** desde los planes, así que
+renombrar «Izaje» o quitarle el AST cambia de golpe lo que dicen los 3 712 planes que lo citan,
+cerrados y firmados incluidos. El candado no impide corregirlo — obliga a quitarlo primero, que es
+la pausa que faltaba. Un admin de workspace no puede sacarlo; sólo el super.
+
+Los **planes no** entran aquí: tienen su propio `is_closed`, que es otra cosa y la pone el
+supervisor al terminar la jornada.
+
+Se bloquea la primera vez que una fila se declara «viene de la v1»: al crearla, y también cuando ya
+existía a mano y la migración la reconoce por su código y le pone el `legacy_id`. Sólo esa primera
+vez — volver a migrar no le devuelve el candado a lo que alguien quitó a propósito.
+
+> **Si migraste cargos antes de agosto de 2026**, `Position` no tenía `legacy_id` en su `$fillable`
+> y Eloquent lo descartaba en silencio: los cargos llegaron, pero sin marca de origen, y por eso no
+> se bloquearon. Está arreglado. Vuelve a correr `docufiz:migrate-data catalogos` y los reconocerá
+> por el código, les pondrá el `legacy_id` y los bloqueará.
+
 ## Qué queda pendiente
 
 - [ ] **Copiar los 4 027 ficheros de imagen** y correr `docufiz:migrate-data archivos`. Es lo único
       que falta para que la migración de datos esté completa.
+- [ ] Volver a correr `docufiz:migrate-data catalogos` para que los cargos ya migrados recuperen su
+      `legacy_id` y queden bloqueados (ver el aviso de arriba).
 - [ ] **Reemplazar los 26 correos `usuarioN@pendiente.local`** por los reales, y revisar el rol de
       cada usuario (todos entraron con el de menos privilegios).
 - [ ] Revisar los 196 planes con código renombrado y decidir si el sufijo se queda o el dueño

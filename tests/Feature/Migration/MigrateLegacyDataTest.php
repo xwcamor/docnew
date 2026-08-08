@@ -194,6 +194,79 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(2, DB::table('work_type_form_templates')->count());
     }
 
+    /**
+     * Lo que trae la migracion llega bloqueado.
+     *
+     * Un catalogo no es como un plan: renombrar un tipo de trabajo cambia de
+     * golpe lo que dicen todos los planes que lo citan, cerrados y firmados
+     * incluidos. El candado no impide corregirlo, obliga a quitarlo primero.
+     *
+     * Nivel `super` porque el que bloquea es el sistema, no una persona: un
+     * admin de workspace no deshace la referencia del sistema anterior desde su
+     * panel.
+     */
+    public function test_los_catalogos_que_trae_la_migracion_llegan_bloqueados(): void
+    {
+        $this->migrarTodo();
+
+        foreach (['work_types', 'work_locations', 'workstations', 'work_areas', 'positions', 'approval_rules'] as $tabla) {
+            $filas = DB::table($tabla)->whereNotNull('legacy_id')->get();
+
+            $this->assertNotEmpty($filas, "{$tabla} deberia haber traido algo de la v1");
+            foreach ($filas as $fila) {
+                $this->assertNotNull($fila->locked_at, "{$tabla} #{$fila->id} deberia llegar bloqueada");
+                $this->assertSame('super', $fila->lock_scope);
+            }
+        }
+
+        // Los planes NO: tienen su propio cierre, que es otra cosa y la pone el
+        // supervisor cuando termina la jornada.
+        $this->assertSame(0, DB::table('work_plans')->whereNotNull('locked_at')->count());
+    }
+
+    /**
+     * Una fila que ya existia a mano y la migracion reconoce como suya tambien
+     * se bloquea.
+     *
+     * No es un caso raro: es lo que paso de verdad. `Position::$fillable` no
+     * incluia `legacy_id`, asi que los cargos llegaban de la v1 pero sin de
+     * donde venian; al volver a migrar se les reconoce por el codigo y es
+     * entonces cuando se les pone la marca. Ese momento —el primero en que la
+     * fila se declara «viene de la v1»— es el que tiene que bloquearla, o esas
+     * filas se quedan sueltas para siempre.
+     */
+    public function test_una_fila_que_ya_existia_se_bloquea_al_reconocerla_como_de_la_v1(): void
+    {
+        // Alguien dio de alta el mismo tipo de trabajo a mano, antes de migrar.
+        $aMano = \App\Models\WorkType::create([
+            'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 1,
+            'tenant_id' => 1, 'created_by' => 1, 'code' => 'Estandar', 'is_active' => true,
+        ]);
+
+        $this->assertFalse($aMano->is_locked);
+        $this->assertNull($aMano->legacy_id);
+
+        $this->migrarTodo();
+
+        $aMano->refresh();
+        $this->assertNotNull($aMano->legacy_id, 'la migracion deberia reconocerla por el codigo');
+        $this->assertTrue($aMano->is_locked);
+        $this->assertSame('super', $aMano->lock_scope);
+    }
+
+    /** Volver a migrar no le vuelve a poner el candado a lo que se desbloqueo. */
+    public function test_al_repetir_la_migracion_no_se_rebloquea_lo_que_alguien_solto(): void
+    {
+        $this->migrarTodo();
+
+        $tipo = \App\Models\WorkType::whereNotNull('legacy_id')->firstOrFail();
+        $tipo->unlock();
+
+        $this->migrarTodo();
+
+        $this->assertFalse($tipo->fresh()->is_locked, 'el candado que se quito a proposito no vuelve solo');
+    }
+
     public function test_la_misma_persona_en_dos_empresas_es_una_sola_en_la_cuadrilla(): void
     {
         $this->migrarTodo();

@@ -37,6 +37,23 @@ use Illuminate\Http\Request;
 class ApprovalRuleController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesRecordLocking;
+
+    /**
+     * Pone el candado. Una regla de aprobacion dice quien tiene que firmar un
+     * plan; cambiarla a mitad de una obra cambia lo que se le exige a lo que ya
+     * esta en marcha. Con el candado puesto hay que quitarlo a proposito.
+     */
+    public function lock(Request $request, ApprovalRule $approvalRule): RedirectResponse
+    {
+        return $this->applyLock($approvalRule, $request);
+    }
+
+    /** Saca el candado. Un admin no puede quitar uno que puso el sistema. */
+    public function unlock(Request $request, ApprovalRule $approvalRule): RedirectResponse
+    {
+        return $this->applyUnlock($approvalRule, $request);
+    }
 
     public function index(Request $request, ApprovalRuleService $service)
     {
@@ -156,7 +173,10 @@ class ApprovalRuleController extends Controller
         $suyo  = collect($flujo)->firstWhere('work_type.id', $approvalRule->work_type_id) ?? $flujo[0] ?? null;
 
         return inertia('ApprovalRules/Show', [
-            'approvalRule' => $this->payload($approvalRule, withAudit: true),
+            'approvalRule' => array_merge(
+                $this->payload($approvalRule, withAudit: true),
+                ['lock' => $this->lockMeta($approvalRule, $request)],
+            ),
             'flow'         => $suyo,
             'sequential'   => $service->ordenObligatorio(),
             'recordAudit'  => $this->recordAuditMeta($approvalRule),
@@ -193,6 +213,9 @@ class ApprovalRuleController extends Controller
 
     public function edit(ApprovalRule $approvalRule, ApprovalRuleService $service)
     {
+        // Bloqueado: ni se abre el formulario.
+        abort_if($approvalRule->is_locked, 403, __('locks.cannot_edit_locked'));
+
         return inertia('ApprovalRules/Form', [
             'approvalRule' => $this->payload($approvalRule),
             'options'      => $service->opcionesDelFormulario(),
@@ -202,6 +225,9 @@ class ApprovalRuleController extends Controller
 
     public function update(UpdateApprovalRuleRequest $request, ApprovalRule $approvalRule, ApprovalRuleService $service): RedirectResponse
     {
+        // Bloqueado: el formulario no se abre, pero el POST puede llegar igual.
+        abort_if($approvalRule->is_locked, 403, __('locks.cannot_edit_locked'));
+
         $service->update($approvalRule, $request->validated());
 
         return redirect()
@@ -211,6 +237,9 @@ class ApprovalRuleController extends Controller
 
     public function delete(ApprovalRule $approvalRule)
     {
+        // Bloqueado: ni se abre la confirmacion.
+        abort_if($approvalRule->is_locked, 403, __('locks.cannot_delete_locked'));
+
         return inertia('ApprovalRules/Delete', [
             'approvalRule' => $this->payload($approvalRule),
             // Cuántos planes ya arrastran esta firma. Borrarla no los toca (la
@@ -221,6 +250,9 @@ class ApprovalRuleController extends Controller
 
     public function deleteSave(DeleteApprovalRuleRequest $request, ApprovalRule $approvalRule, ApprovalRuleService $service): RedirectResponse
     {
+        // Bloqueado: y tampoco por la puerta de atras.
+        abort_if($approvalRule->is_locked, 403, __('locks.cannot_delete_locked'));
+
         $service->delete($approvalRule, $request->validated()['deleted_description']);
 
         $this->storeUndoableDelete([$approvalRule->id]);
@@ -524,7 +556,15 @@ class ApprovalRuleController extends Controller
     public function bulkDelete(BulkDeleteApprovalRuleRequest $request, ApprovalRuleService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkDelete($data['ids'], $data['deleted_description']);
+
+        // Las bloqueadas se apartan antes de llegar al servicio: una masiva no
+        // es sitio para saltarse un candado sin que nadie lo vea.
+        [$permitidas, $bloqueadas] = $this->splitLockedIds(ApprovalRule::class, $data['ids']);
+        if (empty($permitidas)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]));
+        }
+
+        $resultado = $service->bulkDelete($permitidas, $data['deleted_description']);
 
         if (! empty($resultado['queued'])) {
             return back()->with('success', __('global.bulk_in_queue', ['count' => $resultado['count']]));
@@ -532,8 +572,13 @@ class ApprovalRuleController extends Controller
 
         $this->storeUndoableDelete($resultado['deleted']);
 
+        $msg = __('global.deleted_success') . ' (' . $resultado['count'] . ')';
+        if (! empty($bloqueadas)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]);
+        }
+
         return back()
-            ->with('success', __('global.deleted_success') . ' (' . $resultado['count'] . ')')
+            ->with('success', $msg)
             ->with('recentDelete', ['count' => $resultado['count'], 'seconds' => 60]);
     }
 
@@ -560,13 +605,24 @@ class ApprovalRuleController extends Controller
     public function bulkSetActive(BulkSetActiveApprovalRuleRequest $request, ApprovalRuleService $service): RedirectResponse
     {
         $data = $request->validated();
-        $resultado = $service->bulkSetActive($data['ids'], (bool) $data['is_active']);
+
+        [$permitidas, $bloqueadas] = $this->splitLockedIds(ApprovalRule::class, $data['ids']);
+        if (empty($permitidas)) {
+            return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]));
+        }
+
+        $resultado = $service->bulkSetActive($permitidas, (bool) $data['is_active']);
 
         if (! empty($resultado['queued'])) {
             return back()->with('success', __('global.bulk_in_queue', ['count' => $resultado['count']]));
         }
 
-        return back()->with('success', __('global.updated_success') . " ({$resultado['changed']})");
+        $msg = __('global.updated_success') . " ({$resultado['changed']})";
+        if (! empty($bloqueadas)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]);
+        }
+
+        return back()->with('success', $msg);
     }
 
     // ── Apoyo de exportación ─────────────────────────────────────────────────

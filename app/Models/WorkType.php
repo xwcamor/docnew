@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\Lockable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -30,6 +31,7 @@ class WorkType extends Model
     use HasFactory;
     use Auditable;
     use SoftDeletes;
+    use Lockable;
 
     protected $fillable = [
         'slug', 'country_id', 'code', 'is_active', 'legacy_id',
