@@ -297,24 +297,64 @@ class FormSubmissionPdfTest extends TestCase
         $this->assertSame(1, collect($datos['firmas'])->where('pendiente', true)->count());
     }
 
-    /** El documento sale en el idioma de quien lo pide. */
-    public function test_el_pdf_respeta_el_idioma_del_usuario(): void
+    /**
+     * El documento sale en el idioma **del país del plan**, no en el de quien
+     * pulsa el botón.
+     *
+     * Este PDF no es una pantalla: es el documento de seguridad de un trabajo
+     * hecho en un sitio concreto y puede acabar delante de un inspector de ese
+     * país. Antes salía en el idioma de la sesión, así que el mismo AST de
+     * Lurín era un documento distinto según quién lo descargara.
+     */
+    public function test_el_pdf_sale_en_el_idioma_del_pais_del_plan(): void
     {
         Storage::fake('local');
         Storage::fake('public');
 
         $escenario = $this->escenario();
 
+        // La sesión en inglés; el plan, de Perú.
         app()->setLocale('en');
+
         $texto = $this->textoDelPdf(
             app(FormSubmissionPdfService::class)->generar($escenario['entrega'], $escenario['usuario'])->output()
         );
 
-        $this->assertStringContainsString('RECORDED SIGNATURES', $texto);
+        $this->assertStringContainsString('Reconocimiento facial', $texto);
+        $this->assertStringNotContainsString('Face recognition', $texto);
+
+        // Y la petición se queda como estaba: cambiar el idioma a medias
+        // dejaría la respuesta siguiente en el idioma equivocado.
+        $this->assertSame('en', app()->getLocale());
+    }
+
+    /**
+     * Si el idioma del país no está traducido, se respeta el de la petición.
+     *
+     * Sólo hay `es` y `en`. Un plan de Brasil apuntaría a `pt`, y apuntar el
+     * documento entero a unas traducciones que no existen devolvería la clave
+     * cruda —«work_plans.code»— en cada etiqueta. Un PDF en el idioma de quien
+     * lo pide es raro; uno lleno de claves no sirve para nada.
+     */
+    public function test_si_el_idioma_del_pais_no_esta_traducido_usa_el_de_la_peticion(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $escenario = $this->escenario();
+
+        // Portugués: el país lo pide y la aplicación no lo tiene.
+        DB::table('languages')->insertOrIgnore([['id' => 9, 'slug' => Str::random(22), 'name' => 'Portuguese', 'iso_code' => 'pt', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('locales')->insertOrIgnore([['id' => 9, 'slug' => Str::random(22), 'code' => 'pt_BR', 'name' => 'Português', 'language_id' => 9, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('countries')->where('id', $escenario['entrega']->workPlan->country_id)
+            ->update(['default_locale_id' => 9]);
+
+        app()->setLocale('en');
+        $texto = $this->textoDelPdf(
+            app(FormSubmissionPdfService::class)->generar($escenario['entrega']->fresh(), $escenario['usuario'])->output()
+        );
+
         $this->assertStringContainsString('Face recognition', $texto);
-        $this->assertStringContainsString('PENDING REVIEW', $texto);
-        $this->assertStringContainsString('Verification ID', $texto);
-        $this->assertStringNotContainsString('Reconocimiento facial', $texto);
     }
 
     /** Los dos idiomas con las mismas claves: si falta una, sale la clave cruda. */

@@ -47,28 +47,67 @@ class FormSubmissionPdfService
     protected const CON_ARCHIVO = ['photo', 'file'];
 
     /**
-     * Genera el PDF listo para descargar.
+     * Genera el PDF listo para descargar, **en el idioma del pais del plan**.
      *
-     * El idioma es el que ya resolvio la peticion: el documento sale en el
-     * idioma de quien lo pide, no en el del servidor.
+     * No en el de quien pulsa el boton, que es como estaba. Este PDF no es una
+     * pantalla: es el documento de seguridad de un trabajo hecho en un sitio
+     * concreto, y puede acabar delante de un inspector de ese pais. Un AST de
+     * Lurin impreso por alguien que tiene la aplicacion en ingles salia en
+     * ingles — el mismo trabajo, dos documentos distintos segun quien lo baje.
+     *
+     * El idioma sale de `countries.default_locale_id`: Peru → es_PE → español.
+     * Se restaura al terminar aunque el render reviente, porque cambiar el
+     * idioma de la peticion a medias dejaria la respuesta siguiente en el
+     * idioma equivocado.
      */
     public function generar(FormSubmission $entrega, ?User $usuario = null): \Barryvdh\DomPDF\PDF
     {
-        return \Barryvdh\DomPDF\Facade\Pdf::loadView(
-            'field_work.form_submissions.pdf.template',
-            $this->datos($entrega, $usuario),
-        )
-            ->setPaper('a4', 'portrait')
-            ->setOptions([
-                // DomPDF solo conoce las core fonts sin instalar: Helvetica,
-                // Times-Roman, Courier, Symbol, ZapfDingbats.
-                'defaultFont'          => 'Helvetica',
-                'isHtml5ParserEnabled' => true,
-                // Todo lo que se incrusta va en data-uri: el generador no sale
-                // a la red, ni siquiera a si mismo.
-                'isRemoteEnabled'      => false,
-                'dpi'                  => 110,
-            ]);
+        $anterior = app()->getLocale();
+        $delPais  = $this->idiomaDelPlan($entrega);
+
+        if ($delPais) {
+            app()->setLocale($delPais);
+        }
+
+        try {
+            return \Barryvdh\DomPDF\Facade\Pdf::loadView(
+                'field_work.form_submissions.pdf.template',
+                $this->datos($entrega, $usuario),
+            )
+                ->setPaper('a4', 'portrait')
+                ->setOptions([
+                    // DomPDF solo conoce las core fonts sin instalar: Helvetica,
+                    // Times-Roman, Courier, Symbol, ZapfDingbats.
+                    'defaultFont'          => 'Helvetica',
+                    'isHtml5ParserEnabled' => true,
+                    // Todo lo que se incrusta va en data-uri: el generador no sale
+                    // a la red, ni siquiera a si mismo.
+                    'isRemoteEnabled'      => false,
+                    'dpi'                  => 110,
+                ]);
+        } finally {
+            app()->setLocale($anterior);
+        }
+    }
+
+    /**
+     * El idioma del pais donde se hizo el trabajo, o null si no se puede saber.
+     *
+     * Devolver null y quedarse con el idioma de la peticion es mejor que
+     * adivinar: un documento en el idioma de quien lo pide es raro, pero uno en
+     * un idioma elegido al azar es peor.
+     */
+    protected function idiomaDelPlan(FormSubmission $entrega): ?string
+    {
+        $iso = $entrega->workPlan?->country?->defaultLocale?->language?->iso_code;
+
+        if (! $iso) {
+            return null;
+        }
+
+        // Sin archivos de idioma para ese ISO, el `__()` devolveria la clave
+        // cruda («work_plans.code») en todo el documento. Mejor el de la peticion.
+        return is_dir(lang_path($iso)) ? $iso : null;
     }
 
     /** Nombre del archivo: codigo de formato, codigo de plan y slug verificable. */
