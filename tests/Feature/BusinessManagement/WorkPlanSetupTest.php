@@ -834,6 +834,64 @@ class WorkPlanSetupTest extends TestCase
             ->assertJsonPath('people.0.num_doc', '******09');
     }
 
+    /**
+     * Cuantos caracteres hacen falta es un ajuste, no un numero en el codigo.
+     *
+     * Estaba fijo en 8 —el DNI peruano— y en la v1 es `settings.num_doc_minimum`,
+     * por pais y sembrado en **7** para los siete. O sea que aqui era mas
+     * estricto que alla: un documento de siete caracteres no se podia ni buscar.
+     */
+    public function test_el_minimo_para_buscar_sale_del_ajuste(): void
+    {
+        $plan = $this->plan();
+        $this->persona('Nora', 'Paz', '4000009');   // siete, como en la v1
+        $this->actingAs($this->supervisor());
+
+        $buscar = fn (string $q) => $this->getJson(
+            route('business_management.work_plans.crew.candidates', $plan->slug) . '?q=' . $q);
+
+        // Por defecto son 7: el documento de siete se encuentra.
+        $buscar('4000009')->assertOk()->assertJsonCount(1, 'people')->assertJsonPath('minimum', 7);
+
+        // Subirlo a 8 lo deja fuera, y la respuesta dice cual es el minimo para
+        // que la pantalla pueda explicar que falta.
+        $this->ajustarMinimo('8');
+
+        $buscar('4000009')->assertOk()->assertJsonCount(0, 'people')
+            ->assertJsonPath('partial', true)->assertJsonPath('minimum', 8);
+    }
+
+    /**
+     * Un ajuste mal puesto no puede volver a abrir la puerta.
+     *
+     * Con el minimo en cero, la busqueda vacia devolveria el padron entero con
+     * los documentos al lado, que es justo el fallo que este minimo existe para
+     * tapar. Un cero se trata como «sin configurar».
+     */
+    public function test_un_minimo_en_cero_no_vuelca_el_padron(): void
+    {
+        $plan = $this->plan();
+        $this->persona('Nora', 'Paz', '40000009');
+        $this->actingAs($this->supervisor());
+
+        $this->ajustarMinimo('0');
+
+        $this->getJson(route('business_management.work_plans.crew.candidates', $plan->slug) . '?q=')
+            ->assertOk()
+            ->assertJsonCount(0, 'people')
+            ->assertJsonPath('minimum', 7);
+    }
+
+    /** El ajuste no viene sembrado en las pruebas: se pone aqui. */
+    private function ajustarMinimo(string $valor): void
+    {
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'docufiz.num_doc_minimum'],
+            ['name' => 'Minimo', 'type' => 'int', 'value' => $valor, 'group' => 'field_work'],
+        );
+        \App\Models\Setting::flushCache();
+    }
+
     /** Y en un plan cerrado dice por que no se puede armar, en vez de callarse. */
     public function test_la_ficha_de_un_plan_cerrado_explica_por_que_no_se_edita(): void
     {

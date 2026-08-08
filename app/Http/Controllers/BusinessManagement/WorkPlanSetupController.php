@@ -46,7 +46,7 @@ class WorkPlanSetupController extends Controller
      *
      * Tres reglas, y las tres vienen de un fallo mío:
      *
-     * 1. **Menos de `MINIMO_DOCUMENTO` caracteres no devuelve nada.** Antes,
+     * 1. **Menos de `minimoDocumento()` caracteres no devuelve nada.** Antes,
      *    con la búsqueda vacía, esto contestaba con 25 personas y su DNI
      *    completo, y el selector lo llamaba solo al recibir el foco. Era un
      *    volcado del padrón.
@@ -59,19 +59,42 @@ class WorkPlanSetupController extends Controller
      * ofrecer a quien ya está dentro (hay índice único). El de aprobadores NO
      * lo manda: el supervisor que firma suele salir también en la cuadrilla.
      */
-    public const MINIMO_DOCUMENTO = 8;
+    /**
+     * Cuando la busqueda empieza a contestar. Por debajo, nada.
+     *
+     * Estaba fijo en 8 —el DNI peruano— y en la v1 es un ajuste: `settings.
+     * num_doc_minimum`, por pais, sembrado en **7** para los siete. O sea que
+     * aqui era mas estricto que alla y un documento de siete caracteres no se
+     * podia ni buscar.
+     *
+     * Aqui el ajuste es uno solo y no por pais, porque el 100 % de los planes
+     * son de Peru (ver docs/PENDIENTES.md #8). Si algun dia entra otro pais con
+     * otra longitud, esto es lo que hay que partir por pais.
+     */
+    public const MINIMO_DOCUMENTO_POR_DEFECTO = 7;
+
+    protected function minimoDocumento(): int
+    {
+        $valor = \App\Models\Setting::getInt('docufiz.num_doc_minimum');
+
+        // Un cero o un negativo dejaria que la busqueda vacia devolviera el
+        // padron entero, que es justo el fallo que este minimo existe para
+        // tapar. Un ajuste mal puesto no puede abrir esa puerta.
+        return $valor >= 1 ? $valor : self::MINIMO_DOCUMENTO_POR_DEFECTO;
+    }
 
     public function personCandidates(Request $request, WorkPlan $workPlan): JsonResponse
     {
         $q = trim((string) $request->get('q', ''));
+        $minimo = $this->minimoDocumento();
 
         // Sin documento suficiente no hay búsqueda. Se contesta con la lista
         // vacía y el mínimo, para que la pantalla pueda decir qué falta en vez
         // de quedarse en blanco sin explicación.
-        if (mb_strlen($q) < self::MINIMO_DOCUMENTO) {
+        if (mb_strlen($q) < $minimo) {
             return response()->json([
                 'people'  => [],
-                'minimum' => self::MINIMO_DOCUMENTO,
+                'minimum' => $minimo,
                 'partial' => true,
             ]);
         }
@@ -115,7 +138,7 @@ class WorkPlanSetupController extends Controller
                 'name'    => $p->list_name,
                 'num_doc' => $p->safe_num_doc,
             ])->all(),
-            'minimum' => self::MINIMO_DOCUMENTO,
+            'minimum' => $minimo,
             'partial' => false,
         ]);
     }

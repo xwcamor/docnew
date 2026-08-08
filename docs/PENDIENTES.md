@@ -169,10 +169,9 @@ y hasta que se haga no se puede dar por portado:
 - `must_have_at_least_one_document_and_worker`: la v1 no deja guardar un plan sin
   al menos un formato y un trabajador. Aquí sí se puede (sí se exige para
   **cerrarlo**).
-- `settings.num_doc_minimum` por país: aquí está fijo en 8 (Perú), en
-  `WorkPlanSetupController::MINIMO_DOCUMENTO`. **La v1 lo siembra en 7 para los
-  siete países**, así que el mínimo de aquí es más estricto que el de allá y
-  puede estar rechazando documentos válidos.
+- ~~`settings.num_doc_minimum` por país~~ — **portado** como el ajuste
+  `docufiz.num_doc_minimum`, con 7 por defecto (lo que siembra la v1). Estaba
+  fijo en 8 y por tanto era más estricto que el sistema anterior.
 
 ### Estado de la interfaz
 

@@ -349,7 +349,12 @@ formatos. **No** se ha comparado todavía, y hasta que se haga no se puede dar
 por portado:
 
 - [ ] `plan_exports_controller` — la exportación a ZIP y los PDF por formato.
-- [ ] `settings.num_doc_minimum` por país — aquí está fijo en 8 (Perú), en
-      `WorkPlanSetupController::MINIMO_DOCUMENTO`. **Ojo: la v1 lo siembra en 7
-      para los siete países**, así que el mínimo de aquí es más estricto que el
-      de allá y puede estar rechazando documentos válidos.
+- [x] ~~`settings.num_doc_minimum` por país~~ — **portado**. Estaba fijo en 8
+      (el DNI peruano) y la v1 lo siembra en **7** para los siete países, así
+      que aquí era más estricto que allá: un documento de siete caracteres no
+      se podía ni buscar. Ahora es el ajuste `docufiz.num_doc_minimum`, con 7
+      por defecto. Es uno solo y no por país, porque el 100 % de los planes son
+      de Perú; si entra otro país con otra longitud, eso es lo que hay que
+      partir. Un 0 o un negativo se tratan como «sin configurar», para que un
+      ajuste mal puesto no vuelva a convertir el buscador en un volcado del
+      padrón.
