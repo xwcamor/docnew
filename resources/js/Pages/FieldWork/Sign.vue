@@ -172,10 +172,24 @@ async function firmar() {
             replace_signature: reemplazando.value,
         });
 
-        listo.value = true;
-        mensaje.value = resultado.retoFallido
-            ? t('field_work.sign.challenge_failed')
-            : respuesta.data.message;
+        // Firmado: al plan, y punto.
+        //
+        // Antes se quedaba aquí enseñando lo que acabas de hacer, con un botón
+        // «Volver» que había que pulsar. En obra eso es un toque de más con la
+        // siguiente persona esperando, y la confirmación de verdad no es este
+        // cartel: es la fila del plan en verde con su hora.
+        //
+        // El aviso lo dejó el servidor en la sesión, así que sale en el plan.
+        // Si el gesto de vida falló, eso hay que leerlo: se dice aquí y se
+        // espera a que se lea antes de irse.
+        if (resultado.retoFallido) {
+            listo.value = true;
+            mensaje.value = t('field_work.sign.challenge_failed');
+
+            return;
+        }
+
+        volver();
     } catch (e) {
         error.value = true;
         mensaje.value = e?.response?.data?.message ?? t('field_work.sign.failed');
@@ -271,6 +285,9 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
                 </div>
             </template>
 
+            <!-- Sólo se llega aquí cuando la firma quedó pendiente de revisión:
+                 es un aviso que hay que leer antes de seguir. La firma limpia no
+                 pasa por esta pantalla — se va al plan sola. -->
             <div v-else class="firma__acciones">
                 <Button size="large" type="primary" @click="volver">
                     <template #icon><ArrowLeftOutlined /></template>

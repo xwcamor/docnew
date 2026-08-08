@@ -69,6 +69,17 @@ class SignatureController extends Controller
     public function show(Request $request, WorkPlan $work_plan)
     {
         $personas = $work_plan->people()->with('person:id,slug,name,lastname,num_doc')->get();
+
+        // Quien ya firmo no tiene nada que hacer en esta pantalla: se vuelve al
+        // plan. Abrir la camara para enseñar «ya firmaste» es pedirle a alguien
+        // que se ponga delante del objetivo para no hacer nada.
+        $destino = $request->string('target')->toString() ?: null;
+
+        if ($destino && $this->yaFirmo($work_plan, $destino)) {
+            return redirect()
+                ->route('business_management.work_plans.show', $work_plan->slug);
+        }
+
         $aprobaciones = $work_plan->approvals()
             ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,name,approver_role,priority_level'])
             ->get()
@@ -222,14 +233,36 @@ class SignatureController extends Controller
                 + ['override_by' => $request->user()->id],
         );
 
+        $mensaje = $evento->pending_review
+            ? __('Firma registrada. Queda pendiente de revision del supervisor.')
+            : __('Firma verificada.');
+
+        // La firma limpia se anuncia en el plan: la pantalla se va alli sola y
+        // el aviso viaja en la sesion, que la visita de Inertia recoge.
+        //
+        // La que queda pendiente de revision NO: esa se queda en la pantalla de
+        // firma para que se lea antes de seguir. Y ademas solo hay canal
+        // `success` y `error` (ver HandleInertiaRequests), asi que un
+        // `warning` se perderia sin que nadie lo notara.
+        if (! $evento->pending_review) {
+            $request->session()->flash('success', $mensaje);
+        }
+
         return response()->json([
             'method'   => $evento->method,
             'verified' => $evento->isVerified(),
             'pending_review' => $evento->pending_review,
-            'message'  => $evento->pending_review
-                ? __('Firma registrada. Queda pendiente de revision del supervisor.')
-                : __('Firma verificada.'),
+            'message'  => $mensaje,
         ], 201);
+    }
+
+    /** ¿El destino de la pantalla —trabajador o aprobacion— ya firmo? */
+    protected function yaFirmo(WorkPlan $plan, string $slug): bool
+    {
+        $fila = $plan->people()->where('slug', $slug)->first()
+            ?? $plan->approvals()->where('slug', $slug)->first();
+
+        return $fila !== null && ((bool) $fila->is_approved || $fila->signatureEvents()->exists());
     }
 
     /** Bandeja de firmas que quedaron pendientes de revision. */

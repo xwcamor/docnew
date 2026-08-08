@@ -43,6 +43,11 @@ class SignatureEvidenceTest extends TestCase
     {
         parent::setUp();
 
+        $this->withoutMiddleware([
+            \Mcamara\LaravelLocalization\Middleware\LaravelLocalizationRedirectFilter::class,
+            \Mcamara\LaravelLocalization\Middleware\LocaleSessionRedirect::class,
+        ]);
+
         DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_AR', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('regions')->insertOrIgnore([['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]]);
@@ -184,6 +189,35 @@ class SignatureEvidenceTest extends TestCase
         // El archivo viejo sigue ahí: es a lo que apuntan los documentos firmados.
         Storage::disk('local')->assertExists($vieja->file_path);
         $this->assertSame($nueva->id, $firmas->firmaVigente($persona->fresh())->id);
+    }
+
+    /**
+     * Quien ya firmó no vuelve a la pantalla de firma: se le devuelve al plan.
+     *
+     * Abrir la cámara para enseñarle «ya firmaste» es pedirle que se ponga
+     * delante del objetivo para no hacer nada. Y con la siguiente persona
+     * esperando, cada toque de más cuenta.
+     */
+    public function test_a_quien_ya_firmo_se_le_devuelve_al_plan(): void
+    {
+        [$persona, $plan] = $this->escenario();
+        $asignado = $this->trabajador($plan, $persona);
+
+        $usuario = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $usuario->givePermissionTo(
+            \Spatie\Permission\Models\Permission::firstOrCreate(['name' => 'form_submissions.sign', 'guard_name' => 'web']),
+        );
+
+        $ruta = route('field_work.signatures.show', $plan->slug) . '?target=' . $asignado->slug;
+
+        // Sin firmar, la pantalla abre.
+        $this->actingAs($usuario)->get($ruta)->assertOk();
+
+        // Firmado, no: al plan.
+        $asignado->forceFill(['is_approved' => true])->save();
+
+        $this->actingAs($usuario)->get($ruta)
+            ->assertRedirect(route('business_management.work_plans.show', $plan->slug));
     }
 
     // ── apoyo ────────────────────────────────────────────────────────────────
