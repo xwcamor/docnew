@@ -4,11 +4,9 @@ import { router } from '@inertiajs/vue3';
 import {
     Card, Tag, Button, Select, SelectOption, Tooltip,
 } from 'ant-design-vue';
-import {
-    SafetyCertificateOutlined, CheckCircleFilled, ClockCircleOutlined,
-    LockOutlined, EditOutlined,
-} from '@ant-design/icons-vue';
+import { SafetyCertificateOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
+import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
 /**
  * Flujo de aprobaciones del plan.
@@ -75,6 +73,21 @@ const bloqueo = (a, i) => {
     return previa ? t('work_plans.approval_waits_prior', { role: rotulo(previa.role) }) : null;
 };
 
+/** El estado del paso, con el mismo vocabulario que las otras dos columnas. */
+const estado = (a, i) => {
+    if (a.signed) return 'done';
+    if (bloqueo(a, i)) return 'blocked';
+
+    return a.required ? 'pending' : 'optional';
+};
+
+const etiqueta = (a, i) => {
+    if (a.signed) return t('work_plans.approval_approved');
+    if (bloqueo(a, i)) return t('work_plans.approval_pending');
+
+    return a.required ? t('work_plans.approval_required') : t('work_plans.approval_optional');
+};
+
 // ── Asignar al firmante ──────────────────────────────────────────────────────
 
 const abierta   = ref(null);   // slug de la aprobación que se está asignando
@@ -97,12 +110,17 @@ const buscar = (texto) => {
 
     if (!q) { candidatos.value = []; parcial.value = true; return; }
 
+    // Se busca **dentro del rol** que hay que firmar. El sistema anterior tenia
+    // un endpoint distinto por tipo de aprobador; aqui salia cualquiera y se
+    // podia poner al ayudante a firmar como supervisor de seguridad.
+    const rol = props.approvals.find((a) => a.slug === abierta.value)?.role;
+
     temporizador = setTimeout(async () => {
         buscando.value = true;
         try {
             const { data } = await axios.get(
                 route('business_management.work_plans.crew.candidates', props.planSlug),
-                { params: { q } },
+                { params: { q, role: rol } },
             );
             candidatos.value = data.people;
             parcial.value = !!data.partial;
@@ -113,9 +131,15 @@ const buscar = (texto) => {
     }, 250);
 };
 
-const sinResultados = computed(() => (parcial.value
-    ? t('work_plans.approval_assign_hint')
-    : t('work_plans.crew_no_results')));
+// Sin resultados no significa «no existe»: puede ser que exista y no tenga el
+// rol. Decirlo evita que alguien de por hecho que hay que darlo de alta otra vez.
+const rolAbierto = computed(() => props.approvals.find((a) => a.slug === abierta.value)?.role);
+
+const sinResultados = computed(() => {
+    if (parcial.value) return t('work_plans.approval_assign_hint');
+
+    return t('work_plans.approval_no_one_with_role', { role: rotulo(rolAbierto.value) });
+});
 
 const abrir = (a) => {
     abierta.value = abierta.value === a.slug ? null : a.slug;
@@ -156,65 +180,20 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
 
         <p v-if="!approvals.length" class="ff-empty">{{ $t('work_plans.approvals_empty') }}</p>
 
-        <ol v-else class="wp-flow">
-            <li
+        <ol v-else class="wp-rows">
+            <WorkPlanBoardRow
                 v-for="(a, i) in approvals"
                 :key="a.slug"
-                class="wp-flow__step"
-                :class="{ 'is-signed': a.signed, 'is-blocked': !!bloqueo(a, i) }"
+                chained
+                :state="estado(a, i)"
+                :title="rotulo(a.role)"
+                :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
+                :when="a.signed ? a.signed_at : null"
+                :label="etiqueta(a, i)"
+                :reason="bloqueo(a, i) || ''"
             >
-                <span class="wp-flow__mark" aria-hidden="true">
-                    <CheckCircleFilled v-if="a.signed" />
-                    <LockOutlined v-else-if="bloqueo(a, i)" />
-                    <ClockCircleOutlined v-else />
-                </span>
-
-                <div class="wp-flow__body">
-                    <div class="wp-flow__head">
-                        <strong>{{ rotulo(a.role) }}</strong>
-                        <Tag v-if="!a.required" :bordered="false">{{ $t('work_plans.approval_optional') }}</Tag>
-                    </div>
-
-                    <p class="wp-flow__who">
-                        <template v-if="a.person">{{ a.person.name }}</template>
-                        <em v-else>{{ $t('work_plans.approval_unassigned') }}</em>
-                    </p>
-
-                    <p v-if="bloqueo(a, i)" class="wp-flow__why">{{ bloqueo(a, i) }}</p>
-
-                    <!-- Asignar quién firma. Se escribe el documento; nunca se
-                         despliega una lista de personas. -->
-                    <div v-if="canEdit && !a.signed && abierta === a.slug" class="wp-flow__assign">
-                        <Select
-                            show-search
-                            allow-clear
-                            autofocus
-                            :filter-option="false"
-                            :loading="buscando"
-                            :placeholder="$t('work_plans.approval_assign_hint')"
-                            :not-found-content="buscando ? undefined : sinResultados"
-                            style="width: 100%"
-                            @search="buscar"
-                            @change="(v) => asignar(a, v)"
-                        >
-                            <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
-                                {{ p.name }}
-                            </SelectOption>
-                        </Select>
-                    </div>
-                </div>
-
-                <div class="wp-flow__acts">
-                    <!-- Firmado: verde con la hora. Es la prueba de cuándo se
-                         autorizó el trabajo, no un adorno — la ficha del sistema
-                         anterior la enseñaba y se había perdido. -->
-                    <Tooltip v-if="a.signed" :title="$t('work_plans.approval_signed_cannot_reassign')">
-                        <Tag color="success" :bordered="false">
-                            <CheckCircleFilled /> {{ cuando(a.signed_at) || $t('work_plans.approval_approved') }}
-                        </Tag>
-                    </Tooltip>
-
-                    <template v-else>
+                <template #actions>
+                    <template v-if="!a.signed">
                         <Tooltip
                             v-if="canEdit"
                             :title="a.person
@@ -236,58 +215,37 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                             </Button>
                         </Tooltip>
                     </template>
-                </div>
-            </li>
+
+                    <!-- Asignar quién firma: se escribe el documento, nunca se
+                         despliega una lista. Va debajo de la fila porque el
+                         selector necesita el ancho entero. -->
+                    <div v-if="canEdit && !a.signed && abierta === a.slug" class="wp-assign">
+                        <Select
+                            show-search
+                            allow-clear
+                            autofocus
+                            :filter-option="false"
+                            :loading="buscando"
+                            :placeholder="$t('work_plans.approval_assign_hint')"
+                            :not-found-content="buscando ? undefined : sinResultados"
+                            style="width: 100%"
+                            @search="buscar"
+                            @change="(v) => asignar(a, v)"
+                        >
+                            <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
+                                {{ p.name }}
+                            </SelectOption>
+                        </Select>
+                    </div>
+                </template>
+            </WorkPlanBoardRow>
         </ol>
     </Card>
 </template>
 
 <style scoped>
-/* Una escalera, no una tabla: el orden de las firmas es la información. */
-.wp-flow { list-style: none; margin: 0; padding: 0; }
-
-.wp-flow__step {
-    display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: start;
-    padding: 12px 0;
-    border-bottom: 1px solid var(--color-border, #e5e7eb);
-}
-.wp-flow__step:last-child { border-bottom: 0; }
-
-/* Cada paso encadenado con el siguiente. */
-.wp-flow__mark {
-    position: relative;
-    display: flex;
-    justify-content: center;
-    padding-top: 2px;
-    font-size: 16px;
-    color: var(--color-text-muted, #6b7280);
-}
-.wp-flow__step:not(:last-child) .wp-flow__mark::after {
-    content: '';
-    position: absolute;
-    top: 22px;
-    bottom: -14px;
-    width: 2px;
-    background: var(--color-border, #e5e7eb);
-}
-.is-signed .wp-flow__mark { color: var(--color-success, #16a34a); }
-.is-blocked .wp-flow__mark { color: var(--color-text-muted, #9ca3af); }
-
-.wp-flow__head { display: flex; align-items: center; gap: 8px; }
-.wp-flow__who  { margin: 2px 0 0; color: var(--color-text, #111827); }
-.wp-flow__who em { color: var(--color-text-muted, #6b7280); font-style: normal; }
-.wp-flow__why  { margin: 4px 0 0; font-size: 12px; color: var(--color-text-muted, #6b7280); }
-.wp-flow__assign { margin-top: 8px; }
-
-/* Objetivos de toque de 44px: se usa con guantes (docs/UI.md §3). */
-.wp-flow__acts { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.wp-flow__acts :deep(.ant-btn) { min-height: 32px; }
-
-@media (max-width: 640px) {
-    .wp-flow__step { grid-template-columns: 24px minmax(0, 1fr); }
-    .wp-flow__acts { grid-column: 2; justify-content: flex-start; }
-}
+/* La escalera la dibuja WorkPlanBoardRow con `chained`: es la misma fila que
+   usan las otras dos columnas del tablero, para que no vuelvan a divergir. */
+.wp-rows { list-style: none; margin: 0; padding: 0; }
+.wp-assign { flex: 1 1 100%; min-width: 200px; margin-top: 6px; }
 </style>

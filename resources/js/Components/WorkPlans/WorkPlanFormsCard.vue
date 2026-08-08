@@ -6,9 +6,9 @@ import {
 } from 'ant-design-vue';
 import {
     FileTextOutlined, FilePdfOutlined, DeleteOutlined, PlusOutlined, EditOutlined,
-    LockOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
+import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
 /**
  * Formatos de seguridad del plan.
@@ -50,6 +50,18 @@ const confirmados = computed(() => props.forms.filter((f) => f.status === 'confi
 // El PDF solo tiene sentido con el formato cerrado: en borrador sería un
 // documento a medias con firmas que aún pueden cambiar.
 const conPdf = (f) => f.submission && f.status === 'confirmed';
+
+/**
+ * Debajo del código: si es obligatorio y de dónde sale.
+ *
+ * El origen sólo cuando NO es el del tipo de trabajo — ese es el caso normal y
+ * repetirlo en cada fila es ruido. El candado del obligatorio ya no se dibuja
+ * aparte: la marca de estado de la fila es la misma en las tres columnas.
+ */
+const subtitulo = (f) => [
+    f.required ? t('work_plans.forms_required') : t('work_plans.forms_optional'),
+    f.source !== 'work_type' ? t('work_plans.forms_source_' + f.source) : null,
+].filter(Boolean).join(' · ');
 
 /**
  * Por qué este formato no se puede quitar. Son dos casos y no significan lo
@@ -94,30 +106,17 @@ const quitar = (f) => {
 
         <p v-if="!forms.length" class="ff-empty">{{ $t('work_plans.forms_empty') }}</p>
 
-        <ul v-else class="ff-items">
-            <li v-for="f in forms" :key="f.slug" class="ff-item">
-                <div class="ff-item__main ff-item__name">
-                    <strong>{{ f.code }}</strong>
-                    <span class="ff-item__sub">
-                        <!-- El candado dice que no se puede quitar y por qué:
-                             lo exige el tipo de trabajo, no este plan. -->
-                        <LockOutlined v-if="f.locked_by_work_type" />
-                        {{ f.required ? $t('work_plans.forms_required') : $t('work_plans.forms_optional') }}
-                    </span>
-                </div>
-
-                <div class="ff-item__meta">
-                    <Tag :color="COLOR_ESTADO[f.status]" :bordered="false">
-                        {{ $t('field_work.status.' + f.status) }}
-                    </Tag>
-                    <!-- El origen sólo cuando NO es el del tipo de trabajo: ese
-                         es el caso normal y repetirlo en cada fila es ruido. -->
-                    <Tag v-if="f.source !== 'work_type'" :color="COLOR_ORIGEN[f.source]" :bordered="false">
-                        {{ $t('work_plans.forms_source_' + f.source) }}
-                    </Tag>
-                </div>
-
-                <div class="ff-item__acts">
+        <ul v-else class="wp-rows">
+            <WorkPlanBoardRow
+                v-for="f in forms"
+                :key="f.slug"
+                :state="f.status === 'confirmed' ? 'done' : 'pending'"
+                :title="f.code"
+                :subtitle="subtitulo(f)"
+                :when="f.status === 'confirmed' ? f.confirmed_at : null"
+                :label="$t('field_work.status.' + f.status)"
+            >
+                <template #actions>
                     <a v-if="canExport && conPdf(f)" :href="route('field_work.forms.pdf', f.submission)">
                         <Button size="small">
                             <template #icon><FilePdfOutlined /></template>
@@ -148,13 +147,15 @@ const quitar = (f) => {
                             placement="topRight"
                             @confirm="quitar(f)"
                         >
-                            <Button size="small" type="text" danger :loading="quitando === f.slug">
-                                <DeleteOutlined />
-                            </Button>
+                            <Tooltip :title="$t('work_plans.forms_remove')">
+                                <Button size="small" type="text" danger :loading="quitando === f.slug">
+                                    <DeleteOutlined />
+                                </Button>
+                            </Tooltip>
                         </Popconfirm>
                     </template>
-                </div>
-            </li>
+                </template>
+            </WorkPlanBoardRow>
         </ul>
 
         <div v-if="canEdit" class="ff-addrow">
@@ -174,3 +175,8 @@ const quitar = (f) => {
         </div>
     </Card>
 </template>
+
+<style scoped>
+/* Cada fila es WorkPlanBoardRow, la misma de las tres columnas del tablero. */
+.wp-rows { list-style: none; margin: 0; padding: 0; }
+</style>

@@ -310,6 +310,10 @@ class WorkPlanController extends Controller
                     'required'    => $item['is_required'],
                     'source'      => $item['source'],
                     'status'      => $entrega->status ?? 'pending',
+                    // Cuando se confirmo. Las otras dos columnas del tablero
+                    // enseñan su hora y esta no: la misma fila compartida las
+                    // pinta igual, asi que el dato tiene que llegar.
+                    'confirmed_at' => $entrega?->submitted_at,
                     'submission'  => $entrega->slug ?? null,
                     // Lo exige el tipo de trabajo: no se puede quitar de este
                     // plan, se cambia en el tipo. El motivo viaja para poder

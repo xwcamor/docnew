@@ -89,6 +89,36 @@ Lo técnico —`id`, `slug`, quién lo registró, fechas de creación— va en u
 
 ---
 
+## 4-bis. Las listas hermanas comparten componente
+
+Cuando varias listas viven en la misma pantalla —las tres columnas del tablero
+del plan: trabajadores, formatos, aprobaciones— **la fila es un solo componente**
+(`WorkPlanBoardRow`), no tres plantillas parecidas.
+
+No es purismo. Se escribieron por separado y en una captura se veía de golpe:
+
+- Las aprobaciones llevaban una marca de estado a la izquierda; las otras dos,
+  no. Tres anatomías de fila una al lado de otra.
+- El estado se contaba de tres maneras: etiqueta verde con la hora, pastilla
+  «Confirmado» sin hora ni icono, e icono más etiqueta.
+- Los formatos no decían **cuándo** se confirmaron; las otras dos sí.
+
+Nada de eso fue una decisión: fue que cada tarjeta se escribió un día distinto.
+Con una fila compartida no pueden volver a separarse.
+
+La anatomía, y vale para cualquier lista nueva de este tipo:
+
+```
+[marca] │ título            │ [estado con hora] [acciones]
+        │ subtítulo         │
+```
+
+> *Caso real:* el dueño mandó una captura del tablero y escribió «no te das
+> cuenta de que la UI y UX no tiene la misma coherencia». Tenía razón, y se veía
+> sin conocer el código.
+
+---
+
 ## 5. El estado se ve sin leer
 
 Un color y una palabra. Nada de descifrar un booleano.

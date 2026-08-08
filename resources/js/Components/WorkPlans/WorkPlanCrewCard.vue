@@ -4,11 +4,9 @@ import { router } from '@inertiajs/vue3';
 import {
     Card, Tag, Button, Select, SelectOption, Popconfirm, Tooltip,
 } from 'ant-design-vue';
-import {
-    TeamOutlined, DeleteOutlined, PlusOutlined, CheckCircleFilled,
-    ExclamationCircleFilled, EditOutlined,
-} from '@ant-design/icons-vue';
+import { TeamOutlined, DeleteOutlined, PlusOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
+import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
 /**
  * Trabajadores del plan: quién sale a obra ese día.
@@ -38,13 +36,12 @@ const { t } = useI18n();
 const firmados = computed(() => props.crew.filter((f) => f.signed).length);
 const todosFirmaron = computed(() => props.crew.length > 0 && firmados.value === props.crew.length);
 
-/** dd-mm-aaaa hh:mm, hora de obra: no se reinterpreta la zona. */
-const cuando = (v) => {
-    if (!v) return '';
-    const s = String(v);
-    const [y, m, d] = s.slice(0, 10).split('-');
-    return d ? `${d}-${m}-${y} ${s.slice(11, 16)}` : s;
-};
+// Cargo y documento, en una línea. El documento llega ya enmascarado del
+// servidor; lo que identifica a la persona en pantalla es el nombre.
+const subtitulo = (fila) => [
+    fila.position,
+    [fila.doc_type, fila.num_doc].filter(Boolean).join(' '),
+].filter(Boolean).join(' · ');
 
 const candidatos = ref([]);
 const buscando = ref(false);
@@ -128,32 +125,17 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
 
         <p v-if="!crew.length" class="ff-empty">{{ $t('work_plans.crew_empty') }}</p>
 
-        <ul v-else class="ff-items">
-            <li v-for="fila in crew" :key="fila.slug" class="ff-item" :class="{ 'is-missing': !fila.signed }">
-                <div class="ff-item__main ff-item__name">
-                    <strong>{{ fila.name }}</strong>
-                    <!-- El cargo, como en la ficha del sistema anterior. El
-                         documento llega ya enmascarado del servidor. -->
-                    <span class="ff-item__sub">
-                        <template v-if="fila.position">{{ fila.position }} · </template>{{ fila.doc_type }} {{ fila.num_doc || '—' }}
-                    </span>
-                </div>
-
-                <!-- Verde con la hora, o ámbar diciendo que falta. Color Y
-                     palabra: al sol y con daltonismo el color solo no basta
-                     (docs/UI.md §5). -->
-                <div class="ff-item__meta">
-                    <Tooltip v-if="fila.signed" :title="$t('work_plans.crew_signed_at', { when: cuando(fila.signed_at) })">
-                        <Tag color="success" :bordered="false">
-                            <CheckCircleFilled /> {{ cuando(fila.signed_at) || $t('work_plans.crew_signed') }}
-                        </Tag>
-                    </Tooltip>
-                    <Tag v-else color="warning" :bordered="false">
-                        <ExclamationCircleFilled /> {{ $t('work_plans.crew_pending') }}
-                    </Tag>
-                </div>
-
-                <div class="ff-item__acts">
+        <ul v-else class="wp-rows">
+            <WorkPlanBoardRow
+                v-for="fila in crew"
+                :key="fila.slug"
+                :state="fila.signed ? 'done' : 'pending'"
+                :title="fila.name"
+                :subtitle="subtitulo(fila)"
+                :when="fila.signed ? fila.signed_at : null"
+                :label="fila.signed ? $t('work_plans.crew_signed') : $t('work_plans.crew_pending')"
+            >
+                <template #actions>
                     <Tooltip v-if="canSign && !fila.signed" :title="$t('work_plans.crew_sign_hint', { name: fila.name })">
                         <Button size="small" type="primary" @click="firmar">
                             <template #icon><EditOutlined /></template>
@@ -185,8 +167,8 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                             </Tooltip>
                         </Popconfirm>
                     </template>
-                </div>
-            </li>
+                </template>
+            </WorkPlanBoardRow>
         </ul>
 
         <div v-if="canEdit" class="ff-addrow">
@@ -218,7 +200,7 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
 </template>
 
 <style scoped>
-/* Una firma que falta se ve sin leer la fila entera: barra ámbar a la
-   izquierda. Es la misma señal en las tres columnas del tablero. */
-.ff-item.is-missing { box-shadow: inset 3px 0 0 var(--color-warning, #E9730C); padding-left: 12px; }
+/* La lista no pone nada: cada fila es WorkPlanBoardRow, que es la misma en las
+   tres columnas del tablero. */
+.wp-rows { list-style: none; margin: 0; padding: 0; }
 </style>

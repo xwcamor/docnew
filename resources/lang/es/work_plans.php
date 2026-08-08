@@ -234,6 +234,8 @@ return [
     'approval_assigned'  => ':name queda asignado como firmante.',
     'approval_change'    => 'Cambiar',
     'approval_sign'      => 'Firmar',
+    'approval_no_one_with_role' => 'Ningún :role con ese documento. Comprueba que la persona tenga ese rol en su ficha.',
+    'approval_wrong_role' => ':name no es :role. Sólo puede firmar esa aprobación quien tenga ese rol en su ficha de trabajador.',
     'approval_person_taken' => ':name ya firma otro rol de este plan. Una misma persona no cubre dos firmas.',
     'approval_signed_cannot_reassign' => 'Esta aprobación ya está firmada: no se cambia el firmante. La firma es la prueba de quién se hizo responsable.',
     // Por qué una aprobación todavía no se puede firmar. El sistema anterior

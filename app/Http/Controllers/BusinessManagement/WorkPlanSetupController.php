@@ -82,6 +82,22 @@ class WorkPlanSetupController extends Controller
             ->where('is_active', true)
             ->when($request->boolean('exclude_assigned'),
                 fn ($query) => $query->whereNotIn('id', $workPlan->people()->pluck('person_id')))
+            // Un supervisor HSE lo firma alguien con ese rol, no cualquiera.
+            //
+            // El sistema anterior tenía **tres endpoints distintos** para el
+            // selector de aprobador —`workers/select2_list`,
+            // `supervisors/select2_list`, `hse_supervisors/select2_list`— o sea
+            // que la lista dependía del rol que había que firmar. Aquí devolvía
+            // a cualquier persona activa: se podía poner al ayudante a firmar
+            // como supervisor de seguridad.
+            //
+            // Esto es sólo el filtro de la búsqueda; la regla que vale está en
+            // WorkPlanSetupService::assignApprover(), porque una petición hecha
+            // a mano no pasa por este selector.
+            ->when($request->filled('role'), fn ($query) => $query->whereHas(
+                'roles',
+                fn ($q) => $q->where('role', $request->string('role'))->where('is_active', true),
+            ))
             ->when(true, function ($query) use ($q, $isPgsql) {
                 $needle = LikeQuery::contains($q);
                 $isPgsql

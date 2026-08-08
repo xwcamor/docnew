@@ -597,6 +597,53 @@ class WorkPlanSetupTest extends TestCase
         $this->assertSame($persona->id, $aprobacion->fresh()->person_id);
     }
 
+    /**
+     * Un supervisor HSE lo firma alguien que ES supervisor HSE.
+     *
+     * El sistema anterior tenía **un endpoint distinto por tipo de aprobador**
+     * (`workers/select2_list`, `supervisors/…`, `hse_supervisors/…`), así que la
+     * lista ya venía filtrada por rol. Aquí se ofrecía a cualquier persona
+     * activa: se podía poner al ayudante a firmar como supervisor de seguridad.
+     *
+     * Se comprueba contra el servicio, no contra el buscador: el filtro de la
+     * búsqueda es comodidad, y una petición hecha a mano no pasa por él.
+     */
+    public function test_no_firma_una_aprobacion_quien_no_tiene_el_rol(): void
+    {
+        $plan = $this->plan();
+        $aprobacion = $this->aprobacion($plan, $this->regla('hse_supervisor', 1, true));
+        // Trabajador, no supervisor HSE.
+        $ayudante = $this->persona('Beto', 'Cruz', '40000030', ['worker']);
+        $this->actingAs($this->supervisor());
+
+        $respuesta = $this->put(
+            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            ['person_slug' => $ayudante->slug],
+        );
+
+        $respuesta->assertSessionHas('error');
+        $this->assertNull($aprobacion->fresh()->person_id);
+    }
+
+    /** Y el buscador tampoco lo ofrece: filtra por el rol que se está asignando. */
+    public function test_el_buscador_de_aprobadores_solo_devuelve_el_rol_pedido(): void
+    {
+        $plan = $this->plan();
+        $this->persona('Beto', 'Cruz', '40000031', ['worker']);
+        $this->persona('Sara', 'Lopez', '40000032', ['hse_supervisor']);
+        $this->actingAs($this->supervisor());
+
+        $ruta = route('business_management.work_plans.crew.candidates', $plan->slug);
+
+        $this->getJson($ruta . '?role=hse_supervisor&q=40000031')
+            ->assertOk()->assertJsonCount(0, 'people');
+
+        $this->getJson($ruta . '?role=hse_supervisor&q=40000032')
+            ->assertOk()
+            ->assertJsonCount(1, 'people')
+            ->assertJsonPath('people.0.name', 'Lopez Sara');
+    }
+
     /** La misma persona no cubre dos firmas del mismo plan. */
     public function test_una_persona_no_firma_dos_roles_del_mismo_plan(): void
     {
@@ -787,12 +834,28 @@ class WorkPlanSetupTest extends TestCase
         ]);
     }
 
-    private function persona(string $nombre, string $apellido, string $doc): Person
+    /**
+     * Una persona, con los roles que puede firmar.
+     *
+     * Por defecto trabajador y supervisor, que es lo que piden casi todas las
+     * pruebas. Un aprobador solo se asigna si TIENE el rol —un supervisor HSE
+     * lo firma un supervisor HSE—, asi que sin roles no se podria asignar a
+     * nadie y la mitad de las pruebas fallaria por el motivo equivocado.
+     *
+     * @param  list<string>  $roles
+     */
+    private function persona(string $nombre, string $apellido, string $doc, array $roles = ['worker', 'supervisor']): Person
     {
-        return Person::create($this->base() + [
+        $persona = Person::create($this->base() + [
             'doc_type' => 'DNI', 'num_doc' => $doc,
             'name' => $nombre, 'lastname' => $apellido, 'is_active' => true,
         ]);
+
+        foreach ($roles as $rol) {
+            $persona->roles()->create(['role' => $rol, 'is_active' => true]);
+        }
+
+        return $persona;
     }
 
     private function asignar(WorkPlan $plan, Person $persona): WorkPlanPerson
