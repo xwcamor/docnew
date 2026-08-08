@@ -57,10 +57,14 @@ const conPdf = (f) => f.submission && f.status === 'confirmed';
  * ya dice que ese no se toca. Lo que sí merece una palabra es la excepción.
  */
 const subtitulo = (f) => {
-    if (!f.included) return t('work_plans.forms_not_in_plan');
-    if (f.locked_by_work_type) return '';
+    // El codigo va debajo, no arriba: sirve para reconocerlo de un vistazo pero
+    // no dice lo que es. Arriba va el nombre.
+    const partes = [f.code];
 
-    return t('work_plans.forms_optional');
+    if (!f.included) partes.push(t('work_plans.forms_not_in_plan'));
+    else if (!f.locked_by_work_type) partes.push(t('work_plans.forms_optional'));
+
+    return partes.join(' · ');
 };
 
 /** Por qué el interruptor está bloqueado. Son dos motivos y no son el mismo. */
@@ -106,7 +110,7 @@ const alternar = (f, valor) => {
                 v-for="f in forms"
                 :key="f.slug"
                 :state="!f.included ? 'optional' : (f.status === 'confirmed' ? 'done' : 'pending')"
-                :title="f.code"
+                :title="f.name || f.code"
                 :subtitle="subtitulo(f)"
                 :when="f.status === 'confirmed' ? f.confirmed_at : null"
                 :label="f.included ? $t('field_work.status.' + f.status) : ''"

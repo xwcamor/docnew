@@ -26,7 +26,11 @@ class ApprovalRule extends Model
     use Auditable;
     use SoftDeletes;
 
-    protected $fillable = ['slug', 'country_id', 'work_type_id', 'approver_role', 'priority_level',
+    // `name` es como se llama esa firma en la obra: «Supervisor Autorizante -
+    // HITACHI», no el rol genérico. El rol dice qué clase de persona firma; el
+    // nombre dice por parte de quién, y eso es lo que distingue una firma de
+    // otra en un documento que puede acabar delante de un inspector.
+    protected $fillable = ['slug', 'name', 'country_id', 'work_type_id', 'approver_role', 'priority_level',
                            'is_required', 'is_active', 'legacy_id', 'tenant_id', 'created_by',
                            'deleted_by', 'deleted_description'];
     protected $casts = ['is_required' => 'boolean', 'is_active' => 'boolean'];

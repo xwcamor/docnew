@@ -39,6 +39,14 @@ const firmadas = computed(() => props.approvals.filter((a) => a.signed).length);
 
 const rotulo = (rol) => (rol ? t('work_plans.approver_role.' + rol) : '—');
 
+/**
+ * Como se llama esa firma. El nombre de la regla —«Supervisor Autorizante -
+ * HITACHI»— y no el rol generico, que era lo que yo enseñaba: el rol dice que
+ * clase de persona firma, el nombre dice por parte de quien, y eso es lo que
+ * distingue una firma de otra en el documento.
+ */
+const nombre = (a) => a.rule_name || rotulo(a.role);
+
 /** dd-mm-aaaa hh:mm, hora de obra: no se reinterpreta la zona. */
 const cuando = (v) => {
     if (!v) return '';
@@ -201,7 +209,7 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                 :key="a.slug"
                 chained
                 :state="estado(a)"
-                :title="rotulo(a.role)"
+                :title="nombre(a)"
                 :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
                 :when="a.signed ? a.signed_at : null"
                 :label="etiqueta(a)"

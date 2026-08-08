@@ -157,7 +157,10 @@ class FormTemplate extends Model
 
     use SoftDeletes;
 
-    protected $fillable = ['slug', 'country_id', 'code', 'kind', 'status', 'version',
+    // `name` es el nombre de verdad del formato — «AST (Análisis de Seguridad en
+    // el Trabajo)»—, no el código. Faltaba, y `scopeFilter()` ya lo daba por
+    // existente: filtrar por nombre reventaba con «column name does not exist».
+    protected $fillable = ['slug', 'country_id', 'code', 'name', 'kind', 'status', 'version',
                            'requires_signature', 'pdf_template', 'published_at', 'is_active',
                            'tenant_id', 'created_by', 'deleted_by', 'deleted_description'];
     protected $casts = ['requires_signature' => 'boolean', 'is_active' => 'boolean',

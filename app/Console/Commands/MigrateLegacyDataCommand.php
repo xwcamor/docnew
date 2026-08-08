@@ -1046,6 +1046,11 @@ class MigrateLegacyDataCommand extends Command
                 ->first();
         }, fn ($f) => [
             'country_id'     => $this->countryId,
+            // El nombre de verdad: «Supervisor Autorizante - HITACHI». El rol
+            // dice que clase de persona firma; el nombre dice por parte de
+            // quien, y eso es lo que distingue una firma de otra. Se habia
+            // quedado fuera y en pantalla salia el rol generico.
+            'name'           => $f->name_es,
             'approver_role'  => $this->rolAprobador($f->approver_type),
             'priority_level' => $f->priority_level,
             'is_required'    => (bool) $f->is_required,

@@ -288,15 +288,46 @@ class MigrateLegacyFormatsCommand extends Command
             count($cat['items_ihm']), count($cat['herramientas'])));
     }
 
+    /**
+     * El nombre de cada formato, tal y como se lee en el sistema anterior.
+     *
+     * Alli el codigo no se enseña: `Document#translated_name` resuelve
+     * `documents.ast_documents` contra la tabla `translations` y sale «AST
+     * (Analisis de Seguridad en el Trabajo)». Yo cree las plantillas con el
+     * codigo a secas, asi que en pantalla salia «AST» — una sigla que hay que
+     * saberse de antemano.
+     */
+    protected const NOMBRES = [
+        'AST' => 'AST (Análisis de Seguridad en el Trabajo)',
+        'PTF' => 'Pare Tome 5',
+        'EPP' => 'Inspección de EPP (Equipos de Protección de Seguridad)',
+        'IHM' => 'Inspección de Herramientas Manuales y Eléctricas Portátiles',
+    ];
+
     /** Crea la plantilla si no existe ya publicada. */
     protected function plantilla(FormTemplateBuilder $c, array $base, string $codigo): ?FormTemplate
     {
-        if (FormTemplate::where('code', $codigo)->exists()) {
+        $existente = FormTemplate::where('code', $codigo)->first();
+
+        if ($existente) {
+            // Re-correr el comando rellena el nombre de las plantillas que ya
+            // se crearon sin el, que es el caso de las cuatro que hay migradas.
+            if (blank($existente->name) && isset(self::NOMBRES[$codigo])) {
+                $existente->update(['name' => self::NOMBRES[$codigo]]);
+                $this->line("  {$codigo}: nombre puesto — {$existente->name}");
+
+                return null;
+            }
+
             $this->line("  {$codigo} ya existe, se omite (usa --fresh para rehacerlo).");
 
             return null;
         }
 
-        return $c->crear($base + ['code' => $codigo, 'kind' => FormTemplate::STRUCTURED]);
+        return $c->crear($base + [
+            'code' => $codigo,
+            'name' => self::NOMBRES[$codigo] ?? $codigo,
+            'kind' => FormTemplate::STRUCTURED,
+        ]);
     }
 }

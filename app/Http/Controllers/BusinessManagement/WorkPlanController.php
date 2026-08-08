@@ -342,6 +342,9 @@ class WorkPlanController extends Controller
                 return [
                     'slug'        => $plantilla->slug,
                     'code'        => $plantilla->code,
+                    // El nombre de verdad: «AST (Análisis de Seguridad en el
+                    // Trabajo)». El código es una sigla que hay que saberse.
+                    'name'        => $plantilla->name ?: $plantilla->code,
                     'kind'        => $plantilla->kind,
                     'included'    => $enElPlan->has($plantilla->id),
                     'required'    => $item['is_required'],
@@ -369,7 +372,7 @@ class WorkPlanController extends Controller
     protected function approvalsPayload(WorkPlan $workPlan): array
     {
         $aprobaciones = $workPlan->approvals()
-            ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,approver_role,priority_level'])
+            ->with(['person:id,slug,name,lastname,num_doc', 'approvalRule:id,name,approver_role,priority_level'])
             ->get();
 
         // La hora de cada aprobación, igual que en la cuadrilla: es la prueba
@@ -385,6 +388,10 @@ class WorkPlanController extends Controller
             ->map(fn ($a) => [
                 'slug'      => $a->slug,
                 'role'      => $a->approvalRule?->approver_role,
+                // Como se llama esa firma en la obra: «Supervisor Autorizante -
+                // HITACHI», no el rol generico. El rol dice que clase de persona
+                // firma; el nombre dice por parte de quien.
+                'rule_name' => $a->approvalRule?->name,
                 'rule_id'   => $a->approval_rule_id,
                 'person'    => $a->person ? ['slug' => $a->person->slug, 'name' => $a->person->list_name, 'num_doc' => $a->person->safe_num_doc] : null,
                 'required'  => (bool) $a->is_required,
