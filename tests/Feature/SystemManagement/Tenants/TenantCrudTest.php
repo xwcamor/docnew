@@ -102,7 +102,12 @@ class TenantCrudTest extends TenantTestCase
         $tenant = Tenant::factory()->create();
 
         $url = route('system_management.tenants.show', $tenant->slug);
-        $this->assertStringContainsString($tenant->slug, $url);
-        $this->assertStringNotContainsString('/' . $tenant->id, $url);
+        // Se compara el ULTIMO SEGMENTO y no la cadena entera. Buscar "/1" dentro
+        // de la URL fallaba una de cada sesenta veces sin que nada estuviera
+        // roto: el slug es aleatorio y de vez en cuando empieza por el mismo
+        // digito que el id.
+        $ultimo = basename(parse_url($url, PHP_URL_PATH));
+        $this->assertSame($tenant->slug, $ultimo);
+        $this->assertNotSame((string) $tenant->id, $ultimo);
     }
 }

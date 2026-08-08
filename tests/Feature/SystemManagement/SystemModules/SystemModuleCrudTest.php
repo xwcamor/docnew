@@ -102,7 +102,12 @@ class SystemModuleCrudTest extends SystemModuleTestCase
         $system_module = SystemModule::factory()->create();
 
         $url = route('system_management.system_modules.show', $system_module->slug);
-        $this->assertStringContainsString($system_module->slug, $url);
-        $this->assertStringNotContainsString('/' . $system_module->id, $url);
+        // Se compara el ULTIMO SEGMENTO y no la cadena entera. Buscar "/1" dentro
+        // de la URL fallaba una de cada sesenta veces sin que nada estuviera
+        // roto: el slug es aleatorio y de vez en cuando empieza por el mismo
+        // digito que el id.
+        $ultimo = basename(parse_url($url, PHP_URL_PATH));
+        $this->assertSame($system_module->slug, $ultimo);
+        $this->assertNotSame((string) $system_module->id, $ultimo);
     }
 }

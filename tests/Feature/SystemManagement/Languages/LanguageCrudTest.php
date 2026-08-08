@@ -113,13 +113,25 @@ class LanguageCrudTest extends LanguageTestCase
         $this->assertFalse($language->is_active);
     }
 
+    /**
+     * La URL lleva el slug, no el id: un id correlativo en la barra de
+     * direcciones dice cuantos registros hay.
+     *
+     * Se compara el ULTIMO SEGMENTO y no la cadena entera. Buscar "/1" dentro
+     * de la URL fallaba una de cada sesenta veces sin que nada estuviera roto:
+     * el slug es aleatorio y de vez en cuando empieza por el mismo digito que
+     * el id, con lo que ".../languages/1a2b..." contenia "/1" y la prueba se
+     * caia sola.
+     */
     public function test_route_uses_slug_not_id_for_show(): void
     {
         $this->actingAsSuperAdmin();
         $language = Language::factory()->create();
 
         $url = route('system_management.languages.show', $language->slug);
-        $this->assertStringContainsString($language->slug, $url);
-        $this->assertStringNotContainsString('/' . $language->id, $url);
+        $ultimo = basename(parse_url($url, PHP_URL_PATH));
+
+        $this->assertSame($language->slug, $ultimo);
+        $this->assertNotSame((string) $language->id, $ultimo);
     }
 }

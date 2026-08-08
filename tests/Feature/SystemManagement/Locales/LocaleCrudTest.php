@@ -102,7 +102,12 @@ class LocaleCrudTest extends LocaleTestCase
         $locale = Locale::factory()->create();
 
         $url = route('system_management.locales.show', $locale->slug);
-        $this->assertStringContainsString($locale->slug, $url);
-        $this->assertStringNotContainsString('/' . $locale->id, $url);
+        // Se compara el ULTIMO SEGMENTO y no la cadena entera. Buscar "/1" dentro
+        // de la URL fallaba una de cada sesenta veces sin que nada estuviera
+        // roto: el slug es aleatorio y de vez en cuando empieza por el mismo
+        // digito que el id.
+        $ultimo = basename(parse_url($url, PHP_URL_PATH));
+        $this->assertSame($locale->slug, $ultimo);
+        $this->assertNotSame((string) $locale->id, $ultimo);
     }
 }

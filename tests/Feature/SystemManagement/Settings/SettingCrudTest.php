@@ -140,7 +140,12 @@ class SettingCrudTest extends SettingTestCase
         $setting = Setting::factory()->create();
 
         $url = route('system_management.settings.show', $setting->slug);
-        $this->assertStringContainsString($setting->slug, $url);
-        $this->assertStringNotContainsString('/' . $setting->id, $url);
+        // Se compara el ULTIMO SEGMENTO y no la cadena entera. Buscar "/1" dentro
+        // de la URL fallaba una de cada sesenta veces sin que nada estuviera
+        // roto: el slug es aleatorio y de vez en cuando empieza por el mismo
+        // digito que el id.
+        $ultimo = basename(parse_url($url, PHP_URL_PATH));
+        $this->assertSame($setting->slug, $ultimo);
+        $this->assertNotSame((string) $setting->id, $ultimo);
     }
 }
