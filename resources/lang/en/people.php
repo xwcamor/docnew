@@ -92,6 +92,8 @@ return [
     'name_and_lastname_required' => 'Creating a person requires both first and last names.',
     'name_unique'                => 'This person already exists.',
     'num_doc_required'           => 'The document number is required.',
+    'num_doc_too_short' => 'A :type has at least :min characters.',
+    'num_doc_too_long' => 'A :type has at most :max characters.',
     'num_doc_unique'             => 'A person with this document already exists in the same country.',
     'doc_type_invalid'           => 'Unknown document type. Use DNI, CE or PASAPORTE.',
     'country_required'           => 'Pick the document country.',

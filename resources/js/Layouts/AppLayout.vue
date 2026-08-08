@@ -720,6 +720,11 @@ const menuStructure = computed(() => [
                 href: route('business_management.nationalities.index'), inertia: true,
                 visible: () => can('nationalities.view'),
             },
+                {
+                key: 'document_types', label: t('sidebar.document_types'), icon: IdcardOutlined,
+                href: route('business_management.document_types.index'), inertia: true,
+                visible: () => can('document_types.view'),
+            },
         ],
     },
 

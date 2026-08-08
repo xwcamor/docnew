@@ -13,6 +13,7 @@ use App\Http\Controllers\BusinessManagement\WorkstationController;
 use App\Http\Controllers\BusinessManagement\WorkAreaController;
 use App\Http\Controllers\BusinessManagement\PositionController;
 use App\Http\Controllers\BusinessManagement\NationalityController;
+use App\Http\Controllers\BusinessManagement\DocumentTypeController;
 use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Http\Controllers\BusinessManagement\CompanyController;
 use App\Http\Controllers\BusinessManagement\BrandController;
@@ -1044,5 +1045,59 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('nationalities/{nationality}/lock',   [NationalityController::class, 'lock'])->name('nationalities.lock');
         Route::post('nationalities/{nationality}/unlock', [NationalityController::class, 'unlock'])->name('nationalities.unlock');
+    });
+
+    // 1) Papelera + restaurar (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('document_types/trash',           [DocumentTypeController::class, 'trash'])->name('document_types.trash');
+        Route::post('document_types/bulk_restore',   [DocumentTypeController::class, 'bulkRestore'])->name('document_types.bulk_restore');
+        Route::post('document_types/{slug}/restore', [DocumentTypeController::class, 'restore'])->name('document_types.restore');
+        Route::get('document_types/{slug}/restore',  fn () => redirect()->route('business_management.document_types.trash'));
+    });
+
+    // 2) Masivas
+    Route::middleware(['permission:document_types.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('document_types/bulk_delete',     [DocumentTypeController::class, 'bulkDelete'])->name('document_types.bulk_delete');
+        Route::post('document_types/bulk_set_active', [DocumentTypeController::class, 'bulkSetActive'])->name('document_types.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:document_types.delete')->group(function () {
+        Route::post('document_types/undo_last_delete', [DocumentTypeController::class, 'undoLastDelete'])->name('document_types.undo_last_delete');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
+    // al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:document_types.edit')->group(function () {
+        Route::post('document_types/{documentType}/deactivate', [DocumentTypeController::class, 'deactivate'])->name('document_types.deactivate');
+    });
+
+    // 3) CRUD — rutas de path fijo ANTES de las que llevan {documentType}.
+    Route::middleware('permission:document_types.create')->group(function () {
+        Route::get('document_types/create', [DocumentTypeController::class, 'create'])->name('document_types.create');
+        Route::post('document_types',       [DocumentTypeController::class, 'store'])->name('document_types.store');
+    });
+
+    Route::middleware('permission:document_types.view')->group(function () {
+        Route::get('document_types',          [DocumentTypeController::class, 'index'])->name('document_types.index');
+        Route::get('document_types/{documentType}',  [DocumentTypeController::class, 'show'])->name('document_types.show');
+    });
+
+    Route::middleware('permission:document_types.edit')->group(function () {
+        Route::get('document_types/{documentType}/edit', [DocumentTypeController::class, 'edit'])->name('document_types.edit');
+        Route::put('document_types/{documentType}',      [DocumentTypeController::class, 'update'])->name('document_types.update');
+    });
+
+    Route::middleware('permission:document_types.delete')->group(function () {
+        Route::get('document_types/{documentType}/delete',        [DocumentTypeController::class, 'delete'])->name('document_types.delete');
+        Route::delete('document_types/{documentType}/deleteSave', [DocumentTypeController::class, 'deleteSave'])->name('document_types.deleteSave');
+    });
+
+    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
+    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
+    // que la citan, cerrados incluidos.
+    Route::middleware('role:super|admin')->group(function () {
+        Route::post('document_types/{documentType}/lock',   [DocumentTypeController::class, 'lock'])->name('document_types.lock');
+        Route::post('document_types/{documentType}/unlock', [DocumentTypeController::class, 'unlock'])->name('document_types.unlock');
     });
 });

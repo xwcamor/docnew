@@ -277,7 +277,7 @@ class HandleInertiaRequests extends Middleware
         // Los cinco catálogos de obra —sedes, puestos, áreas, cargos y
         // nacionalidades— van por lo mismo: sin su namespace, las cabeceras de
         // sus listados salen como POSITIONS.CODE.
-        $namespaces = ['global', 'regions', 'languages', 'countries', 'locales', 'tenants', 'system_modules', 'settings', 'users', 'roles', 'customers', 'bitacora', 'audit_logs', 'sidebar', 'imports', 'notifications', 'auth', 'profile', 'subscriptions', 'plans', 'automations', 'dashboard', 'messages', 'comments', 'search', 'approvals', 'tools', 'locks', 'field_work', 'work_plans', 'people', 'companies', 'approval_rules', 'approver_roles', 'brands', 'form_templates', 'work_types', 'work_locations', 'workstations', 'work_areas', 'positions', 'nationalities'];
+        $namespaces = ['global', 'regions', 'languages', 'countries', 'locales', 'tenants', 'system_modules', 'settings', 'users', 'roles', 'customers', 'bitacora', 'audit_logs', 'sidebar', 'imports', 'notifications', 'auth', 'profile', 'subscriptions', 'plans', 'automations', 'dashboard', 'messages', 'comments', 'search', 'approvals', 'tools', 'locks', 'field_work', 'work_plans', 'people', 'companies', 'approval_rules', 'approver_roles', 'brands', 'form_templates', 'work_types', 'work_locations', 'workstations', 'work_areas', 'positions', 'nationalities', 'document_types'];
         $out = [];
         foreach ($namespaces as $ns) {
             $messages = trans($ns);

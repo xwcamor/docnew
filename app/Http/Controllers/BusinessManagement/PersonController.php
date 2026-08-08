@@ -165,15 +165,24 @@ class PersonController extends Controller
     }
 
     /**
-     * Tipos de documento admitidos. No hay tabla para esto: son los tres que
-     * usa la operación en Perú y viven en el mismo campo `doc_type`.
+     * Tipos de documento admitidos, **del catálogo**.
+     *
+     * Estaban escritos aquí —«no hay tabla para esto», decía este comentario—
+     * y eso significaba que añadir el PTP, que en Perú llevan miles de
+     * venezolanos, pasaba por tocar PHP y desplegar. Ahora es una fila.
+     *
+     * Si el catálogo estuviera vacío se cae a los tres de siempre, para que una
+     * base sin sembrar no deje la pantalla sin poder dar de alta a nadie.
      */
     protected function docTypeOptions(): array
     {
-        return array_map(
-            fn ($t) => ['value' => $t, 'label' => $t],
-            ['DNI', 'CE', 'PASAPORTE'],
-        );
+        $tipos = \App\Models\DocumentType::delPais(auth()->user()?->country_id);
+
+        if ($tipos->isEmpty()) {
+            return array_map(fn ($t) => ['value' => $t, 'label' => $t], ['DNI', 'CE', 'PASAPORTE']);
+        }
+
+        return $tipos->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])->all();
     }
 
     /** Roles en obra — el enum de `person_roles.role`. */

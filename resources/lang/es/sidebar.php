@@ -66,4 +66,5 @@ return [
     'work_areas'         => 'Áreas',
     'positions'          => 'Cargos',
     'nationalities'      => 'Nacionalidades',
+    'document_types' => 'Tipos de documento',
 ];

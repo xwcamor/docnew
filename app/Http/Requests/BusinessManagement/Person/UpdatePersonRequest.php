@@ -44,7 +44,15 @@ class UpdatePersonRequest extends FormRequest
         return [
             'name'     => ['required', 'string', 'max:255'],
             'lastname' => ['required', 'string', 'max:255'],
-            'doc_type' => ['required', 'string', 'max:20', Rule::in(['DNI', 'CE', 'PASAPORTE'])],
+            // El tipo sale del catálogo, no de una lista escrita aquí. Antes
+            // era `Rule::in(['DNI', 'CE', 'PASAPORTE'])`, así que dar de alta a
+            // alguien con PTP —que en Perú llevan miles de venezolanos— pasaba
+            // por tocar PHP y desplegar.
+            'doc_type' => ['required', 'string', 'max:20',
+                Rule::exists('document_types', 'code')
+                    ->where(fn ($q) => $q->where('country_id', $this->input('country_id'))
+                        ->where('is_active', true)
+                        ->whereNull('deleted_at'))],
             // La empresa y el cargo, que en la v1 son NOT NULL en `workers`.
             // No son columnas de la persona: se guardan en el vinculo
             // persona-empresa (ver PersonService::guardarVinculo).
@@ -67,6 +75,27 @@ class UpdatePersonRequest extends FormRequest
                         ->exists();
                     if ($exists) {
                         $fail(__('people.num_doc_unique'));
+                    }
+                },
+                // Y la longitud que declare ese tipo. Es ayuda al dar de
+                // alta y nada más: el buscador de la cuadrilla va por
+                // coincidencia exacta, porque en la base hay dos peruanos con
+                // DNI de 7 caracteres y una regla de longitud los dejaría
+                // fuera del sistema para siempre.
+                function ($attribute, $value, $fail) {
+                    $tipo = \App\Models\DocumentType::where('country_id', $this->input('country_id'))
+                        ->where('code', $this->input('doc_type'))->first();
+
+                    if (! $tipo) {
+                        return;
+                    }
+
+                    $largo = mb_strlen(trim((string) $value));
+
+                    if ($tipo->min_length && $largo < $tipo->min_length) {
+                        $fail(__('people.num_doc_too_short', ['type' => $tipo->code, 'min' => $tipo->min_length]));
+                    } elseif ($tipo->max_length && $largo > $tipo->max_length) {
+                        $fail(__('people.num_doc_too_long', ['type' => $tipo->code, 'max' => $tipo->max_length]));
                     }
                 },
             ],

@@ -92,6 +92,8 @@ return [
     'name_and_lastname_required' => 'Para dar de alta a alguien hacen falta nombres y apellidos.',
     'name_unique'                => 'Esta persona ya existe.',
     'num_doc_required'           => 'El número de documento es obligatorio.',
+    'num_doc_too_short' => 'Un :type tiene al menos :min caracteres.',
+    'num_doc_too_long' => 'Un :type tiene como mucho :max caracteres.',
     'num_doc_unique'             => 'Ya existe una persona con este documento en el mismo país.',
     'doc_type_invalid'           => 'Tipo de documento no reconocido. Usa DNI, CE o PASAPORTE.',
     'country_required'           => 'Indica el país del documento.',
