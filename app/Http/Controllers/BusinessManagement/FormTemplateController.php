@@ -148,10 +148,12 @@ class FormTemplateController extends Controller
         ]);
     }
 
-    public function create()
+    public function create(Request $request)
     {
         return inertia('FormTemplates/Form', [
-            'formTemplate'        => null,
+            'formTemplate'     => null,
+            'countryOptions'   => $this->countryOptions(),
+            'defaultCountryId' => $request->user()?->country_id,
         ]);
     }
 
@@ -202,8 +204,21 @@ class FormTemplateController extends Controller
         abort_if($formTemplate->is_locked, 403, __('locks.cannot_edit_locked'));
 
         return inertia('FormTemplates/Form', [
-            'formTemplate'        => $this->payload($formTemplate),
+            'formTemplate'     => $this->payload($formTemplate),
+            'countryOptions'   => $this->countryOptions(),
+            'defaultCountryId' => $formTemplate->country_id,
         ]);
+    }
+
+    /** Paises activos como opciones del selector, igual que en los catalogos. */
+    protected function countryOptions(): array
+    {
+        return \App\Models\Country::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'iso_code'])
+            ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name . ' (' . $c->iso_code . ')'])
+            ->all();
     }
 
 

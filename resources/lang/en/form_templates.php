@@ -20,6 +20,8 @@ return [
     'empty_hint'      => 'Create your first formTemplate or import a batch from Excel.',
     'name_placeholder' => 'E.g.: Acme, Globex, Contoso',
 
+    'country' => 'Country',
+    'country_help' => 'Which country this form belongs to. The hazard, PPE and tool catalogues it offers are that country’s, and only plans from there can use it.',
     'name'      => 'Name',
     'name_help' => 'FormTemplate name (e.g. Acme, Globex, Contoso).',
     'code'      => 'Code',

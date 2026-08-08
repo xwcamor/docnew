@@ -4,6 +4,7 @@ namespace App\Http\Requests\BusinessManagement\FormTemplate;
 
 use App\Http\Requests\Concerns\DerivesAttributesFromLang;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 class UpdateFormTemplateRequest extends FormRequest
 {
@@ -64,6 +65,10 @@ class UpdateFormTemplateRequest extends FormRequest
                     }
                 },
             ],
+            // El país es obligatorio: la columna es NOT NULL y el formulario no
+            // lo pedía, así que crear un formato desde la pantalla reventaba con
+            // un 23502 de Postgres. Es el mismo campo que llevan los catálogos.
+            'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

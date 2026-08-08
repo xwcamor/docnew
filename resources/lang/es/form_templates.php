@@ -20,6 +20,8 @@ return [
     'empty_hint'      => 'Crea el primer marca o importa un lote desde Excel para empezar.',
     'name_placeholder' => 'Ej: Acme, Globex, Contoso',
 
+    'country' => 'País',
+    'country_help' => 'De qué país es este formato. Los catálogos de riesgo, EPP y herramientas que ofrece son los de ese país, y sólo los planes de ahí pueden usarlo.',
     'name'      => 'Nombre',
     'name_help' => 'Nombre del marca (ej: Acme, Globex, Contoso).',
     'code'      => 'Código',

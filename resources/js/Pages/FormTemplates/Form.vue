@@ -13,12 +13,18 @@ import FormFooter from '@/Components/Common/FormFooter.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    formTemplate:       { type: Object, default: null },
+    formTemplate:     { type: Object, default: null },
+    countryOptions:   { type: Array,  default: () => [] },
+    defaultCountryId: { type: [Number, null], default: null },
 });
 
 const isEdit = computed(() => !!props.formTemplate);
 
 const form = useForm({
+    // El país es NOT NULL en la tabla y este formulario no lo pedía: crear un
+    // formato desde la pantalla reventaba con un 23502 de Postgres. Un AST
+    // pertenece a un país, como el resto de los catálogos de obra.
+    country_id: props.formTemplate?.country_id ?? props.defaultCountryId ?? null,
     name:       props.formTemplate?.name ?? '',
     code:       props.formTemplate?.code ?? '',
     is_active:  props.formTemplate?.is_active ?? true,
@@ -64,6 +70,23 @@ const submit = () => {
                 />
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
+
+                <FormItem
+                    :label="$t('form_templates.country')"
+                    :tooltip="$t('form_templates.country_help')"
+                    required
+                    :validate-status="form.errors.country_id ? 'error' : ''"
+                    :help="form.errors.country_id"
+                >
+                    <Select
+                        v-model:value="form.country_id"
+                        size="large"
+                        show-search
+                        :options="countryOptions"
+                        :filter-option="(i, o) => String(o.label ?? '').toLowerCase().includes(String(i).toLowerCase())"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
 
                 <FormItem
                     :label="$t('form_templates.name')"
