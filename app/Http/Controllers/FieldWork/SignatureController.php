@@ -22,6 +22,18 @@ class SignatureController extends Controller
      * Pantalla de firma de un plan: la cuadrilla y los aprobadores, con quien
      * falta por firmar.
      */
+    /**
+     * Si el flujo de aprobacion es secuencial.
+     *
+     * Por defecto no lo es: hay obras donde el HSE pasa antes que el supervisor
+     * y bloquearlo pararia el trabajo. Se enciende por workspace cuando el
+     * procedimiento lo exige de verdad.
+     */
+    protected function exigeOrden(): bool
+    {
+        return (bool) (\App\Models\Setting::get('docufiz.sequential_approvals') ?? false);
+    }
+
     public function show(WorkPlan $work_plan)
     {
         return inertia('FieldWork/Sign', [
@@ -96,6 +108,20 @@ class SignatureController extends Controller
         // Una firma manual solo la autoriza quien puede revisar firmas.
         if (($datos['manual_override'] ?? false) && ! $request->user()->can('signature_events.review')) {
             abort(403, __('No tienes permiso para firmar sin reconocimiento.'));
+        }
+
+        // Si el workspace exige el orden, una aprobacion no se firma hasta que
+        // firmen las obligatorias de nivel anterior. Aprobar algo que aun no ha
+        // aprobado quien iba primero vacia de sentido la firma.
+        if ($firmable instanceof WorkPlanApproval && $this->exigeOrden()) {
+            $antes = $firmable->aprobacionesPendientesAntes();
+
+            if ($antes->isNotEmpty()) {
+                abort(422, __('field_work.approval_out_of_order', [
+                    'roles' => $antes->map(fn ($a) => $a->approvalRule?->role?->label
+                        ?? $a->approvalRule?->approver_role)->filter()->implode(', '),
+                ]));
+            }
         }
 
         $evento = $this->firmas->firmar(

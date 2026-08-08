@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'approval_out_of_order' => 'Not yet: :roles still has to sign, and comes first in the flow.',
     // Pantalla de llenado de un formato del plan.
     'version'         => 'Version',
     'missing'         => 'Still missing',

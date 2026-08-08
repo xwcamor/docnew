@@ -181,13 +181,10 @@ class WorkPlanSetupService
      */
     public function seedApprovalsFromRules(WorkPlan $plan): int
     {
-        $reglas = ApprovalRule::query()
-            ->where('is_active', true)
-            ->where('country_id', $plan->country_id)
-            ->when($plan->tenant_id !== null,
-                fn ($q) => $q->where(fn ($qq) => $qq->where('tenant_id', $plan->tenant_id)->orWhereNull('tenant_id')))
-            ->orderBy('priority_level')
-            ->get();
+        // Las reglas de su tipo de trabajo si las hay, y si no las del pais:
+        // una maniobra de izaje puede exigir firmas que un mantenimiento
+        // estandar no necesita. Ver ApprovalRule::paraPlan().
+        $reglas = ApprovalRule::paraPlan($plan);
 
         $yaPuestas = $plan->approvals()->pluck('approval_rule_id')->all();
         $creadas = 0;

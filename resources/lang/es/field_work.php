@@ -1,6 +1,7 @@
 <?php
 
 return [
+    'approval_out_of_order' => 'Todavía no puedes aprobar: falta la firma de :roles, que va antes en el flujo.',
     // Pantalla de llenado de un formato del plan.
     'version'         => 'Versión',
     'missing'         => 'Falta completar',
