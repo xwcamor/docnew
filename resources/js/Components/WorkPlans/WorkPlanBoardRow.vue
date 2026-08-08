@@ -53,6 +53,16 @@ const props = defineProps({
      * confirmado y limpio, y con sólo la etiqueta verde los dos se ven igual.
      */
     findings: { type: Number, default: 0 },
+    /**
+     * Qué se hizo en esta fila, para el tooltip de la hora.
+     *
+     * Las tres columnas comparten la fila pero no el verbo: una persona
+     * **firma**, un documento se **completa**. Salía «Firmado el 07-08-2026»
+     * encima de un AST porque la fila nació en la columna de trabajadores y el
+     * texto se quedó pegado. En el sistema anterior el documento decía
+     * «Completado» (`standard.completed`).
+     */
+    doneVerb: { type: String, default: 'signed' },
 });
 
 const { t, tc } = useI18n();
@@ -94,7 +104,7 @@ const etiqueta = computed(() => cuando.value || props.label);
         </div>
 
         <div class="wp-row__side">
-            <Tooltip v-if="etiqueta" :title="when ? t('work_plans.crew_signed_at', { when: cuando }) : etiqueta">
+            <Tooltip v-if="etiqueta" :title="when ? t(`work_plans.done_at_${doneVerb}`, { when: cuando }) : etiqueta">
                 <Tag :color="color" :bordered="false" class="wp-row__tag">
                     <component :is="marca" /> {{ etiqueta }}
                 </Tag>

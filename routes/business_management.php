@@ -527,6 +527,10 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     });
     Route::middleware('permission:form_templates.edit')->group(function () {
         Route::get('form_templates/{formTemplate}/edit', [FormTemplateController::class, 'edit'])->name('form_templates.edit');
+        // Publicar / despublicar. Sin esto un formato creado desde la pantalla
+        // se queda en borrador para siempre y ningun plan lo puede usar.
+        Route::post('form_templates/{formTemplate}/publish',   [FormTemplateController::class, 'publish'])->name('form_templates.publish');
+        Route::post('form_templates/{formTemplate}/unpublish', [FormTemplateController::class, 'unpublish'])->name('form_templates.unpublish');
         Route::put('form_templates/{formTemplate}',      [FormTemplateController::class, 'update'])->name('form_templates.update');
     });
     Route::middleware('permission:form_templates.delete')->group(function () {

@@ -137,6 +137,7 @@ const alternar = (f, valor) => {
                 :when="f.status === 'confirmed' ? f.confirmed_at : null"
                 :label="f.included ? $t('field_work.status.' + f.status) : ''"
                 :findings="f.included ? (f.findings || 0) : 0"
+                done-verb="completed"
             >
                 <template #actions>
                     <template v-if="f.included">

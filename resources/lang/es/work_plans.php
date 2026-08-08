@@ -174,6 +174,8 @@ return [
     'crew_enrolled'     => 'Cara registrada',
     'crew_not_enrolled' => 'Sin cara registrada',
     'crew_signed'       => 'Firmó',
+    'done_at_signed' => 'Firmado el :when',
+    'done_at_completed' => 'Completado el :when',
     'crew_signed_at'    => 'Firmado el :when',
     'crew_pending'      => 'Falta su firma',
     'crew_sign_hint'    => 'Firmar por :name con reconocimiento facial',
@@ -182,13 +184,13 @@ return [
     'crew_already_assigned'     => ':name ya está en este plan.',
     'crew_signed_cannot_remove' => 'No se puede quitar a :name: ya firmó este plan. Su firma es la prueba de que estuvo en la obra y recibió la charla, así que el registro se conserva.',
 
-    'forms_title'    => 'Formatos de seguridad',
+    'forms_title'    => 'Documentos',
     'forms_not_in_plan'  => 'No se exige en este plan',
     'forms_toggle_hint'  => 'Exigir o no el formato :code en este plan',
-    'forms_open_hint'    => 'Abrir el formato :code para llenarlo',
+    'forms_open_hint'    => 'Abrir el :code para llenarlo',
     'forms_pdf_hint'     => 'Descargar el :code en PDF',
     'forms_subtitle' => 'Los pone el tipo de trabajo. Aquí se suma o se quita uno.',
-    'forms_summary'  => '{0} Ninguno lleno|[1,*] :done de :total llenos',
+    'forms_summary'  => '{0} Ninguno completado|[1,*] :done de :total completados',
 
     // Lo que salio mal en un formato. Es el entero `observations` de la v1, que
     // los cuatro formatos recalculaban solos y era lo que el supervisor leia de
@@ -197,13 +199,13 @@ return [
     // Todos los papeles del plan de golpe: el `plan_exports_controller`
     // de la v1, que era como se mandaba una jornada fuera.
     'export_zip' => 'Descargar todo',
-    'export_zip_hint' => 'Baja los formatos confirmados del plan en un solo ZIP, uno por PDF. Es lo que se manda al cliente o a una inspección.',
-    'export_zip_empty' => 'Todavía no hay ningún formato confirmado que descargar.',
+    'export_zip_hint' => 'Baja los documentos completados del plan en un solo ZIP, uno por PDF. Es lo que se manda al cliente o a una inspección.',
+    'export_zip_empty' => 'Todavía no hay ningún documento completado que descargar.',
 
     'findings_count' => '{1} 1 observación|[2,*] :count observaciones',
     'findings_hint'  => '{1} Una respuesta salió no conforme. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.|[2,*] :count respuestas salieron no conformes. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.',
     'forms_findings' => '{1} 1 observación|[2,*] :count observaciones',
-    'forms_empty'    => 'El tipo de trabajo de este plan no exige ningún formato.',
+    'forms_empty'    => 'El tipo de trabajo de este plan no exige ningún documento.',
     'forms_add'      => 'Añadir formato',
     'forms_add_title'=> 'Añadir un formato a este plan',
     'forms_open'     => 'Abrir',

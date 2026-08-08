@@ -1,9 +1,10 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert,
+    Card, Tag, Space, Alert, Button, Popconfirm, Tooltip,
 } from 'ant-design-vue';
+import { router } from '@inertiajs/vue3';
 import { TagsOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -25,6 +26,18 @@ const props = defineProps({
 
 const { can, isSuper, canSeeAudit } = useAuth();
 const { formatDateTimeFull } = useDateFormat();
+
+const publicando = ref(false);
+const esBorrador = computed(() => props.formTemplate.status !== 'published');
+
+const alternarPublicacion = () => {
+    publicando.value = true;
+    const accion = esBorrador.value ? 'publish' : 'unpublish';
+    router.post(route(`business_management.form_templates.${accion}`, props.formTemplate.slug), {}, {
+        preserveScroll: true,
+        onFinish: () => { publicando.value = false; },
+    });
+};
 
 const isDeleted = computed(() => !!props.formTemplate.deleted_at);
 const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--color-primary)');
@@ -49,9 +62,30 @@ const fmt = (d) => formatDateTimeFull(d);
                     <Tag v-else :color="formTemplate.is_active ? 'success' : 'default'" :bordered="false">
                         {{ formTemplate.is_active ? $t('global.active') : $t('global.inactive') }}
                     </Tag>
+                    <Tag :color="esBorrador ? 'default' : 'success'" :bordered="false">
+                        {{ $t(esBorrador ? 'form_templates.status_draft' : 'form_templates.status_published') }}
+                    </Tag>
                 </Space>
             </template>
             <template #actions>
+                <!-- Publicar es lo que hace usable el formato: la ficha del plan
+                     sólo ofrece los publicados. Sin este botón, uno creado desde
+                     la pantalla se quedaba en borrador para siempre y ningún
+                     plan podía usarlo. -->
+                <Tooltip v-if="can('form_templates.edit') && !isDeleted" :title="$t(esBorrador ? 'form_templates.publish_hint' : 'form_templates.unpublish_hint')">
+                    <Popconfirm
+                        :title="$t(esBorrador ? 'form_templates.publish_confirm' : 'form_templates.unpublish_confirm')"
+                        :ok-text="$t(esBorrador ? 'form_templates.publish' : 'form_templates.unpublish')"
+                        :cancel-text="$t('global.cancel')"
+                        placement="bottomRight"
+                        @confirm="alternarPublicacion"
+                    >
+                        <Button :type="esBorrador ? 'primary' : 'default'" :loading="publicando">
+                            {{ $t(esBorrador ? 'form_templates.publish' : 'form_templates.unpublish') }}
+                        </Button>
+                    </Popconfirm>
+                </Tooltip>
+
                 <EntityShowActions
                     module="form_templates"
                     route-prefix="business_management"

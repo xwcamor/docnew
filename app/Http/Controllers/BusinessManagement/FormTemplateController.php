@@ -210,6 +210,46 @@ class FormTemplateController extends Controller
         ]);
     }
 
+    /**
+     * Publicar un formato: lo que lo hace usable.
+     *
+     * Un formato nace en `draft` y la ficha del plan solo lista los publicados,
+     * asi que **el que creabas desde la pantalla no podia aparecer nunca**. No
+     * habia accion para publicarlo por ningun sitio: el unico camino era
+     * `docufiz:migrate-formats`, o sea los cuatro que trajo la v1 y nada mas.
+     * De ahi la sensacion de que no se podian añadir documentos a un plan.
+     *
+     * La comprobacion de que no salga vacio vive en el constructor, que es
+     * quien sabe lo que es un formato bien formado.
+     */
+    public function publish(FormTemplate $formTemplate, \App\Services\FieldWork\FormTemplateBuilder $constructor): RedirectResponse
+    {
+        abort_if($formTemplate->is_locked, 403, __('locks.cannot_edit_locked'));
+
+        try {
+            $constructor->publicar($formTemplate);
+        } catch (\InvalidArgumentException) {
+            return back()->with('error', __('form_templates.publish_empty'));
+        }
+
+        return back()->with('success', __('form_templates.published'));
+    }
+
+    /**
+     * Y despublicar, que no es borrar.
+     *
+     * Deja de ofrecerse en los planes nuevos; los que ya lo tienen conservan lo
+     * que se lleno, porque la entrega guarda su version de la plantilla.
+     */
+    public function unpublish(FormTemplate $formTemplate): RedirectResponse
+    {
+        abort_if($formTemplate->is_locked, 403, __('locks.cannot_edit_locked'));
+
+        $formTemplate->update(['status' => 'draft']);
+
+        return back()->with('success', __('form_templates.unpublished'));
+    }
+
     /** Paises activos como opciones del selector, igual que en los catalogos. */
     protected function countryOptions(): array
     {
@@ -426,7 +466,15 @@ class FormTemplateController extends Controller
             'slug'       => $m->slug,
             'name'       => $m->name,
             'code'       => $m->code,
-            'version' => $m->sort_order,
+            // `sort_order` no existe en esta tabla: es un resto de haber
+            // clonado el modulo de `Brand`, y la ficha enseñaba la version
+            // siempre vacia. La version de una plantilla es `version`.
+            'version'    => $m->version,
+            'kind'       => $m->kind,
+            // Sin el estado no se puede ni saber si el formato esta publicado,
+            // que es lo que decide si un plan puede usarlo.
+            'status'     => $m->status,
+            'published_at' => $m->published_at,
             'is_active'  => $m->is_active,
             'tenant_id'  => $m->tenant_id,
             'is_locked'  => $m->is_locked,

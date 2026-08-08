@@ -168,6 +168,8 @@ return [
     'crew_enrolled'     => 'Face enrolled',
     'crew_not_enrolled' => 'No face enrolled',
     'crew_signed'       => 'Signed',
+    'done_at_signed' => 'Signed on :when',
+    'done_at_completed' => 'Completed on :when',
     'crew_signed_at'    => 'Signed on :when',
     'crew_pending'      => 'Signature missing',
     'crew_sign_hint'    => 'Sign for :name with face recognition',
@@ -176,7 +178,7 @@ return [
     'crew_already_assigned'     => ':name is already on this plan.',
     'crew_signed_cannot_remove' => 'Cannot remove :name: they already signed this plan. Their signature proves they were on site and attended the briefing, so the record is kept.',
 
-    'forms_title'    => 'Safety forms',
+    'forms_title'    => 'Documents',
     'forms_not_in_plan'  => 'Not required on this plan',
     'forms_toggle_hint'  => 'Require form :code on this plan, or not',
     'forms_open_hint'    => 'Open form :code to fill it in',

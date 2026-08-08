@@ -98,6 +98,58 @@ class FormTemplateCrudTest extends TestCase
                 ->has('countryOptions', 1));
     }
 
+    /**
+     * Un formato creado se puede publicar, y hasta que no lo esté ningún plan
+     * lo ve.
+     *
+     * Éste era el motivo real de que «no se pudieran añadir documentos a un
+     * plan»: un formato nace en `draft`, la ficha del plan sólo lista los
+     * publicados y **no había ninguna acción para publicarlo** en toda la
+     * aplicación. El único camino era `docufiz:migrate-formats`, o sea los
+     * cuatro que trajo la v1 y nada más.
+     */
+    public function test_un_formato_nace_en_borrador_y_se_publica_desde_la_ficha(): void
+    {
+        $plantilla = FormTemplate::create([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1,
+            'code' => 'HOJA', 'name' => 'Hoja suelta', 'kind' => FormTemplate::UPLOAD_ONLY,
+            'status' => 'draft', 'version' => 1,
+        ]);
+
+        $this->actingAs($this->admin());
+
+        $this->assertSame('draft', $plantilla->status);
+
+        $this->post(route('business_management.form_templates.publish', $plantilla->slug))
+            ->assertSessionHas('success');
+
+        $this->assertSame('published', $plantilla->fresh()->status);
+        $this->assertNotNull($plantilla->fresh()->published_at);
+
+        // Y se puede volver atrás sin borrar nada.
+        $this->post(route('business_management.form_templates.unpublish', $plantilla->slug))
+            ->assertSessionHas('success');
+
+        $this->assertSame('draft', $plantilla->fresh()->status);
+    }
+
+    /** Un formato con campos no se publica vacío: sería un papel en blanco. */
+    public function test_un_formato_estructurado_vacio_no_se_publica(): void
+    {
+        $plantilla = FormTemplate::create([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1,
+            'code' => 'AST', 'name' => 'Analisis', 'kind' => FormTemplate::STRUCTURED,
+            'status' => 'draft', 'version' => 1,
+        ]);
+
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.form_templates.publish', $plantilla->slug))
+            ->assertSessionHas('error');
+
+        $this->assertSame('draft', $plantilla->fresh()->status);
+    }
+
     /** Las pantallas del módulo abren, que es lo que nadie había comprobado. */
     public function test_las_pantallas_del_modulo_abren(): void
     {

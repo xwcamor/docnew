@@ -39,6 +39,15 @@ const { t } = useI18n();
 
 const firmadas = computed(() => props.approvals.filter((a) => a.signed).length);
 
+/**
+ * El plan está aprobado cuando firmaron **las obligatorias**.
+ *
+ * Salía en ámbar con «2 de 3» porque la tercera estaba sin firmar — pero esa
+ * tercera es opcional, y pintar de aviso algo que nadie tiene que hacer es
+ * pedir atención para nada. Si lo obligatorio está, está.
+ */
+const faltaObligatoria = computed(() => props.approvals.some((a) => a.required && !a.signed));
+
 const rotulo = (rol) => (rol ? t('work_plans.approver_role.' + rol) : '—');
 
 /**
@@ -105,17 +114,6 @@ const estado = (a) => {
 
     return a.required ? 'pending' : 'optional';
 };
-
-/**
- * Al ejecutante se le designa, no se le vuelve a pedir la firma.
- *
- * Su aprobación queda dada en el momento en que se le designa, porque para
- * poder designarlo tiene que haber firmado ya como trabajador. Eso es lo que
- * dice esta línea, para que nadie busque un botón que no está.
- */
-const comoFirmo = (a) => (a.signs_as_worker && a.signed
-    ? t('work_plans.approval_signed_as_worker')
-    : '');
 
 const etiqueta = (a) => {
     if (a.signed) return t('work_plans.approval_approved');
@@ -254,7 +252,7 @@ const firmar = (a) => router.get(
             <SafetyCertificateOutlined /> {{ $t('work_plans.approvals_title') }}
         </template>
         <template v-if="approvals.length" #extra>
-            <Tag :color="firmadas === approvals.length ? 'success' : 'warning'" :bordered="false">
+            <Tag :color="faltaObligatoria ? 'warning' : 'success'" :bordered="false">
                 {{ $tc('work_plans.approvals_summary', firmadas, { done: firmadas, total: approvals.length }) }}
             </Tag>
         </template>
@@ -268,7 +266,7 @@ const firmar = (a) => router.get(
                 chained
                 :state="estado(a)"
                 :title="nombre(a)"
-                :subtitle="[a.person ? a.person.name : $t('work_plans.approval_unassigned'), comoFirmo(a)].filter(Boolean).join(' · ')"
+                :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
                 :when="a.signed ? a.signed_at : null"
                 :label="etiqueta(a)"
                 :reason="bloqueo(a) || ''"
