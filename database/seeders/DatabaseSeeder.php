@@ -34,6 +34,12 @@ class DatabaseSeeder extends Seeder
             RegionsSeeder::class,
             LocalesSeeder::class,
             CountriesSeeder::class,
+
+            // ── Tipos de documento (DNI, CE, PTP, Pasaporte) ────────────
+            //    Necesita los paises. Sin esto la ficha de una persona se cae
+            //    a la lista vieja escrita en PHP, que es lo que se quito.
+            DocumentTypesSeeder::class,
+
             SystemModulesSeeder::class,
 
             // ── Pricing tiers (free/basic/pro/enterprise) ───────────────
@@ -70,9 +76,10 @@ class DatabaseSeeder extends Seeder
             // Se quitaron: son datos de otro sistema —344 empresas con su
             // jerarquia de sedes, areas y subestaciones— y no pintan nada en una
             // instalacion de DOCUFIZ. Los datos propios se traen del sistema
-            // anterior con `php artisan docufiz:migrate-data todo`, y para
-            // probar sin base vieja esta `DocufizDemoSeeder`.
+            // anterior, y de eso se encarga el bloque de abajo.
         ]);
+
+        $this->traerElSistemaAnterior();
 
         // Los dumps legacy se insertan con IDs explícitos (SQL crudo), lo que NO
         // avanza las secuencias de Postgres → el primer create/duplicate del
@@ -81,5 +88,36 @@ class DatabaseSeeder extends Seeder
         if (\Illuminate\Support\Facades\DB::getDriverName() === 'pgsql') {
             \Illuminate\Support\Facades\Artisan::call('db:fix-sequences');
         }
+    }
+
+    /**
+     * Los datos del sistema anterior, si la base vieja esta ahi.
+     *
+     * `migrate:fresh --seed` tiene que dejar la base **lista para trabajar**, y
+     * en local eso incluye los 3 722 planes y las 391 personas: una base
+     * sembrada pero vacia no sirve para mirar nada. Antes esto eran tres o
+     * cuatro comandos sueltos que habia que acordarse de correr en orden, y
+     * olvidar uno dejaba la base a medias sin decirlo.
+     *
+     * Si el MySQL viejo no responde —un clon nuevo, CI, un despliegue— se salta
+     * y se dice por que. No es un error: es que no hay nada que traer.
+     *
+     * El orden importa: las plantillas de formato antes que los datos, porque
+     * cada AST llenado necesita su plantilla a la que colgarse.
+     */
+    protected function traerElSistemaAnterior(): void
+    {
+        try {
+            \Illuminate\Support\Facades\DB::connection('legacy')->getPdo();
+        } catch (\Throwable $e) {
+            $this->command?->warn('Sin base del sistema anterior: se salta la migracion de datos.');
+            $this->command?->line('  Para traerlos, levanta el MySQL viejo y repite. Sin ellos la base');
+            $this->command?->line('  queda sembrada pero sin planes ni personas.');
+
+            return;
+        }
+
+        \Illuminate\Support\Facades\Artisan::call('docufiz:migrate-formats', [], $this->command?->getOutput());
+        \Illuminate\Support\Facades\Artisan::call('docufiz:migrate-data', ['paso' => 'todo'], $this->command?->getOutput());
     }
 }

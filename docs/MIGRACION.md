@@ -17,6 +17,25 @@ Cifras del volcado del 06-08-2026, verificadas contra la base cargada.
 6. **Corte**: se congela la v1 (solo lectura), se corre la migración final, se verifica el checklist
    de corte y se abre la v2. La v1 queda accesible en solo lectura durante 3 meses.
 
+## En local: un solo comando
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Deja la base **lista para trabajar**: esquema, catálogos, permisos, ajustes,
+tipos de documento, usuarios — y los datos del sistema anterior si el MySQL
+viejo está levantado. No hay seeders sueltos que recordar ni orden que
+respetar; si se añade uno nuevo, va dentro de `DatabaseSeeder` y no en estas
+instrucciones.
+
+Si la base vieja no responde, se salta esa parte y lo dice por pantalla. No es
+un error: es que no hay nada que traer, y la base queda sembrada pero sin
+planes ni personas.
+
+Los pasos sueltos de abajo son para producción y para volver a correr **una**
+parte sin tocar el resto.
+
 ## Los pasos
 
 ```
