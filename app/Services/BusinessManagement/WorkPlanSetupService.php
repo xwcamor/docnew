@@ -3,6 +3,7 @@
 namespace App\Services\BusinessManagement;
 
 use App\Models\ApprovalRule;
+use App\Models\ApproverRole;
 use App\Models\FormTemplate;
 use App\Models\Person;
 use App\Models\WorkPlan;
@@ -212,15 +213,31 @@ class WorkPlanSetupService
             throw new \DomainException(__('work_plans.approval_signed_cannot_reassign'));
         }
 
-        // El rol manda: un supervisor HSE lo firma alguien que ES supervisor
-        // HSE. En el sistema anterior el selector de aprobador iba contra tres
-        // endpoints distintos según el tipo, así que la lista ya venía filtrada;
-        // aquí se ofrecía a cualquiera y se podía poner al ayudante a firmar
-        // como supervisor de seguridad. La comprobación vive en el servicio
-        // porque el filtro del buscador se salta con una petición a mano.
         $rol = $aprobacion->approvalRule?->approver_role;
 
-        if ($rol && ! $persona->roles()->where('role', $rol)->where('is_active', true)->exists()) {
+        // El ejecutante sale **de los trabajadores de este plan**.
+        //
+        // Es quien está en la obra y responde por lo que se va a hacer, así que
+        // no puede ser alguien que no salió a trabajar ese día. Ni el sistema
+        // anterior ni la primera versión de esto lo comprobaban: los dos
+        // buscaban por documento en las 231 personas del padrón, y se podía
+        // poner como responsable de la obra a quien no estuvo en ella.
+        if ($rol === ApproverRole::WORKER) {
+            $enElPlan = $plan->people()->where('person_id', $persona->id)->exists();
+
+            if (! $enElPlan) {
+                throw new \DomainException(__('work_plans.approval_not_in_crew', [
+                    'name' => $persona->list_name,
+                ]));
+            }
+        } elseif ($rol && ! $persona->roles()->where('role', $rol)->where('is_active', true)->exists()) {
+            // Supervisor y HSE no están en la cuadrilla, así que lo que se
+            // exige es el rol. En el sistema anterior el selector iba contra
+            // tres endpoints distintos según el tipo, así que la lista ya venía
+            // filtrada; aquí se ofrecía a cualquiera y se podía poner al
+            // ayudante a firmar como supervisor de seguridad. La comprobación
+            // vive en el servicio porque el filtro del buscador se salta con
+            // una petición hecha a mano.
             throw new \DomainException(__('work_plans.approval_wrong_role', [
                 'name' => $persona->list_name,
                 'role' => __('work_plans.approver_role.' . $rol),

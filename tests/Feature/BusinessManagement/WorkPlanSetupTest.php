@@ -643,6 +643,35 @@ class WorkPlanSetupTest extends TestCase
         $this->assertNull($aprobacion->fresh()->person_id);
     }
 
+    /**
+     * El ejecutante sale de los trabajadores **de este plan**, y sólo de ahí.
+     *
+     * Es quien está en la obra y responde por lo que se va a hacer. Ni el
+     * sistema anterior ni mi primera versión lo comprobaban: los dos buscaban
+     * por documento entre las 231 personas del padrón, así que se podía poner
+     * como responsable de la obra a alguien que no salió a trabajar ese día.
+     */
+    public function test_el_ejecutante_tiene_que_estar_en_la_cuadrilla(): void
+    {
+        $plan = $this->plan();
+        $aprobacion = $this->aprobacion($plan, $this->regla('worker', 1, true));
+
+        // Trabajador con el rol correcto, pero que no está en este plan.
+        $fuera = $this->persona('Beto', 'Cruz', '40000050', ['worker']);
+        $this->actingAs($this->supervisor());
+
+        $ruta = route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]);
+
+        $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('error');
+        $this->assertNull($aprobacion->fresh()->person_id);
+
+        // Y en cuanto entra en la cuadrilla, sí.
+        $this->asignar($plan, $fuera);
+
+        $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('success');
+        $this->assertSame($fuera->id, $aprobacion->fresh()->person_id);
+    }
+
     /** Y el buscador tampoco lo ofrece: filtra por el rol que se está asignando. */
     public function test_el_buscador_de_aprobadores_solo_devuelve_el_rol_pedido(): void
     {

@@ -239,6 +239,8 @@ return [
     'approval_change'    => 'Cambiar',
     'approval_sign'      => 'Firmar',
     'approval_no_one_with_role' => 'Ningún :role con ese documento. Comprueba que la persona tenga ese rol en su ficha.',
+    'approval_pick_from_crew' => 'Elige a uno de los trabajadores del plan',
+    'approval_not_in_crew' => ':name no está en este plan. El ejecutante tiene que ser uno de los trabajadores que salen a la obra.',
     'approval_wrong_role' => ':name no es :role. Sólo puede firmar esa aprobación quien tenga ese rol en su ficha de trabajador.',
     'approval_person_taken' => ':name ya firma otro rol de este plan. Una misma persona no cubre dos firmas.',
     'approval_signed_cannot_reassign' => 'Esta aprobación ya está firmada: no se cambia el firmante. La firma es la prueba de quién se hizo responsable.',

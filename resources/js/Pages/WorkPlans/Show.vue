@@ -503,6 +503,7 @@ const pendientes = computed(() => {
                     <WorkPlanApprovalsCard
                         :plan-slug="workPlan.slug"
                         :approvals="approvals"
+                        :crew="crew"
                         :can-edit="canSetup"
                         :can-sign="fieldWork.canSign"
                     />

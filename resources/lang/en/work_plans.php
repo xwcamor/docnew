@@ -231,6 +231,8 @@ return [
     'approval_change'    => 'Change',
     'approval_sign'      => 'Sign',
     'approval_no_one_with_role' => 'No :role with that document. Check the person has that role on their record.',
+    'approval_pick_from_crew' => 'Pick one of the plan’s workers',
+    'approval_not_in_crew' => ':name is not on this plan. The executing worker has to be one of the people going out on site.',
     'approval_wrong_role' => ':name is not a :role. Only someone with that role on their worker record can sign this approval.',
     'approval_person_taken' => ':name already signs another role on this plan. One person does not cover two signatures.',
     'approval_signed_cannot_reassign' => 'This approval is already signed: the signer cannot be changed. The signature is the proof of who took responsibility.',

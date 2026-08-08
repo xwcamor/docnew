@@ -31,6 +31,8 @@ const props = defineProps({
     approvals: { type: Array,  default: () => [] },
     canEdit:   { type: Boolean, default: false },
     canSign:   { type: Boolean, default: false },
+    /** Los trabajadores del plan: de ahí sale el ejecutante, y sólo de ahí. */
+    crew:      { type: Array,  default: () => [] },
 });
 
 const { t } = useI18n();
@@ -164,6 +166,27 @@ const sinResultados = computed(() => {
     return t('work_plans.approval_no_one_with_role', { role: rotulo(rolAbierto.value) });
 });
 
+/**
+ * El ejecutante se elige **entre los trabajadores del plan**, no se busca.
+ *
+ * Es quien está en la obra y responde por lo que se va a hacer, así que no
+ * puede ser alguien que no salió a trabajar ese día. Ni el sistema anterior ni
+ * mi primera versión lo comprobaban: los dos buscaban por documento en las 231
+ * personas del padrón.
+ *
+ * Además es una lista de dos o cinco nombres: se elige con un clic en vez de
+ * teclear ocho dígitos con guantes. El buscador por documento se queda para
+ * supervisor y HSE, que no salen a obra con el plan.
+ *
+ * Se llama `esEjecutante` y no por el nombre de la lista: lo que decide de dónde
+ * salen los candidatos es **el rol que firma**, no de dónde se sacan.
+ */
+const esEjecutante = (a) => a?.role === 'worker';
+
+const opciones = computed(() => (esEjecutante(props.approvals.find((a) => a.slug === abierta.value))
+    ? props.crew.map((f) => ({ slug: f.person, name: f.name }))
+    : candidatos.value));
+
 const abrir = (a) => {
     abierta.value = abierta.value === a.slug ? null : a.slug;
     candidatos.value = [];
@@ -220,8 +243,10 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                         <Tooltip
                             v-if="canEdit"
                             :title="a.person
-                                ? $t('work_plans.approval_change_hint', { role: rotulo(a.role) })
-                                : $t('work_plans.approval_assign_hint')"
+                                ? $t('work_plans.approval_change_hint', { role: nombre(a) })
+                                : (esEjecutante(a)
+                                    ? $t('work_plans.approval_pick_from_crew')
+                                    : $t('work_plans.approval_assign_hint'))"
                         >
                             <Button size="small" :loading="guardando === a.slug" @click="abrir(a)">
                                 <template #icon><EditOutlined /></template>
@@ -243,19 +268,25 @@ const firmar = () => router.get(route('field_work.signatures.show', props.planSl
                          despliega una lista. Va debajo de la fila porque el
                          selector necesita el ancho entero. -->
                     <div v-if="canEdit && !a.signed && abierta === a.slug" class="wp-assign">
+                        <!-- Ejecutante: lista corta de los que están en la obra.
+                             Supervisor y HSE: buscador por documento. -->
                         <Select
-                            show-search
+                            :show-search="!esEjecutante(a)"
                             allow-clear
                             autofocus
                             :filter-option="false"
                             :loading="buscando"
-                            :placeholder="$t('work_plans.approval_assign_hint')"
-                            :not-found-content="buscando ? undefined : sinResultados"
+                            :placeholder="esEjecutante(a)
+                                ? $t('work_plans.approval_pick_from_crew')
+                                : $t('work_plans.approval_assign_hint')"
+                            :not-found-content="esEjecutante(a)
+                                ? $t('work_plans.crew_empty')
+                                : (buscando ? undefined : sinResultados)"
                             style="width: 100%"
-                            @search="buscar"
+                            @search="esEjecutante(a) ? undefined : buscar($event)"
                             @change="(v) => asignar(a, v)"
                         >
-                            <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
+                            <SelectOption v-for="p in opciones" :key="p.slug" :value="p.slug">
                                 {{ p.name }}
                             </SelectOption>
                         </Select>
