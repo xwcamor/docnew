@@ -1,13 +1,14 @@
 <script setup>
-import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import {
     Card, Tag, Button, Select, SelectOption, Popconfirm, Tooltip, Switch,
 } from 'ant-design-vue';
 import {
-    SafetyCertificateOutlined, DeleteOutlined, PlusOutlined,
+    SafetyCertificateOutlined, DeleteOutlined, PlusOutlined, NodeIndexOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
+import { useAuth } from '@/Composables/useAuth';
 
 /**
  * Aprobaciones del plan: quién tiene que firmarlo antes de que se ejecute.
@@ -27,6 +28,15 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+const { can } = useAuth();
+
+// El flujo (qué firmas exige un plan, quién puede darlas) se configura en otros
+// dos módulos y nadie los encontraba. El enlace vive aquí, que es donde surge
+// la pregunta, y no solo en el menú lateral.
+const puedeConfigurarReglas = computed(() => can('approval_rules.view'));
+const puedeVerRoles         = computed(() => can('approver_roles.view'));
+
+const firmadas = computed(() => props.approvals.filter((a) => a.signed).length);
 
 const regla = ref(undefined);
 const persona = ref(undefined);
@@ -89,8 +99,13 @@ const quitar = (a) => {
         <template #title>
             <SafetyCertificateOutlined /> {{ $t('work_plans.approvals_title') }} ({{ approvals.length }})
         </template>
+        <template v-if="approvals.length" #extra>
+            <span class="ff-count" :class="{ 'is-done': firmadas === approvals.length }">
+                {{ $tc('work_plans.approvals_summary', firmadas, { done: firmadas, total: approvals.length }) }}
+            </span>
+        </template>
 
-        <p class="ff-cardhint">{{ $t('work_plans.approvals_subtitle') }}</p>
+        <p v-if="canEdit" class="ff-cardhint">{{ $t('work_plans.approvals_subtitle') }}</p>
 
         <p v-if="!approvals.length" class="ff-empty">{{ $t('work_plans.approvals_empty') }}</p>
 
@@ -168,5 +183,35 @@ const quitar = (a) => {
                 {{ $t('work_plans.approvals_add') }}
             </Button>
         </div>
+
+        <!-- Adónde ir cuando la respuesta no está en este plan sino en el flujo:
+             la lista de roles propuestos sale de ahí, no de esta pantalla. -->
+        <div v-if="puedeConfigurarReglas || puedeVerRoles" class="wp-flowlink">
+            <p class="ff-cardhint">{{ $t('work_plans.approvals_configure_hint') }}</p>
+            <div class="ff-addrow">
+                <Link v-if="puedeConfigurarReglas" :href="route('business_management.approval_rules.index')">
+                    <Button>
+                        <template #icon><NodeIndexOutlined /></template>
+                        {{ $t('work_plans.approvals_configure') }}
+                    </Button>
+                </Link>
+                <Link v-if="puedeVerRoles" :href="route('business_management.approver_roles.index')">
+                    <Button>
+                        <template #icon><SafetyCertificateOutlined /></template>
+                        {{ $t('work_plans.approvals_roles_link') }}
+                    </Button>
+                </Link>
+            </div>
+        </div>
     </Card>
 </template>
+
+<style scoped>
+.wp-flowlink {
+    margin-top: 16px; padding-top: 14px;
+    border-top: 1px solid var(--color-border-soft, #f0f0f0);
+}
+.wp-flowlink .ff-cardhint { margin-bottom: 8px; }
+/* Objetivo de toque de tablet, igual que el resto de la ficha. */
+.wp-flowlink :deep(.ant-btn) { min-height: 44px; }
+</style>

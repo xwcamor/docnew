@@ -395,6 +395,48 @@ class WorkPlanSetupTest extends TestCase
         $this->assertDatabaseHas('work_plan_approvals', ['id' => $aprobacion->id]);
     }
 
+    /**
+     * La misma regla que protege al trabajador, aplicada al aprobador: una firma
+     * de aprobacion es evidencia igual que la otra.
+     *
+     * Este es el caso que faltaba cubrir. Si el reconocimiento no cerro y la
+     * firma quedo pendiente de revision, `is_approved` sigue en false pero el
+     * evento —con su foto— ya existe; mirar solo la bandera dejaria borrar justo
+     * las aprobaciones dudosas, que son las que hay que poder auditar.
+     */
+    public function test_tampoco_se_quita_un_aprobador_con_firma_pendiente_de_revision(): void
+    {
+        $plan = $this->plan();
+        $persona = $this->persona('Marta', 'Quispe', '40000012');
+        $aprobacion = $this->aprobacion($plan);
+        $aprobacion->forceFill(['person_id' => $persona->id])->save();
+
+        SignatureEvent::create([
+            'signable_type' => $aprobacion->getMorphClass(), 'signable_id' => $aprobacion->id,
+            'person_id' => $persona->id, 'role_signed' => 'supervisor',
+            'signed_at' => now(), 'method' => SignatureEvent::TIMEOUT_CAPTURE,
+            'pending_review' => true, 'tenant_id' => 1,
+        ]);
+
+        $this->actingAs($this->supervisor());
+        $respuesta = $this->delete(route('business_management.work_plans.approvals.destroy', [$plan->slug, $aprobacion->slug]));
+
+        $respuesta->assertSessionHas('error');
+        $this->assertDatabaseHas('work_plan_approvals', ['id' => $aprobacion->id]);
+    }
+
+    /** Y el que no firmo si se quita: la proteccion no puede congelar el armado. */
+    public function test_un_aprobador_que_no_firmo_si_se_puede_quitar(): void
+    {
+        $plan = $this->plan();
+        $aprobacion = $this->aprobacion($plan);
+        $this->actingAs($this->supervisor());
+
+        $this->delete(route('business_management.work_plans.approvals.destroy', [$plan->slug, $aprobacion->slug]));
+
+        $this->assertDatabaseMissing('work_plan_approvals', ['id' => $aprobacion->id]);
+    }
+
     // ── La ficha ─────────────────────────────────────────────────────────────
 
     /** La ficha trae la cuadrilla, los formatos y las aprobaciones resueltos. */

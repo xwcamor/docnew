@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
     Card, Tag, Button, Select, SelectOption, Popconfirm, Tooltip,
@@ -8,7 +8,10 @@ import {
     TeamOutlined, DeleteOutlined, PlusOutlined, CameraOutlined, CheckCircleOutlined,
 } from '@ant-design/icons-vue';
 /**
- * Cuadrilla del plan: quién sale a obra ese día.
+ * Trabajadores del plan: quién sale a obra ese día.
+ *
+ * Se llama "Trabajadores" y no "Cuadrilla" porque es la palabra que traía el
+ * sistema anterior (`plan_workers`) y la que se entiende sin explicación.
  *
  * De cada persona interesan tres cosas antes de salir, y son las tres que se
  * muestran: su documento (con eso se la identifica en obra), si tiene la cara
@@ -23,6 +26,10 @@ const props = defineProps({
     crew:     { type: Array,  default: () => [] },
     canEdit:  { type: Boolean, default: false },
 });
+
+// El dato de la tarjeta es cuántos firmaron, no cuántos hay: eso es lo que
+// decide si el plan puede cerrarse.
+const firmados = computed(() => props.crew.filter((f) => f.signed).length);
 
 const candidatos = ref([]);
 const buscando = ref(false);
@@ -79,8 +86,11 @@ const quitar = (fila) => {
 <template>
     <Card :bodyStyle="{ padding: 18 }" class="info-card">
         <template #title><TeamOutlined /> {{ $t('work_plans.crew_title') }} ({{ crew.length }})</template>
-
-        <p class="ff-cardhint">{{ $t('work_plans.crew_subtitle') }}</p>
+        <template v-if="crew.length" #extra>
+            <span class="ff-count" :class="{ 'is-done': firmados === crew.length }">
+                {{ $tc('work_plans.crew_summary', firmados, { signed: firmados, total: crew.length }) }}
+            </span>
+        </template>
 
         <p v-if="!crew.length" class="ff-empty">{{ $t('work_plans.crew_empty') }}</p>
 
@@ -91,8 +101,10 @@ const quitar = (fila) => {
                     <span class="ff-item__sub">{{ fila.doc_type }} {{ fila.num_doc || '—' }}</span>
                 </div>
 
+                <!-- Sin cara registrada va en naranja, no en gris: es lo que va a
+                     frenar la firma en la tablet y tiene que verse sin leer. -->
                 <div class="ff-item__meta">
-                    <Tag :color="fila.enrolled ? 'blue' : 'default'" :bordered="false">
+                    <Tag :color="fila.enrolled ? 'blue' : 'orange'" :bordered="false">
                         <CameraOutlined />
                         {{ fila.enrolled ? $t('work_plans.crew_enrolled') : $t('work_plans.crew_not_enrolled') }}
                     </Tag>

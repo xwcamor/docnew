@@ -149,7 +149,8 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
 
         <a-alert v-if="mensaje" :message="mensaje" type="info" show-icon class="mb-4" />
 
-        <a-card title="Cuadrilla" size="small" class="mb-4">
+        <!-- Mismo nombre que en la ficha del plan: "Trabajadores". -->
+        <a-card :title="$t('work_plans.crew_title')" size="small" class="mb-4">
             <a-list :data-source="people" item-layout="horizontal">
                 <template #renderItem="{ item }">
                     <a-list-item>

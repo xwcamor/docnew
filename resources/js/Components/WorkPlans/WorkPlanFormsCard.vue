@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import {
     Card, Tag, Button, Select, SelectOption, Popconfirm, Tooltip,
@@ -28,12 +28,17 @@ const props = defineProps({
     canExport: { type: Boolean, default: false },
 });
 
+// Un formato sin empezar sale en gris pero con borde: en gris plano se leía
+// como "no aplica" cuando en realidad es lo que falta hacer.
 const COLOR_ESTADO = { pending: 'default', draft: 'orange', submitted: 'blue', confirmed: 'success' };
 const COLOR_ORIGEN = { work_type: 'blue', extra: 'purple', submitted: 'gold' };
 
 const elegido = ref(undefined);
 const guardando = ref(false);
 const quitando = ref(null);
+
+// Cuántos están cerrados: es el número que decide si el plan puede terminarse.
+const confirmados = computed(() => props.forms.filter((f) => f.status === 'confirmed').length);
 
 // El PDF solo tiene sentido con el formato cerrado: en borrador sería un
 // documento a medias con firmas que aún pueden cambiar.
@@ -64,8 +69,13 @@ const quitar = (f) => {
 <template>
     <Card :bodyStyle="{ padding: 18 }" class="info-card">
         <template #title><FileTextOutlined /> {{ $t('work_plans.forms_title') }} ({{ forms.length }})</template>
+        <template v-if="forms.length" #extra>
+            <span class="ff-count" :class="{ 'is-done': confirmados === forms.length }">
+                {{ $tc('work_plans.forms_summary', confirmados, { done: confirmados, total: forms.length }) }}
+            </span>
+        </template>
 
-        <p class="ff-cardhint">{{ $t('work_plans.forms_subtitle') }}</p>
+        <p v-if="canEdit" class="ff-cardhint">{{ $t('work_plans.forms_subtitle') }}</p>
 
         <p v-if="!forms.length" class="ff-empty">{{ $t('work_plans.forms_empty') }}</p>
 

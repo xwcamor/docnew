@@ -1563,8 +1563,14 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
     .ff-row__head .ff-row__all { flex: 1 1 auto; }
     .ff-actions { margin: 16px -14px -14px; }
     .ff-actions .ant-btn { flex: 1 1 0; }
-    /* La fila de la cuadrilla se apila: nombre arriba, estado y boton debajo,
-       a ancho completo para poder pulsarlos con guantes. */
+    /* La fila de trabajadores se apila: nombre arriba, estado y boton debajo,
+       a ancho completo para poder pulsarlos con guantes.
+
+       El `flex: 1 1 240px` de .ff-item__main es una base de 240 px de ANCHO
+       cuando la fila es horizontal; al apilarla pasa a ser 240 px de ALTO y
+       abria un hueco enorme entre el nombre y sus etiquetas. Apilado, el bloque
+       mide lo que mide su contenido. */
+    .ff-item__main { flex: 0 0 auto; }
     .ff-item__acts { width: 100%; }
     .ff-item__acts .ant-btn { flex: 1 1 0; }
     .ff-addrow > * { width: 100%; }
