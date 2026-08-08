@@ -1,10 +1,10 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker,
+    Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker, Tooltip,
 } from 'ant-design-vue';
-import { IdcardOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined, LockOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -16,18 +16,29 @@ const props = defineProps({
     person:             { type: Object, default: null },
     countryOptions:     { type: Array,  default: () => [] },
     docTypeOptions:     { type: Array,  default: () => [] },
+    // Tipos de documento por país: el país se elige en esta misma pantalla, así
+    // que la lista de tipos tiene que seguirlo.
+    docTypesByCountry:  { type: Object, default: () => ({}) },
     nationalityOptions: { type: Array,  default: () => [] },
     companyOptions:     { type: Array,  default: () => [] },
     positionOptions:    { type: Array,  default: () => [] },
+    roleOptions:        { type: Array,  default: () => [] },
     defaultCountryId:   { type: Number, default: null },
+    // Si es falso, el documento llega tapado: se enseña, no se toca.
+    canViewPrivateInfo: { type: Boolean, default: true },
 });
 
 const isEdit = computed(() => !!props.person);
 
+// El documento sólo se edita con `people.view_private_info`. Sin el permiso el
+// número llega enmascarado (`******36`) y dejarlo editable significaba guardar
+// los asteriscos encima del DNI real al tocar cualquier otro campo.
+const docLocked = computed(() => isEdit.value && !props.canViewPrivateInfo);
+
 const form = useForm({
     name:           props.person?.name ?? '',
     lastname:       props.person?.lastname ?? '',
-    doc_type:       props.person?.doc_type ?? 'DNI',
+    doc_type:       props.person?.doc_type ?? null,
     num_doc:        props.person?.num_doc ?? '',
     // Al crear, por defecto el país del usuario; al editar, el de la persona.
     country_id:     props.person?.country_id ?? props.defaultCountryId ?? null,
@@ -38,7 +49,36 @@ const form = useForm({
     // persona-empresa. Al editar se carga el primero, que es el que se enseña.
     company_id:     props.person?.primary_link?.company_id ?? null,
     position_id:    props.person?.primary_link?.position_id ?? null,
+    // Qué firma en obra. Una persona puede ser las dos cosas.
+    roles:          props.person?.roles?.length ? [...props.person.roles] : ['worker'],
 });
+
+// Los tipos del país elegido. Si ese país no tiene catálogo se cae a los que
+// mande el servidor, que a su vez se cae a DNI/CE/PASAPORTE — igual que la
+// validación, para que la pantalla no ofrezca nada que el servidor rechace.
+const docTypesForCountry = computed(() => {
+    const delPais = props.docTypesByCountry?.[form.country_id];
+    const lista = [...(delPais?.length ? delPais : props.docTypeOptions)];
+
+    // El tipo que la persona ya tiene sigue en la lista aunque se haya dado de
+    // baja del catálogo: corregir un apellido no puede cambiarle el documento.
+    const actual = props.person?.doc_type;
+    if (actual && form.country_id === props.person?.country_id
+        && !lista.some((o) => o.value === actual)) {
+        lista.unshift({ value: actual, label: actual });
+    }
+
+    return lista;
+});
+
+// Al cambiar de país, el tipo que ya no existe allí se descarta: elegir Chile y
+// dejar «DNI» —que es peruano— reventaba el alta sin forma de arreglarlo.
+watch(docTypesForCountry, (opciones) => {
+    if (docLocked.value) return;
+    if (!opciones.some((o) => o.value === form.doc_type)) {
+        form.doc_type = opciones[0]?.value ?? null;
+    }
+}, { immediate: true });
 
 const filterOption = (input, option) =>
     String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase());
@@ -89,43 +129,60 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <FormItem
-                    :label="$t('people.name')"
-                    :tooltip="$t('people.name_help')"
-                    required
-                    :validate-status="form.errors.name ? 'error' : ''"
-                    :help="form.errors.name"
-                >
-                    <Input
-                        v-model:value="form.name"
-                        size="large"
-                        :maxlength="255"
-                        showCount
-                        autofocus
-                        :placeholder="$t('people.name_placeholder')"
-                    />
-                </FormItem>
-
-                <FormItem
-                    :label="$t('people.lastname')"
-                    :tooltip="$t('people.lastname_help')"
-                    required
-                    :validate-status="form.errors.lastname ? 'error' : ''"
-                    :help="form.errors.lastname"
-                >
-                    <Input
-                        v-model:value="form.lastname"
-                        size="large"
-                        :maxlength="255"
-                        showCount
-                        :placeholder="$t('people.lastname_placeholder')"
-                    />
-                </FormItem>
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.name')"
+                            :tooltip="$t('people.name_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.name ? 'error' : ''"
+                            :help="form.errors.name"
+                        >
+                            <Input
+                                v-model:value="form.name"
+                                size="large"
+                                :maxlength="255"
+                                autofocus
+                                :placeholder="$t('people.name_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.lastname')"
+                            :tooltip="$t('people.lastname_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.lastname ? 'error' : ''"
+                            :help="form.errors.lastname"
+                        >
+                            <Input
+                                v-model:value="form.lastname"
+                                size="large"
+                                :maxlength="255"
+                                :placeholder="$t('people.lastname_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <h2 class="form-section-title">{{ $t('people.section_identity') }}</h2>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="10">
+                <Alert
+                    v-if="docLocked"
+                    type="info"
+                    show-icon
+                    class="mb-4"
+                    :message="$t('people.doc_masked_notice')"
+                >
+                    <template #icon><LockOutlined /></template>
+                </Alert>
+
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="10">
                         <FormItem
                             :label="$t('people.doc_type')"
                             :label-col="{ xs: 24, sm: 10 }"
@@ -134,63 +191,81 @@ const submit = () => {
                             :validate-status="form.errors.doc_type ? 'error' : ''"
                             :help="form.errors.doc_type"
                         >
-                            <Select v-model:value="form.doc_type" size="large" :options="docTypeOptions" />
+                            <Select
+                                v-model:value="form.doc_type"
+                                size="large"
+                                :disabled="docLocked"
+                                :options="docTypesForCountry"
+                                :placeholder="$t('global.select')"
+                            />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="14">
+                    <Col :xs="24" :lg="14">
                         <FormItem
                             :label="$t('people.num_doc')"
-                            :tooltip="$t('people.num_doc_help')"
+                            :tooltip="docLocked ? $t('people.doc_masked_notice') : $t('people.num_doc_help')"
                             :label-col="{ xs: 24, sm: 8 }"
                             :wrapper-col="{ xs: 24, sm: 16 }"
                             required
                             :validate-status="form.errors.num_doc ? 'error' : ''"
                             :help="form.errors.num_doc"
                         >
-                            <Input
-                                v-model:value="form.num_doc"
-                                size="large"
-                                :maxlength="20"
-                                :placeholder="$t('people.num_doc_placeholder')"
-                            />
+                            <Tooltip :title="docLocked ? $t('people.doc_masked_notice') : ''">
+                                <Input
+                                    v-model:value="form.num_doc"
+                                    size="large"
+                                    :disabled="docLocked"
+                                    :maxlength="20"
+                                    :placeholder="$t('people.num_doc_placeholder')"
+                                />
+                            </Tooltip>
                         </FormItem>
                     </Col>
                 </Row>
 
-                <FormItem
-                    :label="$t('people.country')"
-                    :tooltip="$t('people.country_help')"
-                    required
-                    :validate-status="form.errors.country_id ? 'error' : ''"
-                    :help="form.errors.country_id"
-                >
-                    <Select
-                        v-model:value="form.country_id"
-                        size="large"
-                        show-search
-                        :options="countryOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
-                    />
-                </FormItem>
-
-                <FormItem
-                    v-if="nationalityOptions.length"
-                    :label="$t('people.nationality')"
-                    :tooltip="$t('people.nationality_help')"
-                    :validate-status="form.errors.nationality_id ? 'error' : ''"
-                    :help="form.errors.nationality_id"
-                >
-                    <Select
-                        v-model:value="form.nationality_id"
-                        size="large"
-                        show-search
-                        allow-clear
-                        :options="nationalityOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
-                    />
-                </FormItem>
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.country')"
+                            :tooltip="$t('people.country_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.country_id ? 'error' : ''"
+                            :help="form.errors.country_id"
+                        >
+                            <Select
+                                v-model:value="form.country_id"
+                                size="large"
+                                show-search
+                                :disabled="docLocked"
+                                :options="countryOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.nationality')"
+                            :tooltip="$t('people.nationality_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :validate-status="form.errors.nationality_id ? 'error' : ''"
+                            :help="form.errors.nationality_id"
+                        >
+                            <Select
+                                v-model:value="form.nationality_id"
+                                size="large"
+                                show-search
+                                allow-clear
+                                :options="nationalityOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <FormItem
                     :label="$t('people.birthdate')"
@@ -207,37 +282,65 @@ const submit = () => {
                      ficha del trabajador y los dos son obligatorios; aquí
                      faltaban los dos, así que no había forma de decir que
                      alguien es técnico de tal contratista. -->
-                <FormItem
-                    :label="$t('people.company')"
-                    :tooltip="$t('people.company_help')"
-                    required
-                    :validate-status="form.errors.company_id ? 'error' : ''"
-                    :help="form.errors.company_id"
-                >
-                    <Select
-                        v-model:value="form.company_id"
-                        size="large"
-                        show-search
-                        :options="companyOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('people.company')"
-                    />
-                </FormItem>
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.company')"
+                            :tooltip="$t('people.company_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.company_id ? 'error' : ''"
+                            :help="form.errors.company_id"
+                        >
+                            <Select
+                                v-model:value="form.company_id"
+                                size="large"
+                                show-search
+                                :options="companyOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.position')"
+                            :tooltip="$t('people.position_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.position_id ? 'error' : ''"
+                            :help="form.errors.position_id"
+                        >
+                            <Select
+                                v-model:value="form.position_id"
+                                size="large"
+                                show-search
+                                :options="positionOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
+                <!-- Qué firma en obra. No estaba en ninguna pantalla: sin rol
+                     de supervisor la persona no aparece nunca en el selector de
+                     aprobadores del plan, así que un supervisor nuevo no se
+                     podía dar de alta. -->
                 <FormItem
-                    :label="$t('people.position')"
-                    :tooltip="$t('people.position_help')"
-                    required
-                    :validate-status="form.errors.position_id ? 'error' : ''"
-                    :help="form.errors.position_id"
+                    :label="$t('people.roles')"
+                    :tooltip="$t('people.roles_help')"
+                    :validate-status="form.errors.roles ? 'error' : ''"
+                    :help="form.errors.roles"
                 >
                     <Select
-                        v-model:value="form.position_id"
+                        v-model:value="form.roles"
+                        mode="multiple"
                         size="large"
-                        show-search
-                        :options="positionOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('people.position')"
+                        :options="roleOptions"
+                        :placeholder="$t('people.roles_placeholder')"
                     />
                 </FormItem>
 

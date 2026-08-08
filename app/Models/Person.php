@@ -175,6 +175,14 @@ class Person extends Model
         } elseif ($sort === 'country') {
             $query->leftJoin('countries', "{$tbl}.country_id", '=', 'countries.id')
                   ->orderBy('countries.name', $direction);
+        } elseif ($sort === 'document') {
+            // La columna «Documento» de la tabla junta tipo y numero, asi que
+            // no tiene columna propia que ordenar. Sin esto, pulsar la cabecera
+            // (o elegirla en el desplegable de orden) no hacia absolutamente
+            // nada: la peticion salia con `sort=document`, no encajaba en
+            // ningun caso y la lista volvia igual.
+            $query->orderBy("{$tbl}.doc_type", $direction)
+                  ->orderBy("{$tbl}.num_doc", $direction);
         } elseif (in_array($sort, ['companies_count', 'company_links_count', 'signatures_count'], true)) {
             // Alias del withCount del controller — sin prefijo de tabla.
             $query->orderBy($sort === 'companies_count' ? 'company_links_count' : $sort, $direction);
@@ -202,8 +210,6 @@ class Person extends Model
         ];
     }
 
-    use SoftDeletes;
-
     protected $fillable = [
         'slug', 'country_id', 'nationality_id', 'doc_type', 'num_doc',
         'name', 'lastname', 'birthdate', 'is_active', 'legacy_id', 'legacy_table',
@@ -211,6 +217,24 @@ class Person extends Model
     ];
 
     protected $casts = ['is_active' => 'boolean', 'birthdate' => 'date'];
+
+    /**
+     * El documento crudo NO viaja al navegador. Nunca.
+     *
+     * Enmascararlo en la plantilla no servia de nada: el listado mandaba la
+     * persona entera en el JSON de Inertia —391 documentos completos en el
+     * `<div id="app" data-page="...">` de la pagina— y bastaba abrir las
+     * herramientas del navegador para leerlos. Lo mismo la papelera.
+     *
+     * Se tapa aqui, en la serializacion, porque es el unico sitio por el que
+     * pasan todas las pantallas a la vez. Quien necesite el numero para pintar
+     * lee `safe_num_doc`, que ya decide segun `people.view_private_info`; quien
+     * lo necesite en PHP —buscar, comparar, exportar— sigue usando `num_doc`
+     * como propiedad, que esto no lo toca.
+     */
+    protected $hidden = ['num_doc'];
+
+    protected $appends = ['safe_num_doc'];
 
     public function getFullNameAttribute(): string
     {

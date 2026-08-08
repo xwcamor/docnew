@@ -546,7 +546,10 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
                     </template>
 
                     <template v-else-if="column.key === 'document'">
-                        <span class="doc"><span class="doc__type">{{ record.doc_type }}</span> <code class="mono">{{ record.num_doc }}</code></span>
+                        <!-- `safe_num_doc`, no `num_doc`: el numero entero ni
+                             siquiera sale del servidor sin
+                             `people.view_private_info`. -->
+                        <span class="doc"><span class="doc__type">{{ record.doc_type }}</span> <code class="mono">{{ record.safe_num_doc }}</code></span>
                     </template>
 
                     <template v-else-if="column.key === 'country'">

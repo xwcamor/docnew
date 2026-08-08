@@ -114,6 +114,20 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__label">{{ $t('people.country') }}</span>
                             <span class="spec-cell__value">{{ person.country?.name || '—' }}</span>
                         </div>
+                        <!-- La nacionalidad se guardaba y no se enseñaba en
+                             ninguna parte. Cuando no es la del país donde
+                             trabaja se marca: es quien lleva carné de
+                             extranjería en vez de DNI, y es lo que se comprueba
+                             en la puerta. -->
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('people.nationality') }}</span>
+                            <span class="spec-cell__value">
+                                <Tag v-if="person.foreign_nationality" color="gold" :bordered="false">
+                                    {{ person.foreign_nationality }}
+                                </Tag>
+                                <template v-else>{{ person.nationality?.code || '—' }}</template>
+                            </span>
+                        </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('people.birthdate') }}</span>
                             <span class="spec-cell__value">{{ person.birthdate || '—' }}</span>

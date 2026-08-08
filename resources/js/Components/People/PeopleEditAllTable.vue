@@ -35,7 +35,7 @@ const draft = defineModel('draft', { type: Array, required: true });
             >
                 <td class="col-id">{{ row.id }}</td>
                 <td class="col-cod">
-                    <code v-if="row.num_doc">{{ row.doc_type }} {{ row.num_doc }}</code>
+                    <code v-if="row.safe_num_doc">{{ row.doc_type }} {{ row.safe_num_doc }}</code>
                     <span v-else class="muted">—</span>
                 </td>
                 <td class="col-name">

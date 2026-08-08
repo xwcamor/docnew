@@ -58,7 +58,12 @@ class PersonController extends Controller
         // un trabajador («¿quién es el eléctrico de tal contratista?») y no
         // estaban, porque el cargo ni se migraba.
         $with = [
-            'creator:id,name,email', 'country:id,name,iso_code', 'roles:id,person_id,role,is_active',
+            'creator:id,name,email', 'country:id,name,iso_code',
+            // Solo los roles VIGENTES. Un rol retirado se desactiva y no se
+            // borra —una firma vieja apunta al rol con el que se firmó— así que
+            // sin este filtro el listado seguía etiquetando de «Supervisor» a
+            // quien ya no lo es.
+            'roles' => fn ($q) => $q->select('id', 'person_id', 'role', 'is_active')->where('is_active', true),
             'companyLinks.company:id,name', 'companyLinks.position:id,code',
         ];
         if ($isSuper) {
@@ -120,7 +125,7 @@ class PersonController extends Controller
             // Schema de campos filtrables â€” alimenta el drawer "Filtros
             // avanzados" del frontend (selects de field/op + control tipado
             // del valor). Cada modulo declara el suyo en su modelo.
-            ...$this->personOptions(),
+            ...$this->filterOptions(),
             'filterSchema'   => Person::filterSchema([
                 'countries' => $this->countryOptions(),
                 'doc_types' => $this->docTypeOptions(),
@@ -128,17 +133,34 @@ class PersonController extends Controller
         ]);
     }
 
-    /** Catálogos que alimentan los selectores de filtro y del formulario. */
-    protected function personOptions(): array
+    /** Los catálogos que necesitan los filtros del listado, y ninguno más. */
+    protected function filterOptions(): array
     {
         return [
             'countryOptions' => $this->countryOptions(),
             'docTypeOptions' => $this->docTypeOptions(),
             'roleOptions'    => $this->roleOptions(),
-            'companyOptions' => \App\Models\Company::query()->where('is_active', true)->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name])
-                ->all(),
+            'companyOptions' => $this->companyOptions(),
+        ];
+    }
+
+    /** Los catálogos que necesita el formulario de alta y edición. */
+    protected function formOptions(): array
+    {
+        return [
+            'countryOptions' => $this->countryOptions(),
+            'docTypeOptions' => $this->docTypeOptions(),
+            // Los tipos de CADA país.
+            //
+            // El desplegable ofrecía solo los del país del usuario mientras el
+            // campo de al lado dejaba elegir cualquier país: al dar de alta a
+            // un chileno se elegía Chile y se dejaba «DNI» —que es peruano— y
+            // el alta se caía con «tipo de documento no válido» sin ninguna
+            // forma de arreglarlo desde la pantalla. Ahora la lista sigue al
+            // país que se haya elegido.
+            'docTypesByCountry' => $this->docTypesByCountry(),
+            'roleOptions'       => $this->roleOptions(),
+            'companyOptions'    => $this->companyOptions(),
             'nationalityOptions' => \App\Models\Nationality::query()->where('is_active', true)->orderBy('code')
                 ->get(['id', 'code'])
                 ->map(fn ($n) => ['value' => $n->id, 'label' => $n->code])
@@ -151,6 +173,15 @@ class PersonController extends Controller
                 ->map(fn ($p) => ['value' => $p->id, 'label' => $p->code])
                 ->all(),
         ];
+    }
+
+    /** Empresas activas como Select options. */
+    protected function companyOptions(): array
+    {
+        return \App\Models\Company::query()->where('is_active', true)->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name])
+            ->all();
     }
 
     /** Países activos como Select options. */
@@ -179,10 +210,39 @@ class PersonController extends Controller
         $tipos = \App\Models\DocumentType::delPais(auth()->user()?->country_id);
 
         if ($tipos->isEmpty()) {
-            return array_map(fn ($t) => ['value' => $t, 'label' => $t], ['DNI', 'CE', 'PASAPORTE']);
+            return array_map(fn ($t) => ['value' => $t, 'label' => $t], static::docTypesPorDefecto());
         }
 
         return $tipos->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])->all();
+    }
+
+    /**
+     * Los tipos vigentes agrupados por país, para el formulario.
+     *
+     * El formulario elige país y tipo en la misma pantalla, así que la lista de
+     * tipos tiene que seguir al país elegido y no al del usuario. El catálogo
+     * es de unas pocas filas por país: cabe entero en la página.
+     *
+     * @return array<int, array<int, array{value: string, label: string}>>
+     */
+    protected function docTypesByCountry(): array
+    {
+        return \App\Models\DocumentType::query()
+            ->active()
+            ->orderBy('code')
+            ->get(['country_id', 'code', 'name'])
+            ->groupBy('country_id')
+            ->map(fn ($tipos) => $tipos
+                ->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])
+                ->values()
+                ->all())
+            ->all();
+    }
+
+    /** Los tres de siempre, para cuando el catálogo de un país está vacío. */
+    public static function docTypesPorDefecto(): array
+    {
+        return ['DNI', 'CE', 'PASAPORTE'];
     }
 
     /** Roles en obra — el enum de `person_roles.role`. */
@@ -217,7 +277,8 @@ class PersonController extends Controller
     {
         $person->load([
             'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
-            'country:id,name,iso_code', 'roles', 'companyLinks.company:id,name', 'companyLinks.position:id,code',
+            'country:id,name,iso_code', 'nationality:id,code',
+            'roles', 'companyLinks.company:id,name', 'companyLinks.position:id,code',
         ])->loadCount([
             'companyLinks',
             'biometrics as active_biometrics_count' => fn ($q) => $q->where('is_active', true),
@@ -226,15 +287,15 @@ class PersonController extends Controller
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
-            ? AuditLogResource::collection(
+            ? $this->taparDocumentoEnHistorial(AuditLogResource::collection(
                 AuditLog::query()
                     ->where('auditable_type', Person::class)
                     ->where('auditable_id', $person->id)
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
-            )->resolve()
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
+            )->resolve())
             : [];
 
         return inertia('People/Show', [
@@ -252,7 +313,10 @@ class PersonController extends Controller
         return inertia('People/Form', [
             'person'           => null,
             'defaultCountryId' => request()->user()?->country_id,
-            ...$this->personOptions(),
+            // Al crear se escribe el documento entero se tenga el permiso o
+            // no: todavia no hay nada que tapar.
+            'canViewPrivateInfo' => true,
+            ...$this->formOptions(),
         ]);
     }
 
@@ -297,19 +361,30 @@ class PersonController extends Controller
         return response()->json(['id' => $person->id, 'name' => $person->full_name], 201);
     }
 
-    public function edit(Person $person)
+    public function edit(Request $request, Person $person)
     {
         // Registro bloqueado (Lockable): ni se abre el formulario de edición.
         abort_if($person->is_locked, 403, __('locks.cannot_edit_locked'));
 
         // El vinculo con su empresa y su cargo: el formulario los edita, asi
         // que tienen que llegar cargados o saldrian siempre en blanco.
-        $person->load(['country:id,name,iso_code', 'roles', 'companyLinks.position:id,code']);
+        $person->load(['country:id,name,iso_code', 'nationality:id,code', 'roles', 'companyLinks.position:id,code']);
 
         return inertia('People/Form', [
             'person'           => $this->payload($person),
             'defaultCountryId' => request()->user()?->country_id,
-            ...$this->personOptions(),
+            // Quien no puede VER el documento tampoco puede reescribirlo.
+            //
+            // El formulario recibia el numero ya enmascarado —`******36`— en un
+            // campo obligatorio y editable, asi que guardar cualquier cambio de
+            // la persona (corregir un apellido, cambiarle la empresa) escribia
+            // los asteriscos encima del DNI real. Ocho caracteres, unico, la
+            // validacion lo daba por bueno y el trabajador se quedaba sin
+            // documento sin que nadie viera un error. Ahora el campo sale
+            // bloqueado, y el servidor lo repone igualmente (ver
+            // UpdatePersonRequest) por si la peticion viene a mano.
+            'canViewPrivateInfo' => \App\Support\PrivateInfo::visibleFor($request->user()),
+            ...$this->formOptions(),
         ]);
     }
 
@@ -510,7 +585,11 @@ class PersonController extends Controller
         $data  = $request->validated();
 
         // Se confirma tipeando el documento: dos personas pueden llamarse igual.
-        if (trim($data['name_confirmation']) !== $model->num_doc) {
+        // Se compara con `safe_num_doc` —lo que la papelera enseña— y no con el
+        // numero crudo: quien no tiene `people.view_private_info` ve la version
+        // tapada, asi que exigirle el numero entero era pedirle que adivinara y
+        // el boton no se activaba nunca.
+        if (trim($data['name_confirmation']) !== $model->safe_num_doc) {
             return back()->withErrors(['name_confirmation' => __('global.force_delete_name_mismatch')]);
         }
 
@@ -519,6 +598,55 @@ class PersonController extends Controller
         return redirect()
             ->route('business_management.people.trash')
             ->with('success', __('global.force_deleted_success'));
+    }
+
+    /**
+     * El historial tambien enseña el documento, y ahi tampoco puede salir.
+     *
+     * `Auditable` guarda la fila entera en `old_values`/`new_values`, asi que
+     * el alta de cada persona lleva su DNI completo dentro. La pestaña
+     * «Historial» del super y del admin lo pintaba tal cual: la pantalla tapaba
+     * el numero arriba y lo enseñaba entero cuatro centimetros mas abajo.
+     *
+     * Se tapa al salir, no al guardar: el registro de auditoria tiene que
+     * seguir conservando lo que de verdad se escribio.
+     *
+     * @param  array<int, array<string, mixed>>  $entradas
+     * @return array<int, array<string, mixed>>
+     */
+    protected function taparDocumentoEnHistorial(array $entradas): array
+    {
+        if (\App\Support\PrivateInfo::visibleFor(request()->user())) {
+            return $entradas;
+        }
+
+        $tapar = function ($valores) {
+            if (! is_array($valores) || ! filled($valores['num_doc'] ?? null)) {
+                return $valores;
+            }
+            $valores['num_doc'] = \App\Support\PrivateInfo::enmascarar((string) $valores['num_doc']);
+
+            return $valores;
+        };
+
+        return array_map(function (array $entrada) use ($tapar) {
+            $entrada['old_values'] = $tapar($entrada['old_values'] ?? null);
+            $entrada['new_values'] = $tapar($entrada['new_values'] ?? null);
+
+            // El diff humanizado del Resource se calculo con el numero entero.
+            foreach ($entrada['changes'] ?? [] as $i => $cambio) {
+                if (($cambio['label'] ?? null) === __('people.num_doc')) {
+                    foreach (['before', 'after'] as $lado) {
+                        if (filled($cambio[$lado] ?? null) && $cambio[$lado] !== '—') {
+                            $entrada['changes'][$i][$lado] =
+                                \App\Support\PrivateInfo::enmascarar((string) $cambio[$lado]);
+                        }
+                    }
+                }
+            }
+
+            return $entrada;
+        }, $entradas);
     }
 
     protected function payload(Person $m, bool $withAudit = false): array
@@ -540,6 +668,14 @@ class PersonController extends Controller
                 ? ['id' => $m->country->id, 'name' => $m->country->name, 'iso_code' => $m->country->iso_code]
                 : null,
             'nationality_id' => $m->nationality_id,
+            'nationality'    => $m->relationLoaded('nationality') && $m->nationality
+                ? ['id' => $m->nationality->id, 'code' => $m->nationality->code]
+                : null,
+            // Solo si es distinta del pais donde trabaja: es lo que hay que
+            // mirar en la puerta, porque lleva carne de extranjeria y no DNI.
+            'foreign_nationality' => $m->relationLoaded('nationality') && $m->relationLoaded('country')
+                ? $m->foreign_nationality
+                : null,
             'roles'      => $m->relationLoaded('roles')
                 ? $m->roles->where('is_active', true)->pluck('role')->values()->all()
                 : null,
@@ -553,11 +689,14 @@ class PersonController extends Controller
                 : null,
             // El vinculo que edita el formulario: empresa y cargo. Si la persona
             // trabaja en varias, el resto se ve en `companies` y se conserva.
+            // Se prefiere el vinculo VIGENTE: quien dejo una contratista y esta
+            // en otra tiene las dos filas, y el formulario abria en la vieja.
             'primary_link' => $m->relationLoaded('companyLinks') && $m->companyLinks->isNotEmpty()
-                ? [
-                    'company_id'  => $m->companyLinks->first()->company_id,
-                    'position_id' => $m->companyLinks->first()->position_id,
-                ]
+                ? (function () use ($m) {
+                    $l = $m->companyLinks->firstWhere('is_active', true) ?? $m->companyLinks->first();
+
+                    return ['company_id' => $l->company_id, 'position_id' => $l->position_id];
+                })()
                 : null,
             'companies_count'  => $m->company_links_count,
             'has_biometric'    => $m->active_biometrics_count !== null ? $m->active_biometrics_count > 0 : null,

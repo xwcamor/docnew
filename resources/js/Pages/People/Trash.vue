@@ -154,7 +154,7 @@ const subtitle = computed(() => {
             >
                 <template #bodyCell="{ column, record }">
                     <template v-if="column.key === 'document'">
-                        {{ record.doc_type }} <code>{{ record.num_doc }}</code>
+                        {{ record.doc_type }} <code>{{ record.safe_num_doc }}</code>
                     </template>
 
                     <template v-else-if="column.key === 'deleter'">

@@ -25,24 +25,74 @@ class PersonService
     public function create(array $data): Person
     {
         $vinculo = $this->extraerVinculo($data);
+        $roles   = $this->extraerRoles($data);
 
-        $person = new Person($data);
-        $person->created_by = auth()->id();
-        $person->save();
+        return DB::transaction(function () use ($data, $vinculo, $roles) {
+            $person = new Person($data);
+            $person->created_by = auth()->id();
+            $person->save();
 
-        $this->guardarVinculo($person, $vinculo);
+            $this->guardarVinculo($person, $vinculo);
+            // Sin rol, la persona no es nadie en obra: nace trabajadora.
+            $this->guardarRoles($person, $roles ?? [PersonRole::WORKER]);
 
-        return $person;
+            return $person;
+        });
     }
 
     public function update(Person $person, array $data): Person
     {
         $vinculo = $this->extraerVinculo($data);
+        $roles   = $this->extraerRoles($data);
 
-        $person->update($data);
-        $this->guardarVinculo($person, $vinculo);
+        return DB::transaction(function () use ($person, $data, $vinculo, $roles) {
+            $person->update($data);
+            $this->guardarVinculo($person, $vinculo);
 
-        return $person;
+            if ($roles !== null) {
+                $this->guardarRoles($person, $roles);
+            }
+
+            return $person;
+        });
+    }
+
+    /**
+     * Saca del formulario los roles en obra, que tampoco son columnas de la
+     * persona: viven en `person_roles`.
+     *
+     * @return array<int, string>|null  null = el formulario no los mandó
+     */
+    private function extraerRoles(array &$data): ?array
+    {
+        if (! array_key_exists('roles', $data)) {
+            return null;
+        }
+
+        $roles = array_values(array_unique(array_filter((array) $data['roles'])));
+        unset($data['roles']);
+
+        return $roles;
+    }
+
+    /**
+     * Deja exactamente los roles que se pidieron.
+     *
+     * Los que se quitan se **desactivan**, no se borran: una firma vieja apunta
+     * al rol con el que se firmó y esa fila es la prueba de quién validó qué.
+     *
+     * @param  array<int, string>  $roles
+     */
+    private function guardarRoles(Person $person, array $roles): void
+    {
+        foreach ($roles as $rol) {
+            $person->roles()->updateOrCreate(['role' => $rol], ['is_active' => true]);
+        }
+
+        $person->roles()
+            ->when($roles !== [], fn ($q) => $q->whereNotIn('role', $roles))
+            ->where('is_active', true)
+            ->update(['is_active' => false]);
     }
 
     /**
@@ -167,6 +217,21 @@ class PersonService
             $clone->num_doc    = $candidato;
             $clone->created_by = auth()->id();
             $clone->save();
+
+            // Y el contexto de trabajo, que es para lo que se duplica: dar de
+            // alta al siguiente de la misma cuadrilla. Sin esto el clon nacía
+            // sin empresa ni cargo —los dos obligatorios en el formulario— y
+            // había que volver a elegirlos a mano.
+            $vinculo = $person->companyLinks->firstWhere('is_active', true)
+                ?? $person->companyLinks->first();
+            if ($vinculo) {
+                $this->guardarVinculo($clone, [
+                    'company_id'  => $vinculo->company_id,
+                    'position_id' => $vinculo->position_id,
+                ]);
+            }
+
+            $this->guardarRoles($clone, $person->roles()->where('is_active', true)->pluck('role')->all());
 
             return $clone;
         });
