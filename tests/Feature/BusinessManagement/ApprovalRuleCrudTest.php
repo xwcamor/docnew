@@ -1,0 +1,326 @@
+<?php
+
+namespace Tests\Feature\BusinessManagement;
+
+use App\Models\ApprovalRule;
+use App\Models\ApproverRole;
+use App\Models\User;
+use App\Models\WorkType;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Mcamara\LaravelLocalization\Middleware\LaravelLocalizationRedirectFilter;
+use Mcamara\LaravelLocalization\Middleware\LocaleSessionRedirect;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
+use Tests\TestCase;
+
+/**
+ * La pantalla de reglas del flujo.
+ *
+ * Lo que estas pruebas fijan no es que el CRUD guarde: es que la pantalla no
+ * deje configurar cosas que el motor de aprobaciones va a rechazar despues
+ * (un rol que no existe, el mismo rol firmando dos veces el mismo flujo), y
+ * que la vista previa diga la verdad — que es toda su razon de ser.
+ */
+class ApprovalRuleCrudTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withoutMiddleware([LaravelLocalizationRedirectFilter::class, LocaleSessionRedirect::class]);
+
+        DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_AR', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('regions')->insertOrIgnore([['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('countries')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('plans')->insertOrIgnore([['id' => 1, 'slug' => 'enterprise', 'name' => 'Enterprise', 'sort_order' => 1, 'max_users' => -1, 'max_records_per_module' => -1, 'export_rate_limit' => 50, 'support_level' => 'priority', 'features' => json_encode(['team_management' => true, 'bulk_operations' => true]), 'price_monthly' => 0, 'price_yearly' => 0, 'currency' => 'USD', 'is_active' => true, 'is_public' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('subscriptions')->insertOrIgnore([['id' => 1, 'tenant_id' => 1, 'plan' => 'enterprise', 'status' => 'active', 'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(), 'currency' => 'USD', 'payment_method' => 'manual', 'created_at' => now(), 'updated_at' => now()]]);
+
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+        foreach (['view', 'show', 'create', 'edit', 'delete', 'export', 'import'] as $accion) {
+            Permission::firstOrCreate(['name' => "approval_rules.{$accion}", 'guard_name' => 'web']);
+            Permission::firstOrCreate(['name' => "approver_roles.{$accion}", 'guard_name' => 'web']);
+        }
+    }
+
+    private function admin(): User
+    {
+        $rol = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['description' => 'Test admin']);
+        $rol->syncPermissions(Permission::all());
+
+        $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $u->assignRole($rol);
+
+        return $u;
+    }
+
+    private function soloLectura(): User
+    {
+        $rol = Role::firstOrCreate(['name' => 'lector', 'guard_name' => 'web'], ['description' => 'Solo lectura']);
+        $rol->syncPermissions(Permission::whereIn('name', ['approval_rules.view', 'approval_rules.show'])->get());
+
+        $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $u->assignRole($rol);
+
+        return $u;
+    }
+
+    /** Un 403 de navegador se ve como una vuelta al panel con un aviso. */
+    private function assertProhibido(\Illuminate\Testing\TestResponse $r): void
+    {
+        $r->assertRedirect(route('dashboard_management.dashboards.index'));
+        $r->assertSessionHas('error');
+    }
+
+    private function tipo(string $codigo): WorkType
+    {
+        return WorkType::create(['slug' => Str::random(22), 'country_id' => 1,
+            'tenant_id' => 1, 'created_by' => 1, 'code' => $codigo, 'is_active' => true]);
+    }
+
+    private function regla(string $rol, int $nivel, bool $obligatoria = true, ?int $tipoId = null): ApprovalRule
+    {
+        return ApprovalRule::create([
+            'slug' => Str::random(22), 'country_id' => 1, 'work_type_id' => $tipoId,
+            'approver_role' => $rol, 'priority_level' => $nivel,
+            'is_required' => $obligatoria, 'is_active' => true, 'tenant_id' => 1, 'created_by' => 1,
+        ]);
+    }
+
+    // ── Alta ─────────────────────────────────────────────────────────────────
+
+    public function test_una_firma_mas_en_el_flujo_es_una_regla_mas(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'country_id' => 1, 'work_type_id' => null,
+            'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 2, 'is_required' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('approval_rules', [
+            'country_id' => 1, 'work_type_id' => null,
+            'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 2,
+        ]);
+    }
+
+    /** Una regla que nombra un codigo muerto exige una firma que nadie puede dar. */
+    public function test_no_se_puede_nombrar_un_rol_que_no_existe(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'country_id' => 1, 'approver_role' => 'no_existe', 'priority_level' => 1,
+        ])->assertSessionHasErrors('approver_role');
+
+        $this->assertSame(0, ApprovalRule::count());
+    }
+
+    /** Un rol inactivo tampoco: se dejo de ofrecer a proposito. */
+    public function test_no_se_puede_nombrar_un_rol_inactivo(): void
+    {
+        $this->actingAs($this->admin());
+        ApproverRole::where('code', ApproverRole::SUPERVISOR)->update(['is_active' => false]);
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'country_id' => 1, 'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 1,
+        ])->assertSessionHasErrors('approver_role');
+    }
+
+    /** El mismo rol no aprueba dos veces el mismo plan. */
+    public function test_el_mismo_rol_no_firma_dos_veces_el_mismo_flujo(): void
+    {
+        $this->actingAs($this->admin());
+        $this->regla(ApproverRole::SUPERVISOR, 2);
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'country_id' => 1, 'work_type_id' => null,
+            'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 5,
+        ])->assertSessionHasErrors('approver_role');
+
+        $this->assertSame(1, ApprovalRule::count());
+    }
+
+    /** Pero si puede firmar en el flujo de un tipo de trabajo concreto. */
+    public function test_el_mismo_rol_si_puede_firmar_en_el_flujo_de_otro_tipo(): void
+    {
+        $this->actingAs($this->admin());
+        $this->regla(ApproverRole::SUPERVISOR, 2);
+        $izaje = $this->tipo('IZAJE');
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'country_id' => 1, 'work_type_id' => $izaje->id,
+            'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 2,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(2, ApprovalRule::count());
+    }
+
+    // ── Vista previa: lo que se enseña es lo que va a pasar ──────────────────
+
+    /**
+     * El caso que motivo la pantalla: para IZAJE quedan 4 firmas y para el
+     * resto 3, y la vista previa lo dice tipo a tipo antes de crear ningun plan.
+     */
+    public function test_la_vista_previa_enseña_el_flujo_resultante_de_cada_tipo(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->regla(ApproverRole::WORKER, 1);
+        $this->regla(ApproverRole::SUPERVISOR, 2);
+        $this->regla(ApproverRole::HSE_SUPERVISOR, 3, false);
+
+        $izaje = $this->tipo('IZAJE');
+        $mtto  = $this->tipo('MTTO');
+
+        ApproverRole::create(['slug' => Str::random(22), 'code' => 'rigging_chief',
+            'name_es' => 'Jefe de izaje', 'name_en' => 'Rigging chief', 'sort_order' => 5, 'tenant_id' => 1]);
+
+        foreach ([[ApproverRole::WORKER, 1], [ApproverRole::SUPERVISOR, 2],
+                  [ApproverRole::HSE_SUPERVISOR, 3], ['rigging_chief', 4]] as [$rol, $nivel]) {
+            $this->regla($rol, $nivel, true, $izaje->id);
+        }
+
+        $this->get(route('business_management.approval_rules.preview', ['country_id' => 1]))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                $flujos = collect($page->toArray()['props']['flows']);
+
+                $izaje = $flujos->firstWhere('work_type.code', 'IZAJE');
+                $mtto  = $flujos->firstWhere('work_type.code', 'MTTO');
+
+                // A mas riesgo, mas firmas — y en el orden en que se firman.
+                $this->assertCount(4, $izaje['signatures']);
+                $this->assertSame('own', $izaje['source']);
+                $this->assertSame([1, 2, 3, 4], array_column($izaje['signatures'], 'level'));
+                $this->assertSame('rigging_chief', $izaje['signatures'][3]['role']);
+
+                // Un tipo sin reglas propias hereda las generales del pais.
+                $this->assertCount(3, $mtto['signatures']);
+                $this->assertSame('inherited', $mtto['source']);
+
+                return $page;
+            });
+    }
+
+    /** Sin ninguna regla, un plan nace sin aprobaciones: eso se avisa. */
+    public function test_la_vista_previa_avisa_cuando_un_tipo_se_queda_sin_firmas(): void
+    {
+        $this->actingAs($this->admin());
+        $this->tipo('MTTO');
+
+        $this->get(route('business_management.approval_rules.preview', ['country_id' => 1]))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                foreach ($page->toArray()['props']['flows'] as $flujo) {
+                    $this->assertSame('none', $flujo['source']);
+                    $this->assertCount(0, $flujo['signatures']);
+                }
+
+                return $page;
+            });
+    }
+
+    // ── Baja ─────────────────────────────────────────────────────────────────
+
+    public function test_una_regla_se_borra_con_motivo_y_queda_en_la_papelera(): void
+    {
+        $this->actingAs($this->admin());
+        $regla = $this->regla(ApproverRole::SUPERVISOR, 2);
+
+        $this->delete(route('business_management.approval_rules.deleteSave', $regla->slug), [
+            'deleted_description' => 'el procedimiento cambio',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSoftDeleted('approval_rules', ['id' => $regla->id]);
+    }
+
+    /** Y deja de exigirse: la vista previa lo refleja en el acto. */
+    public function test_al_borrar_una_regla_el_flujo_se_queda_con_una_firma_menos(): void
+    {
+        $this->actingAs($this->admin());
+        $this->regla(ApproverRole::WORKER, 1);
+        $hse = $this->regla(ApproverRole::HSE_SUPERVISOR, 3, false);
+
+        $this->delete(route('business_management.approval_rules.deleteSave', $hse->slug), [
+            'deleted_description' => 'ya no hace falta',
+        ]);
+
+        $this->get(route('business_management.approval_rules.preview', ['country_id' => 1]))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                $general = $page->toArray()['props']['flows'][0];
+                $this->assertCount(1, $general['signatures']);
+                $this->assertSame(ApproverRole::WORKER, $general['signatures'][0]['role']);
+
+                return $page;
+            });
+    }
+
+    // ── Permisos ─────────────────────────────────────────────────────────────
+
+    public function test_sin_permiso_de_crear_no_se_crea(): void
+    {
+        $this->actingAs($this->soloLectura());
+
+        $this->assertProhibido($this->get(route('business_management.approval_rules.create')));
+        $this->assertProhibido($this->post(route('business_management.approval_rules.store'), [
+            'country_id' => 1, 'approver_role' => ApproverRole::WORKER, 'priority_level' => 1,
+        ]));
+
+        $this->assertSame(0, ApprovalRule::count());
+    }
+
+    public function test_sin_permiso_de_editar_no_se_edita(): void
+    {
+        $regla = $this->regla(ApproverRole::SUPERVISOR, 2);
+        $this->actingAs($this->soloLectura());
+
+        $this->assertProhibido($this->put(route('business_management.approval_rules.update', $regla->slug), [
+            'country_id' => 1, 'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 9,
+        ]));
+
+        $this->assertDatabaseHas('approval_rules', ['id' => $regla->id, 'priority_level' => 2]);
+    }
+
+    /** La vista previa la ve quien puede ver el modulo, y solo ese. */
+    public function test_la_vista_previa_exige_el_permiso_de_ver(): void
+    {
+        $this->actingAs($this->soloLectura())
+            ->get(route('business_management.approval_rules.preview'))
+            ->assertOk();
+
+        $sinNada = Role::firstOrCreate(['name' => 'pelado', 'guard_name' => 'web'], ['description' => 'Sin permisos']);
+        $sinNada->syncPermissions([]);
+        $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $u->assignRole($sinNada);
+
+        $this->assertProhibido($this->actingAs($u)->get(route('business_management.approval_rules.preview')));
+    }
+
+    public function test_la_papelera_es_solo_del_super(): void
+    {
+        $this->assertProhibido($this->actingAs($this->admin())->get(route('business_management.approval_rules.trash')));
+    }
+
+    /** El listado trae los catalogos de los selectores: sin ellos no se filtra. */
+    public function test_el_listado_trae_los_catalogos_de_los_selectores(): void
+    {
+        $this->actingAs($this->admin());
+        $this->tipo('IZAJE');
+
+        $this->get(route('business_management.approval_rules.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('ApprovalRules/Index')
+                ->has('options.countries', 1)
+                ->has('options.work_types', 1)
+                ->has('options.approver_roles', 3)
+                ->where('sequential', false));
+    }
+}

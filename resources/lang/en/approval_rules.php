@@ -1,0 +1,129 @@
+<?php
+
+return [
+    'singular' => 'Approval rule',
+    'plural'   => 'Approval rules',
+    'record'   => 'approval rule',
+    'records'  => 'approval rules',
+    'new'      => 'Create rule',
+    'id'       => 'No.',
+
+    'index_title'      => 'Approval rules',
+    'index_subtitle'   => 'Which signatures a work plan needs before it counts as approved.',
+    'create_title'     => 'Create approval rule',
+    'create_subtitle'  => 'One more signature in the flow is one more rule — no system change needed.',
+    'edit_title'       => 'Edit approval rule',
+    'delete_title'     => 'Delete approval rule',
+    'show_title'       => 'Approval rule — Details',
+    'trash_title'      => 'Approval rules bin',
+    'form_create_hint' => 'One more signature in the flow is one more rule — no system change needed.',
+    'empty_hint'       => 'Create the first rule or import the flow from Excel.',
+
+    // Fields
+    'country'            => 'Country',
+    'country_help'       => 'Rules are per country: each country has its own procedure.',
+    'work_type'          => 'Work type',
+    'work_type_help'     => 'Leave it empty and the rule covers every type. Narrow it and the rule only counts for that type — and that type stops inheriting the country-wide rules.',
+    'all_work_types'     => 'All types',
+    'approver_role'      => 'Approver role',
+    'approver_role_help' => 'Who signs. It comes from the approver role catalogue; if one is missing, add it there.',
+    'priority_level'     => 'Level',
+    'level_short'        => 'Level',
+    'priority_level_help' => 'Orders the flow: 1 signs first. With sequential approvals on, level 3 also cannot be signed while level 2 is pending.',
+    'is_required'        => 'Required',
+    'is_required_help'   => 'A required signature holds back later levels until it is given. An optional one does not.',
+    'required'           => 'Required',
+    'optional'           => 'Optional',
+    'is_active'          => 'Status',
+    'is_active_help'     => 'An inactive rule stops being demanded on new plans. Plans already created keep the approval they were given.',
+    'filter_name'        => 'Search by role',
+
+    // What needs explaining, because this is what trips people up
+    'how_it_works_title'    => 'How the flow resolves',
+    'how_it_works_general'  => 'A rule with no work type covers every type in that country.',
+    'how_it_works_override' => 'If a work type has rules of its own, those win: the country-wide ones stop applying to that type. They do not mix.',
+    'how_it_works_level'    => 'The level orders the signatures. With the "sequential approvals" setting on, it also enforces that order.',
+    'sequential_on'         => 'Sequential approvals on: a level cannot be signed while a required signature from an earlier level is pending.',
+    'sequential_off'        => 'Sequential approvals off: the level orders the signatures, but they can be given in any order.',
+
+    // Flow preview
+    'preview_title'       => 'Flow preview',
+    'preview_subtitle'    => 'Which signatures remain, type by type, with the rules as they stand right now.',
+    'preview_open'        => 'See the resulting flow',
+    'preview_country'     => 'Country',
+    'preview_signatures'  => '{0} A plan of this type needs no signatures|{1} 1 signature|[2,*] :count signatures',
+    'preview_source_own'       => 'Rules of its own',
+    'preview_source_inherited' => 'Inherited from the country',
+    'preview_source_country'   => 'Country-wide rules',
+    'preview_source_none'      => 'No rules',
+    'preview_none_warning'     => 'A plan of this type would be created with no pending approvals at all.',
+    'preview_empty_country'    => 'This country has no active work types yet.',
+    'flow_of_this_rule'        => 'The flow this rule belongs to',
+
+    // Messages
+    'created' => 'Rule created.',
+    'saved'   => 'Rule updated.',
+    'deleted' => 'Rule deleted.',
+
+    'delete_about'                 => 'You are about to delete this rule. It will go to the bin.',
+    'delete_warning_approvals'     => ':count plan approval(s) came from this rule. Deleting it neither removes them nor un-signs anything: it just stops being demanded on new plans.',
+    'deleted_description_required' => 'State the reason for the deletion.',
+    'deleted_description_min'      => 'The reason must be at least 3 characters long.',
+    'deleted_description_max'      => 'The reason cannot exceed 1000 characters.',
+
+    // Export / import
+    'export_filename'          => 'approval_rules',
+    'import_template_filename' => 'approval-rules-template.xlsx',
+    'export_title'             => 'Approval rules',
+    'export_limit_exceeded'    => 'The :format export exceeds the limit (:count rows vs :limit). Use CSV for large volumes.',
+    'export_format_limit_hint' => 'Up to :limit rows in this format. Use CSV if you need more.',
+    'export_no_limit_hint'     => 'No limit — recommended for large volumes.',
+
+    // Validation
+    'approver_role_unknown'   => 'That role does not exist in the catalogue, or it is inactive. Create it first under Approver roles.',
+    'duplicate_role_in_flow'  => 'That role already signs in this flow (same country and work type). A role does not approve the same plan twice.',
+    'country_required'        => 'The country is required.',
+    'priority_level_required' => 'The level is required.',
+    'is_active_required'      => 'The status field is required.',
+    'import_super_blocked'    => 'A super with no workspace cannot import rules: there is no way to tell which workspace they belong to.',
+    'import_country_unknown'  => 'No country matches that ISO code.',
+    'import_work_type_unknown'=> 'No work type matches that code. Leave it empty if the rule covers every type.',
+    'import_level_invalid'    => 'The level must be a number between 1 and 20.',
+
+    // Edit all
+    'edit_all_title'      => 'Approval rules — Edit all',
+    'edit_all_subtitle'   => 'Reorder levels and change which signatures are required. Country, type and role are edited on the record: changing those means a different rule.',
+    'edit_all_changes'    => '{0} No changes|{1} 1 pending change|[2,*] :count pending changes',
+    'edit_all_save_all'   => 'Save all',
+    'edit_all_discard'    => 'Discard changes',
+    'edit_all_no_results' => 'No rule matches the filter.',
+    'edit_all_duplicate_levels' => 'Two signatures share a level within the same flow: the order between them is left to chance.',
+
+    'table_headers' => [
+        'editable_level'    => 'Level (editable)',
+        'editable_required' => 'Required (editable)',
+        'editable_status'   => 'Status (editable)',
+    ],
+
+    // Onboarding tour
+    'tour' => [
+        'step1_title' => 'Approval rules',
+        'step1_body'  => 'This is where you decide which signatures a plan needs. There used to be three fixed ones; a fourth approval is now just one more row.',
+        'step2_title' => 'Search and filter',
+        'step2_body'  => 'Filter by country, work type or role to see only the flow you are working on.',
+        'step3_title' => 'Saved views',
+        'step3_body'  => 'Save your combination of filters, columns and sorting, and come back to it with one click.',
+        'step4_title' => 'Columns',
+        'step4_body'  => 'Show or hide columns; your choice is remembered for next time.',
+        'step5_title' => 'Export and import',
+        'step5_body'  => 'The import template references country, type and role by code, so the same file works on any installation.',
+        'step6_title' => 'Edit many at once',
+        'step6_body'  => 'Reorder levels and change which signatures are required without opening them one by one.',
+        'step7_title' => 'Flow preview',
+        'step7_body'  => 'The key piece: it shows which signatures remain for each work type, in order. Without it there is no way to know what you just configured, because a type with rules of its own stops inheriting the general ones.',
+        'step8_title' => 'Bulk actions',
+        'step8_body'  => 'Tick rows to activate, deactivate or delete in bulk.',
+        'step9_title' => 'Need a refresher?',
+        'step9_body'  => 'Reopen this tour any time from the tools menu.',
+    ],
+];

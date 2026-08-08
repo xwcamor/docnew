@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\BusinessManagement\CustomerHierarchyController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\BusinessManagement\ApprovalRuleController;
+use App\Http\Controllers\BusinessManagement\ApproverRoleController;
 use App\Http\Controllers\BusinessManagement\FormTemplateController;
 use App\Http\Controllers\BusinessManagement\WorkPlanController;
 use App\Http\Controllers\BusinessManagement\WorkPlanSetupController;
@@ -520,4 +522,150 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::put('customers/{customer}/hierarchy/{level}/{id}', [CustomerHierarchyController::class, 'update'])->name('customers.hierarchy.update');
         Route::delete('customers/{customer}/hierarchy/{level}/{id}', [CustomerHierarchyController::class, 'destroy'])->name('customers.hierarchy.destroy');
         Route::post('customers/{customer}/hierarchy/{level}/{id}/restore', [CustomerHierarchyController::class, 'restore'])->name('customers.hierarchy.restore');
+
+
+    // ── ApproverRoles ── catalogo de quien puede firmar un plan.
+    // Sin lock ni duplicar: la tabla no tiene columnas de candado y clonar un
+    // codigo unico no tiene sentido — se crea uno nuevo y ya.
+
+    // 1) Papelera + restaurar + borrado definitivo (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('approver_roles/trash',                  [ApproverRoleController::class, 'trash'])->name('approver_roles.trash');
+        Route::post('approver_roles/bulk_restore',          [ApproverRoleController::class, 'bulkRestore'])->name('approver_roles.bulk_restore');
+        Route::post('approver_roles/{slug}/restore',        [ApproverRoleController::class, 'restore'])->name('approver_roles.restore');
+        Route::get('approver_roles/{slug}/restore',         fn () => redirect()->route('business_management.approver_roles.trash'));
+        Route::delete('approver_roles/{slug}/force_delete', [ApproverRoleController::class, 'forceDelete'])->name('approver_roles.force_delete');
+    });
+
+    // 2) Exportar (cada formato con su feature de plan)
+    Route::middleware('permission:approver_roles.view')->group(function () {
+        Route::middleware(['throttle:5,1', 'permission:approver_roles.export', 'plan_feature:export_excel'])
+            ->post('approver_roles/export_excel', [ApproverRoleController::class, 'exportExcel'])->name('approver_roles.export_excel');
+        Route::middleware(['throttle:5,1', 'permission:approver_roles.export', 'plan_feature:export_pdf'])
+            ->post('approver_roles/export_pdf',   [ApproverRoleController::class, 'exportPdf'])->name('approver_roles.export_pdf');
+        Route::middleware(['throttle:5,1', 'permission:approver_roles.export', 'plan_feature:export_word'])
+            ->post('approver_roles/export_word',  [ApproverRoleController::class, 'exportWord'])->name('approver_roles.export_word');
+        Route::middleware(['throttle:5,1', 'permission:approver_roles.export'])
+            ->post('approver_roles/export_csv',   [ApproverRoleController::class, 'exportCsv'])->name('approver_roles.export_csv');
+    });
+
+    // 3) Importar
+    Route::middleware(['permission:approver_roles.create', 'permission:approver_roles.import', 'plan_feature:bulk_operations'])->group(function () {
+        Route::post('approver_roles/import',          [ApproverRoleController::class, 'import'])->name('approver_roles.import');
+        Route::get('approver_roles/import_template',  [ApproverRoleController::class, 'importTemplate'])->name('approver_roles.import_template');
+    });
+
+    // 4) Masivas
+    Route::middleware(['permission:approver_roles.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('approver_roles/bulk_delete',     [ApproverRoleController::class, 'bulkDelete'])->name('approver_roles.bulk_delete');
+        Route::post('approver_roles/bulk_set_active', [ApproverRoleController::class, 'bulkSetActive'])->name('approver_roles.bulk_set_active');
+    });
+
+    // Deshacer el ultimo borrado (ventana de 60s)
+    Route::middleware('permission:approver_roles.delete')->group(function () {
+        Route::post('approver_roles/undo_last_delete', [ApproverRoleController::class, 'undoLastDelete'])->name('approver_roles.undo_last_delete');
+    });
+
+    // Editar en masa
+    Route::middleware('permission:approver_roles.edit')->group(function () {
+        Route::get('approver_roles/edit_all',         [ApproverRoleController::class, 'editAll'])->name('approver_roles.edit_all');
+        Route::post('approver_roles/edit_all/update', [ApproverRoleController::class, 'editAllUpdate'])->name('approver_roles.edit_all.update');
+    });
+
+    // Desactivar desde el aviso de "esta en uso" — es la salida que se le
+    // ofrece al usuario cuando el borrado se rechaza, y por eso va con edit.
+    Route::middleware('permission:approver_roles.edit')->group(function () {
+        Route::post('approver_roles/{approverRole}/deactivate', [ApproverRoleController::class, 'deactivate'])->name('approver_roles.deactivate');
+    });
+
+    // 5) CRUD — rutas de path fijo ANTES de las que llevan {approverRole}.
+    Route::middleware('permission:approver_roles.create')->group(function () {
+        Route::get('approver_roles/create', [ApproverRoleController::class, 'create'])->name('approver_roles.create');
+        Route::post('approver_roles',       [ApproverRoleController::class, 'store'])->name('approver_roles.store');
+    });
+
+    Route::middleware('permission:approver_roles.view')->group(function () {
+        Route::get('approver_roles',                 [ApproverRoleController::class, 'index'])->name('approver_roles.index');
+        Route::get('approver_roles/{approverRole}',  [ApproverRoleController::class, 'show'])->name('approver_roles.show');
+    });
+    Route::middleware('permission:approver_roles.edit')->group(function () {
+        Route::get('approver_roles/{approverRole}/edit', [ApproverRoleController::class, 'edit'])->name('approver_roles.edit');
+        Route::put('approver_roles/{approverRole}',      [ApproverRoleController::class, 'update'])->name('approver_roles.update');
+    });
+    Route::middleware('permission:approver_roles.delete')->group(function () {
+        Route::get('approver_roles/{approverRole}/delete',        [ApproverRoleController::class, 'delete'])->name('approver_roles.delete');
+        Route::delete('approver_roles/{approverRole}/deleteSave', [ApproverRoleController::class, 'deleteSave'])->name('approver_roles.deleteSave');
+    });
+
+
+    // ── ApprovalRules ── que firmas exige un plan antes de darse por aprobado.
+    // Sin lock ni duplicar, por lo mismo que ApproverRoles.
+
+    // 1) Papelera + restaurar + borrado definitivo (solo super)
+    Route::middleware('role:super')->group(function () {
+        Route::get('approval_rules/trash',                  [ApprovalRuleController::class, 'trash'])->name('approval_rules.trash');
+        Route::post('approval_rules/bulk_restore',          [ApprovalRuleController::class, 'bulkRestore'])->name('approval_rules.bulk_restore');
+        Route::post('approval_rules/{slug}/restore',        [ApprovalRuleController::class, 'restore'])->name('approval_rules.restore');
+        Route::get('approval_rules/{slug}/restore',         fn () => redirect()->route('business_management.approval_rules.trash'));
+        Route::delete('approval_rules/{slug}/force_delete', [ApprovalRuleController::class, 'forceDelete'])->name('approval_rules.force_delete');
+    });
+
+    // 2) Exportar
+    Route::middleware('permission:approval_rules.view')->group(function () {
+        Route::middleware(['throttle:5,1', 'permission:approval_rules.export', 'plan_feature:export_excel'])
+            ->post('approval_rules/export_excel', [ApprovalRuleController::class, 'exportExcel'])->name('approval_rules.export_excel');
+        Route::middleware(['throttle:5,1', 'permission:approval_rules.export', 'plan_feature:export_pdf'])
+            ->post('approval_rules/export_pdf',   [ApprovalRuleController::class, 'exportPdf'])->name('approval_rules.export_pdf');
+        Route::middleware(['throttle:5,1', 'permission:approval_rules.export', 'plan_feature:export_word'])
+            ->post('approval_rules/export_word',  [ApprovalRuleController::class, 'exportWord'])->name('approval_rules.export_word');
+        Route::middleware(['throttle:5,1', 'permission:approval_rules.export'])
+            ->post('approval_rules/export_csv',   [ApprovalRuleController::class, 'exportCsv'])->name('approval_rules.export_csv');
+    });
+
+    // 3) Importar
+    Route::middleware(['permission:approval_rules.create', 'permission:approval_rules.import', 'plan_feature:bulk_operations'])->group(function () {
+        Route::post('approval_rules/import',          [ApprovalRuleController::class, 'import'])->name('approval_rules.import');
+        Route::get('approval_rules/import_template',  [ApprovalRuleController::class, 'importTemplate'])->name('approval_rules.import_template');
+    });
+
+    // 4) Masivas
+    Route::middleware(['permission:approval_rules.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
+        Route::post('approval_rules/bulk_delete',     [ApprovalRuleController::class, 'bulkDelete'])->name('approval_rules.bulk_delete');
+        Route::post('approval_rules/bulk_set_active', [ApprovalRuleController::class, 'bulkSetActive'])->name('approval_rules.bulk_set_active');
+    });
+
+    Route::middleware('permission:approval_rules.delete')->group(function () {
+        Route::post('approval_rules/undo_last_delete', [ApprovalRuleController::class, 'undoLastDelete'])->name('approval_rules.undo_last_delete');
+    });
+
+    Route::middleware('permission:approval_rules.edit')->group(function () {
+        Route::get('approval_rules/edit_all',         [ApprovalRuleController::class, 'editAll'])->name('approval_rules.edit_all');
+        Route::post('approval_rules/edit_all/update', [ApprovalRuleController::class, 'editAllUpdate'])->name('approval_rules.edit_all.update');
+    });
+
+    // Vista previa del flujo: "para IZAJE quedan estas 4 firmas, en este orden".
+    // Sin esto el usuario configura a ciegas, porque la regla que ve en la
+    // tabla no es la que se aplica si el tipo de trabajo tiene reglas propias.
+    Route::middleware('permission:approval_rules.view')->group(function () {
+        Route::get('approval_rules/preview', [ApprovalRuleController::class, 'preview'])->name('approval_rules.preview');
+    });
+
+    // 5) CRUD — rutas de path fijo ANTES de las que llevan {approvalRule}.
+    Route::middleware('permission:approval_rules.create')->group(function () {
+        Route::get('approval_rules/create', [ApprovalRuleController::class, 'create'])->name('approval_rules.create');
+        Route::post('approval_rules',       [ApprovalRuleController::class, 'store'])->name('approval_rules.store');
+    });
+
+    Route::middleware('permission:approval_rules.view')->group(function () {
+        Route::get('approval_rules',                 [ApprovalRuleController::class, 'index'])->name('approval_rules.index');
+        Route::get('approval_rules/{approvalRule}',  [ApprovalRuleController::class, 'show'])->name('approval_rules.show');
+    });
+    Route::middleware('permission:approval_rules.edit')->group(function () {
+        Route::get('approval_rules/{approvalRule}/edit', [ApprovalRuleController::class, 'edit'])->name('approval_rules.edit');
+        Route::put('approval_rules/{approvalRule}',      [ApprovalRuleController::class, 'update'])->name('approval_rules.update');
+    });
+    Route::middleware('permission:approval_rules.delete')->group(function () {
+        Route::get('approval_rules/{approvalRule}/delete',        [ApprovalRuleController::class, 'delete'])->name('approval_rules.delete');
+        Route::delete('approval_rules/{approvalRule}/deleteSave', [ApprovalRuleController::class, 'deleteSave'])->name('approval_rules.deleteSave');
+    });
 });

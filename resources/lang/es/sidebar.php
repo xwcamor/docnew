@@ -58,6 +58,8 @@ return [
     'companies'          => 'Empresas',
     'people'             => 'Personas',
     'form_templates'     => 'Plantillas de formato',
+    'approval_rules'     => 'Reglas de aprobación',
+    'approver_roles'     => 'Roles aprobadores',
     'work_types'         => 'Tipos de trabajo',
     'work_locations'     => 'Sedes',
     'workstations'       => 'Puestos de trabajo',

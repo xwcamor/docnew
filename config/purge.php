@@ -111,6 +111,14 @@ return [
             'model' => \App\Models\FormTemplate::class,
             'days'  => 90,
         ],
+        'approver_roles' => [
+            'model' => \App\Models\ApproverRole::class,
+            'days'  => 90,
+        ],
+        'approval_rules' => [
+            'model' => \App\Models\ApprovalRule::class,
+            'days'  => 90,
+        ],
         // Suma modulos nuevos aqui:
         // 'patients' => [...],
         // 'doctors'  => [...],

@@ -32,6 +32,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // ── `route:list` de vuelta ────────────────────────────────────────
+        // laravel-localization hereda la `$signature` de RouteListCommand, asi
+        // que su comando se registra como `route:list` y pisa al de Laravel —
+        // y encima pide un argumento `locale` que esa firma no declara.
+        //
+        // Se sustituye el comando del paquete por uno que declara la firma
+        // que le faltaba. Ver App\Console\Commands\RouteTranslationsListCommand.
+        $this->app->singleton(
+            'laravellocalizationroutecache.list',
+            \App\Console\Commands\RouteTranslationsListCommand::class,
+        );
+
         // ── Candado de producción ─────────────────────────────────────────
         // En producción se PROHÍBEN los comandos destructivos de BD
         // (migrate:fresh, migrate:refresh, migrate:reset, db:wipe), incluso

@@ -46,6 +46,7 @@ import {
     RadarChartOutlined,
     IdcardOutlined,
     SafetyCertificateOutlined,
+    NodeIndexOutlined,
     CheckOutlined,
     DownloadOutlined,
     DeleteOutlined,
@@ -452,6 +453,8 @@ const selectedKey = computed(() => {
         ['companies',          '/companies'],
         ['people',             '/people'],
         ['form_templates',     '/form_templates'],
+        ['approval_rules',     '/approval_rules'],
+        ['approver_roles',     '/approver_roles'],
         ['dashboard',      '/dashboard_management/dashboards'],
         ['dashboard',      '/dashboard'],  // legacy fallback
     ];
@@ -659,6 +662,19 @@ const menuStructure = computed(() => [
                 key: 'form_templates', label: t('sidebar.form_templates'), icon: FileOutlined,
                 href: route('business_management.form_templates.index'), inertia: true,
                 visible: () => can('form_templates.view'),
+            },
+            // El flujo de aprobación: qué firmas exige un plan y quién puede
+            // darlas. Van juntas y en este orden porque una regla nombra un rol
+            // del catálogo — el catálogo se llena antes.
+            {
+                key: 'approval_rules', label: t('sidebar.approval_rules'), icon: NodeIndexOutlined,
+                href: route('business_management.approval_rules.index'), inertia: true,
+                visible: () => can('approval_rules.view'),
+            },
+            {
+                key: 'approver_roles', label: t('sidebar.approver_roles'), icon: SafetyCertificateOutlined,
+                href: route('business_management.approver_roles.index'), inertia: true,
+                visible: () => can('approver_roles.view'),
             },
         ],
     },

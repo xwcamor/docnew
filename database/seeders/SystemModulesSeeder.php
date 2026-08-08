@@ -55,7 +55,10 @@ class SystemModulesSeeder extends Seeder
             ['name' => 'WorkAreas',      'permission_key' => 'work_areas'],
             ['name' => 'Positions',      'permission_key' => 'positions'],
             ['name' => 'Nationalities',  'permission_key' => 'nationalities'],
+            // El flujo de aprobacion: las reglas y el catalogo de quien firma.
+            // El observer crea los 7 permisos de cada uno al insertar la fila.
             ['name' => 'ApprovalRules',  'permission_key' => 'approval_rules'],
+            ['name' => 'ApproverRoles',  'permission_key' => 'approver_roles'],
         ];
 
         foreach ($modules as $m) {

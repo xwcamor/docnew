@@ -58,6 +58,8 @@ return [
     'companies'          => 'Companies',
     'people'             => 'People',
     'form_templates'     => 'Form templates',
+    'approval_rules'     => 'Approval rules',
+    'approver_roles'     => 'Approver roles',
     'work_types'         => 'Work types',
     'work_locations'     => 'Sites',
     'workstations'       => 'Workstations',

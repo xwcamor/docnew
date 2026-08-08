@@ -79,6 +79,14 @@ return [
             'model'      => \App\Models\FormTemplate::class,
             'show_route' => 'business_management.form_templates.show',
         ],
+        'approver_roles' => [
+            'model'      => \App\Models\ApproverRole::class,
+            'show_route' => 'business_management.approver_roles.show',
+        ],
+        'approval_rules' => [
+            'model'      => \App\Models\ApprovalRule::class,
+            'show_route' => 'business_management.approval_rules.show',
+        ],
         // Agrega modulos nuevos aqui cuando crees patients, doctors, etc.
     ],
 ];
