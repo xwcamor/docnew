@@ -21,6 +21,7 @@ use App\Models\Workstation;
 use App\Models\WorkType;
 use App\Services\Migration\LegacyFormMapper;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -943,10 +944,67 @@ class MigrateLegacyDataCommand extends Command
             return;
         }
 
+        if (! $this->plantillasCompletas($plantillas)) {
+            return;
+        }
+
         $this->migrarAst($viejo, $plantillas['AST']);
         $this->migrarPtf($viejo, $plantillas['PTF']);
         $this->migrarEpp($viejo, $plantillas['EPP']);
         $this->migrarIhm($viejo, $plantillas['IHM']);
+    }
+
+    /**
+     * Que la plantilla exista no basta: tiene que tener los campos donde van las
+     * respuestas.
+     *
+     * Pasa de verdad: si el AST se creo con una version anterior del comando,
+     * `migrate-formats` lo da por bueno y lo omite, y la migracion de documentos
+     * se encontraba con que el campo no estaba. Antes reventaba con un
+     * "Undefined array key" a mitad de los 3 657 documentos; ahora se dice
+     * antes de empezar, y se dice como arreglarlo.
+     */
+    protected function plantillasCompletas(Collection $plantillas): bool
+    {
+        $exigidos = [
+            'AST' => ['matriz_de_riesgo'],
+            'PTF' => ['preguntas', 'matriz_de_riesgo'],
+            'EPP' => ['epp_por_trabajador'],
+            'IHM' => ['inspeccion_de_herramientas'],
+        ];
+
+        $incompletas = [];
+
+        foreach ($exigidos as $codigo => $codigos) {
+            $tiene = array_keys($this->camposDe($plantillas[$codigo]));
+            $faltan = array_diff($codigos, $tiene);
+
+            if ($faltan !== []) {
+                $incompletas[$codigo] = ['faltan' => $faltan, 'tiene' => $tiene];
+            }
+        }
+
+        if ($incompletas === []) {
+            return true;
+        }
+
+        $this->newLine();
+        $this->error('  Hay plantillas incompletas: se crearon con una version anterior y les faltan campos.');
+
+        foreach ($incompletas as $codigo => $d) {
+            $this->line(sprintf('    %s — falta: %s   (tiene: %s)',
+                $codigo, implode(', ', $d['faltan']), $d['tiene'] ? implode(', ', $d['tiene']) : 'ningun campo'));
+        }
+
+        $this->newLine();
+        $this->warn('  Rehazlas y vuelve a intentarlo:');
+        $this->line('    php artisan docufiz:migrate-formats --fresh');
+        $this->line('    php artisan docufiz:migrate-data documentos');
+        $this->newLine();
+        $this->line('  --fresh borra las plantillas y las entregas que cuelguen de ellas, que a estas');
+        $this->line('  alturas son de demostracion. Los planes, personas y empresas no se tocan.');
+
+        return false;
     }
 
     /** AST: la matriz de riesgo eran dos tablas encadenadas, actividades y peligros. */
