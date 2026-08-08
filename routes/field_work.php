@@ -26,6 +26,12 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
     Route::middleware('permission:form_submissions.export')->group(function () {
         Route::get('submissions/{form_submission}/pdf', [FormSubmissionController::class, 'pdf'])
             ->name('forms.pdf');
+
+        // Y el expediente entero del plan: el `plan_exports_controller` de la
+        // v1. Mismo permiso, porque saca los mismos documentos del sistema —
+        // los cuatro de golpe en vez de uno.
+        Route::get('plans/{work_plan}/zip', [FormSubmissionController::class, 'zip'])
+            ->name('forms.zip');
     });
 
     Route::middleware('permission:form_submissions.edit')->group(function () {

@@ -342,13 +342,33 @@ contrato entre las dos mitades.
 
 ---
 
-## 6. Lo que queda por comparar
+## 6. Lo que quedaba por comparar
 
-Honestamente, esto cubre el plan, su flujo de firmas y el cálculo de los cuatro
-formatos. **No** se ha comparado todavía, y hasta que se haga no se puede dar
-por portado:
+La lista está cerrada: el plan, su flujo de firmas, el cálculo de los cuatro
+formatos, la exportación y el mínimo de documento. Lo que sigue es el registro
+de cómo quedó cada uno.
 
-- [ ] `plan_exports_controller` — la exportación a ZIP y los PDF por formato.
+**Lo único que queda abierto no es una comparación sino una decisión del
+dueño**: qué hacer con las 150 416 observaciones que salen al recontar el
+histórico de EPP (§4). El código está; el criterio sobre los datos viejos, no.
+
+- [x] ~~`plan_exports_controller`~~ — **portado**. Botón «Descargar todo» en la
+      tarjeta de formatos del plan (`field_work.forms.zip`), con el mismo
+      permiso que el PDF de uno solo. Dos diferencias, las dos a propósito:
+
+      1. **Van los cuatro formatos, no dos.** La v1 metía en el ZIP sólo el AST
+         y el PTF (`f1_pdf_url`, `f2_pdf_url`); el EPP y el IHM tenían su PDF y
+         se quedaban fuera. No hay razón escrita para eso y quien pide el
+         expediente de una jornada los quiere los cuatro.
+      2. **Los PDF se generan dentro del proceso.** La v1 hacía
+         `system("curl ...")` contra su propia URL pasándole la cookie de sesión
+         del usuario por la línea de comandos, y si curl no traía nada devolvía
+         `nil` en silencio: el ZIP salía incompleto sin avisar. Aquí, si un PDF
+         falla, no hay ZIP.
+
+      Sólo entran los formatos confirmados; un borrador tiene firmas que aún
+      pueden cambiar. Sin ninguno confirmado se explica por qué, en vez de
+      mandar un ZIP vacío que parece un fallo de la descarga.
 - [x] ~~`settings.num_doc_minimum` por país~~ — **portado**. Estaba fijo en 8
       (el DNI peruano) y la v1 lo siembra en **7** para los siete países, así
       que aquí era más estricto que allá: un documento de siete caracteres no

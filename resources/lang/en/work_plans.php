@@ -189,6 +189,12 @@ return [
     // the four formats recalculated by themselves and was what the supervisor
     // read at a glance. A confirmed EPP with three worn harnesses is not the
     // same as a confirmed clean one.
+    // Todos los papeles del plan de golpe: el `plan_exports_controller`
+    // de la v1, que era como se mandaba una jornada fuera.
+    'export_zip' => 'Download all',
+    'export_zip_hint' => 'Downloads the plan\'s confirmed forms as a single ZIP, one PDF each. This is what gets sent to the client or to an inspection.',
+    'export_zip_empty' => 'No form has been confirmed yet, so there is nothing to download.',
+
     'findings_count' => '{1} 1 finding|[2,*] :count findings',
     'findings_hint'  => '{1} One answer came out non-conforming. The form still closes: what it cannot do is close without a record of it.|[2,*] :count answers came out non-conforming. The form still closes: what it cannot do is close without a record of it.',
     'forms_findings' => '{1} 1 finding|[2,*] :count findings',

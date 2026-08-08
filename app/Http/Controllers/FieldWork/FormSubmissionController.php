@@ -8,6 +8,7 @@ use App\Models\FormTemplate;
 use App\Models\WorkPlan;
 use App\Services\FieldWork\FormSubmissionPdfService;
 use App\Services\FieldWork\FormSubmissionService;
+use App\Services\FieldWork\WorkPlanExportService;
 use Illuminate\Http\Request;
 
 class FormSubmissionController extends Controller
@@ -128,5 +129,30 @@ class FormSubmissionController extends Controller
     {
         return $pdf->generar($form_submission, $request->user())
             ->download($pdf->nombreArchivo($form_submission));
+    }
+
+    /**
+     * El expediente entero del plan en un ZIP.
+     *
+     * Es el `plan_exports_controller` de la v1, que era como se mandaba una
+     * jornada fuera —al cliente, a una inspeccion—. Bajarla formato por formato
+     * son cuatro clics y cuatro archivos sueltos que hay que volver a juntar.
+     *
+     * El temporal se borra al terminar la descarga (`deleteFileAfterSend`).
+     */
+    public function zip(Request $request, WorkPlan $work_plan, WorkPlanExportService $exportador)
+    {
+        try {
+            $ruta = $exportador->zip($work_plan, $request->user());
+        } catch (\RuntimeException) {
+            // Sin formatos confirmados no hay expediente. Se vuelve con el
+            // motivo, en vez de mandar un ZIP vacio que parece un fallo de la
+            // descarga.
+            return back()->with('error', __('work_plans.export_zip_empty'));
+        }
+
+        return response()->download($ruta, $exportador->nombreArchivo($work_plan), [
+            'Content-Type' => 'application/zip',
+        ])->deleteFileAfterSend();
     }
 }

@@ -163,7 +163,8 @@ y hasta que se haga no se puede dar por portado:
   aplica» en vez del «No conforme», y al recontar con la regla correcta salen
   150 416 observaciones en EPP porque los operarios usaron «No conforme» para
   las dos cosas (de 100 000 respuestas, «No aplica» no aparece ni una vez).
-- `plan_exports_controller`: exportación a ZIP y PDF por formato.
+- ~~`plan_exports_controller`~~ — **portado** (`field_work.forms.zip`), con los
+  cuatro formatos en vez de dos. Ver §4 de `COMPARACION-V1.md`.
 - ~~`Plan#lock_plan_if_all_conditions_met`~~ — portado y ampliado
   (`WorkPlanCompletionService`).
 - `must_have_at_least_one_document_and_worker`: la v1 no deja guardar un plan sin

@@ -195,6 +195,12 @@ return [
     // los cuatro formatos recalculaban solos y era lo que el supervisor leia de
     // un vistazo en la ficha. Un EPP confirmado con tres arneses en mal estado
     // no es lo mismo que uno confirmado y limpio.
+    // Todos los papeles del plan de golpe: el `plan_exports_controller`
+    // de la v1, que era como se mandaba una jornada fuera.
+    'export_zip' => 'Descargar todo',
+    'export_zip_hint' => 'Baja los formatos confirmados del plan en un solo ZIP, uno por PDF. Es lo que se manda al cliente o a una inspección.',
+    'export_zip_empty' => 'Todavía no hay ningún formato confirmado que descargar.',
+
     'findings_count' => '{1} 1 observación|[2,*] :count observaciones',
     'findings_hint'  => '{1} Una respuesta salió no conforme. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.|[2,*] :count respuestas salieron no conformes. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.',
     'forms_findings' => '{1} 1 observación|[2,*] :count observaciones',

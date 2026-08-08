@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { Card, Tag, Button, Switch, Tooltip } from 'ant-design-vue';
-import { FileTextOutlined, FilePdfOutlined, EditOutlined } from '@ant-design/icons-vue';
+import { FileTextOutlined, FilePdfOutlined, EditOutlined, DownloadOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
@@ -111,6 +111,18 @@ const alternar = (f, valor) => {
             <Tag v-if="observaciones" color="error" :bordered="false">
                 {{ $tc('work_plans.forms_findings', observaciones, { count: observaciones }) }}
             </Tag>
+
+            <!-- El expediente de la jornada de golpe. Bajarlo formato por
+                 formato son cuatro clics y cuatro archivos que hay que volver a
+                 juntar; es lo que se manda al cliente o a una inspección. -->
+            <Tooltip v-if="canExport && confirmados" :title="$t('work_plans.export_zip_hint')">
+                <a :href="route('field_work.forms.zip', planSlug)">
+                    <Button size="small">
+                        <template #icon><DownloadOutlined /></template>
+                        {{ $t('work_plans.export_zip') }}
+                    </Button>
+                </a>
+            </Tooltip>
         </template>
 
         <p v-if="!forms.length" class="ff-empty">{{ $t('work_plans.forms_empty') }}</p>
