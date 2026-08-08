@@ -155,6 +155,15 @@ class FormSubmissionService
             'submitted_by' => auth()->id() ?? $entrega->submitted_by,
         ]);
 
+        // Confirmar el último formato puede ser lo que cierre el plan. El cierre
+        // exige el plan completo —firmas, formatos y aprobaciones—, así que
+        // cualquiera de las tres cosas puede ser la última en llegar y las tres
+        // tienen que preguntar.
+        if ($entrega->workPlan) {
+            app(\App\Services\BusinessManagement\WorkPlanCompletionService::class)
+                ->evaluar($entrega->workPlan);
+        }
+
         return $entrega->fresh();
     }
 

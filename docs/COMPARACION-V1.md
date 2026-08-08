@@ -130,19 +130,26 @@ if date_end.present? && plan_approvals.where(is_required: true, is_approved: fal
 ponía editando el plan, así que el 90% se habría quedado abierto para siempre y
 la lista de pendientes no habría servido de nada.
 
-Portado en `WorkPlanCompletionService`, disparado desde los mismos dos sitios:
-al guardar el plan (la hora de fin suele ser lo último que llega) y al firmarse
-una aprobación. Se respeta que **no mire si los formatos están confirmados** —en
-obra el documento lo cierra la firma del que autoriza—, porque cambiarlo
-desalinearía los planes migrados con los nuevos.
+Portado en `WorkPlanCompletionService`, disparado al guardar el plan, al firmar
+y al confirmar un formato: cualquiera de las tres puede ser la última en llegar.
 
-Con una condición añadida: **el plan tiene que tener al menos un trabajador y un
-formato**. En la v1 no hacía falta escribirla porque
-`must_have_at_least_one_document_and_worker` impedía guardar un plan vacío —el
-plan se creaba de un envío con todo dentro—. Aquí el plan se crea primero y se
-arma después, así que la misma regla se comprueba donde significa lo mismo: un
-plan vacío no llega a ser documento cerrado. Ninguno de los 3 297 cambia de
-resultado.
+**Aquí la regla es más estricta que la de la v1, por decisión del dueño.** No
+basta con la hora de fin y las aprobaciones: se exige el plan entero.
+
+| | v1 | DOCUFIZ |
+| --- | --- | --- |
+| Hora de fin | sí | sí |
+| Aprobaciones obligatorias firmadas | sí | sí |
+| Al menos 1 trabajador y 1 formato | *(garantizado al crear)* | sí |
+| **Todos** los trabajadores firmaron | no | **sí** |
+| **Todos** los formatos confirmados | no | **sí** |
+
+La v1 cerraba el plan con la firma del autorizante aunque quedaran formatos en
+borrador. Un AST en borrador no es un AST, y el documento va a acabar delante de
+un inspector.
+
+Los 3 297 planes migrados conservan el estado con el que llegaron —cerrados bajo
+la regla vieja— y **no se reabren**: la regla nueva rige de aquí en adelante.
 
 ### 1.8 El nombre se lista por el apellido
 

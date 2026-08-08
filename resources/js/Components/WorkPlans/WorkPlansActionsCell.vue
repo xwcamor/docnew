@@ -26,9 +26,23 @@ const props = defineProps({
 // los gestiona. Para el resto se ocultan editar/duplicar/eliminar.
 const canManage = computed(() => props.isSuper || props.record.tenant_id != null);
 
-// Registro BLOQUEADO (Lockable): se ocultan editar y eliminar (el server también
-// los rechaza). Se muestra un candado; desbloquear se hace desde la ficha.
-const isLocked = computed(() => !!(props.record.is_locked ?? props.record.locked_at));
+/**
+ * Un plan puede estar cerrado de **dos maneras distintas**, y las dos dejan de
+ * admitir cambios:
+ *
+ * - **Cerrado** (`is_closed`) — el plan terminó. Lo pone el propio sistema
+ *   cuando ya no falta nada: firmaron todos los trabajadores, los formatos
+ *   están confirmados y las aprobaciones obligatorias están dadas. A partir de
+ *   ahí es un documento de archivo. Es el `is_locked` del sistema anterior.
+ * - **Bloqueado** (`locked_at`, Lockable) — un administrador lo congeló a mano,
+ *   por lo que sea. Es transversal a todos los módulos y se quita desde la ficha.
+ *
+ * Aquí sólo se miraba el segundo, así que un plan **terminado** seguía
+ * enseñando Editar y Eliminar en el listado: el servidor los rechazaba, pero el
+ * usuario se enteraba después de pulsar.
+ */
+const isLocked = computed(() =>
+    !!props.record.is_closed || !!props.record.locked_at);
 
 const emit = defineEmits(['edit', 'duplicate', 'delete']);
 

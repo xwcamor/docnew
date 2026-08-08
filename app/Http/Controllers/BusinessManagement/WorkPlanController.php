@@ -385,10 +385,14 @@ class WorkPlanController extends Controller
             }
         }
 
-        $service->create($request->validated());
+        $workPlan = $service->create($request->validated());
 
+        // A la ficha, no al listado: el plan recién creado está vacío. Le
+        // faltan los trabajadores y hay que asignar quién firma cada aprobación,
+        // y eso se hace en la ficha. Mandar al listado obligaba a buscar el plan
+        // que se acaba de crear para poder seguir trabajando en él.
         return redirect()
-            ->route('business_management.work_plans.index')
+            ->route('business_management.work_plans.show', $workPlan)
             ->with('success', __('work_plans.created'));
     }
 
@@ -434,8 +438,11 @@ class WorkPlanController extends Controller
     {
         $service->update($workPlan, $request->validated());
 
+        // A la ficha del plan que se acaba de editar, no al listado: quien
+        // corrige la hora de fin o la descripción quiere ver el resultado, no
+        // volver a buscar el plan entre 3 700.
         return redirect()
-            ->route('business_management.work_plans.index')
+            ->route('business_management.work_plans.show', $workPlan)
             ->with('success', __('work_plans.saved'));
     }
 
@@ -600,8 +607,10 @@ class WorkPlanController extends Controller
             return back()->with('error', __('global.duplicate_failed'));
         }
 
+        // A la ficha del clon: es un plan nuevo y vacío, igual que uno recién
+        // creado, y lo siguiente es armarlo.
         return redirect()
-            ->route('business_management.work_plans.index')
+            ->route('business_management.work_plans.show', $clone)
             ->with('success', __('global.duplicated_success'));
     }
 
@@ -669,10 +678,14 @@ class WorkPlanController extends Controller
             'people_count'      => $m->people_count,
             'submissions_count' => $m->submissions_count,
             'tenant_id'  => $m->tenant_id,
+            // Los dos candados, que son distintos y los dos dejan el plan sin
+            // editar. Van los dos porque el listado tiene que poder deshabilitar
+            // Editar y Eliminar sin volver a preguntar:
+            //   is_locked / locked_at → un administrador lo congeló a mano (Lockable).
+            //   is_closed             → el plan terminó y es documento de archivo.
             'is_locked'  => $m->is_locked,
-            // El candado propio del plan (columna `is_locked`), que el accesor
-            // del trait Lockable tapa. Ver WorkPlan::getIsClosedAttribute().
-            'is_closed'  => $m->is_closed,
+            'locked_at'  => $m->locked_at,
+            'is_closed'  => (bool) $m->is_closed,
             'lock_scope' => $m->lock_scope,
             'is_favorite' => (bool) ($m->is_favorite ?? false),
             'created_at' => $m->created_at,

@@ -17,20 +17,29 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * El plan se cierra solo, como en el sistema anterior.
+ * El plan se cierra solo cuando no le falta nada.
  *
- * `Plan#lock_plan_if_all_conditions_met` ponia `is_locked` e `is_done` a la vez
- * en cuanto habia hora de fin y no quedaba ninguna aprobacion obligatoria sin
- * firmar. Es la lógica que cerro **3 297 de los 3 653 planes** de los datos
- * reales, ninguno a mano.
+ * `Plan#lock_plan_if_all_conditions_met` ponia `is_locked` e `is_done` a la vez,
+ * y es la lógica que cerro **3 297 de los 3 653 planes** de los datos reales,
+ * ninguno a mano. No se habia portado —aqui `is_done` solo se movia editando el
+ * plan—, con lo cual el 90% se habria quedado abierto para siempre.
  *
- * No se habia portado: aqui `is_done` solo se ponia editando el plan. Con eso,
- * el 90% de los planes se habria quedado abierto para siempre.
+ * La v1 miraba **dos** cosas: hora de fin y aprobaciones obligatorias. Aqui se
+ * exige el plan **entero**, por decision del dueño del producto:
  *
- * Estas pruebas fijan las DOS condiciones y, sobre todo, **que no haya una
- * tercera**: la v1 no miraba si los formatos estaban confirmados ni si habia
- * firmado toda la cuadrilla. Añadirla desalinearia los planes migrados con los
- * que se creen a partir de ahora.
+ *   1. Hora de fin.
+ *   2. Al menos un trabajador y un formato.
+ *   3. Todos los trabajadores han firmado.
+ *   4. Todos los formatos exigidos estan confirmados.
+ *   5. Ninguna aprobacion obligatoria sin firmar.
+ *
+ * Es mas estricto a proposito: un documento que va a acabar delante de un
+ * inspector no se cierra a medias. Los planes migrados conservan el estado con
+ * el que llegaron y no se reabren.
+ *
+ * Estas pruebas fijan las cinco condiciones y los tres disparadores —guardar el
+ * plan, firmar y confirmar un formato—, porque un servicio que nadie llama es
+ * exactamente como estaba esto antes.
  */
 class WorkPlanCompletionTest extends TestCase
 {
@@ -57,6 +66,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_se_cierra_con_hora_de_fin_y_todas_las_obligatorias_firmadas(): void
     {
         $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
         $this->aprobacion($plan, obligatoria: true, firmada: true);
 
         $this->assertTrue($this->cierre->evaluar($plan));
@@ -69,6 +79,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_sin_hora_de_fin_no_se_cierra(): void
     {
         $plan = $this->plan(['date_end' => null]);
+        $this->completar($plan);
         $this->aprobacion($plan, obligatoria: true, firmada: true);
 
         $this->assertFalse($this->cierre->evaluar($plan));
@@ -78,6 +89,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_con_una_obligatoria_sin_firmar_no_se_cierra(): void
     {
         $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
         $this->aprobacion($plan, obligatoria: true, firmada: true);
         $this->aprobacion($plan, obligatoria: true, firmada: false, prioridad: 2);
 
@@ -89,6 +101,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_una_opcional_sin_firmar_no_frena_el_cierre(): void
     {
         $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
         $this->aprobacion($plan, obligatoria: true,  firmada: true);
         $this->aprobacion($plan, obligatoria: false, firmada: false, prioridad: 2);
 
@@ -97,15 +110,17 @@ class WorkPlanCompletionTest extends TestCase
     }
 
     /**
-     * Y **no** se añade una tercera condicion.
+     * Un formato sin confirmar frena el cierre.
      *
-     * Un plan con la hora de fin y sus firmas se cierra aunque los formatos
-     * esten a medias. Suena raro y es lo que hacia la v1: en obra el documento
-     * lo cierra la firma del que autoriza, que es quien responde por el resto.
+     * Aquí se diverge de la v1 a propósito, por decisión del dueño: allí el
+     * plan se cerraba con la firma del autorizante aunque quedaran formatos en
+     * borrador. Un AST en borrador no es un AST, y el documento va a acabar
+     * delante de un inspector.
      */
-    public function test_no_exige_que_los_formatos_esten_confirmados(): void
+    public function test_un_formato_sin_confirmar_frena_el_cierre(): void
     {
         $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->firmarCuadrilla($plan);
         $this->aprobacion($plan, obligatoria: true, firmada: true);
 
         // El AST del plan, abierto y a medio llenar.
@@ -115,7 +130,25 @@ class WorkPlanCompletionTest extends TestCase
             'template_version' => 1, 'status' => 'draft',
         ]);
 
-        $this->assertTrue($this->cierre->evaluar($plan));
+        $this->assertFalse($this->cierre->evaluar($plan));
+        $this->assertContains(
+            trans_choice('work_plans.close_needs_forms_done', 1, ['count' => 1]),
+            $this->cierre->loQueFalta($plan),
+        );
+    }
+
+    /** Y un trabajador sin firmar, también. */
+    public function test_un_trabajador_sin_firmar_frena_el_cierre(): void
+    {
+        $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->confirmarFormatos($plan);
+        $this->aprobacion($plan, obligatoria: true, firmada: true);
+
+        $this->assertFalse($this->cierre->evaluar($plan));
+        $this->assertContains(
+            trans_choice('work_plans.close_needs_signatures', 1, ['count' => 1]),
+            $this->cierre->loQueFalta($plan),
+        );
     }
 
     /**
@@ -151,6 +184,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_es_idempotente(): void
     {
         $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
         $this->aprobacion($plan, obligatoria: true, firmada: true);
 
         $this->assertTrue($this->cierre->evaluar($plan));
@@ -161,6 +195,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_un_plan_sin_aprobaciones_se_cierra_con_la_hora_de_fin(): void
     {
         $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
 
         $this->assertTrue($this->cierre->evaluar($plan));
     }
@@ -174,6 +209,7 @@ class WorkPlanCompletionTest extends TestCase
     public function test_guardar_la_hora_de_fin_cierra_el_plan(): void
     {
         $plan = $this->plan(['date_end' => null]);
+        $this->completar($plan);
         $this->aprobacion($plan, obligatoria: true, firmada: true);
 
         app(WorkPlanService::class)->update($plan, ['date_end' => '2026-08-08 18:00:00']);
@@ -191,10 +227,13 @@ class WorkPlanCompletionTest extends TestCase
 
         $falta = $this->cierre->loQueFalta($plan);
 
-        // Se compara contra la traduccion, no contra un literal: la suite corre
-        // en ingles y el texto en duro solo probaria en que idioma esta.
+        // Las cuatro cosas que le faltan a este plan, en orden y sin repetir. Se
+        // compara contra la traduccion, no contra un literal: la suite corre en
+        // ingles y el texto en duro solo probaria en que idioma esta.
         $this->assertSame([
             __('work_plans.close_needs_date_end'),
+            trans_choice('work_plans.close_needs_signatures', 1, ['count' => 1]),
+            trans_choice('work_plans.close_needs_forms_done', 1, ['count' => 1]),
             trans_choice('work_plans.close_needs_approvals', 2, ['count' => 2]),
         ], $falta);
     }
@@ -258,6 +297,30 @@ class WorkPlanCompletionTest extends TestCase
         $plan->workType->formTemplates()->attach($plantilla->id, ['is_required' => true]);
 
         return $plantilla;
+    }
+
+    /** Todos los trabajadores del plan, firmados. */
+    private function firmarCuadrilla(WorkPlan $plan): void
+    {
+        $plan->people()->update(['is_approved' => true]);
+    }
+
+    /** Todos los formatos que el plan exige, confirmados. */
+    private function confirmarFormatos(WorkPlan $plan): void
+    {
+        foreach ($plan->expectedFormTemplates() as $id => $item) {
+            $plan->submissions()->updateOrCreate(
+                ['form_template_id' => $id],
+                ['slug' => Str::random(22), 'template_version' => 1, 'status' => 'confirmed'],
+            );
+        }
+    }
+
+    /** El plan completo: firmas y formatos. Le faltan sólo las aprobaciones. */
+    private function completar(WorkPlan $plan): void
+    {
+        $this->firmarCuadrilla($plan);
+        $this->confirmarFormatos($plan);
     }
 
     private function aprobacion(WorkPlan $plan, bool $obligatoria, bool $firmada, int $prioridad = 1): void

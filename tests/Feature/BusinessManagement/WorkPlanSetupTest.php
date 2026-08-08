@@ -63,12 +63,47 @@ class WorkPlanSetupTest extends TestCase
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
         foreach ([
-            'work_plans.view', 'work_plans.edit',
+            'work_plans.view', 'work_plans.edit', 'work_plans.create',
             'form_submissions.view', 'form_submissions.edit', 'form_submissions.sign', 'form_submissions.export',
         ] as $p) {
             Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
         }
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['description' => 'a']);
+    }
+
+    // ── Crear ────────────────────────────────────────────────────────────────
+
+    /**
+     * Al crear un plan se va a su ficha, no al listado.
+     *
+     * El plan recién creado está vacío: le faltan los trabajadores y hay que
+     * decir quién firma cada aprobación, y las dos cosas se hacen en la ficha.
+     * Volver al listado obligaba a buscar el plan que se acababa de crear para
+     * poder seguir trabajando en él.
+     */
+    public function test_al_crear_un_plan_se_va_a_su_ficha(): void
+    {
+        // El supervisor de las demas pruebas arma planes, no los crea: aqui se
+        // le añade el permiso que falta en vez de dárselo a todas.
+        $usuario = $this->supervisor();
+        $usuario->givePermissionTo('work_plans.create');
+        $this->actingAs($usuario);
+
+        $respuesta = $this->post(route('business_management.work_plans.store'), [
+            'company_id'       => $this->empresa()->id,
+            'work_type_id'     => $this->tipoDeTrabajo()->id,
+            'work_location_id' => $this->sede()->id,
+            'country_id'       => 1,
+            'description'      => 'Bobinado AT',
+            'date_start'       => '2026-08-08 08:00',
+        ]);
+
+        $respuesta->assertSessionHasNoErrors();
+
+        $plan = WorkPlan::latest('id')->first();
+
+        $this->assertNotNull($plan, 'no se creo el plan');
+        $respuesta->assertRedirect(route('business_management.work_plans.show', $plan->slug));
     }
 
     // ── Cuadrilla ────────────────────────────────────────────────────────────

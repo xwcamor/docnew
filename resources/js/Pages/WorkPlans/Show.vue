@@ -70,6 +70,23 @@ const fmtMoment = (v) => {
 // borrado tampoco se toca, aunque esté abierto.
 const canSetup = computed(() => props.setup?.can && !isDeleted.value);
 
+/**
+ * Un plan cerrado no se edita ni se borra.
+ *
+ * Es un documento de archivo que puede acabar delante de un inspector. Antes
+ * los dos botones salían igual y era el servidor quien los rechazaba: el
+ * usuario se enteraba después de pulsar. En vez de esconderlos sin más, se pasa
+ * `editProtectedKey` y sale una etiqueta que dice por qué — la regla de
+ * `docs/UI.md` §6: un botón que falla al pulsarlo es peor que un botón que no
+ * está.
+ *
+ * Son dos candados distintos y los dos cuentan: `is_closed` (el plan terminó) y
+ * el candado administrativo del trait Lockable, que ya mira `EntityShowActions`
+ * por su cuenta a través de `lock`.
+ */
+const puedeEditar = computed(() => can('work_plans.edit') && !props.workPlan.is_closed);
+const puedeBorrar = computed(() => can('work_plans.delete') && !props.workPlan.is_closed);
+
 // ── Las dos vistas ───────────────────────────────────────────────────────────
 // El dueño pidió abrir por el resumen y poder saltar a la lista completa. La
 // elección se recuerda porque cada quien mira la ficha para una cosa distinta:
@@ -216,8 +233,9 @@ const pendientes = computed(() => {
                     :slug="workPlan.slug"
                     :id="workPlan.id"
                     :is-deleted="isDeleted"
-                    :can-edit="can('work_plans.edit')"
-                    :can-delete="can('work_plans.delete')"
+                    :can-edit="puedeEditar"
+                    :can-delete="puedeBorrar"
+                    :edit-protected-key="workPlan.is_closed ? 'work_plans.state_closed' : ''"
                     :can-see-audit="canSeeAudit"
                     :is-super="isSuper"
                     :is-global="workPlan.tenant_id === null"

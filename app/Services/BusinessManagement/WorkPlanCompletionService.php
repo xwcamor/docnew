@@ -53,38 +53,31 @@ class WorkPlanCompletionService
     }
 
     /**
-     * Las condiciones para cerrar.
+     * Las condiciones para cerrar. **No falta nada del plan.**
      *
-     * Las dos de la v1 —hora de fin y ninguna aprobación obligatoria pendiente—
-     * más una tercera que allí no hacía falta escribir: **que el plan tenga al
-     * menos un trabajador y un formato**.
+     * La v1 sólo miraba dos cosas —hora de fin y ninguna aprobación obligatoria
+     * pendiente— y cerraba aunque quedaran formatos a medias o trabajadores sin
+     * firmar. Aquí se exige el plan entero, por decisión del dueño del producto:
      *
-     * En la v1 eso estaba garantizado río arriba. El plan se creaba de un solo
-     * envío con sus trabajadores y sus formatos dentro, y
-     * `must_have_at_least_one_document_and_worker` no dejaba guardarlo vacío:
-     * «Debe tener al menos 1 documento», «Debe tener al menos 1 trabajador».
-     * Un plan vacío no llegaba a existir.
+     *   1. Hora de fin del trabajo.
+     *   2. Al menos un trabajador y un formato.
+     *   3. **Todos** los trabajadores han firmado.
+     *   4. **Todos** los formatos exigidos están confirmados.
+     *   5. Ninguna aprobación obligatoria sin firmar.
      *
-     * Aquí el plan se crea primero y se arma después, desde la ficha. Poner esa
-     * validación al crear haría imposible crear ninguno —no hay trabajadores
-     * todavía—, así que se traslada al punto donde significa lo mismo: un plan
-     * vacío no se convierte en documento cerrado. Ni un solo plan de los 3 297
-     * cerrados en los datos reales cambia de resultado por esto.
+     * Es más estricto que la v1 a propósito: un documento que va a acabar
+     * delante de un inspector no se cierra a medias. Los 3 297 planes migrados
+     * conservan el estado con el que llegaron —cerrados bajo la regla vieja— y
+     * no se reabren; la regla nueva rige de aquí en adelante.
+     *
+     * Los puntos 3 y 4 no existían en la v1 en esta forma, pero sí su intención:
+     * `must_have_at_least_one_document_and_worker` impedía guardar un plan
+     * vacío. Allí el plan nacía completo de un solo envío; aquí se crea primero
+     * y se arma después, así que la comprobación vive donde significa lo mismo.
      */
     public function puedeCerrarse(WorkPlan $plan): bool
     {
-        if ($plan->date_end === null) {
-            return false;
-        }
-
-        if (! $plan->people()->exists() || $plan->expectedFormTemplates()->isEmpty()) {
-            return false;
-        }
-
-        return ! $plan->approvals()
-            ->where('is_required', true)
-            ->where('is_approved', false)
-            ->exists();
+        return $this->loQueFalta($plan) === [];
     }
 
     /**
@@ -100,12 +93,38 @@ class WorkPlanCompletionService
             $falta[] = __('work_plans.close_needs_date_end');
         }
 
-        if (! $plan->people()->exists()) {
+        // Trabajadores: tiene que haber, y tienen que haber firmado todos. La
+        // firma es la prueba de que la persona estuvo y recibió la charla; un
+        // plan cerrado con firmas a medias no prueba nada.
+        $trabajadores = $plan->people()->count();
+
+        if ($trabajadores === 0) {
             $falta[] = __('work_plans.close_needs_crew');
+        } else {
+            $sinFirmar = $plan->people()->where('is_approved', false)->count();
+
+            if ($sinFirmar > 0) {
+                $falta[] = trans_choice('work_plans.close_needs_signatures', $sinFirmar, ['count' => $sinFirmar]);
+            }
         }
 
-        if ($plan->expectedFormTemplates()->isEmpty()) {
+        // Formatos: tiene que haber, y todos los que el plan exige tienen que
+        // estar confirmados. Un AST en borrador no es un AST.
+        $esperados = $plan->expectedFormTemplates();
+
+        if ($esperados->isEmpty()) {
             $falta[] = __('work_plans.close_needs_forms');
+        } else {
+            $confirmados = $plan->submissions()
+                ->where('status', 'confirmed')
+                ->whereIn('form_template_id', $esperados->keys())
+                ->count();
+
+            $sinConfirmar = $esperados->count() - $confirmados;
+
+            if ($sinConfirmar > 0) {
+                $falta[] = trans_choice('work_plans.close_needs_forms_done', $sinConfirmar, ['count' => $sinConfirmar]);
+            }
         }
 
         $pendientes = $plan->approvals()

@@ -233,6 +233,8 @@ return [
     // block closing, because the plan is assembled after it is created.
     'close_needs_crew'      => 'It must have at least 1 worker.',
     'close_needs_forms'     => 'It must have at least 1 form.',
+    'close_needs_signatures'  => '{1} 1 worker signature is missing.|[2,*] :count worker signatures are missing.',
+    'close_needs_forms_done'  => '{1} 1 form is still unconfirmed.|[2,*] :count forms are still unconfirmed.',
     'close_needs_approvals' => '{1} 1 mandatory approval is missing.|[2,*] :count mandatory approvals are missing.',
 
     'approval_waits_crew'  => 'The workers have to sign first.',

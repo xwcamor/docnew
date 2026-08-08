@@ -241,6 +241,8 @@ return [
     // plan se arma después de crearse.
     'close_needs_crew'      => 'Debe tener al menos 1 trabajador.',
     'close_needs_forms'     => 'Debe tener al menos 1 formato.',
+    'close_needs_signatures'  => '{1} Falta la firma de 1 trabajador.|[2,*] Faltan las firmas de :count trabajadores.',
+    'close_needs_forms_done'  => '{1} Falta confirmar 1 formato.|[2,*] Faltan :count formatos por confirmar.',
     'close_needs_approvals' => '{1} Falta 1 aprobación obligatoria.|[2,*] Faltan :count aprobaciones obligatorias.',
 
     'approval_waits_crew'  => 'Primero tienen que firmar los trabajadores.',
