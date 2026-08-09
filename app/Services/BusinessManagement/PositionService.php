@@ -81,7 +81,11 @@ class PositionService
         if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'], true)) {
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'code', 'is_active', 'created_at', 'updated_at'], true)
+        // `is_signature_approver` estaba fuera de la lista y la columna del
+        // listado se pintaba ordenable: pulsar la cabecera —o elegirla en
+        // «Ordenar por»— movia la flecha y dejaba la tabla igual. Es la pregunta
+        // mas util de este catalogo («¿quienes firman?»), asi que ordena.
+        } elseif (in_array($sort, ['id', 'code', 'is_signature_approver', 'is_active', 'created_at', 'updated_at'], true)
             && in_array($direction, ['asc', 'desc'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }

@@ -239,9 +239,14 @@ const {
     bulkSetActiveRoute: 'business_management.workstations.bulk_set_active',
     bulkDeleteRoute:    'business_management.workstations.bulk_delete',
     resourceLabel:      t('workstations.records'),
-    // Una fila en uso, o global vista por quien no es super, se saca de la
-    // selección: la barra no promete algo que el servidor va a rechazar.
-    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null) || r.usage_count > 0,
+    // Una fila en uso, bloqueada, o global vista por quien no es super, se saca
+    // de la selección: la barra no promete algo que el servidor va a rechazar.
+    // El candado no es un caso raro aquí — los dieciséis puestos que trajo la
+    // migración nacen bloqueados, así que sin esta condición la casilla se deja
+    // marcar en todos y el borrado masivo devuelve «N saltados (bloqueados)».
+    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null)
+        || r.usage_count > 0
+        || !!(r.is_locked ?? r.locked_at),
 });
 
 const { currentViewState, applySavedState } = useModuleSavedViews({
@@ -440,7 +445,17 @@ const goDelete = (record) => router.visit(route('business_management.workstation
                         <Link :href="route('business_management.workstations.show', record.slug)" class="lead__name lead__link">
                             {{ record.name }}
                         </Link>
-                        <span class="lead__sub">{{ record.work_location?.name }}</span>
+                    </template>
+
+                    <!-- La sede se pinta AQUÍ y no colgada del nombre. En la vista
+                         de lista y en la de tarjetas el subtítulo de la ficha sale
+                         de esta columna, y su `dataIndex` es una ruta anidada
+                         (['work_location','name']) que el render de tarjeta no
+                         sabe resolver solo: sin esta plantilla la línea salía en
+                         blanco y dieciséis puestos llamados «Celda 1» quedaban
+                         indistinguibles. -->
+                    <template v-else-if="column.key === 'work_location'">
+                        {{ record.work_location?.name ?? '—' }}
                     </template>
 
                     <!-- De cuántos registros depende la fila: es lo que decide si se

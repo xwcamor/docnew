@@ -12,6 +12,7 @@ import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import RecordHistory from '@/Components/Common/RecordHistory.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useDateFormat } from '@/Composables/useDateFormat';
+import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
 
@@ -24,11 +25,29 @@ const props = defineProps({
 
 const { can, isSuper, canSeeAudit } = useAuth();
 const { formatDateTimeFull } = useDateFormat();
+const { t } = useI18n();
 
 const isDeleted = computed(() => !!props.workLocation.deleted_at);
 const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--color-primary)');
 
 const fmt = (d) => formatDateTimeFull(d);
+
+// Lo que cuelga de la sede son dos cosas distintas —puestos y planes— y no se
+// dicen igual: un puesto está activo o inactivo, un plan está en curso o
+// terminado. Color Y palabra, siempre (docs/UI.md §5).
+const stateColor = {
+    active:      'success',
+    done:        'success',
+    in_progress: 'warning',
+    inactive:    'default',
+};
+const usageColor = (u) => stateColor[u.state] ?? 'default';
+const usageState = (u) => t(`work_locations.usage_state_${u.state}`);
+const usageKind  = (u) => t(`work_locations.usage_kind_${u.kind}`);
+
+// De qué clase es cada línea solo se dice si la lista mezcla clases. Repetir
+// «Puesto de trabajo» en veinte filas seguidas es ruido, no información.
+const usagesAreMixed = computed(() => new Set(props.usages.map((u) => u.kind)).size > 1);
 </script>
 
 <template>
@@ -118,18 +137,25 @@ const fmt = (d) => formatDateTimeFull(d);
                 </Card>
 
                 <!-- Lo que depende de esta fila: la respuesta a «¿por qué no me
-                     deja borrarla?», puesta antes de que se pregunte. -->
+                     deja borrarla?», puesta antes de que se pregunte. Van los
+                     puestos Y los planes, que son las dos cosas que cuentan
+                     para el bloqueo. Anatomía de fila: título, subtítulo y
+                     estado a la derecha (docs/UI.md §4-bis). -->
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
                     <template #title>{{ $t('work_locations.usage_list_title') }}</template>
                     <Empty v-if="usages.length === 0" :description="$t('work_locations.usage_list_none')" />
                     <ul v-else class="uses-list">
-                        <li v-for="u in usages" :key="u.slug" class="uses-list__item">
-                            <span class="uses-list__label">{{ u.label }}</span>
-                            <Tag :bordered="false" :color="u.is_active ? 'success' : 'default'">
-                                {{ u.is_active ? $t('global.active') : $t('global.inactive') }}
-                            </Tag>
+                        <li v-for="u in usages" :key="u.kind + u.slug" class="uses-list__item">
+                            <span class="uses-list__txt">
+                                <span class="uses-list__label">{{ u.label }}</span>
+                                <span v-if="usagesAreMixed" class="uses-list__kind">{{ usageKind(u) }}</span>
+                            </span>
+                            <Tag :bordered="false" :color="usageColor(u)">{{ usageState(u) }}</Tag>
                         </li>
                     </ul>
+                    <p v-if="workLocation.usage_count > usages.length" class="uses-list__more">
+                        {{ $t('work_locations.usage_list_more', { count: workLocation.usage_count - usages.length }) }}
+                    </p>
                 </Card>
             </template>
 
@@ -153,7 +179,10 @@ const fmt = (d) => formatDateTimeFull(d);
     border-bottom: 1px solid var(--color-border-subtle, #f2f3f5);
 }
 .uses-list__item:last-child { border-bottom: none; }
+.uses-list__txt { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
 .uses-list__label { font-weight: 500; }
+.uses-list__kind { font-size: 0.75rem; color: var(--color-text-muted); }
+.uses-list__more { margin: 10px 0 0; font-size: 0.8125rem; color: var(--color-text-muted); }
 
 @media (max-width: 767px) {
     :deep(.ant-descriptions-item-content) { word-break: break-word; }

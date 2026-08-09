@@ -194,6 +194,75 @@ class WorkstationCrudTest extends CatalogTestCase
                 ->where('workstations.data.0.work_location.name', 'Lurín'));
     }
 
+    /**
+     * El listado manda `locked_at`, que es lo que la pantalla mira para dejar
+     * la casilla de seleccion en gris. Sin esa columna en el payload, los
+     * dieciseis puestos que trajo la migracion se dejan marcar y el borrado
+     * masivo devuelve «N saltados (bloqueados)» despues de pedir el motivo.
+     */
+    public function test_el_listado_dice_cuales_estan_bloqueados(): void
+    {
+        $puesto = $this->puesto($this->sede());
+        $puesto->lock($this->makeSuper());
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.workstations.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('workstations.data.0.locked_at', fn ($v) => $v !== null));
+    }
+
+    // ── Ficha ────────────────────────────────────────────────────────────────
+
+    /**
+     * Un plan a medias esta «en curso» y uno cerrado «terminado». La ficha
+     * mandaba un booleano `is_active` que salia al reves de docs/UI.md §5: el
+     * plan TERMINADO se pintaba gris «Inactivo» y el que seguia abierto, verde
+     * «Activo».
+     */
+    public function test_la_ficha_dice_si_el_plan_esta_en_curso_o_terminado(): void
+    {
+        $this->actingAs($this->admin());
+        $puesto = $this->puesto($this->sede());
+        $plan   = $this->planEn($puesto);
+
+        $this->get(route('business_management.workstations.show', $puesto->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('usages.0.state', 'in_progress'));
+
+        $plan->update(['is_done' => true]);
+
+        $this->get(route('business_management.workstations.show', $puesto->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->where('usages.0.state', 'done'));
+    }
+
+    /**
+     * Si la sede se desactiva —que es justo lo que este modulo ofrece como
+     * alternativa al borrado— el formulario de edicion del puesto tiene que
+     * seguir ofreciendola. Si no, el selector no encuentra su valor y pinta el
+     * numero del id donde deberia decir «Lurín».
+     */
+    public function test_el_formulario_sigue_ofreciendo_la_sede_aunque_se_desactive(): void
+    {
+        $this->actingAs($this->admin());
+        $sede   = $this->sede();
+        $puesto = $this->puesto($sede);
+        $sede->update(['is_active' => false]);
+
+        $this->get(route('business_management.workstations.edit', $puesto->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('workLocationOptions', fn ($o) => collect($o)->contains('value', $sede->id)));
+
+        // Y guardar sin tocar la sede sigue funcionando: la validacion no puede
+        // exigir que este activa o el puesto quedaria inmodificable.
+        $this->put(route('business_management.workstations.update', $puesto->slug), [
+            'work_location_id' => $sede->id,
+            'name' => 'Celda 1 (norte)', 'is_active' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+    }
+
     // ── Permisos ─────────────────────────────────────────────────────────────
 
     public function test_sin_permiso_de_crear_no_se_crea(): void

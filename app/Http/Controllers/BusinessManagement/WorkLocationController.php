@@ -115,7 +115,7 @@ class WorkLocationController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -165,7 +165,7 @@ class WorkLocationController extends Controller
 
         return inertia('WorkLocations/Form', [
             'workLocation' => $this->payload($workLocation, service: $service),
-            'countryOptions'   => $this->countryOptions(),
+            'countryOptions'   => $this->countryOptions($workLocation),
             'defaultCountryId' => $request->user()?->country_id,
         ]);
     }
@@ -392,14 +392,29 @@ class WorkLocationController extends Controller
         return $base;
     }
 
-    /** Paises activos como opciones del selector. */
-    protected function countryOptions(): array
+    /**
+     * Paises activos como opciones del selector.
+     *
+     * Mas el pais que la sede YA tiene, aunque este desactivado: sin la opcion
+     * en la lista el selector no encuentra su valor y pinta el numero crudo del
+     * id donde deberia decir «Perú (PE)».
+     */
+    protected function countryOptions(?WorkLocation $workLocation = null): array
     {
         return \App\Models\Country::query()
-            ->where('is_active', true)
+            ->where(function ($q) use ($workLocation) {
+                $q->where('is_active', true);
+                if ($workLocation?->country_id) {
+                    $q->orWhere('id', $workLocation->country_id);
+                }
+            })
             ->orderBy('name')
-            ->get(['id', 'name', 'iso_code'])
-            ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name . ' (' . $c->iso_code . ')'])
+            ->get(['id', 'name', 'iso_code', 'is_active'])
+            ->map(fn ($c) => [
+                'value' => $c->id,
+                'label' => $c->name . ' (' . $c->iso_code . ')'
+                    . ($c->is_active ? '' : ' — ' . __('global.inactive')),
+            ])
             ->all();
     }
 }

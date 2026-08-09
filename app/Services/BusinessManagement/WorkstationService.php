@@ -131,12 +131,24 @@ class WorkstationService
         });
     }
 
-    /** Los registros que la usan, para enseñarlos en la ficha (maximo 20). */
+    /**
+     * Los registros que lo usan, para enseñarlos en la ficha (maximo 20).
+     *
+     * `state` sale ya resuelto y no como booleano: un plan no esta "activo o
+     * inactivo", esta "en curso o terminado". Antes se enseñaba un plan
+     * TERMINADO con la etiqueta gris «Inactivo» y uno a medias con la verde
+     * «Activo», que es justo al reves de lo que dice docs/UI.md §5.
+     */
     public function usados(Workstation $m): array
     {
         return \App\Models\WorkPlan::where('workstation_id', $m->id)
             ->orderByDesc('created_at')->limit(20)->get(['slug', 'code', 'is_done'])
-            ->map(fn ($p) => ['slug' => $p->slug, 'label' => $p->code, 'is_active' => ! $p->is_done])
+            ->map(fn ($p) => [
+                'slug'  => $p->slug,
+                'label' => $p->code,
+                'kind'  => 'work_plan',
+                'state' => $p->is_done ? 'done' : 'in_progress',
+            ])
             ->all();
     }
 

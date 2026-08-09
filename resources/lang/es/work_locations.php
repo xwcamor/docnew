@@ -27,8 +27,15 @@ return [
     'is_active_help'               => 'Una sede inactiva deja de ofrecerse al registrar un plan. Los planes que ya la nombran siguen funcionando.',
     'filter_name'                  => 'Buscar',
     'usage_count'                  => 'Puestos y planes que la usan',
-    'usage_list_title'             => 'Puestos de esta sede',
-    'usage_list_none'              => 'La sede todavía no tiene puestos.',
+    'usage_list_title'             => 'Lo que cuelga de esta sede',
+    'usage_list_none'              => 'De esta sede no cuelga nada todavía: se puede eliminar sin romper nada.',
+    'usage_list_more'              => 'Y :count más.',
+    'usage_kind_workstation'       => 'Puesto de trabajo',
+    'usage_kind_work_plan'         => 'Plan de trabajo',
+    'usage_state_active'           => 'Activo',
+    'usage_state_inactive'         => 'Inactivo',
+    'usage_state_in_progress'      => 'En curso',
+    'usage_state_done'             => 'Terminado',
 
     // Mensajes
     'created'                      => 'Sede creada.',

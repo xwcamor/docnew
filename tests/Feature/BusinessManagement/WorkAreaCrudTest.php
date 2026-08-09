@@ -80,6 +80,69 @@ class WorkAreaCrudTest extends CatalogTestCase
         $this->assertSame(1, WorkArea::where('name', 'Bobinado')->count());
     }
 
+    /**
+     * Ni escrita de otra manera: en el desplegable del plan «Almacen» y
+     * «ALMACEN» se leen igual, y quien elige no sabe cual de las dos tocar.
+     *
+     * Aqui se comprueba solo la caja porque la prueba corre en SQLite y su
+     * `LOWER()` no toca las tildes. En Postgres, que es donde vive esto, la
+     * comparacion va con `unaccent()` y «Almacén» tambien choca.
+     */
+    public function test_tampoco_cambiando_mayusculas(): void
+    {
+        $this->actingAs($this->admin());
+        $this->area('Almacen');
+
+        $this->post(route('business_management.work_areas.store'), [
+            'country_id' => 1, 'name' => 'ALMACEN',
+        ])->assertSessionHasErrors('name');
+
+        $this->assertSame(1, WorkArea::withoutGlobalScopes()->where('country_id', 1)->count());
+    }
+
+    /**
+     * Pero el area de OTRA empresa no estorba.
+     *
+     * `Rule::unique` consulta la tabla cruda, sin el scope del catalogo, asi que
+     * un area privada de otro workspace bloqueaba el alta con un «ya existe»
+     * que señalaba una fila invisible: no salia en el listado, no se podia
+     * abrir y no se podia renombrar. Sin salida.
+     */
+    public function test_el_area_de_otra_empresa_no_impide_crear_el_mismo_nombre(): void
+    {
+        \Illuminate\Support\Facades\DB::table('tenants')->insertOrIgnore([[
+            'id' => 2, 'slug' => \Illuminate\Support\Str::random(22), 'name' => 'Empresa 2',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]]);
+        \Illuminate\Support\Facades\DB::table('work_areas')->insert([
+            'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 1, 'name' => 'Patio',
+            'is_active' => true, 'tenant_id' => 2, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.work_areas.store'), [
+            'country_id' => 1, 'name' => 'Patio',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('work_areas', ['name' => 'Patio', 'tenant_id' => 1]);
+    }
+
+    /** La global de la plataforma si: esa se ve en el mismo selector. */
+    public function test_el_area_global_de_la_plataforma_si_impide_repetirla(): void
+    {
+        \Illuminate\Support\Facades\DB::table('work_areas')->insert([
+            'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 1, 'name' => 'Planta',
+            'is_active' => true, 'tenant_id' => null, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.work_areas.store'), [
+            'country_id' => 1, 'name' => 'Planta',
+        ])->assertSessionHasErrors('name');
+    }
+
     // ── Edicion ──────────────────────────────────────────────────────────────
 
     public function test_se_le_cambia_el_nombre_desde_la_pantalla(): void
@@ -92,6 +155,36 @@ class WorkAreaCrudTest extends CatalogTestCase
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('work_areas', ['id' => $area->id, 'name' => 'Bobinado y armado']);
+    }
+
+    /** Y renombrarse a si misma no es repetirse. */
+    public function test_guardar_un_area_sin_cambiarle_el_nombre_no_da_error(): void
+    {
+        $this->actingAs($this->admin());
+        $area = $this->area();
+
+        $this->put(route('business_management.work_areas.update', $area->slug), [
+            'country_id' => 1, 'name' => 'Bobinado', 'is_active' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+    }
+
+    /**
+     * El interruptor apagado viaja AUSENTE, no como `false`. Con
+     * `sometimes|boolean` a secas se conservaba el valor anterior: el area que
+     * alguien acababa de desactivar seguia ofreciendose al registrar planes.
+     * Es el mismo fallo que se vio en «puede firmar aprobaciones» de los cargos.
+     */
+    public function test_un_area_se_desactiva_desde_la_edicion(): void
+    {
+        $this->actingAs($this->admin());
+        $area = $this->area();
+
+        $this->put(route('business_management.work_areas.update', $area->slug), [
+            'country_id' => 1, 'name' => 'Bobinado',
+            // Sin `is_active`.
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('work_areas', ['id' => $area->id, 'is_active' => false]);
     }
 
     // ── Borrado ──────────────────────────────────────────────────────────────
@@ -149,6 +242,27 @@ class WorkAreaCrudTest extends CatalogTestCase
                 ->component('WorkAreas/Index')
                 ->where('work_areas.data.0.name', 'Bobinado')
                 ->where('work_areas.data.0.usage_count', 1));
+    }
+
+    /**
+     * El listado tiene que traer el candado.
+     *
+     * `is_locked` es un accesor y no viaja en el JSON; lo que viaja es
+     * `locked_at`, y es de lo que depende que la casilla de la fila salga
+     * deshabilitada. El área que trajo la migración nace bloqueada: sin este
+     * dato la casilla se deja marcar y la masiva contesta «N saltados
+     * (bloqueados)».
+     */
+    public function test_el_listado_trae_el_candado_de_cada_fila(): void
+    {
+        $area = $this->area();
+        $area->lock($this->makeSuper());
+
+        $this->actingAs($this->admin());
+
+        $this->get(route('business_management.work_areas.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page->whereNot('work_areas.data.0.locked_at', null));
     }
 
     // ── Permisos ─────────────────────────────────────────────────────────────

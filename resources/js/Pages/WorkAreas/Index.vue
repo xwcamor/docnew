@@ -239,9 +239,14 @@ const {
     bulkSetActiveRoute: 'business_management.work_areas.bulk_set_active',
     bulkDeleteRoute:    'business_management.work_areas.bulk_delete',
     resourceLabel:      t('work_areas.records'),
-    // Una fila en uso, o global vista por quien no es super, se saca de la
-    // selección: la barra no promete algo que el servidor va a rechazar.
-    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null) || r.usage_count > 0,
+    // Una fila en uso, bloqueada, o global vista por quien no es super, se saca
+    // de la selección: la barra no promete algo que el servidor va a rechazar.
+    // El candado no es un caso raro aquí — el área que trajo la migración nace
+    // bloqueada, así que sin esta condición la casilla se deja marcar y la
+    // masiva devuelve «N saltados (bloqueados)».
+    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null)
+        || r.usage_count > 0
+        || !!(r.is_locked ?? r.locked_at),
 });
 
 const { currentViewState, applySavedState } = useModuleSavedViews({

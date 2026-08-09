@@ -29,6 +29,10 @@ return [
     'usage_count'                  => 'Planes que lo usan',
     'usage_list_title'             => 'Planes de trabajo en este puesto',
     'usage_list_none'              => 'Ningún plan lo usa todavía: se puede eliminar sin romper nada.',
+    'usage_list_more'              => 'Y :count más.',
+    'usage_kind_work_plan'         => 'Plan de trabajo',
+    'usage_state_in_progress'      => 'En curso',
+    'usage_state_done'             => 'Terminado',
 
     // Mensajes
     'created'                      => 'Puesto de trabajo creado.',

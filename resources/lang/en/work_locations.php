@@ -27,8 +27,15 @@ return [
     'is_active_help'               => 'An inactive site is no longer offered when registering a plan. Plans already naming it keep working.',
     'filter_name'                  => 'Search',
     'usage_count'                  => 'Workstations and plans using it',
-    'usage_list_title'             => 'Workstations at this site',
-    'usage_list_none'              => 'This site has no workstations yet.',
+    'usage_list_title'             => 'What hangs off this site',
+    'usage_list_none'              => 'Nothing hangs off this site yet: it can be deleted without breaking anything.',
+    'usage_list_more'              => 'And :count more.',
+    'usage_kind_workstation'       => 'Workstation',
+    'usage_kind_work_plan'         => 'Work plan',
+    'usage_state_active'           => 'Active',
+    'usage_state_inactive'         => 'Inactive',
+    'usage_state_in_progress'      => 'In progress',
+    'usage_state_done'             => 'Done',
 
     // Messages
     'created'                      => 'Site created.',

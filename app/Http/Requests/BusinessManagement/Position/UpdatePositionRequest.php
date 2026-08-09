@@ -2,22 +2,25 @@
 
 namespace App\Http\Requests\BusinessManagement\Position;
 
-use App\Http\Requests\Concerns\DerivesAttributesFromLang;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdatePositionRequest extends FormRequest
+/**
+ * Editar un cargo.
+ *
+ * Extiende al alta a proposito: la regla de «ya existe ese cargo» es la misma
+ * —mismo pais, mismo workspace, sin distinguir mayusculas ni tildes— y escrita
+ * dos veces se separa en cuanto alguien corrige una sola. Aqui solo cambia lo
+ * que de verdad es distinto: el candado, los interruptores y saltarse la propia
+ * fila al comprobar el nombre.
+ */
+class UpdatePositionRequest extends StorePositionRequest
 {
-    use DerivesAttributesFromLang;
-
-    protected $attributeNamespace = 'positions';
-
     public function authorize(): bool
     {
         // Registro BLOQUEADO (Lockable): no se edita hasta desbloquearlo.
         // Va aqui y no en el controlador porque `authorize()` corre ANTES de
-        // validar: si no, un cuerpo invalido devolveria «falta el nombre» en
-        // vez de «esta bloqueado», que es lo que pasa de verdad.
+        // validar: si no, un cuerpo invalido devolveria «falta el nombre»
+        // en vez de «esta bloqueado», que es lo que pasa de verdad.
         $position = $this->route('position');
         if (is_object($position) && $position->is_locked) {
             return false;
@@ -28,13 +31,13 @@ class UpdatePositionRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('code')) {
-            $this->merge(['code' => trim((string) $this->input('code'))]);
-        }
+        parent::prepareForValidation();
 
         // Un interruptor apagado no viaja como `false`: viaja ausente. Si se
         // deja pasar, la regla `sometimes` conserva el valor anterior y lo que
-        // alguien acaba de desmarcar sigue encendido despues de guardar.
+        // alguien acaba de desmarcar sigue encendido despues de guardar. Paso
+        // de verdad con «puede firmar aprobaciones»: al cargo se le quitaba la
+        // marca, se guardaba, y seguia firmando.
         foreach (['is_signature_approver', 'is_active'] as $interruptor) {
             $this->merge([$interruptor => $this->boolean($interruptor)]);
         }
@@ -42,22 +45,18 @@ class UpdatePositionRequest extends FormRequest
 
     public function rules(): array
     {
+        $position = $this->route('position');
+
         return [
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'code' => ['required', 'string', 'max:60',
-                Rule::unique('positions', 'code')
-                    ->where(fn ($q) => $q->where('country_id', $this->input('country_id'))
-                        ->whereNull('deleted_at'))->ignore($this->route('position')?->id)],
+                // El conjunto donde se busca el repetido es el del PROPIO
+                // registro, no el de quien edita: un super tocando el cargo de
+                // una empresa comprueba contra esa empresa, no contra los
+                // globales.
+                $this->cargoRepetido($position?->id, $position?->tenant_id)],
             'is_signature_approver' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'code.required' => __('positions.code_required'),
-            'code.unique'   => __('positions.code_unique'),
         ];
     }
 }

@@ -29,6 +29,10 @@ return [
     'usage_count'                  => 'Plans using it',
     'usage_list_title'             => 'Work plans at this workstation',
     'usage_list_none'              => 'No plan uses it yet: it can be deleted without breaking anything.',
+    'usage_list_more'              => 'And :count more.',
+    'usage_kind_work_plan'         => 'Work plan',
+    'usage_state_in_progress'      => 'In progress',
+    'usage_state_done'             => 'Done',
 
     // Messages
     'created'                      => 'Workstation created.',

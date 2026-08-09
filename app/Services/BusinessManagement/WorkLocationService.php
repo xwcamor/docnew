@@ -137,13 +137,45 @@ class WorkLocationService
         });
     }
 
-    /** Los registros que la usan, para enseñarlos en la ficha (maximo 20). */
+    /**
+     * Los registros que la usan, para enseñarlos en la ficha (maximo 20).
+     *
+     * Van LAS DOS clases —puestos y planes—, no solo los puestos: `usos()`
+     * cuenta ambas, y una sede sin puestos pero con planes enseñaba una lista
+     * vacia ("todavia no tiene puestos") y a la vez se negaba a borrarse
+     * diciendo que colgaban N. La ficha tiene que contestar la pregunta "¿por
+     * que no me deja?" con lo mismo que la bloquea.
+     *
+     * `state` sale ya resuelto y no como booleano: un plan no esta "activo o
+     * inactivo", esta "en curso o terminado", y cada estado lleva su color
+     * (docs/UI.md §5).
+     */
     public function usados(WorkLocation $m): array
     {
-        return \App\Models\Workstation::where('work_location_id', $m->id)
+        $puestos = \App\Models\Workstation::where('work_location_id', $m->id)
             ->orderBy('name')->limit(20)->get(['slug', 'name', 'is_active'])
-            ->map(fn ($w) => ['slug' => $w->slug, 'label' => $w->name, 'is_active' => (bool) $w->is_active])
+            ->map(fn ($w) => [
+                'slug'  => $w->slug,
+                'label' => $w->name,
+                'kind'  => 'workstation',
+                'state' => $w->is_active ? 'active' : 'inactive',
+            ])
             ->all();
+
+        // Lo que quede de los 20: sin esto una sede con muchos puestos nunca
+        // llegaria a enseñar el primer plan, que es lo que de verdad la ancla.
+        $hueco = max(0, 20 - count($puestos));
+        $planes = $hueco === 0 ? [] : \App\Models\WorkPlan::where('work_location_id', $m->id)
+            ->orderByDesc('created_at')->limit($hueco)->get(['slug', 'code', 'is_done'])
+            ->map(fn ($p) => [
+                'slug'  => $p->slug,
+                'label' => $p->code,
+                'kind'  => 'work_plan',
+                'state' => $p->is_done ? 'done' : 'in_progress',
+            ])
+            ->all();
+
+        return array_merge($puestos, $planes);
     }
 
     /**

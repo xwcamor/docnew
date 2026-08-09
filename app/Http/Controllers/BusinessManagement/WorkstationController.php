@@ -115,7 +115,7 @@ class WorkstationController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -164,7 +164,7 @@ class WorkstationController extends Controller
 
         return inertia('Workstations/Form', [
             'workstation' => $this->payload($workstation, service: $service),
-            'workLocationOptions' => $this->workLocationOptions(),
+            'workLocationOptions' => $this->workLocationOptions($workstation),
         ]);
     }
 
@@ -394,14 +394,32 @@ class WorkstationController extends Controller
      * Las sedes que se pueden elegir. Solo las activas: un puesto nuevo en una
      * sede que ya no se usa no lo quiere nadie, y la lista corta se lee mejor
      * con guantes.
+     *
+     * Excepcion: la sede que el puesto YA tiene entra siempre, aunque este
+     * desactivada. Este mismo modulo ofrece «desactivar en su lugar» como
+     * alternativa al borrado, asi que la situacion se da sola; y sin la opcion
+     * en la lista el selector no encuentra su valor y pinta el numero crudo del
+     * id donde deberia decir «Lurín».
      */
-    protected function workLocationOptions(): array
+    protected function workLocationOptions(?Workstation $workstation = null): array
     {
-        return \App\Models\WorkLocation::query()
-            ->where('is_active', true)
+        $sedes = \App\Models\WorkLocation::query()
+            ->where(function ($q) use ($workstation) {
+                $q->where('is_active', true);
+                if ($workstation?->work_location_id) {
+                    $q->orWhere('id', $workstation->work_location_id);
+                }
+            })
             ->orderBy('name')
-            ->get(['id', 'name'])
-            ->map(fn ($s) => ['value' => $s->id, 'label' => $s->name])
+            ->get(['id', 'name', 'is_active']);
+
+        return $sedes
+            ->map(fn ($s) => [
+                'value' => $s->id,
+                // Que este desactivada se dice, no se esconde: el supervisor
+                // tiene que saber que esa sede ya no se ofrece en los planes.
+                'label' => $s->is_active ? $s->name : $s->name . ' — ' . __('global.inactive'),
+            ])
             ->all();
     }
 }

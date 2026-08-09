@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\BusinessManagement;
 
+use App\Models\Company;
+use App\Models\User;
 use App\Models\WorkLocation;
+use App\Models\WorkPlan;
 use App\Models\Workstation;
+use App\Models\WorkType;
 use Illuminate\Support\Str;
 
 /**
@@ -32,6 +36,30 @@ class WorkLocationCrudTest extends CatalogTestCase
         return Workstation::create([
             'slug' => Str::random(22), 'work_location_id' => $sede->id,
             'name' => 'Celda 1', 'tenant_id' => 1, 'created_by' => 1,
+        ]);
+    }
+
+    /**
+     * Un plan hecho en la sede y SIN puesto: `workstation_id` es nullable, asi
+     * que la combinacion existe de verdad y es la que dejaba la ficha diciendo
+     * «no tiene puestos» mientras se negaba a borrarse.
+     */
+    private function planEn(WorkLocation $sede): WorkPlan
+    {
+        $empresa = Company::firstOrCreate(
+            ['num_doc' => '20100000001'],
+            $this->base() + ['name' => 'Contratista', 'complete_name' => 'Contratista SAC'],
+        );
+        $tipo = WorkType::firstOrCreate(['code' => 'MTTO'], $this->base());
+
+        return WorkPlan::create($this->base() + [
+            'company_id'       => $empresa->id,
+            'work_type_id'     => $tipo->id,
+            'work_location_id' => $sede->id,
+            'user_id'          => User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1])->id,
+            'code'             => 'PE26-0808-0001',
+            'description'      => 'Mantenimiento',
+            'date_start'       => '2026-08-08',
         ]);
     }
 
@@ -172,6 +200,67 @@ class WorkLocationCrudTest extends CatalogTestCase
                 ->component('WorkLocations/Index')
                 ->where('work_locations.data.0.name', 'Lurín')
                 ->where('work_locations.data.0.usage_count', 1));
+    }
+
+    /**
+     * El listado manda `locked_at`, que es lo que la pantalla mira para dejar
+     * la casilla de seleccion en gris. Sin esa columna en el payload, las
+     * dieciseis filas que trajo la migracion se dejan marcar y el borrado
+     * masivo devuelve «N saltados (bloqueados)» despues de pedir el motivo.
+     */
+    public function test_el_listado_dice_cuales_estan_bloqueadas(): void
+    {
+        $sede = $this->sede();
+        $sede->lock($this->makeSuper());
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_locations.index'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('work_locations.data.0.locked_at', fn ($v) => $v !== null));
+    }
+
+    // ── Ficha ────────────────────────────────────────────────────────────────
+
+    /**
+     * La ficha enseña las DOS cosas que impiden borrar la sede: los puestos y
+     * los planes. Contaba las dos y solo listaba los puestos, asi que una sede
+     * sin puestos pero con planes decia «no tiene puestos» y a la vez se negaba
+     * a borrarse. La pantalla tiene que contestar con lo mismo que la bloquea.
+     */
+    public function test_la_ficha_lista_tambien_los_planes_que_cuelgan_de_la_sede(): void
+    {
+        $this->actingAs($this->admin());
+        $sede = $this->sede();
+        $this->planEn($sede);
+
+        $this->get(route('business_management.work_locations.show', $sede->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('usages.0.kind', 'work_plan')
+                ->where('usages.0.label', 'PE26-0808-0001')
+                // Un plan a medias esta «en curso», no «inactivo»: la ficha
+                // manda el estado ya resuelto para que el color y la palabra
+                // salgan de docs/UI.md §5 y no de un booleano.
+                ->where('usages.0.state', 'in_progress')
+                ->where('workLocation.usage_count', 1));
+    }
+
+    /**
+     * Si el pais de la sede se desactiva, el formulario de edicion tiene que
+     * seguir ofreciendolo: si no, el selector no encuentra su valor y pinta el
+     * numero del id donde deberia decir «Perú (PE)».
+     */
+    public function test_el_formulario_sigue_ofreciendo_el_pais_aunque_se_desactive(): void
+    {
+        $this->actingAs($this->admin());
+        $sede = $this->sede();
+        \App\Models\Country::where('id', 1)->update(['is_active' => false]);
+
+        $this->get(route('business_management.work_locations.edit', $sede->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('countryOptions', fn ($o) => collect($o)->contains('value', 1)));
     }
 
     // ── Permisos ─────────────────────────────────────────────────────────────

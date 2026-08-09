@@ -239,9 +239,15 @@ const {
     bulkSetActiveRoute: 'business_management.positions.bulk_set_active',
     bulkDeleteRoute:    'business_management.positions.bulk_delete',
     resourceLabel:      t('positions.records'),
-    // Una fila en uso, o global vista por quien no es super, se saca de la
-    // selección: la barra no promete algo que el servidor va a rechazar.
-    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null) || r.usage_count > 0,
+    // Una fila en uso, bloqueada, o global vista por quien no es super, se saca
+    // de la selección: la barra no promete algo que el servidor va a rechazar.
+    // El candado no es un caso raro aquí — los 372 trabajadores de la v1 vinieron
+    // con su cargo y esos cargos nacieron bloqueados, así que sin esta condición
+    // casi toda la lista se deja marcar y la masiva devuelve «N saltados
+    // (bloqueados)».
+    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null)
+        || r.usage_count > 0
+        || !!(r.is_locked ?? r.locked_at),
 });
 
 const { currentViewState, applySavedState } = useModuleSavedViews({
