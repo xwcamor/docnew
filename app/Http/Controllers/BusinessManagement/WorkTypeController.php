@@ -54,8 +54,7 @@ class WorkTypeController extends Controller
 
     public function index(Request $request, WorkTypeService $service)
     {
-        $perPage = (int) $request->get('per_page', 25);
-        $perPage = in_array($perPage, [10, 25, 50, 100, 200], true) ? $perPage : 25;
+        $perPage = $this->perPage($request);
 
         if (! $request->filled('sort')) {
             $request->merge(['sort' => 'code', 'direction' => 'asc']);
@@ -63,16 +62,16 @@ class WorkTypeController extends Controller
 
         $isSuper = $request->user()?->hasRole('super') ?? false;
 
-        // Cuántos formatos exige cada tipo y cuántos de ellos son obligatorios:
-        // es la columna por la que se entra al módulo, y sacarla en la misma
-        // consulta evita una por fila.
+        // Cuántos documentos exige cada tipo y cuántos de ellos son
+        // obligatorios: es la columna por la que se entra al módulo, y sacarla
+        // en la misma consulta evita una por fila.
         $tipos = WorkTypeService::filter(
             WorkType::query()->select('work_types.*')
                 ->with(['country:id,name,iso_code'])
+                ->conPlanesAbiertos()
                 ->withCount([
                     'formTemplates as forms_count',
                     'formTemplates as required_forms_count' => fn ($q) => $q->where('work_type_form_templates.is_required', true),
-                    'workPlans as open_plans_count' => fn ($q) => $q->where('is_closed', false),
                 ]),
             $request,
         )->paginate($perPage)->withQueryString();
@@ -105,6 +104,26 @@ class WorkTypeController extends Controller
         ]);
     }
 
+    /**
+     * Cuántas filas por página. Los valores salen de `config/work_types.php`
+     * —donde estaban escritos y nadie los leía— y no de una lista repetida aquí.
+     */
+    protected function perPage(Request $request, ?array $permitidos = null, ?int $defecto = null): int
+    {
+        $permitidos ??= (array) config('work_types.per_page_options', [10, 25, 50, 100, 200]);
+        $defecto    ??= (int) config('work_types.per_page_default', 25);
+
+        $pedido = (int) $request->get('per_page', $defecto);
+
+        return in_array($pedido, $permitidos, true) ? $pedido : $defecto;
+    }
+
+    /** Segundos que dura el «Deshacer» de un borrado. */
+    protected function ventanaDeshacer(): int
+    {
+        return max(1, (int) config('work_types.undo_window_seconds', 60));
+    }
+
     protected function parseAdvancedWhere(Request $request): array
     {
         $raw = $request->input('advanced_where', []);
@@ -122,6 +141,7 @@ class WorkTypeController extends Controller
     {
         $workType->load(['country:id,name,iso_code']);
 
+        $puedeEditar = $request->user()?->can('work_types.edit') ?? false;
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
             ? AuditLogResource::collection(
@@ -131,7 +151,11 @@ class WorkTypeController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    // `auditable_type` viaja aunque no se pinte: AuditLogResource
+                    // saca de ahí el namespace de traducción de las etiquetas
+                    // (`work_types.*`). Sin esa columna el historial enseñaba el
+                    // nombre crudo de la columna en vez del nombre del campo.
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -147,7 +171,14 @@ class WorkTypeController extends Controller
             'openPlans'     => $service->planesAbiertos($workType),
             // Con el candado puesto la matriz se lee pero no se toca: cambiar
             // qué papeles exige el tipo alcanza a todos los planes abiertos.
-            'canEditForms'  => ($request->user()?->can('work_types.edit') ?? false) && ! $workType->is_locked,
+            'canEditForms'  => $puedeEditar && ! $workType->is_locked,
+            // Y se dice POR QUÉ no se toca. Una pantalla que se queda muda con
+            // los controles apagados parece rota.
+            'formsReadonlyReason' => match (true) {
+                ! $puedeEditar          => 'permission',
+                $workType->is_locked    => 'locked',
+                default                 => null,
+            },
             'recordAudit'   => $this->recordAuditMeta($workType),
             'activity'      => $activity,
         ]);
@@ -279,14 +310,14 @@ class WorkTypeController extends Controller
         return redirect()
             ->route('business_management.work_types.index')
             ->with('success', __('global.deleted_success'))
-            ->with('recentDelete', ['count' => 1, 'seconds' => 60]);
+            ->with('recentDelete', ['count' => 1, 'seconds' => $this->ventanaDeshacer()]);
     }
 
     protected function storeUndoableDelete(array $ids): void
     {
         session(['work_types.recent_delete' => [
             'ids'        => array_values($ids),
-            'expires_at' => now()->addSeconds(60)->toIso8601String(),
+            'expires_at' => now()->addSeconds($this->ventanaDeshacer())->toIso8601String(),
         ]]);
     }
 
@@ -294,13 +325,23 @@ class WorkTypeController extends Controller
     {
         abort_unless($request->user()?->hasRole('super'), 403);
 
-        $termino = $request->get('name', '');
-        $perPage = (int) $request->get('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
+        $termino = (string) $request->get('name', '');
+        $perPage = $this->perPage($request, [10, 25, 50, 100], 10);
+
+        // Igual que el buscador del listado: sin distinguir mayúsculas ni
+        // acentos, y con el `%` que teclee el usuario tratado como texto. Un
+        // `where('code','like',...)` a secas no encuentra «Izaje» buscando
+        // «izaje» en PostgreSQL, que es donde corre esto de verdad.
+        $esPgsql = config('database.default') === 'pgsql';
 
         $tipos = WorkType::onlyTrashed()
             ->with(['country:id,name'])
-            ->when($termino !== '', fn ($q) => $q->where('code', 'like', "%{$termino}%"))
+            ->when($termino !== '', function ($q) use ($termino, $esPgsql) {
+                $needle = \App\Support\LikeQuery::contains($termino);
+                $esPgsql
+                    ? $q->whereRaw('unaccent(lower(work_types.code)) LIKE unaccent(lower(?))', [$needle])
+                    : $q->whereRaw("work_types.code LIKE ? ESCAPE '\\'", [$needle]);
+            })
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -393,7 +434,7 @@ class WorkTypeController extends Controller
 
         return back()
             ->with('success', $msg)
-            ->with('recentDelete', ['count' => $resultado['count'], 'seconds' => 60]);
+            ->with('recentDelete', ['count' => $resultado['count'], 'seconds' => $this->ventanaDeshacer()]);
     }
 
     public function undoLastDelete(Request $request, WorkTypeService $service): RedirectResponse

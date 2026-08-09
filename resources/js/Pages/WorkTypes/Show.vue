@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { Card, Tag, Space, Alert, Button } from 'ant-design-vue';
-import { ToolOutlined, WarningOutlined, SaveOutlined, UndoOutlined } from '@ant-design/icons-vue';
+import { ToolOutlined, WarningOutlined, SaveOutlined, UndoOutlined, LockOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -18,12 +18,14 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     workType:      { type: Object, required: true },
-    // Todos los formatos del país, con su marca. La ficha los edita aquí mismo:
-    // mover un interruptor no debería obligar a abrir el formulario entero.
+    // Todos los documentos del país, con su marca. La ficha los edita aquí
+    // mismo: mover un interruptor no debería obligar a abrir el formulario entero.
     formTemplates: { type: Array,  default: () => [] },
-    // Planes en obra a los que alcanza un cambio en los formatos.
+    // Planes en obra a los que alcanza un cambio en los documentos.
     openPlans:     { type: Number, default: 0 },
     canEditForms:  { type: Boolean, default: false },
+    // 'locked' | 'permission' | null — por qué la matriz no se deja tocar.
+    formsReadonlyReason: { type: String, default: null },
     activity:      { type: Array,  default: () => [] },
     recordAudit:   { type: Object, default: null },
 });
@@ -57,6 +59,21 @@ const hayCambios = computed(() => JSON.stringify(form.form_templates) !== origin
 
 const exigidos = computed(() => props.formTemplates.filter((f) => f.is_selected));
 const obligatorios = computed(() => exigidos.value.filter((f) => f.is_required));
+
+// Los errores de una fila de la matriz vuelven como `form_templates.0`, no como
+// `form_templates`: si sólo se mira la clave a secas, el guardado no hace nada y
+// la pantalla no dice nada. Se recogen todos y se enseñan juntos.
+const erroresMatriz = computed(() => Object.entries(form.errors)
+    .filter(([clave]) => clave.startsWith('form_templates'))
+    .map(([, mensaje]) => mensaje)
+    .filter((m, i, todos) => m && todos.indexOf(m) === i));
+
+const motivoSoloLectura = computed(() => {
+    if (isDeleted.value || !props.formsReadonlyReason) return null;
+    return props.formsReadonlyReason === 'locked'
+        ? 'work_types.forms_readonly_locked'
+        : 'work_types.forms_readonly_no_permission';
+});
 
 const descartar = () => { form.form_templates = JSON.parse(original.value); };
 
@@ -127,10 +144,17 @@ const guardar = () => {
 
         <EntityShowTabs :show-history="canSeeAudit" :history-count="activity.length">
             <template #general>
-                <!-- Los formatos van PRIMERO: es a lo que se viene a esta ficha.
+                <!-- Los documentos van PRIMERO: es a lo que se viene a esta ficha.
                      Lo técnico (id, slug, fechas) vive en la vista larga. -->
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
                     <template #title>{{ $t('work_types.forms_title') }}</template>
+
+                    <!-- Por qué no se puede tocar. Sin esto los controles salen
+                         apagados y la pantalla parece rota. -->
+                    <Alert v-if="motivoSoloLectura" type="warning" show-icon class="mb-3">
+                        <template #icon><LockOutlined /></template>
+                        <template #message>{{ $t(motivoSoloLectura) }}</template>
+                    </Alert>
 
                     <Alert v-if="openPlans > 0" type="info" show-icon class="mb-3">
                         <template #message>{{ $t('work_types.open_plans') }}: {{ openPlans }}</template>
@@ -144,7 +168,14 @@ const guardar = () => {
                         :disabled="!canEditForms || isDeleted"
                     />
 
-                    <p v-if="form.errors.form_templates" class="field-error">{{ form.errors.form_templates }}</p>
+                    <Alert v-if="erroresMatriz.length > 0" type="error" show-icon class="mt-3">
+                        <template #message>{{ $t('global.fix_marked_fields') }}</template>
+                        <template #description>
+                            <ul class="err-list">
+                                <li v-for="(msg, i) in erroresMatriz" :key="i">{{ msg }}</li>
+                            </ul>
+                        </template>
+                    </Alert>
 
                     <!-- La barra sólo aparece cuando hay algo que guardar: una
                          barra siempre visible se vuelve parte del decorado. -->
@@ -216,7 +247,8 @@ const guardar = () => {
 .deleted-alert { margin-bottom: 16px; }
 .info-card { margin-bottom: 16px; border-radius: 8px; }
 .mb-3 { margin-bottom: 12px; }
-.field-error { color: var(--color-danger); font-size: 0.8rem; margin: 8px 0 0 0; }
+.mt-3 { margin-top: 12px; }
+.err-list { margin: 4px 0 0 0; padding-left: 18px; line-height: 1.6; }
 
 .forms-actions {
     display: flex; align-items: center; justify-content: flex-end;

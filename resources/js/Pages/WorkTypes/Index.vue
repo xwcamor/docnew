@@ -238,7 +238,9 @@ const {
     bulkSetActiveRoute: 'business_management.work_types.bulk_set_active',
     bulkDeleteRoute:    'business_management.work_types.bulk_delete',
     resourceLabel:      t('work_types.records'),
-    rowDisabled:      (r) => !isSuper.value && r.tenant_id == null,
+    // Un bloqueado no se puede borrar ni desactivar: el servidor lo aparta y
+    // devuelve «N bloqueados se omitieron». Mejor no dejar marcarlo.
+    rowDisabled:      (r) => (!isSuper.value && r.tenant_id == null) || !!(r.is_locked ?? r.locked_at),
 });
 
 // Ref al ColumnSelector (montado oculto) para abrirlo desde el engranaje.
@@ -287,7 +289,7 @@ const goDelete = (record) => router.visit(route('business_management.work_types.
 
         <!-- Las tres cosas que hay que saber para no configurar a ciegas. Se
              dicen aquí, en el listado, y no escondidas en una ayuda: un
-             formato obligatorio no se puede quitar del plan de un martes. -->
+             documento obligatorio no se puede quitar del plan de un martes. -->
         <Alert type="info" show-icon class="how-it-works">
             <template #icon><InfoCircleOutlined /></template>
             <template #message>{{ $t('work_types.how_it_works_title') }}</template>
@@ -449,8 +451,8 @@ const goDelete = (record) => router.visit(route('business_management.work_types.
                         {{ record.country?.name ?? '—' }}
                     </template>
 
-                    <!-- «3 formatos» no dice nada: lo que importa es cuántos de
-                         ellos no se pueden quitar de un plan. Y un tipo sin
+                    <!-- «3 documentos» no dice nada: lo que importa es cuántos
+                         de ellos no se pueden quitar de un plan. Y un tipo sin
                          ninguno se avisa en rojo, porque deja salir el trabajo
                          sin papeles. -->
                     <template v-else-if="column.key === 'forms'">

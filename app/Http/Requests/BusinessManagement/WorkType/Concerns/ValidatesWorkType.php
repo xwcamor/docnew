@@ -15,15 +15,23 @@ use Illuminate\Validation\Rule;
  *  - el código no se repite dentro del mismo país y workspace. Hay un índice
  *    único parcial que lo garantiza, pero SOLO en PostgreSQL: en cualquier otro
  *    motor la única defensa es esta, y un «Izaje» duplicado parte en dos la
- *    configuración de formatos sin que nadie se entere;
- *  - un formato exigido tiene que ser del mismo país que el tipo. Uno de otro
+ *    configuración de documentos sin que nadie se entere;
+ *  - un documento exigido tiene que ser del mismo país que el tipo. Uno de otro
  *    país no se le puede pedir nunca a un plan de éste;
- *  - un formato en borrador no se puede marcar como obligatorio. No se puede
+ *  - un documento en borrador no se puede marcar como obligatorio. No se puede
  *    llenar, así que exigirlo es bloquear el plan por una pantalla que revienta
  *    al abrirla.
+ *
+ * Las tres se juzgan sobre lo que CAMBIA. Un documento que el tipo ya exigía
+ * igual pasa tal cual aunque hoy esté inactivo o despublicado: si no, quien
+ * quisiera precisamente quitarlo se encontraría la ficha atascada en un error
+ * que no provocó.
  */
 trait ValidatesWorkType
 {
+    /** @var array<int, bool>|null */
+    protected ?array $formatosPrevios = null;
+
     protected function prepareForValidation(): void
     {
         // El código se guarda tal cual se escribe («Izaje», no «izaje»), pero
@@ -62,7 +70,7 @@ trait ValidatesWorkType
     }
 
     /**
-     * Las reglas de la matriz de formatos, sueltas para que la ficha pueda
+     * Las reglas de la matriz de documentos, sueltas para que la ficha pueda
      * guardar sólo el pivote sin arrastrar el resto del formulario.
      */
     protected function formTemplateRules(): array
@@ -76,9 +84,24 @@ trait ValidatesWorkType
             // país del tipo y todos los ids de una vez, no fila a fila.
             'form_templates.*' => [
                 function ($attribute, $value, $fail) {
-                    $plantilla = FormTemplate::query()->find((int) ($value['id'] ?? 0));
+                    $id        = (int) ($value['id'] ?? 0);
+                    $exigido   = filter_var($value['is_required'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    $plantilla = FormTemplate::query()->find($id);
 
-                    if (! $plantilla || ! $plantilla->is_active) {
+                    if (! $plantilla) {
+                        $fail(__('work_types.form_template_unknown'));
+
+                        return;
+                    }
+
+                    // Ya lo exigía igual: no es una decisión nueva, no se juzga.
+                    $previos = $this->formatosYaExigidos();
+                    $igual   = array_key_exists($id, $previos) && $previos[$id] === $exigido;
+                    if ($igual) {
+                        return;
+                    }
+
+                    if (! $plantilla->is_active) {
                         $fail(__('work_types.form_template_unknown'));
 
                         return;
@@ -90,8 +113,7 @@ trait ValidatesWorkType
                         return;
                     }
 
-                    if (filter_var($value['is_required'] ?? false, FILTER_VALIDATE_BOOLEAN)
-                        && $plantilla->status !== 'published') {
+                    if ($exigido && $plantilla->status !== 'published') {
                         $fail(__('work_types.form_template_draft_required', ['code' => $plantilla->code]));
                     }
                 },
@@ -100,7 +122,30 @@ trait ValidatesWorkType
     }
 
     /**
-     * El país contra el que se validan los formatos.
+     * Lo que el tipo exige AHORA MISMO: id => obligatorio.
+     *
+     * En el alta no hay nada previo. Se resuelve una sola vez: la regla corre
+     * una vez por fila del formulario.
+     *
+     * @return array<int, bool>
+     */
+    protected function formatosYaExigidos(): array
+    {
+        if ($this->formatosPrevios !== null) {
+            return $this->formatosPrevios;
+        }
+
+        $tipo = $this->route('workType');
+
+        return $this->formatosPrevios = is_object($tipo)
+            ? $tipo->formTemplates()->get(['form_templates.id'])
+                ->mapWithKeys(fn ($f) => [(int) $f->id => (bool) $f->pivot->is_required])
+                ->all()
+            : [];
+    }
+
+    /**
+     * El país contra el que se validan los documentos.
      *
      * En el alta y la edición largas viene en el propio formulario; al guardar
      * sólo la matriz desde la ficha, el formulario no lo manda y sale del

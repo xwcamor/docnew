@@ -119,6 +119,34 @@ class WorkTypeCrudTest extends TestCase
         ]);
     }
 
+    // ── Que las pantallas abran ──────────────────────────────────────────────
+
+    /**
+     * Las cinco pantallas del modulo abren con datos de verdad.
+     *
+     * Es la prueba que encontro el fallo de los formatos (una ficha leyendo una
+     * columna que no existe): barata de escribir y la unica que cubre el «no
+     * revienta al abrirla».
+     */
+    public function test_todas_las_pantallas_abren(): void
+    {
+        $super = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $super->assignRole(Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Super']));
+        $this->actingAs($super);
+
+        $tipo = $this->tipo('Izaje');
+        $tipo->formTemplates()->sync([$this->formato('AST')->id => ['is_required' => true]]);
+        $this->plan($tipo, cerrado: false);
+
+        foreach (['index', 'create', 'trash'] as $pantalla) {
+            $this->get(route("business_management.work_types.{$pantalla}"))->assertOk();
+        }
+
+        foreach (['show', 'edit', 'delete'] as $pantalla) {
+            $this->get(route("business_management.work_types.{$pantalla}", $tipo->slug))->assertOk();
+        }
+    }
+
     // ── Alta ─────────────────────────────────────────────────────────────────
 
     public function test_un_tipo_de_trabajo_se_crea_con_su_codigo_y_su_pais(): void
@@ -303,6 +331,121 @@ class WorkTypeCrudTest extends TestCase
 
                 $this->assertTrue($matriz->firstWhere('id', $ast->id)['is_required']);
                 $this->assertFalse($matriz->firstWhere('code', 'EPP')['is_selected']);
+
+                return $page;
+            });
+    }
+
+    /**
+     * Un documento que se desactivo en Documentos SIGUE saliendo en la ficha
+     * mientras el tipo lo exija.
+     *
+     * Antes desaparecia de la matriz: la pantalla ya no lo enseñaba, el
+     * siguiente guardado mandaba la lista sin el y el `sync()` lo quitaba del
+     * tipo. Un documento obligatorio dejaba de pedirse en todos los planes
+     * abiertos sin que nadie lo hubiera decidido y sin que nada lo dijera.
+     */
+    public function test_un_documento_desactivado_que_el_tipo_exige_sigue_saliendo_en_la_ficha(): void
+    {
+        $this->actingAs($this->admin());
+        $tipo = $this->tipo('Izaje');
+        $ast  = $this->formato('AST');
+        $tipo->formTemplates()->sync([$ast->id => ['is_required' => true]]);
+
+        $ast->update(['is_active' => false]);
+
+        $this->get(route('business_management.work_types.show', $tipo->slug))
+            ->assertOk()
+            ->assertInertia(function ($page) use ($ast) {
+                $fila = collect($page->toArray()['props']['formTemplates'])->firstWhere('id', $ast->id);
+
+                $this->assertNotNull($fila, 'el documento exigido desaparecio de la matriz');
+                $this->assertTrue($fila['is_selected']);
+                // Y marcado: se puede quitar, pero no volver a poner.
+                $this->assertFalse($fila['is_available']);
+
+                return $page;
+            });
+    }
+
+    /**
+     * Y la ficha se puede seguir guardando: lo que ya se exigia igual pasa tal
+     * cual aunque hoy el documento este inactivo.
+     *
+     * Si no, quien quisiera precisamente quitarlo se encontraba la pantalla
+     * atascada en un error que no habia provocado.
+     */
+    public function test_la_ficha_se_guarda_aunque_un_documento_exigido_este_inactivo(): void
+    {
+        $this->actingAs($this->admin());
+        $tipo = $this->tipo('Izaje');
+        $ast  = $this->formato('AST');
+        $epp  = $this->formato('EPP');
+        $tipo->formTemplates()->sync([$ast->id => ['is_required' => true]]);
+
+        $ast->update(['is_active' => false]);
+
+        $this->put(route('business_management.work_types.form_templates.update', $tipo->slug), [
+            'form_templates' => [
+                ['id' => $ast->id, 'is_required' => true],
+                ['id' => $epp->id, 'is_required' => false],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(2, $tipo->fresh()->formTemplates()->count());
+    }
+
+    /** Pero uno inactivo que NO se exigia todavia no se puede empezar a exigir. */
+    public function test_un_documento_inactivo_no_se_puede_empezar_a_exigir(): void
+    {
+        $this->actingAs($this->admin());
+        $tipo     = $this->tipo('Izaje');
+        $inactivo = $this->formato('AST');
+        $inactivo->update(['is_active' => false]);
+
+        $this->put(route('business_management.work_types.form_templates.update', $tipo->slug), [
+            'form_templates' => [['id' => $inactivo->id, 'is_required' => false]],
+        ])->assertSessionHasErrors();
+
+        $this->assertSame(0, $tipo->fresh()->formTemplates()->count());
+    }
+
+    /**
+     * Cambiar que papeles exige el tipo queda en el historial.
+     *
+     * `sync()` sobre el pivote no dispara eventos de modelo, asi que el cambio
+     * mas consecuente del modulo —el que alcanza en vivo a los planes abiertos—
+     * no dejaba rastro: se veia quien habia tocado el codigo y no quien habia
+     * quitado el AST.
+     */
+    public function test_cambiar_los_documentos_queda_en_el_historial(): void
+    {
+        $this->actingAs($this->admin());
+        $tipo = $this->tipo('Izaje');
+        $ast  = $this->formato('AST');
+
+        $this->put(route('business_management.work_types.form_templates.update', $tipo->slug), [
+            'form_templates' => [['id' => $ast->id, 'is_required' => true]],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $entrada = \App\Models\AuditLog::where('auditable_type', WorkType::class)
+            ->where('auditable_id', $tipo->id)
+            ->where('event', 'updated')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($entrada, 'el cambio de documentos no dejo rastro');
+        $this->assertSame('—', $entrada->old_values['documents']);
+        $this->assertStringContainsString('AST', $entrada->new_values['documents']);
+
+        // Y en la ficha se lee en idioma de obra, no como clave cruda.
+        $this->get(route('business_management.work_types.show', $tipo->slug))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                $cambios = collect($page->toArray()['props']['activity'])
+                    ->firstWhere('event', 'updated')['changes'] ?? [];
+
+                $this->assertSame(__('work_types.documents'), $cambios[0]['label'] ?? null);
 
                 return $page;
             });
@@ -557,7 +700,23 @@ class WorkTypeCrudTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($p) => $p
                 ->where('canEditForms', false)
+                // Y la pantalla dice POR QUE: unos controles apagados sin
+                // explicacion parecen una pantalla rota.
+                ->where('formsReadonlyReason', 'locked')
                 ->where('workType.lock.is_locked', true));
+    }
+
+    /** Quien solo puede mirar tambien merece saber por que no puede tocar nada. */
+    public function test_sin_permiso_de_editar_la_ficha_explica_por_que_no_se_toca(): void
+    {
+        $tipo = $this->tipo('Izaje');
+
+        $this->actingAs($this->soloLectura())
+            ->get(route('business_management.work_types.show', $tipo->slug))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->where('canEditForms', false)
+                ->where('formsReadonlyReason', 'permission'));
     }
 
     public function test_la_papelera_es_solo_del_super(): void

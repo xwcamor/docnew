@@ -6,9 +6,9 @@ import { CalendarOutlined } from '@ant-design/icons-vue';
  * El orden por defecto es el código y no la fecha de alta: esto es un catálogo,
  * y un catálogo se busca por su nombre.
  *
- * La columna de formatos va con «obligatorios / total» y no con un número
- * suelto: dos tipos con tres formatos cada uno no exigen lo mismo si en uno son
- * los tres obligatorios y en el otro ninguno.
+ * La columna de documentos va con «obligatorios / total» y no con un número
+ * suelto: dos tipos con tres documentos cada uno no exigen lo mismo si en uno
+ * son los tres obligatorios y en el otro ninguno.
  */
 export const workTypesTableColumns = (t, { isSuper = false, isMobile = false } = {}) => [
     { title: t('work_types.code'), dataIndex: 'code', key: 'code', sorter: true, alwaysVisible: true, mobile: { role: 'title' } },
@@ -17,5 +17,8 @@ export const workTypesTableColumns = (t, { isSuper = false, isMobile = false } =
     { title: t('work_types.open_plans'), dataIndex: 'open_plans_count', key: 'open_plans', width: 130, align: 'center', mobile: { role: 'meta' } },
     { title: t('work_types.is_active'), dataIndex: 'is_active', key: 'status', width: 130, sorter: true, mobile: { role: 'status' } },
     { title: t('global.created_at'), dataIndex: 'created_at', key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
-    { title: t('global.actions'), key: 'actions', width: isMobile ? 56 : 120, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
+    // 160 y no 120: una fila bloqueada cambia los dos botones por la etiqueta
+    // «Bloqueado», y con la palabra dentro no cabía. Los tipos que llegaron de
+    // la migración nacen bloqueados, así que ésa es la fila normal, no la rara.
+    { title: t('global.actions'), key: 'actions', width: isMobile ? 56 : 160, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

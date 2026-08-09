@@ -25,6 +25,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * `work_plan_form_templates`). Por eso tocarlo alcanza a los planes abiertos: es
  * lo que se quiere cuando se corrige un estándar de seguridad, y es también lo
  * que hay que avisar antes de guardar.
+ *
+ * En pantalla, a las plantillas de formato se les llama «Documentos»: es la
+ * palabra que usa la obra y la que usa el resto de la aplicación.
  */
 class WorkType extends Model
 {

@@ -1,26 +1,26 @@
 <script setup>
 /**
- * La matriz de formatos de un tipo de trabajo.
+ * La matriz de documentos de un tipo de trabajo.
  *
  * Es la pantalla que faltaba: cuando el sistema le dice a un supervisor
  * «cámbialo en el tipo de trabajo», éste es el sitio.
  *
  * Dos decisiones que no son de estilo:
  *
- *  - se listan TODOS los formatos del país, no sólo los ya exigidos. Una lista
+ *  - se listan TODOS los documentos del país, no sólo los ya exigidos. Una lista
  *    que enseña únicamente lo marcado obliga a añadir a ciegas;
  *  - la fila es una tarjeta y no una fila de tabla. Son tres controles por
- *    formato y a 1024×768 una tabla se va de ancho — y el ancho de más se
+ *    documento y a 1024×768 una tabla se va de ancho — y el ancho de más se
  *    resuelve siempre con scroll horizontal, que en tablet con guantes es
  *    inservible.
  *
- * El segundo control sólo aparece cuando el formato está exigido: obligatorio u
- * opcional no significa nada si el formato no se pide, y un control que no
+ * El segundo control sólo aparece cuando el documento está exigido: obligatorio
+ * u opcional no significa nada si el documento no se pide, y un control que no
  * significa nada invita a tocarlo.
  */
 import { computed, ref } from 'vue';
 import { Alert, Input, Switch, Segmented, Tag, Tooltip, Empty } from 'ant-design-vue';
-import { SearchOutlined, WarningOutlined } from '@ant-design/icons-vue';
+import { SearchOutlined, WarningOutlined, StopOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
 const { t } = useI18n();
@@ -48,6 +48,13 @@ const marcado = (id) => seleccion.value.find((f) => f.id === id) ?? null;
 const estaExigido = (id) => marcado(id) !== null;
 const esObligatorio = (id) => marcado(id)?.is_required === true;
 
+// Documento que este tipo exige y que en Documentos ya no está disponible
+// (inactivo, o de otro país porque el tipo cambió de país). Se sigue enseñando
+// —si desapareciera, el siguiente guardado lo quitaría sin que nadie lo hubiera
+// decidido— pero sólo se deja quitarlo, nunca volver a ponerlo.
+const noDisponible = (formato) => formato.is_available === false;
+const bloqueadoParaAnadir = (formato) => noDisponible(formato) && !estaExigido(formato.id);
+
 const exigidos = computed(() => seleccion.value.length);
 const obligatorios = computed(() => seleccion.value.filter((f) => f.is_required).length);
 
@@ -71,8 +78,12 @@ const cambiarCaracter = (formato, valor) => {
 // etiqueta de la propia fila: un control que falla al pulsarlo es peor que uno
 // que no está.
 const opcionesCaracter = (formato) => [
-    { value: 'required', label: t('work_types.required'), disabled: !formato.is_published },
-    { value: 'optional', label: t('work_types.optional') },
+    {
+        value: 'required',
+        label: t('work_types.required'),
+        disabled: !formato.is_published || noDisponible(formato),
+    },
+    { value: 'optional', label: t('work_types.optional'), disabled: noDisponible(formato) },
 ];
 </script>
 
@@ -124,23 +135,31 @@ const opcionesCaracter = (formato) => [
                 v-for="formato in visibles"
                 :key="formato.id"
                 class="fmx__row"
-                :class="{ 'fmx__row--on': estaExigido(formato.id) }"
+                :class="{
+                    'fmx__row--on': estaExigido(formato.id),
+                    'fmx__row--gone': noDisponible(formato),
+                }"
             >
                 <div class="fmx__id">
                     <span class="fmx__name">{{ formato.name || formato.code }}</span>
                     <span class="fmx__meta">
                         <code class="fmx__code">{{ formato.code }}</code>
-                        <Tooltip v-if="!formato.is_published" :title="$t('work_types.forms_draft_hint')">
+                        <Tooltip v-if="noDisponible(formato)" :title="$t('work_types.forms_unavailable_hint')">
+                            <Tag color="red" :bordered="false">
+                                <StopOutlined /> {{ $t('work_types.forms_unavailable') }}
+                            </Tag>
+                        </Tooltip>
+                        <Tooltip v-else-if="!formato.is_published" :title="$t('work_types.forms_draft_hint')">
                             <Tag color="orange" :bordered="false">{{ $t('work_types.forms_draft') }}</Tag>
                         </Tooltip>
                     </span>
                 </div>
 
                 <div class="fmx__controls">
-                    <label class="fmx__toggle">
+                    <label class="fmx__toggle" :class="{ 'fmx__toggle--off': disabled }">
                         <Switch
                             :checked="estaExigido(formato.id)"
-                            :disabled="disabled"
+                            :disabled="disabled || bloqueadoParaAnadir(formato)"
                             :aria-label="formato.code"
                             @update:checked="(v) => alternarExigido(formato, v)"
                         />
@@ -196,6 +215,11 @@ const opcionesCaracter = (formato) => [
     border-color: rgba(10, 110, 209, 0.28);
     background: rgba(10, 110, 209, 0.04);
 }
+/* Exigido pero ya no disponible: se ve que hay algo que resolver. */
+.fmx__row--gone {
+    border-color: rgba(200, 40, 29, 0.35);
+    background: rgba(200, 40, 29, 0.04);
+}
 
 .fmx__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 260px; }
 .fmx__name { font-weight: 500; color: var(--color-text); line-height: 1.35; }
@@ -209,6 +233,8 @@ const opcionesCaracter = (formato) => [
     display: inline-flex; align-items: center; gap: 10px;
     min-height: 44px; padding: 0 4px; cursor: pointer;
 }
+/* Sin candado no hay nada que pulsar: el cursor no debe prometerlo. */
+.fmx__toggle--off { cursor: default; }
 .fmx__state { font-size: 0.82rem; font-weight: 600; white-space: nowrap; }
 .fmx__state--on  { color: var(--color-primary, #0A6ED1); }
 .fmx__state--off { color: var(--color-text-muted); }

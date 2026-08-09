@@ -3,7 +3,7 @@ import { computed } from 'vue';
 import { Button, Space, Tag, Tooltip, Dropdown, Menu, MenuItem } from 'ant-design-vue';
 import { Link, router } from '@inertiajs/vue3';
 import {
-    EyeOutlined, EditOutlined, DeleteOutlined, EllipsisOutlined,
+    EyeOutlined, EditOutlined, DeleteOutlined, EllipsisOutlined, LockOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -24,6 +24,12 @@ const props = defineProps({
 // los gestiona. Para el resto se ocultan editar/eliminar.
 const canManage = computed(() => props.isSuper || props.record.tenant_id != null);
 
+// Registro BLOQUEADO (Lockable): el servidor rechaza editar y eliminar, así que
+// aquí no se ofrecen. Los tipos que llegaron de la migración nacen bloqueados:
+// sin esto, casi todas las filas del listado enseñaban dos botones que al
+// pulsarlos devolvían al panel con un error. Se desbloquea desde la ficha.
+const isLocked = computed(() => !!(props.record.is_locked ?? props.record.locked_at));
+
 defineEmits(['edit', 'delete']);
 
 const onMenu = ({ key }) => {
@@ -42,10 +48,11 @@ const onMenu = ({ key }) => {
             <template #overlay>
                 <Menu @click="onMenu">
                     <MenuItem key="view"><EyeOutlined /> {{ t('global.view') }}</MenuItem>
-                    <MenuItem v-if="canEdit && canManage" key="edit"><EditOutlined /> {{ t('global.edit') }}</MenuItem>
-                    <MenuItem v-if="canDelete && canManage" key="delete" danger @click="$emit('delete', record)">
+                    <MenuItem v-if="canEdit && canManage && !isLocked" key="edit"><EditOutlined /> {{ t('global.edit') }}</MenuItem>
+                    <MenuItem v-if="canDelete && canManage && !isLocked" key="delete" danger @click="$emit('delete', record)">
                         <DeleteOutlined /> {{ t('global.delete') }}
                     </MenuItem>
+                    <MenuItem v-if="isLocked" key="locked" disabled><LockOutlined /> {{ t('locks.locked_hint') }}</MenuItem>
                 </Menu>
             </template>
         </Dropdown>
@@ -60,15 +67,18 @@ const onMenu = ({ key }) => {
                 </Button>
             </Link>
         </Tooltip>
-        <Tooltip v-if="canEdit && canManage" :title="t('global.edit')">
+        <Tooltip v-if="canEdit && canManage && !isLocked" :title="t('global.edit')">
             <Button type="text" class="row-icon-btn" :aria-label="t('global.edit')" @click="$emit('edit', record)">
                 <EditOutlined />
             </Button>
         </Tooltip>
-        <Tooltip v-if="canDelete && canManage" :title="t('global.delete')">
+        <Tooltip v-if="canDelete && canManage && !isLocked" :title="t('global.delete')">
             <Button type="text" danger class="row-icon-btn" :aria-label="t('global.delete')" @click="$emit('delete', record)">
                 <DeleteOutlined />
             </Button>
+        </Tooltip>
+        <Tooltip v-if="isLocked" :title="t('locks.locked_hint')">
+            <Tag color="gold" :bordered="false"><LockOutlined /> {{ t('locks.locked_tag') }}</Tag>
         </Tooltip>
         <Tag v-if="!canManage" color="purple" :bordered="false">{{ t('global.platform') }}</Tag>
     </div>
@@ -82,17 +92,20 @@ const onMenu = ({ key }) => {
                 </Button>
             </Link>
         </Tooltip>
-        <Tooltip v-if="canEdit && canManage" :title="t('global.edit')">
+        <Tooltip v-if="canEdit && canManage && !isLocked" :title="t('global.edit')">
             <Link :href="route('business_management.work_types.edit', record.slug)">
                 <Button size="small" type="text">
                     <EditOutlined />
                 </Button>
             </Link>
         </Tooltip>
-        <Tooltip v-if="canDelete && canManage" :title="t('global.delete')">
+        <Tooltip v-if="canDelete && canManage && !isLocked" :title="t('global.delete')">
             <Button size="small" type="text" danger @click.stop="$emit('delete', record)">
                 <DeleteOutlined />
             </Button>
+        </Tooltip>
+        <Tooltip v-if="isLocked" :title="t('locks.locked_hint')">
+            <Tag color="gold" :bordered="false"><LockOutlined /> {{ t('locks.locked_tag') }}</Tag>
         </Tooltip>
         <Tag v-if="!canManage" color="purple" :bordered="false">{{ t('global.platform') }}</Tag>
     </Space>

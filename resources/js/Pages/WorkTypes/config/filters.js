@@ -3,11 +3,11 @@ import dayjs from 'dayjs';
 /**
  * Filtros de los tipos de trabajo.
  *
- * El filtro que de verdad importa es `has_forms` en «Sin ningún formato»: un
+ * El filtro que de verdad importa es `has_forms` en «Sin ningún documento»: un
  * tipo así deja salir el trabajo sin documentación, y es lo primero que hay que
  * encontrar al entrar al módulo.
  *
- * `options` llega del backend (países y formatos) porque son catálogos y no
+ * `options` llega del backend (países y documentos) porque son catálogos y no
  * constantes: el selector no puede estar escrito a mano en el frontend.
  */
 export const workTypesFilterFields = (t, options = {}) => [

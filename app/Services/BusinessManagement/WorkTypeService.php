@@ -6,7 +6,6 @@ use App\Jobs\BusinessManagement\WorkTypes\BulkWorkTypesActionJob;
 use App\Models\AuditLog;
 use App\Models\Country;
 use App\Models\FormTemplate;
-use App\Models\WorkPlan;
 use App\Models\WorkType;
 use App\Support\LikeQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -111,17 +110,23 @@ class WorkTypeService
     // ── Los formatos que exige el tipo ───────────────────────────────────────
 
     /**
-     * La matriz de formatos del tipo: todos los candidatos, con su marca.
+     * La matriz de documentos del tipo: todos los candidatos, con su marca.
      *
-     * Se ofrecen los formatos activos del mismo país —un formato de otro país
-     * no lo puede exigir este tipo— y se marca cuáles están exigidos y con qué
-     * carácter. Los borradores se listan igual, pero avisados: un formato sin
+     * Se ofrecen los documentos activos del mismo país —uno de otro país no lo
+     * puede exigir este tipo— y se marca cuáles están exigidos y con qué
+     * carácter. Los borradores se listan igual, pero avisados: un documento sin
      * publicar no se puede llenar, así que exigirlo hoy sería mandar al usuario
      * de campo a una pantalla que revienta al abrirla.
      *
+     * Y se añade SIEMPRE lo que el tipo ya exige, aunque hoy no sea candidato
+     * —lo desactivaron en Documentos, o el tipo cambió de país—. Si no
+     * apareciera, la pantalla no lo enseñaría, el siguiente guardado mandaría la
+     * lista sin él y el `sync()` lo quitaría del tipo sin que nadie lo hubiera
+     * decidido: un documento obligatorio que deja de pedirse en silencio.
+     *
      * @return array<int, array{
      *     id:int, code:string, name:string|null, status:string, is_published:bool,
-     *     is_selected:bool, is_required:bool
+     *     is_selected:bool, is_required:bool, is_available:bool
      * }>
      */
     public function matrizDeFormatos(WorkType $tipo): array
@@ -130,11 +135,20 @@ class WorkTypeService
             ->get(['form_templates.id'])
             ->mapWithKeys(fn ($f) => [$f->id => (bool) $f->pivot->is_required]);
 
+        $yaExigidos = $marcados->keys()->all();
+
         return FormTemplate::query()
-            ->where('country_id', $tipo->country_id)
-            ->where('is_active', true)
+            ->where(function ($q) use ($tipo, $yaExigidos) {
+                $q->where(fn ($candidato) => $candidato
+                    ->where('country_id', $tipo->country_id)
+                    ->where('is_active', true));
+
+                if ($yaExigidos !== []) {
+                    $q->orWhereIn('id', $yaExigidos);
+                }
+            })
             ->orderBy('code')
-            ->get(['id', 'code', 'name', 'status'])
+            ->get(['id', 'code', 'name', 'status', 'is_active', 'country_id'])
             ->map(fn ($f) => [
                 'id'           => $f->id,
                 'code'         => $f->code,
@@ -143,6 +157,9 @@ class WorkTypeService
                 'is_published' => $f->status === 'published',
                 'is_selected'  => $marcados->has($f->id),
                 'is_required'  => (bool) $marcados->get($f->id, false),
+                // Sigue exigido pero ya no se puede elegir: la pantalla lo marca
+                // y sólo deja quitarlo.
+                'is_available' => (bool) $f->is_active && (int) $f->country_id === (int) $tipo->country_id,
             ])
             ->values()
             ->all();
@@ -157,10 +174,7 @@ class WorkTypeService
      */
     public function planesAbiertos(WorkType $tipo): int
     {
-        return WorkPlan::query()
-            ->where('work_type_id', $tipo->id)
-            ->where('is_closed', false)
-            ->count();
+        return $tipo->workPlans()->where('is_closed', false)->count();
     }
 
     /**
@@ -198,13 +212,65 @@ class WorkTypeService
 
         $anadidos = count($resultado['attached']);
         $quitados = count($resultado['detached']);
+        $tocado   = ($anadidos + $quitados + $cambiados) > 0;
+
+        if ($tocado) {
+            $this->auditarFormatos($tipo, $antes, $deseado);
+        }
 
         return [
             'added'   => $anadidos,
             'removed' => $quitados,
             'changed' => $cambiados,
-            'touched' => ($anadidos + $quitados + $cambiados) > 0,
+            'touched' => $tocado,
         ];
+    }
+
+    /**
+     * Deja constancia de qué papeles pasó a exigir el tipo.
+     *
+     * `sync()` sobre el pivote no dispara eventos de modelo, así que el cambio
+     * más consecuente del módulo —el que alcanza en vivo a todos los planes
+     * abiertos— no salía en el historial de la ficha: se veía quién tocó el
+     * código y no quién quitó el AST.
+     *
+     * Se guarda como un `updated` normal, con la lista antes y después en texto,
+     * para que el historial compartido lo pinte como cualquier otra edición.
+     *
+     * @param  array<int, bool>  $antes
+     * @param  array<int, array{is_required: bool}>  $despues
+     */
+    protected function auditarFormatos(WorkType $tipo, array $antes, array $despues): void
+    {
+        $codigos = FormTemplate::withTrashed()
+            ->whereIn('id', array_unique([...array_keys($antes), ...array_keys($despues)]))
+            ->pluck('code', 'id');
+
+        $listar = function (array $estados) use ($codigos) {
+            $partes = [];
+            foreach ($estados as $id => $obligatorio) {
+                $obligatorio = is_array($obligatorio) ? ($obligatorio['is_required'] ?? false) : $obligatorio;
+                $partes[] = ($codigos[$id] ?? "#{$id}")
+                    . ' (' . ($obligatorio ? __('work_types.required') : __('work_types.optional')) . ')';
+            }
+            sort($partes);
+
+            return $partes === [] ? '—' : implode(', ', $partes);
+        };
+
+        AuditLog::create([
+            'user_id'        => auth()->id(),
+            'auditable_type' => WorkType::class,
+            'auditable_id'   => $tipo->id,
+            'event'          => 'updated',
+            'old_values'     => ['documents' => $listar($antes)],
+            'new_values'     => ['documents' => $listar($despues)],
+            'url'            => request()?->fullUrl(),
+            'ip_address'     => request()?->ip(),
+            'user_agent'     => substr((string) request()?->userAgent(), 0, 500),
+            'module'         => 'work_types',
+            'created_at'     => now(),
+        ]);
     }
 
     // ── Alta / baja / modificación ───────────────────────────────────────────

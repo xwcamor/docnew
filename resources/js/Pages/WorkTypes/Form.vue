@@ -16,7 +16,7 @@ const { t } = useI18n();
 
 const props = defineProps({
     workType:         { type: Object, default: null },
-    // Matriz del backend: todos los formatos del país del tipo, con su marca.
+    // Matriz del backend: todos los documentos del país del tipo, con su marca.
     formTemplates:    { type: Array,  default: () => [] },
     openPlans:        { type: Number, default: 0 },
     options:          { type: Object, default: () => ({}) },
@@ -35,15 +35,18 @@ const form = useForm({
 });
 
 /**
- * El catálogo de formatos que se ofrece.
+ * El catálogo de documentos que se ofrece.
  *
- * En el alta el país se elige en el propio formulario, así que la matriz se
- * arma en el cliente a partir del catálogo completo; en la edición viene ya
- * resuelta del servidor. En los dos casos sale del backend: qué formatos existen
- * es un dato, no una constante del frontend.
+ * Sale del servidor ya resuelto MIENTRAS el país siga siendo el del registro.
+ * En cuanto se elige otro país —o en el alta, donde el país se escoge aquí
+ * mismo— la matriz se rearma con el catálogo completo filtrado por ese país: si
+ * no, la pantalla seguiría ofreciendo los documentos del país anterior, que un
+ * plan de este tipo no podría llenar nunca y que el servidor rechaza al guardar.
  */
 const catalogo = computed(() => {
-    if (isEdit.value) return props.formTemplates;
+    if (isEdit.value && form.country_id === props.workType?.country_id) {
+        return props.formTemplates;
+    }
 
     return (props.options.form_templates ?? [])
         .filter((f) => f.country_id === form.country_id)
@@ -56,7 +59,7 @@ const catalogo = computed(() => {
         }));
 });
 
-// Al cambiar de país, un formato del país anterior deja de tener sentido: un
+// Al cambiar de país, un documento del país anterior deja de tener sentido: un
 // plan de este tipo nunca podría llenarlo.
 watch(() => form.country_id, (nuevo, viejo) => {
     if (viejo !== undefined && nuevo !== viejo) form.form_templates = [];
@@ -68,6 +71,14 @@ const original = ref(JSON.stringify(
     props.formTemplates.filter((f) => f.is_selected).map((f) => ({ id: f.id, is_required: f.is_required })),
 ));
 const formatosTocados = computed(() => JSON.stringify(form.form_templates) !== original.value);
+
+// Los errores de una fila de la matriz llegan como `form_templates.0`: mirando
+// sólo `form_templates` el formulario se quedaba mudo y parecía que el botón
+// Guardar no hacía nada.
+const erroresMatriz = computed(() => Object.entries(form.errors)
+    .filter(([clave]) => clave.startsWith('form_templates'))
+    .map(([, mensaje]) => mensaje)
+    .filter((m, i, todos) => m && todos.indexOf(m) === i));
 
 const submit = () => {
     if (isEdit.value) {
@@ -85,7 +96,7 @@ const submit = () => {
         <SectionHeader
             :back-href="route('business_management.work_types.index')"
             :title="isEdit ? $t('work_types.edit_title') : $t('work_types.new')"
-            :subtitle="$t('work_types.create_subtitle')"
+            :subtitle="isEdit ? workType.code : $t('work_types.create_subtitle')"
         >
             <template #icon><ToolOutlined /></template>
         </SectionHeader>
@@ -109,21 +120,8 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <FormItem
-                    :label="$t('work_types.code')"
-                    :tooltip="$t('work_types.code_help')"
-                    required
-                    :validate-status="form.errors.code ? 'error' : ''"
-                    :help="form.errors.code"
-                >
-                    <Input
-                        v-model:value="form.code"
-                        size="large"
-                        :maxlength="255"
-                        :placeholder="$t('work_types.code')"
-                    />
-                </FormItem>
-
+                <!-- El país va primero: es lo que decide qué documentos se
+                     pueden exigir más abajo. Elegirlos antes no significa nada. -->
                 <FormItem
                     :label="$t('work_types.country')"
                     :tooltip="$t('work_types.country_help')"
@@ -137,7 +135,23 @@ const submit = () => {
                         show-search
                         option-filter-prop="label"
                         :options="options.countries ?? []"
-                        :placeholder="$t('work_types.country')"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('work_types.code')"
+                    :tooltip="$t('work_types.code_help')"
+                    required
+                    :validate-status="form.errors.code ? 'error' : ''"
+                    :help="form.errors.code"
+                >
+                    <Input
+                        v-model:value="form.code"
+                        size="large"
+                        :maxlength="255"
+                        show-count
+                        :placeholder="$t('work_types.code')"
                     />
                 </FormItem>
 
@@ -156,8 +170,8 @@ const submit = () => {
                     </Space>
                 </FormItem>
 
-                <!-- Los formatos, a ancho completo: es una lista de decisiones,
-                     no un campo más de la rejilla de etiqueta+control. -->
+                <!-- Los documentos, a ancho completo: es una lista de
+                     decisiones, no un campo más de la rejilla etiqueta+control. -->
                 <h2 class="form-section-title">{{ $t('work_types.forms_title') }}</h2>
 
                 <Card :bodyStyle="{ padding: 16 }" class="forms-card">
@@ -195,7 +209,14 @@ const submit = () => {
                         :templates="catalogo"
                     />
 
-                    <p v-if="form.errors.form_templates" class="field-error">{{ form.errors.form_templates }}</p>
+                    <Alert v-if="erroresMatriz.length > 0" type="error" show-icon class="mt-4">
+                        <template #message>{{ $t('global.fix_marked_fields') }}</template>
+                        <template #description>
+                            <ul class="err-list">
+                                <li v-for="(msg, i) in erroresMatriz" :key="i">{{ msg }}</li>
+                            </ul>
+                        </template>
+                    </Alert>
                 </Card>
 
                 <FormFooter
@@ -212,6 +233,7 @@ const submit = () => {
 <style scoped>
 .state-label { font-size: 0.875rem; color: var(--color-text); font-weight: 500; }
 .forms-card { margin-bottom: 16px; border-radius: 10px; }
-.field-error { color: var(--color-danger); font-size: 0.8rem; margin: 8px 0 0 0; }
+.err-list { margin: 4px 0 0 0; padding-left: 18px; line-height: 1.6; }
 .mb-4 { margin-bottom: 16px; }
+.mt-4 { margin-top: 16px; }
 </style>
