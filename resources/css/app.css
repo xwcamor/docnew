@@ -1384,7 +1384,53 @@ html[data-theme="dark"] .lift:hover {
         /* Aqui el contenedor padea 16, no 24. */
         margin: auto -16px -16px;
         padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
-        flex-wrap: nowrap;
+        /* La franja ya estaba pegada al pie como el footer de los forms, pero
+           DENTRO no seguia su regla. El form en movil hace `column-reverse` +
+           `width: 100%` (ver FormFooter.vue): botones a ancho completo, uno por
+           linea, a dedo. Aqui los botones iban en un `<Space wrap>` y salian al
+           ancho del texto, alineados a la derecha y partidos en tres lineas
+           ragged, con el «N seleccionados» estrujado en una columna de dos
+           lineas. Misma franja, contenido distinto.
+
+           No los apilo uno por linea como el form: estas barras llevan hasta
+           cuatro acciones (Cancelar / Activar / Desactivar / Eliminar) y cuatro
+           botones de 44px se comen un tercio de la pantalla. Rejilla de dos
+           columnas: mismo principio —ancho completo de su celda, 44px de alto,
+           sin wrap ragged— y la mitad de alto. Con dos acciones (las barras de
+           Papelera) queda una fila; con cuatro, dos. */
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .bulk-bar__label { text-align: left; }
+    /* `Space` es flex con wrap; lo paso a rejilla. Sus `gap` en linea siguen
+       valiendo, que grid usa la misma propiedad. */
+    .bulk-bar .ant-space {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        /* AntD le cuelga `.ant-space-align-center`, que es `align-items:center`.
+           En grid eso hace que cada celda mida lo que su contenido en vez de
+           estirar, y la fila queda despareja. */
+        align-items: stretch;
+    }
+    /* `display: flex` para que el boton estire al alto de su celda: si uno de
+       la fila envuelve a dos lineas, el de al lado se queda corto y quedan
+       desparejos (70 vs 44). */
+    .bulk-bar .ant-space-item { min-width: 0; display: flex; }
+    /* Los botones son `size="small"`: sin esto no llegan al minimo tactil.
+       `white-space: normal` porque a media pantalla «Desactivar seleccionados»
+       no cabe en una linea y AntD trae `nowrap`: el texto se salia del boton y
+       se metia debajo del de al lado. Envuelve a dos lineas y el alto se
+       adapta, con 44px de suelo. No acorto la cadena: en escritorio cabe, y
+       `useModuleBulkActions` la reusa como texto del dialogo de confirmacion. */
+    .bulk-bar .ant-btn {
+        width: 100%;
+        min-height: 44px;
+        height: auto;
+        white-space: normal;
+        line-height: 1.2;
+        padding-block: 8px;
     }
 }
 

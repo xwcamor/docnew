@@ -152,7 +152,7 @@ const onTableChange = (pag) => {
 
             <ResponsiveTable
                 :dataSource="users.data"
-                :view="'table'"
+                :view="'auto'"
                 :scroll="{ x: 'max-content' }"
                 :columns="columns"
                 :pagination="tablePagination"

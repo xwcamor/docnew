@@ -146,7 +146,7 @@ const onTableChange = (pag) => reload({ page: pag.current, per_page: pag.pageSiz
 
             <ResponsiveTable
                 :dataSource="roles.data"
-                :view="'table'"
+                :view="'auto'"
                 :scroll="{ x: 'max-content' }"
                 :columns="columns"
                 :pagination="tablePagination"

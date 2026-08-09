@@ -123,7 +123,7 @@ const subtitle = computed(() => {
         <Card :bodyStyle="{ padding: 0 }" class="grid-card">
             <ResponsiveTable
                 :dataSource="plans"
-                :view="'table'"
+                :view="'auto'"
                 :scroll="{ x: 'max-content' }"
                 :columns="columns"
                 :pagination="false"

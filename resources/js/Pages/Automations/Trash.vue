@@ -105,7 +105,7 @@ const columns = computed(() => [
         <Card :bodyStyle="{ padding: 0 }">
             <ResponsiveTable
                 :dataSource="automations.data"
-                :view="'table'"
+                :view="'auto'"
                 :scroll="{ x: 'max-content' }"
                 :columns="columns"
                 :pagination="false"

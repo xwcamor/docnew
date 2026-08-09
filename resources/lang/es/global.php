@@ -166,7 +166,7 @@ return [
     'show_only_required'   => 'Solo obligatorias',
 
     // ── Bulk actions ──────────────────────────────────────────────
-    'selected'             => 'seleccionados',
+    'selected'             => 'seleccionado',
     'selected_plural'      => 'seleccionados',
     'bulk_delete'          => 'Eliminar seleccionados',
     'bulk_records_warning' => 'Está a punto de eliminar :count :resource.',

@@ -151,7 +151,7 @@ const subtitle = computed(() => {
 
             <ResponsiveTable
                 :dataSource="locales.data"
-                :view="'table'"
+                :view="'auto'"
                 :scroll="{ x: 'max-content' }"
                 :columns="columns"
                 :pagination="tablePagination"

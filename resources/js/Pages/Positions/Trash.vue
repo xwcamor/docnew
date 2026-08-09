@@ -111,7 +111,7 @@ const subtitle = computed(() => {
         <Card :bodyStyle="{ padding: 0 }" class="grid-card">
             <ResponsiveTable
                 :dataSource="positions.data"
-                :view="'table'"
+                :view="'auto'"
                 :scroll="{ x: 'max-content' }"
                 :columns="columns"
                 :pagination="tablePagination"
