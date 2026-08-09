@@ -223,4 +223,11 @@ return [
         'step12_title' => 'Create new',
         'step12_body'  => 'Primary button to create a new record. Keyboard shortcut: Ctrl+N.',
     ],
+    'entered'  => 'You are now administering the «:name» workspace. Everything you see and create belongs to it.',
+    'left'     => 'You left the workspace. Back to the console.',
+    'enter'    => 'Enter',
+    'enter_help' => 'Work inside this workspace: you will see and create its data, as its administrator.',
+    'acting_banner' => 'You are administering the workspace',
+    'leave'    => 'Leave workspace',
+    'enter_first' => 'Enter a workspace first: this record must belong to one, and from the console it would be left with no owner.',
 ];

@@ -45,6 +45,9 @@ class User extends Authenticatable implements HasLocalePreference
      *
      * @var list<string>
      */
+    /** Un usuario sin workspace es un super: aqui `tenant_id` null es legitimo. */
+    protected bool $requiereWorkspace = false;
+
     protected $fillable = [
         'tenant_id',
         'country_id',

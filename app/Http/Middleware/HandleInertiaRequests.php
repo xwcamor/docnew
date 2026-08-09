@@ -31,6 +31,12 @@ class HandleInertiaRequests extends Middleware
         $user = $request->user();
 
         return array_merge(parent::share($request), [
+            // El workspace en el que ha ENTRADO un super. `null` = esta en la
+            // consola. Lazy como el resto: solo se resuelve al pintar una pagina,
+            // no en los endpoints JSON de fondo.
+            'actingWorkspace' => fn () => \App\Support\TenantContext::dentroDeUno($user)
+                ? (fn ($t) => $t ? ['id' => $t->id, 'name' => $t->name] : null)(\App\Support\TenantContext::workspace())
+                : null,
             'auth' => [
                 // Closure (LAZY): permisos + plan + suscripción + tz se computan
                 // SOLO cuando Inertia renderiza una página. NO corren en los

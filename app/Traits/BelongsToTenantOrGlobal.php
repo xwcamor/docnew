@@ -42,10 +42,13 @@ trait BelongsToTenantOrGlobal
             $isSuper = method_exists($user, 'hasRole') && $user->hasRole('super');
 
             if ($isSuper) {
-                // Super: su tenant_id es NULL → el registro nace GLOBAL.
+                // Super DENTRO de un workspace: el registro es de ese workspace.
+                // Super FUERA, en la consola: nace GLOBAL (tenant_id null), que es
+                // como se crean los catalogos compartidos que usan todos los
+                // workspaces sin tener que recrearlos.
                 // (Si explícitamente trae un tenant_id, se respeta.)
                 if (empty($model->tenant_id)) {
-                    $model->tenant_id = $user->tenant_id; // null = global
+                    $model->tenant_id = \App\Support\TenantContext::actual($user);
                 }
                 return;
             }
@@ -79,12 +82,16 @@ trait BelongsToTenantOrGlobal
                 return;
             }
             $user = auth()->user();
-            if (method_exists($user, 'hasRole') && $user->hasRole('super')) {
-                return; // super ve todo
+            // El super ve todo SOLO desde la consola. Dentro de un workspace ve
+            // lo de ese workspace mas los compartidos, igual que su admin.
+            $tenantId = \App\Support\TenantContext::actual($user);
+
+            if ($tenantId === null && method_exists($user, 'hasRole') && $user->hasRole('super')) {
+                return; // super en la consola: ve todo
             }
             $table = $builder->getModel()->getTable();
-            $builder->where(function ($q) use ($table, $user) {
-                $q->where("{$table}.tenant_id", $user->tenant_id)
+            $builder->where(function ($q) use ($table, $tenantId) {
+                $q->where("{$table}.tenant_id", $tenantId)
                     ->orWhereNull("{$table}.tenant_id");
             });
         });

@@ -91,6 +91,12 @@ Route::prefix('system_management')->name('system_management.')->group(function (
         Route::get('tenants/trash',           [TenantController::class, 'trash'])->name('tenants.trash');
         Route::post('tenants/{slug}/restore', [TenantController::class, 'restore'])->name('tenants.restore');
         Route::get('tenants/{slug}/restore',  fn () => redirect()->route('system_management.tenants.trash'));
+        // Entrar / salir de un workspace. El super no tiene workspace propio: o
+        // esta en la consola (ve todo, crea los catalogos compartidos) o esta
+        // DENTRO de uno, y entonces ve y crea como su admin.
+        Route::post('tenants/{tenant}/enter', [TenantController::class, 'enter'])->name('tenants.enter');
+        Route::post('tenants/leave',          [TenantController::class, 'leave'])->name('tenants.leave');
+
         // API tokens (Sanctum) — super only via parent middleware.
         Route::post('tenants/{tenant}/tokens',             [TenantController::class, 'createToken'])->name('tenants.tokens.create');
         Route::delete('tenants/{tenant}/tokens/{tokenId}', [TenantController::class, 'revokeToken'])->name('tenants.tokens.revoke');

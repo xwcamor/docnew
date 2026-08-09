@@ -1,8 +1,10 @@
 <script setup>
+import { ref } from 'vue';
 import { Button, Space, Tooltip, Dropdown, Menu, MenuItem } from 'ant-design-vue';
 import { Link, router } from '@inertiajs/vue3';
 import {
     EyeOutlined, EditOutlined, CopyOutlined, DeleteOutlined, EllipsisOutlined,
+    LoginOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -20,8 +22,19 @@ const props = defineProps({
 
 const emit = defineEmits(['edit', 'duplicate', 'delete']);
 
+// Entrar en el workspace: el super pasa a ver y crear como su admin. Solo
+// tiene sentido en uno vivo — en la papelera no se entra.
+const entrando = ref(false);
+const entrar = () => {
+    entrando.value = true;
+    router.post(route('system_management.tenants.enter', props.record.slug), {}, {
+        onFinish: () => { entrando.value = false; },
+    });
+};
+
 const onMenu = ({ key }) => {
-    if (key === 'view')           router.visit(route('system_management.tenants.show', props.record.slug));
+    if (key === 'enter')          entrar();
+    else if (key === 'view')      router.visit(route('system_management.tenants.show', props.record.slug));
     else if (key === 'edit')      emit('edit', props.record);
     else if (key === 'duplicate') emit('duplicate', props.record);
     else if (key === 'delete')    emit('delete', props.record);
@@ -35,6 +48,7 @@ const onMenu = ({ key }) => {
             <Button type="text" class="row-icon-btn" :aria-label="t('global.actions')"><EllipsisOutlined /></Button>
             <template #overlay>
                 <Menu @click="onMenu">
+                    <MenuItem key="enter"><LoginOutlined /> {{ t('tenants.enter') }}</MenuItem>
                     <MenuItem key="view"><EyeOutlined /> {{ t('global.view') }}</MenuItem>
                     <MenuItem v-if="canEdit" key="edit"><EditOutlined /> {{ t('global.edit') }}</MenuItem>
                     <MenuItem v-if="canCreate" key="duplicate"><CopyOutlined /> {{ t('global.duplicate') }}</MenuItem>
@@ -47,6 +61,11 @@ const onMenu = ({ key }) => {
     <!-- Mobile: Vista rápida → Ver → Editar → Duplicar → Eliminar. El row tap
          también abre el drawer; el botón Ver lleva a la página completa de detalle. -->
     <div v-else-if="isMobile" class="row-actions-mobile">
+        <Tooltip :title="t('tenants.enter_help')">
+            <Button type="text" size="small" :loading="entrando" @click="entrar">
+                <LoginOutlined />
+            </Button>
+        </Tooltip>
         <Tooltip :title="t('global.view')">
             <Link :href="route('system_management.tenants.show', record.slug)">
                 <Button
@@ -96,6 +115,11 @@ const onMenu = ({ key }) => {
          El row click también abre el drawer; el botón Ver lleva a la página
          completa de detalle (algunos usuarios prefieren eso al drawer). -->
     <Space v-else size="small" class="row-actions-desktop">
+        <Tooltip :title="t('tenants.enter_help')">
+            <Button size="small" type="text" :loading="entrando" :aria-label="t('tenants.enter')" @click="entrar">
+                <LoginOutlined />
+            </Button>
+        </Tooltip>
         <Tooltip :title="t('global.view')">
             <Link :href="route('system_management.tenants.show', record.slug)">
                 <Button size="small" type="text" :aria-label="t('global.view')">

@@ -50,8 +50,10 @@ trait BelongsToTenant
 
             if ($isSuper) {
                 // Super: solo autorellena si vino vacío (preserva override explícito).
+                // El workspace efectivo, no su columna: si ha ENTRADO en uno, lo
+                // que crea es de ese workspace y no un huerfano sin dueño.
                 if (empty($model->tenant_id)) {
-                    $model->tenant_id = $user->tenant_id;
+                    $model->tenant_id = \App\Support\TenantContext::actual($user);
                 }
                 return;
             }
@@ -60,6 +62,27 @@ trait BelongsToTenant
             // tenant_id mass-assigned. Bloquea cross-tenant writes incluso si un
             // FormRequest futuro deja pasar `tenant_id` por error.
             $model->tenant_id = $user->tenant_id;
+        });
+
+        // ── Nada de huerfanos ────────────────────────────────────────────────
+        // En un modelo per-tenant, `tenant_id` null no significa "de todos":
+        // significa DE NADIE. Ese registro no lo ve ningun admin y solo aparece
+        // para el super — asi nacieron las empresas huerfanas que hubo que
+        // rescatar con una migracion. Si el super esta en la consola y crea algo
+        // de estos, se le dice que entre antes en un workspace.
+        //
+        // `User` es la excepcion legitima: un usuario sin workspace es un super,
+        // y crearlos es justo lo que se hace desde la consola. Por eso el guard
+        // se puede desactivar con `$requiereWorkspace = false`.
+        static::creating(function (Model $model) {
+            if (! auth()->hasUser() || $model->tenant_id !== null) {
+                return;
+            }
+            if (property_exists($model, 'requiereWorkspace') && $model->requiereWorkspace === false) {
+                return;
+            }
+
+            throw new \DomainException(__('tenants.enter_first'));
         });
 
         // ── Global scope: tenant isolation ──────────────────────────────────
@@ -73,14 +96,17 @@ trait BelongsToTenant
 
             $user = auth()->user();
 
-            // super sees all tenants — bypass scope.
-            if (method_exists($user, 'hasRole') && $user->hasRole('super')) {
+            // El super ve todos los workspaces SOLO desde la consola. Si ha
+            // entrado en uno, se comporta como su admin: ve ese y nada mas.
+            $tenantId = \App\Support\TenantContext::actual($user);
+
+            if ($tenantId === null && method_exists($user, 'hasRole') && $user->hasRole('super')) {
                 return;
             }
 
             // Apply tenant filter using the model's table to avoid ambiguity in joins.
             $table = $builder->getModel()->getTable();
-            $builder->where("{$table}.tenant_id", $user->tenant_id);
+            $builder->where("{$table}.tenant_id", $tenantId);
         });
     }
 

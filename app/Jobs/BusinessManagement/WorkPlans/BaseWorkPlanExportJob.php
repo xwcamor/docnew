@@ -65,7 +65,9 @@ abstract class BaseWorkPlanExportJob implements ShouldQueue
         $this->locale   = app()->getLocale();
         // Capturamos tenant_id del user que dispara — el worker no tiene sesion.
         $user = \App\Models\User::find($userId);
-        $this->tenantId     = $user?->tenant_id;
+        // El workspace EFECTIVO, no su columna: un super que ha entrado en uno
+        // debe exportar lo de ese workspace, no lo de todos.
+        $this->tenantId     = \App\Support\TenantContext::actual($user);
         $this->userTimezone = \App\Support\Tz::for($user);
 
         // Pre-creamos el Download row aquí (en el web request, antes de que el

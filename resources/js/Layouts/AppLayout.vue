@@ -26,6 +26,7 @@ import {
     SettingOutlined,
     BankOutlined, CrownOutlined,
     LogoutOutlined,
+    ApartmentOutlined,
     HistoryOutlined,
     DownOutlined,
     MenuOutlined,
@@ -401,6 +402,18 @@ const goToNotificationsPage = () => {
 };
 
 // Responsive
+// ─── Workspace en el que ha entrado un super ────────────────────────────────
+// Viaja como prop compartida desde HandleInertiaRequests. `null` = el super
+// esta en la consola, o quien mira no es super.
+const actingWorkspace = computed(() => usePage().props.actingWorkspace ?? null);
+const saliendoDelWs = ref(false);
+const salirDelWorkspace = () => {
+    saliendoDelWs.value = true;
+    router.post(route('system_management.tenants.leave'), {}, {
+        onFinish: () => { saliendoDelWs.value = false; },
+    });
+};
+
 const isMobile = ref(false);
 const checkMobile = () => { isMobile.value = window.innerWidth < 992; };
 // Al volver a la pestaña (estuvo oculta), refrescamos el bell una vez para
@@ -1516,6 +1529,19 @@ const megaLeave = (el) => {
                     :class="{ 'content--bottomnav': !isMobile && navMode === 'bottom' }"
                     :style="{ '--tr-sticky-h': stickyHeaderH }"
                 >
+                    <!-- El super esta DENTRO de un workspace: se dice en todas las
+                         pantallas y se le da la puerta de salida al lado. Sin esto
+                         es facil olvidar en nombre de quien se esta trabajando. -->
+                    <div v-if="actingWorkspace" class="acting-ws">
+                        <span class="acting-ws__txt">
+                            <ApartmentOutlined />
+                            {{ $t('tenants.acting_banner') }}: <strong>{{ actingWorkspace.name }}</strong>
+                        </span>
+                        <Button size="small" :loading="saliendoDelWs" @click="salirDelWorkspace">
+                            <LogoutOutlined /> {{ $t('tenants.leave') }}
+                        </Button>
+                    </div>
+
                     <slot />
                 </LayoutContent>
             </Layout>
@@ -1986,6 +2012,26 @@ const megaLeave = (el) => {
     min-width: 16px !important;
     line-height: 16px !important;
     padding: 0 4px !important;
+}
+
+/* ── Franja: el super esta dentro de un workspace ───────────────────────────
+   Va DENTRO del contenido y no en el shell-bar a proposito: tiene que verse en
+   todas las pantallas sin competir con la navegacion, y arrastrar el boton de
+   salir consigo. Discreta pero imposible de no ver. */
+.acting-ws {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; flex-wrap: wrap;
+    margin: 0 0 16px; padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--color-warning-bg, #fff7e6);
+    border: 1px solid var(--color-warning-border, #ffd591);
+    font-size: 0.875rem;
+}
+.acting-ws__txt { display: inline-flex; align-items: center; gap: 8px; color: var(--color-text); }
+.acting-ws__txt strong { font-weight: 600; }
+@media (max-width: 768px) {
+    .acting-ws { margin: 0 0 12px; }
+    .acting-ws .ant-btn { min-height: 40px; }
 }
 </style>
 

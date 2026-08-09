@@ -767,4 +767,34 @@ class TenantController extends Controller
 
         return back()->with('success', __('tenants.token_revoked'));
     }
+    /**
+     * El super ENTRA en un workspace: a partir de aqui ve y crea como su admin.
+     *
+     * Antes solo tenia dos modos y los dos malos: veia todos los workspaces
+     * mezclados, y lo que creaba nacia sin dueño (`tenant_id` null). De ahi
+     * salieron las empresas huerfanas y la fuga de los ficheros exportados.
+     */
+    public function enter(Request $request, Tenant $tenant): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole('super'), 403);
+
+        \App\Support\TenantContext::entrar($tenant);
+
+        return redirect()
+            ->route('dashboard_management.dashboards.index')
+            ->with('success', __('tenants.entered', ['name' => $tenant->name]));
+    }
+
+    /** Y SALE: vuelve a la consola, donde ve todo y crea los compartidos. */
+    public function leave(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        abort_unless($request->user()?->hasRole('super'), 403);
+
+        \App\Support\TenantContext::salir();
+
+        return redirect()
+            ->route('system_management.tenants.index')
+            ->with('success', __('tenants.left'));
+    }
+
 }

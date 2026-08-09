@@ -226,4 +226,11 @@ return [
         'step12_title' => 'Crear nuevo',
         'step12_body'  => 'Botón principal para crear un nuevo registro. Atajo de teclado: Ctrl+N.',
     ],
+    'entered'  => 'Ahora estás administrando el workspace «:name». Todo lo que veas y crees será suyo.',
+    'left'     => 'Saliste del workspace. Vuelves a la consola.',
+    'enter'    => 'Entrar',
+    'enter_help' => 'Trabaja dentro de este workspace: verás y crearás sus datos, como su administrador.',
+    'acting_banner' => 'Estás administrando el workspace',
+    'leave'    => 'Salir del workspace',
+    'enter_first' => 'Entra primero en un workspace: este dato tiene que pertenecer a uno, y desde la consola quedaría sin dueño.',
 ];
