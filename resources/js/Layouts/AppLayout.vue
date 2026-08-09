@@ -12,6 +12,10 @@ import {
 // "vacío", etc.). Sin esto Ant cae a inglés en TODOS los módulos.
 import esES from 'ant-design-vue/es/locale/es_ES';
 import enUS from 'ant-design-vue/es/locale/en_US';
+// Y el idioma de dayjs, que va aparte: los nombres de los meses y de los dias
+// del calendario los pone el, no Ant Design.
+import dayjs from 'dayjs';
+import 'dayjs/locale/es';
 import { h } from 'vue';
 import RotatePortraitOverlay from '@/Components/Common/RotatePortraitOverlay.vue';
 import GlobalSearch from '@/Components/GlobalSearch.vue';
@@ -89,6 +93,11 @@ const appLogo = computed(() => page.props.appLogoUrl || null);
 const locale  = computed(() => page.props.locale ?? 'es');
 // Locale nativo de Ant Design según el idioma activo (orden, paginación, etc.).
 const antLocale = computed(() => (locale.value === 'en' ? enUS : esES));
+
+// El del calendario va aparte: con el ConfigProvider ya en español, los meses
+// seguían saliendo «Aug» y los días «Su Mo Tu We», porque esos textos no son de
+// Ant Design sino de dayjs. Se aplica de entrada y en cada cambio de idioma.
+watch(locale, (idioma) => dayjs.locale(idioma === 'en' ? 'en' : 'es'), { immediate: true });
 
 // ── Aceptación de Términos/Privacidad (LPDP) ──────────────────────────────
 // Modal bloqueante cuando la versión vigente no fue aceptada por el usuario

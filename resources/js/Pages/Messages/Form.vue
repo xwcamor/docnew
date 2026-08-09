@@ -51,9 +51,13 @@ const submit = (publishNow = false) => {
     form.publish_now = publishNow;
 
     // expires_at viaja como ISO; el DatePicker guarda un objeto dayjs.
+    //
+    // `endOf('day')` porque ahora se elige solo el día: sin esto un mensaje que
+    // caduca «el 15» se apagaría a las 00:00 de ese 15, o sea el día antes de
+    // lo que quien lo escribió tenía en la cabeza.
     form.transform((data) => ({
         ...data,
-        expires_at: data.expires_at ? data.expires_at.toISOString() : null,
+        expires_at: data.expires_at ? data.expires_at.endOf('day').toISOString() : null,
     }));
 
     if (isEdit.value) {
@@ -177,7 +181,14 @@ const isPublished = computed(() => !!props.message?.published_at);
                 </FormItem>
 
                 <FormItem :label="t('messages.expires_at')" :tooltip="t('messages.expires_at_help')">
-                    <DatePicker v-model:value="form.expires_at" :placeholder="t('messages.no_expiration')" show-time />
+                    <!-- Sin `show-time`: obligaba a pulsar «Aceptar» para
+                         fijar la caducidad al minuto, que nadie necesita. Se
+                         elige el día y caduca al acabar ese día (ver submit). -->
+                    <DatePicker
+                        v-model:value="form.expires_at"
+                        :placeholder="t('messages.no_expiration')"
+                        format="DD-MM-YYYY"
+                    />
                 </FormItem>
 
                 <FormItem :label="t('messages.is_active')" :tooltip="t('messages.is_active_help')">

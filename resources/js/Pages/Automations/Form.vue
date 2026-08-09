@@ -495,8 +495,7 @@ const daysOfWeek = [
                             <DatePicker
                                 :value="clause.value ? dayjs(clause.value) : null"
                                 @update:value="(d) => clause.value = d ? d.format('YYYY-MM-DD') : null"
-                                :format="fieldMeta(clause.field).type === 'datetime' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'"
-                                :show-time="fieldMeta(clause.field).type === 'datetime'"
+                                format="YYYY-MM-DD"
                                 style="flex: 1; min-width: 140px; width: 100%"
                             />
                         </template>

@@ -2,13 +2,14 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Form, FormItem, Input, Textarea, Alert, Row, Col, Select, DatePicker,
+    Form, FormItem, Input, Textarea, Alert, Row, Col, Select,
 } from 'ant-design-vue';
 import { ScheduleOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import FormFooter from '@/Components/Common/FormFooter.vue';
+import FechaHora from '@/Components/Common/FechaHora.vue';
 
 defineOptions({ layout: AppLayout });
 
@@ -65,22 +66,6 @@ const finDeshabilitado = (fecha) => {
     if (!form.date_start || !fecha) return false;
 
     return fecha.format('YYYY-MM-DD') < dia(form.date_start);
-};
-
-const horasDeshabilitadas = (fecha) => {
-    // Sólo el día que coincide con el de inicio tiene horas prohibidas; los
-    // días posteriores admiten cualquiera.
-    if (!form.date_start || !fecha || fecha.format('YYYY-MM-DD') !== dia(form.date_start)) {
-        return {};
-    }
-
-    const [h, m] = String(form.date_start).slice(11, 16).split(':').map(Number);
-    const rango = (desde, hasta) => Array.from({ length: hasta - desde }, (_, i) => desde + i);
-
-    return {
-        disabledHours: () => rango(0, h),
-        disabledMinutes: (horaElegida) => (horaElegida === h ? rango(0, m) : []),
-    };
 };
 
 // Cambiar el inicio a después del fin dejaría un fin imposible: se limpia en
@@ -315,18 +300,14 @@ const submit = () => {
                             :validate-status="form.errors.date_start ? 'error' : ''"
                             :help="form.errors.date_start"
                         >
-                            <!-- Con hora, y en minutos de 5 en 5: nadie apunta que
-                                 la maniobra empezó a las 12:26:47. El `value-format`
-                                 hace que el selector hable en cadenas — no se le
-                                 puede pasar un computed que llame a .format(). -->
-                            <DatePicker
+                            <!-- El calendario y la hora van por separado a
+                                 propósito: el selector con hora de Ant Design
+                                 obliga a pulsar «Aceptar» y son cuatro clics
+                                 para poner una fecha. Habla en cadenas
+                                 `YYYY-MM-DD HH:mm`, que es lo que espera el
+                                 servidor. -->
+                            <FechaHora
                                 v-model:value="form.date_start"
-                                size="large"
-                                style="width: 100%"
-                                show-time
-                                :minute-step="5"
-                                format="DD-MM-YYYY HH:mm"
-                                value-format="YYYY-MM-DD HH:mm"
                                 @change="onStartChange"
                             />
                         </FormItem>
@@ -339,19 +320,14 @@ const submit = () => {
                             :validate-status="form.errors.date_end ? 'error' : ''"
                             :help="form.errors.date_end"
                         >
-                            <!-- Todo lo anterior al inicio queda deshabilitado:
-                                 no se puede elegir un fin imposible y enterarse
-                                 al guardar. -->
-                            <DatePicker
+                            <!-- Todo lo anterior al inicio queda fuera: los
+                                 días en gris y la hora corregida si se elige
+                                 una anterior. No se puede dejar un fin
+                                 imposible y enterarse al guardar. -->
+                            <FechaHora
                                 v-model:value="form.date_end"
-                                size="large"
-                                style="width: 100%"
-                                show-time
-                                :minute-step="5"
-                                format="DD-MM-YYYY HH:mm"
-                                value-format="YYYY-MM-DD HH:mm"
                                 :disabled-date="finDeshabilitado"
-                                :disabled-time="horasDeshabilitadas"
+                                :min-time="form.date_start"
                             />
                         </FormItem>
                     </Col>

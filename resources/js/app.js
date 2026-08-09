@@ -9,6 +9,8 @@ import { autoAnimatePlugin } from '@formkit/auto-animate/vue';
 import I18nPlugin from '@/Plugins/i18n';
 import { setDiagnosticColors } from '@/Utils/severity';
 import { activarEspaciosLimpios } from '@/Utils/espaciosLimpios';
+import dayjs from 'dayjs';
+import 'dayjs/locale/es';
 
 // Register AG Grid Community modules once for the whole app
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -17,6 +19,13 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 // formas, y el sistema las trata como dos. Se limpia en todos los campos de la
 // aplicacion antes de que Vue lea el valor.
 activarEspaciosLimpios();
+
+// El calendario salia en ingles —«Aug», «Su Mo Tu We»— con el resto de la
+// pantalla en español. El `locale` del ConfigProvider traduce los botones
+// («Hoy», «Aceptar») pero los nombres de los meses y de los dias los pone
+// dayjs, y su idioma se fija aparte. El idioma real lo aplica AppLayout: esto
+// solo garantiza que el paquete este cargado desde el primer render.
+dayjs.locale('es');
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
