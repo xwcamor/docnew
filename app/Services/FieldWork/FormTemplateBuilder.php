@@ -52,6 +52,11 @@ class FormTemplateBuilder
             'slug'    => Str::random(22),
             'country_id' => $datos['country_id'],
             'code'    => $datos['code'],
+            // El nombre se recibia y no se escribia: los cuatro formatos que trae
+            // `docufiz:migrate-formats` (AST/PTF/EPP/IHM) nacian con `name` NULL
+            // en una instalacion limpia, y solo se arreglaban al re-ejecutar el
+            // comando, que si repara nombres.
+            'name'    => $datos['name'] ?? null,
             'kind'    => $datos['kind'] ?? FormTemplate::STRUCTURED,
             'status'  => 'draft',
             'version' => 1,

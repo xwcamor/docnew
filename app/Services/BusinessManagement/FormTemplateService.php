@@ -143,7 +143,20 @@ class FormTemplateService
             $clone->created_by   = auth()->id();
             $clone->save();
 
-            return $clone;
+            // Y las secciones con sus campos. Sin esto la copia de un formato
+            // estructurado nacia VACIA, y un formato vacio no se puede publicar
+            // — o sea que duplicar un AST daba algo que no servia para nada.
+            foreach ($formTemplate->sections()->with('fields')->get() as $seccion) {
+                $copiaSeccion = $clone->sections()->create(['position' => $seccion->position]);
+
+                foreach ($seccion->fields as $campo) {
+                    $copiaSeccion->fields()->create($campo->only([
+                        'code', 'field_type', 'is_required', 'position', 'config', 'visibility_rule',
+                    ]));
+                }
+            }
+
+            return $clone->load('sections.fields');
         });
     }
 

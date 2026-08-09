@@ -125,8 +125,14 @@ class FormTemplatesImport implements ToCollection, WithHeadingRow
                 }
                 $seenInFileByName[$normNameKey] = $absoluteRow;
 
-                // code (opcional): identificador tecnico unico per-tenant.
-                $code = $this->normalizeCode($row['code'] ?? null);
+                // code (opcional en el fichero): identificador tecnico unico
+                // per-tenant. La columna es NOT NULL, asi que dejarlo vacio metia
+                // un NULL en la base: Postgres tumbaba la transaccion y se perdia
+                // el FICHERO ENTERO con un 422 generico. Se deriva del nombre,
+                // igual que hace el formulario cuando lo dejas en blanco
+                // (`DerivesCodeFromName`), recortado a los 40 de la columna.
+                $code = $this->normalizeCode($row['code'] ?? null)
+                    ?? mb_substr(preg_replace('/\s+/', '_', mb_strtolower($name)), 0, 40);
                 if ($code !== null && mb_strlen($code) > 40) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,

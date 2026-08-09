@@ -291,6 +291,14 @@ class FormTemplateController extends Controller
 
     public function deleteSave(DeleteFormTemplateRequest $request, FormTemplate $formTemplate, FormTemplateService $service): RedirectResponse
     {
+        // `FormTemplate::dependents()` marca entregas y planes con `block => true`
+        // y aqui no lo miraba nadie: se daba de baja un formato con entregas sin
+        // un aviso, y el borrado definitivo posterior chocaba con la clave ajena
+        // (`restrictOnDelete`) y devolvia un 500 en la cara del usuario.
+        if ($formTemplate->hasBlockingDependents()) {
+            return back()->with('error', __('global.cannot_delete_has_dependents'));
+        }
+
         $service->delete($formTemplate, $request->validated()['deleted_description']);
 
         $this->storeUndoableDelete([$formTemplate->id]);
@@ -470,6 +478,13 @@ class FormTemplateController extends Controller
 
         if (trim($data['name_confirmation']) !== $model->name) {
             return back()->withErrors(['name_confirmation' => __('global.force_delete_name_mismatch')]);
+        }
+
+        // Se comprueba tambien aqui: una entrega puede haber aparecido despues de
+        // mandarlo a la papelera, y entonces el borrado definitivo reventaba
+        // contra la clave ajena en vez de decir por que no se puede.
+        if ($model->hasBlockingDependents()) {
+            return back()->with('error', __('global.cannot_delete_has_dependents'));
         }
 
         $service->forceDelete($model, $data['reason']);
