@@ -70,9 +70,14 @@ const erroresMatriz = computed(() => Object.entries(form.errors)
 
 const motivoSoloLectura = computed(() => {
     if (isDeleted.value || !props.formsReadonlyReason) return null;
-    return props.formsReadonlyReason === 'locked'
+    if (props.formsReadonlyReason !== 'locked') return 'work_types.forms_readonly_no_permission';
+    // «Quita el candado arriba» solo si de verdad puede quitarlo. Un candado de
+    // nivel `super` no le enseña el boton Desbloquear a un admin (ver
+    // Lockable::canBeUnlockedBy), asi que el aviso le mandaba a pulsar algo que
+    // no existe en su pantalla.
+    return props.workType.lock?.can_unlock
         ? 'work_types.forms_readonly_locked'
-        : 'work_types.forms_readonly_no_permission';
+        : 'work_types.forms_readonly_locked_by_system';
 });
 
 const descartar = () => { form.form_templates = JSON.parse(original.value); };

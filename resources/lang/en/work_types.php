@@ -58,6 +58,7 @@ return [
 
     // Why the matrix cannot be touched
     'forms_readonly_locked'    => 'This work type is locked: the documents can be read but not changed. Remove the lock above to edit them.',
+    'forms_readonly_locked_by_system' => 'This work type was locked by a system administrator: documents can be viewed but not changed. Only the system can remove the lock.',
     'forms_readonly_no_permission' => 'You do not have permission to change the documents this work type demands.',
 
     // What has to be spelled out, because it is what confuses people

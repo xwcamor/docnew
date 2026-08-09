@@ -58,6 +58,7 @@ return [
 
     // Por qué la matriz no se deja tocar
     'forms_readonly_locked'    => 'Este tipo de trabajo está bloqueado: los documentos se pueden mirar pero no cambiar. Quita el candado arriba para editarlos.',
+    'forms_readonly_locked_by_system' => 'Este tipo de trabajo lo bloqueó un administrador del sistema: los documentos se pueden mirar pero no cambiar. Solo el sistema puede quitar el candado.',
     'forms_readonly_no_permission' => 'No tienes permiso para cambiar los documentos que exige este tipo de trabajo.',
 
     // Lo que hay que explicar, porque es lo que confunde
