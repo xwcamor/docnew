@@ -440,4 +440,7 @@ return [
     ],
     'bulk_no_selection'         => 'No seleccionaste ningún registro.',
     'delete_reason_required'    => 'Escribe el motivo del borrado.',
+    'bulk_skipped_global'       => ':count global(es) se omitieron: solo el super puede cambiarlos.',
+    'global_record'             => 'Global',
+    'global_record_hint'        => 'Registro global del catálogo: solo un administrador del sistema puede cambiarlo.',
 ];

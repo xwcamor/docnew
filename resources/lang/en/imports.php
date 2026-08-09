@@ -83,4 +83,6 @@ return [
     'file_required'             => 'Choose a file to import.',
     'file_mimes'                => 'The file must be Excel (.xlsx, .xls) or CSV (.csv, .txt).',
     'file_max'                  => 'The file cannot be larger than 10 MB.',
+    'skip_locked'               => 'Skipped: locked',
+    'skip_global'               => 'Skipped: global record, only a super can change it',
 ];

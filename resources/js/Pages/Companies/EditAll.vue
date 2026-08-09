@@ -24,6 +24,7 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     companies: { type: Object, required: true },
     filters:   { type: Object, required: true },
+    isSuper:   { type: Boolean, default: false },
 });
 
 const source = computed(() => props.companies.data);
@@ -80,6 +81,7 @@ const onPageChange = (page, pageSize) => {
             <CompaniesEditAllTable
                 v-model:draft="draft"
                 :is-dirty="isDirty"
+                :is-super="isSuper"
                 :duplicate-rows="duplicateRows"
             />
 

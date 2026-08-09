@@ -3,12 +3,22 @@
  * Tabla editable in-line del flujo Edit-All de Companies. Recibe `draft` por
  * v-model y predicados isDirty/isDuplicate del composable useEditAllDraft.
  */
-import { Input, Switch } from 'ant-design-vue';
+import { Input, Switch, Tag, Tooltip } from 'ant-design-vue';
+import { LockOutlined, GlobalOutlined } from '@ant-design/icons-vue';
 
 const props = defineProps({
     isDirty:       { type: Function, required: true },
     duplicateRows: { type: Set,      required: true },
+    // ¿Quien mira es super? Solo el toca los registros globales del catalogo.
+    isSuper:       { type: Boolean,  default: false },
 });
+
+// Una fila que este usuario no puede guardar. El servidor ya las aparta, pero
+// pintarlas editables es peor que no dejar tocarlas: el usuario escribia el
+// cambio, pulsaba «Guardar todo» y lo perdia sin saber por que.
+const bloqueada = (fila) => !!fila.locked_at;
+const global    = (fila) => fila.tenant_id === null && !props.isSuper;
+const soloLectura = (fila) => bloqueada(fila) || global(fila);
 
 const draft = defineModel('draft', { type: Array, required: true });
 </script>
@@ -36,9 +46,16 @@ const draft = defineModel('draft', { type: Array, required: true });
                 <td class="col-name">
                     <Input
                         v-model:value="row.name"
+                        :disabled="soloLectura(row)"
                         :status="duplicateRows.has(i) ? 'error' : (props.isDirty(i) ? 'warning' : '')"
                         size="small"
                     />
+                    <Tooltip v-if="bloqueada(row)" :title="$t('locks.locked_hint')">
+                        <Tag color="gold" :bordered="false"><LockOutlined /> {{ $t('locks.locked_tag') }}</Tag>
+                    </Tooltip>
+                    <Tooltip v-else-if="global(row)" :title="$t('global.global_record_hint')">
+                        <Tag :bordered="false"><GlobalOutlined /> {{ $t('global.global_record') }}</Tag>
+                    </Tooltip>
                 </td>
                 <td class="col-cod">
                     <code v-if="row.num_doc">{{ row.num_doc }}</code>
@@ -47,6 +64,7 @@ const draft = defineModel('draft', { type: Array, required: true });
                 <td class="col-status">
                     <Switch
                         v-model:checked="row.is_active"
+                        :disabled="soloLectura(row)"
                         :checked-children="$t('global.active')"
                         :un-checked-children="$t('global.inactive')"
                     />

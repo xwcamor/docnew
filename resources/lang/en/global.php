@@ -433,4 +433,7 @@ return [
     ],
     'bulk_no_selection'         => 'You did not select any records.',
     'delete_reason_required'    => 'Enter the reason for deletion.',
+    'bulk_skipped_global'       => ':count global record(s) skipped: only a super can change them.',
+    'global_record'             => 'Global',
+    'global_record_hint'        => 'Global catalog record: only a system administrator can change it.',
 ];

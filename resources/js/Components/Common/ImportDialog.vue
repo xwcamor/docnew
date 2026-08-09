@@ -143,11 +143,24 @@ const errorColumns = computed(() => [
     { title: t('imports.col_error'), dataIndex: 'message', key: 'message', ellipsis: true },
 ]);
 
-const actionTag = (action) => {
+// Los motivos por los que una fila se salta. El importador manda `reason`
+// desde siempre y aquí no se leía: todas las saltadas ponían «Omitida» a
+// secas y el usuario no sabía si era porque ya existía, porque está
+// bloqueada o porque es un registro global que no le pertenece.
+const razonSalto = (razon) => ({
+    locked: t('imports.skip_locked'),
+    global: t('imports.skip_global'),
+}[razon] ?? null);
+
+const actionTag = (action, reason = null) => {
     switch (action) {
         case 'created': return { color: 'green',   icon: PlusCircleFilled,  label: t('imports.action_create') };
         case 'updated': return { color: 'blue',    icon: EditFilled,        label: t('imports.action_update') };
-        case 'skipped': return { color: 'default', icon: MinusCircleFilled, label: t('imports.action_skip')   };
+        case 'skipped': return {
+            color: reason ? 'orange' : 'default',
+            icon:  MinusCircleFilled,
+            label: razonSalto(reason) ?? t('imports.action_skip'),
+        };
         default:        return { color: 'default', icon: MinusCircleFilled, label: action };
     }
 };
@@ -322,11 +335,11 @@ const summaryHasChanges = computed(() => {
                         </template>
                         <template v-else-if="column.key === 'action'">
                             <Tag
-                                :color="actionTag(record.action).color"
+                                :color="actionTag(record.action, record.reason).color"
                                 :bordered="false"
                             >
-                                <component :is="actionTag(record.action).icon" />
-                                {{ actionTag(record.action).label }}
+                                <component :is="actionTag(record.action, record.reason).icon" />
+                                {{ actionTag(record.action, record.reason).label }}
                             </Tag>
                         </template>
                     </template>

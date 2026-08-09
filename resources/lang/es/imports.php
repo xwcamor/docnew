@@ -83,4 +83,6 @@ return [
     'file_required'             => 'Elige un archivo para importar.',
     'file_mimes'                => 'El archivo debe ser Excel (.xlsx, .xls) o CSV (.csv, .txt).',
     'file_max'                  => 'El archivo no puede pesar más de 10 MB.',
+    'skip_locked'               => 'Omitida: bloqueada',
+    'skip_global'               => 'Omitida: es global, solo el super la cambia',
 ];
