@@ -604,6 +604,65 @@ class MigrateLegacyDataTest extends TestCase
             ->all();
     }
 
+    /**
+     * Una empresa dada de baja en la v1 no puede llegar viva.
+     *
+     * El mapeo no copiaba `is_deleted` y el `get()` del origen tampoco filtra,
+     * asi que todas las bajas del sistema viejo reaparecian activas en el
+     * listado — con su RUC ocupando el indice unico y sin forma de saber que
+     * alguien ya las habia dado de baja.
+     */
+    public function test_una_empresa_borrada_en_la_v1_llega_borrada(): void
+    {
+        $this->artisan('docufiz:migrate-data', ['paso' => 'empresas'])->assertSuccessful();
+
+        $gamma = \App\Models\Company::withTrashed()->where('legacy_id', 3)->first();
+
+        $this->assertNotNull($gamma);
+        $this->assertTrue($gamma->trashed(), 'GAMMA estaba de baja en la v1 y llego viva.');
+        $this->assertSame('Ya no trabaja con nosotros', $gamma->deleted_description);
+        $this->assertNull(\App\Models\Company::where('legacy_id', 3)->first(),
+            'La borrada no debe salir en el listado normal.');
+    }
+
+    /** Las vivas siguen vivas, que el filtro no se pase de listo. */
+    public function test_las_empresas_vivas_de_la_v1_no_se_borran(): void
+    {
+        $this->artisan('docufiz:migrate-data', ['paso' => 'empresas'])->assertSuccessful();
+
+        $this->assertSame(3, \App\Models\Company::whereNotNull('legacy_id')->count());
+        $this->assertFalse(\App\Models\Company::where('legacy_id', 1)->first()->trashed());
+    }
+
+    /**
+     * La antiguedad se respeta. Antes todo el catalogo nacia con la fecha de la
+     * carga y los filtros «creado entre X e Y» no servian sobre lo migrado.
+     */
+    public function test_se_conserva_la_fecha_de_alta_original(): void
+    {
+        $this->artisan('docufiz:migrate-data', ['paso' => 'empresas'])->assertSuccessful();
+
+        $alfa = \App\Models\Company::where('legacy_id', 1)->first();
+
+        $this->assertSame('2019-03-04', $alfa->created_at->format('Y-m-d'));
+    }
+
+    /**
+     * El RUC llega normalizado.
+     *
+     * En la v1 se podia teclear con guiones y espacios; el formulario y el
+     * buscador de la v2 los quitan, asi que un RUC migrado tal cual no lo
+     * encontraba nadie.
+     */
+    public function test_el_ruc_con_guiones_de_la_v1_llega_normalizado(): void
+    {
+        $this->artisan('docufiz:migrate-data', ['paso' => 'empresas'])->assertSuccessful();
+
+        $delta = \App\Models\Company::where('legacy_id', 4)->first();
+
+        $this->assertSame('20100000004', $delta->num_doc);
+    }
+
     protected function fotografia(): array
     {
         $tablas = ['work_plans', 'work_plan_people', 'work_plan_approvals', 'form_submissions',

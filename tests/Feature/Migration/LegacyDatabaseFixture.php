@@ -31,9 +31,14 @@ class LegacyDatabaseFixture
         $esquema = Schema::connection('legacy');
 
         // ── organizacion y personas ──────────────────────────────────────────
+        // Las columnas son las del esquema real de la v1 (db/schema.rb:192): sin
+        // `created_at`/`updated_at`/`deleted_description` aqui no se podia
+        // comprobar que la migracion respeta la antiguedad ni las bajas.
         $esquema->create('companies', function ($t) {
             $t->id(); $t->string('num_doc'); $t->string('name'); $t->string('complete_name');
             $t->boolean('is_active')->default(true); $t->boolean('is_deleted')->default(false);
+            $t->string('deleted_description')->nullable();
+            $t->timestamps();
         });
 
         foreach (['workers', 'supervisors', 'hse_supervisors'] as $tabla) {
@@ -263,8 +268,16 @@ class LegacyDatabaseFixture
         $ahora = '2026-01-15 10:00:00';
 
         $viejo->table('companies')->insert([
-            ['id' => 1, 'num_doc' => '20100000001', 'name' => 'ALFA', 'complete_name' => 'Alfa Contratistas SAC', 'is_active' => true, 'is_deleted' => false],
-            ['id' => 2, 'num_doc' => '20100000002', 'name' => 'BETA', 'complete_name' => 'Beta Servicios SAC', 'is_active' => true, 'is_deleted' => false],
+            ['id' => 1, 'num_doc' => '20100000001', 'name' => 'ALFA', 'complete_name' => 'Alfa Contratistas SAC', 'is_active' => true, 'is_deleted' => false,
+             'deleted_description' => null, 'created_at' => '2019-03-04 10:00:00', 'updated_at' => '2019-03-04 10:00:00'],
+            ['id' => 2, 'num_doc' => '20100000002', 'name' => 'BETA', 'complete_name' => 'Beta Servicios SAC', 'is_active' => true, 'is_deleted' => false,
+             'deleted_description' => null, 'created_at' => '2020-07-15 08:30:00', 'updated_at' => '2020-07-15 08:30:00'],
+            // Dada de baja en la v1: tiene que llegar borrada, no viva.
+            ['id' => 3, 'num_doc' => '20100000003', 'name' => 'GAMMA', 'complete_name' => 'Gamma EIRL', 'is_active' => false, 'is_deleted' => true,
+             'deleted_description' => 'Ya no trabaja con nosotros', 'created_at' => '2018-01-02 09:00:00', 'updated_at' => '2021-11-30 17:45:00'],
+            // RUC tecleado con guiones y espacios, como se podia en la v1.
+            ['id' => 4, 'num_doc' => '20-1000 00004', 'name' => 'DELTA', 'complete_name' => 'Delta SAC', 'is_active' => true, 'is_deleted' => false,
+             'deleted_description' => null, 'created_at' => '2022-05-20 12:00:00', 'updated_at' => '2022-05-20 12:00:00'],
         ]);
 
         // El trabajador 3 esta en dos empresas (filas 3 y 4, mismo documento):

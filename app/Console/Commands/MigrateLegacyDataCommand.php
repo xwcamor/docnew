@@ -171,30 +171,47 @@ class MigrateLegacyDataCommand extends Command
             // Se busca por legacy_id y, si no, por RUC: una empresa que ya
             // existiera (de una carga anterior o de los datos de ejemplo) se
             // adopta en vez de duplicarse.
+            // El RUC de la v1 viene tal cual se tecleo, con espacios y guiones.
+            // El formulario y el buscador de la v2 lo normalizan, asi que sin
+            // esto un «20-5123 45678» migrado no lo encontraba nadie — y encima
+            // esquivaba el indice unico contra el mismo RUC ya normalizado.
+            $ruc = preg_replace('/[\s-]/', '', (string) $v->num_doc);
+
             $existente = Company::withTrashed()->where('legacy_id', $v->id)->first()
                 ?? Company::withTrashed()
                     ->where('country_id', $this->countryId)
-                    ->where('num_doc', $v->num_doc)
+                    ->where('num_doc', $ruc)
                     ->first();
 
             $datos = [
                 'country_id'    => $this->countryId,
-                'num_doc'       => $v->num_doc,
+                'num_doc'       => $ruc,
                 'name'          => $v->name,
                 'complete_name' => $v->complete_name,
                 'is_active'     => (bool) $v->is_active,
                 'tenant_id'     => $this->tenantId,
                 'legacy_id'     => $v->id,
                 'created_by'    => 1,
+                'deleted_description' => $v->is_deleted ? ($v->deleted_description ?: null) : null,
             ];
 
-            if ($existente) {
-                $existente->update($datos);
-                $actualizadas++;
-            } else {
-                Company::create($datos + ['slug' => Str::random(22)]);
-                $creadas++;
-            }
+            $empresa = $existente ?? new Company(['slug' => Str::random(22)]);
+            $empresa->fill($datos);
+
+            // `created_at`, `updated_at` y `deleted_at` NO estan en $fillable, asi
+            // que por `fill()` se caerian sin avisar. Se ponen a mano y con los
+            // timestamps automaticos apagados, o el `save()` los pisa con la
+            // fecha de la carga.
+            $empresa->timestamps = false;
+            $empresa->created_at = $v->created_at ?? now();
+            $empresa->updated_at = $v->updated_at ?? now();
+            // Lo borrado en la v1 llega borrado. Antes no se mapeaba y el `get()`
+            // de arriba tampoco filtra, asi que las empresas que alguien habia
+            // dado de baja RESUCITABAN vivas en el sistema nuevo.
+            $empresa->deleted_at = $v->is_deleted ? ($v->updated_at ?? now()) : null;
+
+            $existente ? $actualizadas++ : $creadas++;
+            $empresa->save();
         }
 
         $this->linea('empresas', $viejas->count(), Company::whereNotNull('legacy_id')->count(),
