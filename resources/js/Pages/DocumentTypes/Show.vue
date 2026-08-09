@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { Card, Tag, Space, Alert, Empty } from 'ant-design-vue';
-import { GlobalOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -12,6 +12,8 @@ import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import RecordHistory from '@/Components/Common/RecordHistory.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useDateFormat } from '@/Composables/useDateFormat';
+import { useI18n } from '@/Plugins/i18n';
+import { documentTypeLengthLabel } from './config/length';
 
 defineOptions({ layout: AppLayout });
 
@@ -24,9 +26,14 @@ const props = defineProps({
 
 const { can, isSuper, canSeeAudit } = useAuth();
 const { formatDateTimeFull } = useDateFormat();
+const { t } = useI18n();
 
 const isDeleted = computed(() => !!props.documentType.deleted_at);
 const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--color-primary)');
+
+// «de 7 a 8 caracteres». La ficha abre con la sigla arriba y el nombre largo
+// debajo: lo que identifica arriba, lo que matiza debajo (docs/UI.md §5).
+const lengthLabel = computed(() => documentTypeLengthLabel(t, props.documentType));
 
 const fmt = (d) => formatDateTimeFull(d);
 </script>
@@ -40,9 +47,12 @@ const fmt = (d) => formatDateTimeFull(d);
             :title="documentType.code"
             :icon-bg="iconBg"
         >
-            <template #icon><GlobalOutlined /></template>
+            <template #icon><IdcardOutlined /></template>
             <template #subtitle>
                 <Space :size="6" wrap>
+                    <!-- El nombre largo al lado del estado: la sigla sola no
+                         dice de qué documento hablamos. -->
+                    <span v-if="documentType.name" class="head-name">{{ documentType.name }}</span>
                     <Tag v-if="isDeleted" color="red" :bordered="false">{{ $t('global.deleted') }}</Tag>
                     <Tag v-else :color="documentType.is_active ? 'success' : 'default'" :bordered="false">
                         {{ documentType.is_active ? $t('global.active') : $t('global.inactive') }}
@@ -88,7 +98,7 @@ const fmt = (d) => formatDateTimeFull(d);
                      solo los ve el super: para quien usa la aplicación no
                      significan nada (docs/UI.md §4). -->
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
-                    <template #title><GlobalOutlined /> {{ $t('global.general_info') }}</template>
+                    <template #title><IdcardOutlined /> {{ $t('global.general_info') }}</template>
                     <div class="spec-grid">
                         <div v-if="isSuper" class="spec-cell">
                             <span class="spec-cell__label">ID</span>
@@ -103,8 +113,21 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__value">{{ documentType.code }}</span>
                         </div>
                         <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('document_types.name') }}</span>
+                            <span class="spec-cell__value">{{ documentType.name || '—' }}</span>
+                        </div>
+                        <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('document_types.country') }}</span>
                             <span class="spec-cell__value">{{ documentType.country ?? '—' }}</span>
+                        </div>
+                        <!-- La longitud del número, en una frase y no en dos
+                             celdas con un número cada una. Es ayuda al dar de
+                             alta a una persona, no condición de búsqueda: el
+                             buscador de trabajadores va por coincidencia exacta
+                             del número. -->
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('document_types.length') }}</span>
+                            <span class="spec-cell__value">{{ lengthLabel }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('document_types.is_active') }}</span>
@@ -142,6 +165,7 @@ const fmt = (d) => formatDateTimeFull(d);
 
 <style scoped>
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; }
+.head-name { color: var(--color-text-muted); font-size: 0.875rem; }
 .deleted-alert { margin-bottom: 16px; }
 .info-card { margin-bottom: 16px; border-radius: 8px; }
 

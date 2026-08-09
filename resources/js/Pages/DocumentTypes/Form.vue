@@ -4,7 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     Form, FormItem, Input, InputNumber, Select, Switch, Space, Alert, Tag, Row, Col,
 } from 'ant-design-vue';
-import { GlobalOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -19,6 +19,12 @@ const props = defineProps({
 });
 
 const isEdit = computed(() => !!props.documentType);
+
+// Editando, la cabecera dice cuál se está tocando: «CE — Carné de Extranjería».
+// Con la sigla sola es fácil creer que se abrió otro.
+const editSubtitle = computed(() => props.documentType?.name
+    ? `${props.documentType.code} — ${props.documentType.name}`
+    : props.documentType?.code);
 
 const form = useForm({
     country_id: props.documentType?.country_id ?? props.defaultCountryId ?? null,
@@ -50,9 +56,9 @@ const submit = () => {
         <SectionHeader
             :back-href="route('business_management.document_types.index')"
             :title="isEdit ? $t('document_types.edit_title') : $t('document_types.new')"
-            :subtitle="isEdit ? documentType.code : $t('document_types.create_subtitle')"
+            :subtitle="isEdit ? editSubtitle : $t('document_types.create_subtitle')"
         >
-            <template #icon><GlobalOutlined /></template>
+            <template #icon><IdcardOutlined /></template>
         </SectionHeader>
 
         <div class="form-body">
@@ -112,8 +118,8 @@ const submit = () => {
                 </FormItem>
 
                 <!-- Cuántos caracteres tiene el número. Es ayuda al dar de alta
-                     a alguien, NO la condición para buscarlo: el buscador de la
-                     cuadrilla va por coincidencia exacta, porque el volcado
+                     a alguien, NO la condición para buscarlo: el buscador de
+                     trabajadores va por coincidencia exacta, porque el volcado
                      tiene dos peruanos con DNI de 7 y una regla de longitud los
                      dejaría fuera del sistema para siempre. -->
                 <Row :gutter="[20, 0]" class="form-grid">

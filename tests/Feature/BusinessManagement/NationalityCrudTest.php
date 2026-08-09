@@ -4,6 +4,7 @@ namespace Tests\Feature\BusinessManagement;
 
 use App\Models\Nationality;
 use App\Models\Person;
+use Illuminate\Support\Str;
 
 /**
  * Las nacionalidades: lo que se anota en la ficha de cada persona.
@@ -80,6 +81,70 @@ class NationalityCrudTest extends CatalogTestCase
         ])->assertSessionHasErrors('code');
 
         $this->assertSame(1, Nationality::where('code', 'Peruana')->count());
+    }
+
+    /**
+     * «Peruana» y «PERUANA» son la misma.
+     *
+     * Se comparaba tal cual, asi que convivian como filas distintas y en el
+     * desplegable de la ficha de la persona se leen igual.
+     */
+    public function test_no_se_repite_cambiando_mayusculas(): void
+    {
+        $this->nacionalidad('Peruana');
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.nationalities.store'), [
+            'country_id' => 1, 'code' => 'PERUANA',
+        ])->assertSessionHasErrors('code');
+
+        $this->assertSame(1, Nationality::withoutGlobalScopes()->where('country_id', 1)->count());
+    }
+
+    /**
+     * «Ya existe esa nacionalidad» no puede referirse a una fila de otra empresa.
+     *
+     * `Rule::unique` consultaba la tabla cruda, sin el scope de
+     * `BelongsToTenantOrGlobal`: el admin de la empresa B escribia
+     * «Venezolana», la pantalla contestaba «ya existe» y esa fila era de la
+     * empresa A. No sale en su listado, no la puede abrir, ni renombrar, ni
+     * borrar — un callejon sin salida que ademas cuenta que la otra empresa la
+     * usa.
+     */
+    public function test_una_nacionalidad_privada_de_otra_empresa_no_bloquea_el_alta(): void
+    {
+        \Illuminate\Support\Facades\DB::table('tenants')->insertOrIgnore([[
+            'id' => 2, 'slug' => Str::random(22), 'name' => 'Empresa 2',
+            'is_active' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]]);
+
+        Nationality::withoutGlobalScopes()->create([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 2,
+            'code' => 'Venezolana', 'is_active' => true, 'created_by' => 1,
+        ]);
+
+        $this->actingAs($this->admin()); // empresa 1
+
+        $this->post(route('business_management.nationalities.store'), [
+            'country_id' => 1, 'code' => 'Venezolana',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(2, Nationality::withoutGlobalScopes()->where('code', 'Venezolana')->count());
+    }
+
+    /** Una nacionalidad GLOBAL si bloquea: esa la ve —y la usa— todo el mundo. */
+    public function test_una_nacionalidad_global_si_bloquea_el_alta(): void
+    {
+        Nationality::withoutGlobalScopes()->create([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => null,
+            'code' => 'Boliviana', 'is_active' => true, 'created_by' => 1,
+        ]);
+
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.nationalities.store'), [
+            'country_id' => 1, 'code' => 'boliviana',
+        ])->assertSessionHasErrors('code');
     }
 
     // ── Edicion ──────────────────────────────────────────────────────────────

@@ -16,9 +16,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 /**
- * La tipo de documento que se anota en la ficha de cada persona.
+ * Que documento lleva cada persona: DNI, carne de extranjeria, pasaporte, PTP.
  *
- * Es un catalogo pequeño, pero lo que cuelga de el no lo es: personas con esta tipo de documento. Por eso el borrado pasa siempre por el servicio, que es la unica capa que ve a la vez el catalogo y lo que lo consume.
+ * Es un catalogo pequeño, pero lo que cuelga de el no lo es: las personas dadas
+ * de alta con ese documento. Y no cuelgan por clave ajena — `people.doc_type`
+ * guarda el TEXTO del codigo, a proposito, para que una ficha firmada hace tres
+ * años siga diciendo «DNI» aunque despues se renombre el catalogo. Por eso el
+ * borrado pasa siempre por el servicio, que es la unica capa que ve a la vez el
+ * catalogo y lo que lo consume.
  */
 class DocumentTypeController extends Controller
 {
@@ -47,7 +52,7 @@ class DocumentTypeController extends Controller
         $perPage = in_array($perPage, [10, 25, 50, 100, 200], true) ? $perPage : 10;
 
         // El catalogo se lee como una lista alfabetica, no como un historial:
-        // por defecto manda el nombre y no la fecha de alta.
+        // por defecto manda la sigla y no la fecha de alta.
         if (! $request->filled('sort')) {
             $request->merge(['sort' => 'code', 'direction' => 'asc']);
         }
@@ -115,7 +120,7 @@ class DocumentTypeController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -219,7 +224,8 @@ class DocumentTypeController extends Controller
     /** Desactivar: la alternativa al borrado cuando la fila ya esta en uso. */
     public function deactivate(DocumentType $documentType, DocumentTypeService $service): RedirectResponse
     {
-        // Desactivar tambien es cambiarlo: los planes nuevos dejarian de verlo.
+        // Desactivar tambien es cambiarlo: las altas nuevas dejarian de verlo en
+        // el selector de la ficha de la persona.
         abort_if($documentType->is_locked, 403, __('locks.cannot_edit_locked'));
 
         $service->deactivate($documentType);
@@ -245,8 +251,12 @@ class DocumentTypeController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
 
+        // Se busca por sigla Y por nombre largo: en la papelera nadie recuerda
+        // si la fila que borro se llamaba «CE» o «Carne de Extranjeria».
         $document_types = DocumentType::onlyTrashed()
-            ->when($termino !== '', fn ($q) => $q->where('code', 'like', "%{$termino}%"))
+            ->when($termino !== '', fn ($q) => $q->where(fn ($qq) => $qq
+                ->where('code', 'like', "%{$termino}%")
+                ->orWhere('name', 'like', "%{$termino}%")))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();

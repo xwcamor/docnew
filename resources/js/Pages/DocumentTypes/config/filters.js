@@ -3,8 +3,10 @@ import dayjs from 'dayjs';
 /**
  * Filtros del catálogo de tipos de documento.
  *
- * `name` es el buscador general de la barra: el backend lo hace valer contra
- * «Tipo de documento», que es el único campo que el usuario reconoce de esta tabla.
+ * Ojo con el nombre: `name` aquí es el buscador general de la barra —se llama
+ * igual en los quince módulos—, no la columna `name` de esta tabla. El backend
+ * lo hace valer contra la sigla Y el nombre largo, porque quien escribe
+ * «extranjería» espera encontrar el CE igual que quien escribe «CE».
  */
 export const document_typesFilterFields = (t) => [
     { key: 'name',      label: t('document_types.filter_name'), type: 'tags' },

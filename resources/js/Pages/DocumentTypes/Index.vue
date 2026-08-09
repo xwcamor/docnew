@@ -8,7 +8,10 @@ import {
     ControlOutlined, ClearOutlined, SaveOutlined,
     SortAscendingOutlined, SortDescendingOutlined,
     BarsOutlined, AppstoreOutlined, AudioOutlined,
-    GlobalOutlined,
+    // El mismo icono que el módulo lleva en el menú lateral: un concepto, un
+    // icono, en todas partes. El globo que había aquí es el de nacionalidades,
+    // que es de donde se copió esta pantalla.
+    IdcardOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -45,6 +48,7 @@ import {
     serializeSavedFilters, deserializeSavedFilters,
 } from './config/filters';
 import { document_typesTableColumns } from './config/columns';
+import { documentTypeLengthLabel } from './config/length';
 import { moduleTourSteps } from '@/Composables/moduleTourSteps';
 
 defineOptions({ layout: AppLayout });
@@ -239,9 +243,15 @@ const {
     bulkSetActiveRoute: 'business_management.document_types.bulk_set_active',
     bulkDeleteRoute:    'business_management.document_types.bulk_delete',
     resourceLabel:      t('document_types.records'),
-    // Una fila en uso, o global vista por quien no es super, se saca de la
-    // selección: la barra no promete algo que el servidor va a rechazar.
-    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null) || r.usage_count > 0,
+    // Una fila en uso, bloqueada, o global vista por quien no es super, se saca
+    // de la selección: la barra no promete algo que el servidor va a rechazar.
+    // El candado no es un caso raro aquí — lo que trajo la migración nace
+    // bloqueado, así que sin esta condición la casilla se deja marcar y el
+    // borrado masivo devuelve «N bloqueado(s) se omitieron». El porqué ya se ve
+    // en la fila: CatalogActionsCell pinta el candado con su explicación.
+    rowDisabled: (r) => (!isSuper.value && r.tenant_id == null)
+        || r.usage_count > 0
+        || !!(r.is_locked ?? r.locked_at),
 });
 
 const { currentViewState, applySavedState } = useModuleSavedViews({
@@ -269,6 +279,9 @@ useKeyboardShortcuts({
     },
 });
 
+// «de 7 a 8 caracteres» en vez de dos números sueltos en dos columnas.
+const lengthLabel = (record) => documentTypeLengthLabel(t, record);
+
 const colSel = ref(null);
 const goEdit   = (record) => router.visit(route('business_management.document_types.edit',   record.slug));
 const goDelete = (record) => router.visit(route('business_management.document_types.delete', record.slug));
@@ -280,7 +293,7 @@ const goDelete = (record) => router.visit(route('business_management.document_ty
     <div class="sap-index">
         <div class="mi-title" data-tour="module">
             <CatalogPageHeader :title="$t('document_types.plural')">
-                <template #icon><GlobalOutlined /></template>
+                <template #icon><IdcardOutlined /></template>
             </CatalogPageHeader>
         </div>
 
@@ -431,7 +444,7 @@ const goDelete = (record) => router.visit(route('business_management.document_ty
                         :can-create="can('document_types.create')"
                         @clear-filters="clearFilters"
                     >
-                        <template #icon><GlobalOutlined /></template>
+                        <template #icon><IdcardOutlined /></template>
                     </CatalogEmptyState>
                 </template>
 
@@ -440,6 +453,19 @@ const goDelete = (record) => router.visit(route('business_management.document_ty
                         <Link :href="route('business_management.document_types.show', record.slug)" class="lead__name lead__link">
                             {{ record.code }}
                         </Link>
+                    </template>
+
+                    <template v-else-if="column.key === 'name'">
+                        <span v-if="record.name">{{ record.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <!-- La longitud del número, en palabras. Es ayuda al dar de
+                         alta a una persona y no condición de búsqueda: el
+                         buscador de trabajadores va por coincidencia exacta. -->
+                    <template v-else-if="column.key === 'length'">
+                        <span v-if="record.min_length || record.max_length">{{ lengthLabel(record) }}</span>
+                        <span v-else class="muted">{{ $t('document_types.length_none') }}</span>
                     </template>
 
                     <template v-else-if="column.key === 'country'">

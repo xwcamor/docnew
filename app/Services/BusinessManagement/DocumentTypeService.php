@@ -11,17 +11,18 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 /**
- * DocumentTypeService — La tipo de documento que se anota en la ficha de cada persona.
+ * DocumentTypeService — que documento lleva cada persona: DNI, CE, pasaporte, PTP.
  *
  * El filtrado y las reglas de borrado viven aqui y no en el modelo a proposito:
- * `DocumentType` es un modelo de dominio que tambien usan los planes de trabajo y la
- * migracion de datos heredados, y no queremos que crezca con las necesidades de
- * una pantalla.
+ * `DocumentType` es un modelo de dominio que tambien usan el alta de personas y
+ * la migracion de datos heredados, y no queremos que crezca con las necesidades
+ * de una pantalla.
  *
  * Lo que protege este servicio, y que ninguna otra capa puede garantizar: una
- * fila **en uso** no se borra. Borrarla dejaria colgado a todo lo que la nombra: personas con esta tipo de documento. Se avisa y se ofrece desactivarla, que es
- * lo que el usuario casi siempre queria: que deje de ofrecerse, sin tocar lo que
- * ya estaba registrado.
+ * fila **en uso** no se borra. Borrarla dejaria sin catalogo a las personas que
+ * ya llevan ese documento. Se avisa y se ofrece desactivarla, que es lo que el
+ * usuario casi siempre queria: que deje de ofrecerse, sin tocar lo que ya
+ * estaba registrado.
  */
 class DocumentTypeService
 {
@@ -36,8 +37,9 @@ class DocumentTypeService
         $isPgsql = config('database.default') === 'pgsql';
         $tbl = 'document_types';
 
-        // El buscador principal va contra «Tipo de documento»: quien escribe en la
-        // barra no sabe (ni tiene por que) en que columna esta lo que busca.
+        // El buscador principal va contra la sigla Y el nombre largo: quien
+        // escribe en la barra no sabe (ni tiene por que) en que columna esta lo
+        // que busca, y con «extranjeria» espera encontrar el CE.
         $query->when($request->filled('name'), function ($q) use ($request, $isPgsql, $tbl) {
             $terminos = is_array($request->name) ? $request->name : [$request->name];
             $terminos = array_filter($terminos, fn ($n) => $n !== '');
@@ -47,10 +49,12 @@ class DocumentTypeService
             $q->where(function ($qq) use ($terminos, $isPgsql, $tbl) {
                 foreach ($terminos as $termino) {
                     $needle = LikeQuery::contains((string) $termino);
-                    if ($isPgsql) {
-                        $qq->orWhereRaw("unaccent(lower({$tbl}.code)) LIKE unaccent(lower(?))", [$needle]);
-                    } else {
-                        $qq->orWhereRaw("{$tbl}.code LIKE ? ESCAPE '\\'", [$needle]);
+                    foreach (['code', 'name'] as $columna) {
+                        if ($isPgsql) {
+                            $qq->orWhereRaw("unaccent(lower({$tbl}.{$columna})) LIKE unaccent(lower(?))", [$needle]);
+                        } else {
+                            $qq->orWhereRaw("{$tbl}.{$columna} LIKE ? ESCAPE '\\'", [$needle]);
+                        }
                     }
                 }
             });
@@ -81,7 +85,7 @@ class DocumentTypeService
         if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'], true)) {
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'code', 'is_active', 'created_at', 'updated_at'], true)
+        } elseif (in_array($sort, ['id', 'code', 'name', 'min_length', 'max_length', 'is_active', 'created_at', 'updated_at'], true)
             && in_array($direction, ['asc', 'desc'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
@@ -93,9 +97,12 @@ class DocumentTypeService
     public static function filterSchema(): array
     {
         return [
-            ['key' => 'code',     'label' => __('document_types.code'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'code',       'label' => __('document_types.code'),       'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'name',       'label' => __('document_types.name'),       'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'min_length', 'label' => __('document_types.min_length'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
+            ['key' => 'max_length', 'label' => __('document_types.max_length'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_active',  'label' => __('document_types.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
+            ['key' => 'created_at', 'label' => __('global.created_at'),         'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

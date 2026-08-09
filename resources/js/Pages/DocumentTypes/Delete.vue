@@ -72,6 +72,9 @@ const deactivate = () => {
 
         <template #summary>
             <DeleteSummaryRow :label="$t('document_types.code')">{{ documentType.code }}</DeleteSummaryRow>
+            <!-- El nombre largo también: con la sigla sola es fácil borrar el
+                 que no era. -->
+            <DeleteSummaryRow :label="$t('document_types.name')">{{ documentType.name || '—' }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('document_types.country')">{{ documentType.country }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('document_types.usage_count')">{{ documentType.usage_count }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('document_types.is_active')">

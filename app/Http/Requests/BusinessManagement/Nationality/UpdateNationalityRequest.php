@@ -2,16 +2,19 @@
 
 namespace App\Http\Requests\BusinessManagement\Nationality;
 
-use App\Http\Requests\Concerns\DerivesAttributesFromLang;
-use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
-class UpdateNationalityRequest extends FormRequest
+/**
+ * Editar una nacionalidad.
+ *
+ * Extiende al alta a proposito: la regla de «ya existe esa nacionalidad» es la
+ * misma —mismo pais, mismo workspace, sin distinguir mayusculas ni tildes— y
+ * escrita dos veces se separa en cuanto alguien corrige una sola. Aqui solo
+ * cambia lo que de verdad es distinto: el candado, el interruptor y saltarse la
+ * propia fila al comprobar el nombre.
+ */
+class UpdateNationalityRequest extends StoreNationalityRequest
 {
-    use DerivesAttributesFromLang;
-
-    protected $attributeNamespace = 'nationalities';
-
     public function authorize(): bool
     {
         // Registro BLOQUEADO (Lockable): no se edita hasta desbloquearlo.
@@ -28,9 +31,7 @@ class UpdateNationalityRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('code')) {
-            $this->merge(['code' => trim((string) $this->input('code'))]);
-        }
+        parent::prepareForValidation();
 
         // Un interruptor apagado no viaja como `false`: viaja ausente. Si se
         // deja pasar, la regla `sometimes` conserva el valor anterior y lo que
@@ -42,21 +43,17 @@ class UpdateNationalityRequest extends FormRequest
 
     public function rules(): array
     {
+        $nationality = $this->route('nationality');
+
         return [
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'code' => ['required', 'string', 'max:60',
-                Rule::unique('nationalities', 'code')
-                    ->where(fn ($q) => $q->where('country_id', $this->input('country_id'))
-                        ->whereNull('deleted_at'))->ignore($this->route('nationality')?->id)],
+                // El conjunto donde se busca la repetida es el del PROPIO
+                // registro, no el de quien edita: un super tocando la
+                // nacionalidad de una empresa comprueba contra esa empresa, no
+                // contra las globales.
+                $this->nacionalidadRepetida($nationality?->id, $nationality?->tenant_id)],
             'is_active' => 'sometimes|boolean',
-        ];
-    }
-
-    public function messages(): array
-    {
-        return [
-            'code.required' => __('nationalities.code_required'),
-            'code.unique'   => __('nationalities.code_unique'),
         ];
     }
 }

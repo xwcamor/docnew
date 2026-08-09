@@ -66,7 +66,7 @@ class DocumentType extends Model
      * Las reglas de validacion del NUMERO para este tipo.
      *
      * Se usan al dar de alta a una persona, no al buscarla. La diferencia
-     * importa: el buscador de la cuadrilla se apoya en la coincidencia exacta
+     * importa: el buscador de trabajadores se apoya en la coincidencia exacta
      * del documento y no en su longitud, porque el volcado de la v1 tiene dos
      * peruanos con DNI de siete caracteres y una regla de longitud los dejaria
      * fuera para siempre.

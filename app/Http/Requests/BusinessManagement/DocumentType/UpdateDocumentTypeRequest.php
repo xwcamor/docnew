@@ -2,16 +2,17 @@
 
 namespace App\Http\Requests\BusinessManagement\DocumentType;
 
-use App\Http\Requests\Concerns\DerivesAttributesFromLang;
-use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Rule;
-
-class UpdateDocumentTypeRequest extends FormRequest
+/**
+ * Editar un tipo de documento.
+ *
+ * Extiende al alta a proposito: la regla de «ya existe esa sigla» es la misma
+ * —mismo pais, mismo workspace, sin distinguir mayusculas ni tildes— y escrita
+ * dos veces se separa en cuanto alguien corrige una sola. Aqui solo cambia lo
+ * que de verdad es distinto: el candado, el interruptor y saltarse la propia
+ * fila al comprobar la sigla.
+ */
+class UpdateDocumentTypeRequest extends StoreDocumentTypeRequest
 {
-    use DerivesAttributesFromLang;
-
-    protected $attributeNamespace = 'document_types';
-
     public function authorize(): bool
     {
         // Registro BLOQUEADO (Lockable): no se edita hasta desbloquearlo.
@@ -28,9 +29,7 @@ class UpdateDocumentTypeRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('code')) {
-            $this->merge(['code' => trim((string) $this->input('code'))]);
-        }
+        parent::prepareForValidation();
 
         // Un interruptor apagado no viaja como `false`: viaja ausente. Si se
         // deja pasar, la regla `sometimes` conserva el valor anterior y lo que
@@ -42,29 +41,15 @@ class UpdateDocumentTypeRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
-            'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
-            'code' => ['required', 'string', 'max:20',
-                Rule::unique('document_types', 'code')
-                    ->where(fn ($q) => $q->where('country_id', $this->input('country_id'))
-                        ->whereNull('deleted_at'))
-                    ->ignore($this->route('documentType')?->id)],
-            'name' => ['nullable', 'string', 'max:120'],
-            // Ayuda de validacion del numero, no condicion de busqueda: el
-            // buscador de la cuadrilla va por coincidencia exacta. El volcado
-            // trae dos peruanos con DNI de 7 caracteres, asi que una regla de
-            // longitud mal puesta deja gente fuera del sistema.
-            'min_length' => ['nullable', 'integer', 'min:1', 'max:40'],
-            'max_length' => ['nullable', 'integer', 'min:1', 'max:40', 'gte:min_length'],
-            'is_active' => 'sometimes|boolean',
-        ];
-    }
+        $documentType = $this->route('documentType');
 
-    public function messages(): array
-    {
-        return [
-            'code.required' => __('document_types.code_required'),
-            'code.unique'   => __('document_types.code_unique'),
-        ];
+        return array_merge(parent::rules(), [
+            'code' => ['required', 'string', 'max:20',
+                // El conjunto donde se busca la repetida es el del PROPIO
+                // registro, no el de quien edita: un super tocando el tipo de
+                // una empresa comprueba contra esa empresa, no contra los
+                // globales.
+                $this->siglaRepetida($documentType?->id, $documentType?->tenant_id)],
+        ]);
     }
 }
