@@ -35,11 +35,40 @@ class CompanyService
     }
 
     /**
+     * ¿Por qué no se puede borrar? Devuelve el texto que ve el usuario, o null
+     * si la empresa no tiene nada colgando. Mismo patrón que los catálogos de
+     * obra (WorkAreaService::motivoParaNoBorrar).
+     */
+    public function motivoParaNoBorrar(Company $company): ?string
+    {
+        $deps = $company->countDependents();
+
+        $planes   = (int) ($deps['work_plans']['count'] ?? 0);
+        $personas = (int) ($deps['people']['count'] ?? 0);
+
+        if ($planes > 0) {
+            return __('companies.in_use_cannot_delete_plans', ['count' => $planes]);
+        }
+        if ($personas > 0) {
+            return __('companies.in_use_cannot_delete_people', ['count' => $personas]);
+        }
+
+        return null;
+    }
+
+    /**
      * Soft-delete con motivo. saveQuietly() evita un audit log `updated`
      * duplicado justo antes del `deleted`.
+     *
+     * Si de la empresa cuelgan planes o gente, no se borra: se lanza
+     * DomainException y el controlador la convierte en un aviso en pantalla.
      */
     public function delete(Company $company, string $reason): void
     {
+        if ($razon = $this->motivoParaNoBorrar($company)) {
+            throw new \DomainException($razon);
+        }
+
         $company->deleted_description = $reason;
         $company->deleted_by          = auth()->id();
         $company->is_active           = false;
@@ -67,6 +96,13 @@ class CompanyService
                 throw new \RuntimeException("Company {$company->id} no longer available for force-delete");
             }
 
+            // Los planes y la gente apuntan a la empresa con `restrictOnDelete`:
+            // sin este freno el borrado definitivo reventaba con un error de
+            // clave ajena de Postgres en la cara del super.
+            if ($razon = $this->motivoParaNoBorrar($locked)) {
+                throw new \DomainException($razon);
+            }
+
             AuditLog::create([
                 'user_id'        => auth()->id(),
                 'auditable_type' => Company::class,
@@ -74,7 +110,10 @@ class CompanyService
                 'event'          => 'force_deleted',
                 'old_values'     => [
                     'name' => $locked->name,
-                    'num_doc' => $locked->code,
+                    // Era `$locked->code`: esa columna no existe en companies
+                    // (resto del clon de Brand), asi que el RUC de la empresa
+                    // borrada para siempre se guardaba vacio en la auditoria.
+                    'num_doc' => $locked->num_doc,
                     'slug' => $locked->slug,
                 ],
                 'new_values'     => null,
@@ -143,7 +182,11 @@ class CompanyService
     }
 
     /**
-     * @return array{queued: bool, count: int, deleted?: int[]}
+     * Borrado masivo. Las empresas con planes o gente colgando se apartan en
+     * `in_use` en vez de tumbar el lote entero: seleccionar veinte y que no se
+     * borre ninguna porque una tiene un plan no le sirve a nadie.
+     *
+     * @return array{queued: bool, count: int, deleted?: int[], in_use?: int[]}
      */
     public function bulkDelete(array $ids, string $reason): array
     {
@@ -156,17 +199,28 @@ class CompanyService
                 $ids,
                 ['reason' => $reason],
             );
-            return ['queued' => true, 'count' => $count, 'deleted' => []];
+            return ['queued' => true, 'count' => $count, 'deleted' => [], 'in_use' => []];
         }
 
         return DB::transaction(function () use ($ids, $reason) {
             $companies  = Company::whereIn('id', $ids)->get();
             $deletedIds = [];
+            $inUseIds   = [];
             foreach ($companies as $company) {
-                $this->delete($company, $reason);
+                try {
+                    $this->delete($company, $reason);
+                } catch (\DomainException) {
+                    $inUseIds[] = $company->id;
+                    continue;
+                }
                 $deletedIds[] = $company->id;
             }
-            return ['queued' => false, 'count' => $companies->count(), 'deleted' => $deletedIds];
+            return [
+                'queued'  => false,
+                'count'   => $companies->count(),
+                'deleted' => $deletedIds,
+                'in_use'  => $inUseIds,
+            ];
         });
     }
 

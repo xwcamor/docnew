@@ -27,4 +27,60 @@ class EditAllUpdateCompanyRequest extends FormRequest
             'changes.*.is_active' => 'sometimes|nullable|boolean',
         ];
     }
+
+    /**
+     * El nombre de la empresa es unico dentro del workspace, y en «Editar todo»
+     * eso no lo comprobaba nadie: la pantalla solo detecta repetidos DENTRO de
+     * la pagina que se ve. Ponerle a una contratista el nombre de otra que esta
+     * en la pagina siguiente llegaba hasta el indice unico de la base y salia
+     * un error en la cara del usuario con el lote entero perdido. Aqui se corta
+     * antes y se dice en que fila. (La clave `name_duplicate_in_batch` ya
+     * estaba en el archivo de idioma y no la usaba nadie: la comprobacion se
+     * quedo por el camino al clonar el modulo.)
+     */
+    public function withValidator(\Illuminate\Validation\Validator $validator): void
+    {
+        $validator->after(function ($v) {
+            $changes = $this->input('changes');
+            if (! is_array($changes)) {
+                return;
+            }
+
+            $tenantId = auth()->user()?->tenant_id;
+            $isPgsql  = \Illuminate\Support\Facades\DB::getDriverName() === 'pgsql';
+            $vistos   = [];
+
+            foreach ($changes as $i => $c) {
+                if (! is_array($c) || ! isset($c['name'])) {
+                    continue;
+                }
+                $nombre = trim((string) $c['name']);
+                if ($nombre === '') {
+                    continue;
+                }
+
+                // Repetido dentro del propio lote.
+                $clave = mb_strtolower($nombre);
+                if (isset($vistos[$clave])) {
+                    $v->errors()->add("changes.{$i}.name", __('companies.name_duplicate_in_batch'));
+                    continue;
+                }
+                $vistos[$clave] = true;
+
+                // Choca con una fila que no viene en el lote.
+                $q = \Illuminate\Support\Facades\DB::table('companies')
+                    ->whereNull('deleted_at')
+                    ->where('tenant_id', $tenantId)
+                    ->whereNotIn('id', array_filter(array_column($changes, 'id')));
+                if ($isPgsql) {
+                    $q->whereRaw('unaccent(LOWER(name)) = unaccent(LOWER(?))', [$nombre]);
+                } else {
+                    $q->whereRaw('LOWER(name) = LOWER(?)', [$nombre]);
+                }
+                if ($q->exists()) {
+                    $v->errors()->add("changes.{$i}.name", __('companies.name_unique'));
+                }
+            }
+        });
+    }
 }

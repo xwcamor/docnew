@@ -13,8 +13,12 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * Imports Companies from .xlsx/.csv.
  *
  * Columns:
- *   - name  (required, max 255, unico per-tenant case/accent-insensitive)
- *   - code  (optional, max 40, identificador tecnico unico per-tenant)
+ *   - name          (required, max 255, unico per-tenant case/accent-insensitive)
+ *   - num_doc       (required, max 20 — el RUC; unico por pais dentro del workspace)
+ *   - complete_name (optional, max 255 — la razon social del documento)
+ *
+ * El pais de las altas es el del usuario que importa: `companies.country_id`
+ * es NOT NULL y el fichero no lo trae.
  *
  * El import NO maneja is_active: toda alta nace activa (coherente con clientes). El estado se gestiona desde la UI / bulk actions.
  *
@@ -53,11 +57,16 @@ class CompaniesImport implements ToCollection, WithHeadingRow
     /** Count de companies del tenant del actor (pre-import). */
     protected int $currentCount;
 
+    /** Pais de las altas: el del actor. NOT NULL en la tabla. */
+    protected ?int $countryId = null;
+
     public function __construct(
         protected string $mode = 'update_or_create',
         protected bool $dryRun = false,
     ) {
         $user = Auth::user();
+
+        $this->countryId = $user?->country_id;
 
         // Limite del plan del usuario. Sin tenant/plan â†’ sin limite.
         if ($user && $user->tenant) {
@@ -101,6 +110,12 @@ class CompaniesImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
+                // La razon social del documento (opcional en el Excel).
+                $completeName = $this->normalizeName($row['complete_name'] ?? null);
+                if ($completeName !== null && mb_strlen($completeName) > 255) {
+                    $completeName = mb_substr($completeName, 0, 255);
+                }
+
                 $normNameKey = $this->normalizeKey($name);
                 if (isset($seenInFileByName[$normNameKey])) {
                     $this->errors[] = [
@@ -112,35 +127,46 @@ class CompaniesImport implements ToCollection, WithHeadingRow
                 }
                 $seenInFileByName[$normNameKey] = $absoluteRow;
 
-                // code (opcional): identificador tecnico unico per-tenant.
+                // El RUC es OBLIGATORIO: la columna es NOT NULL en la tabla. Se
+                // trataba como opcional (resto del clon, donde `code` si lo
+                // era) y una celda vacia mandaba un NULL a la base: Postgres
+                // tumbaba la transaccion entera y las 200 filas buenas del
+                // fichero se perdian con un "el proceso fallo" sin decir donde.
                 $code = $this->normalizeCode($row['num_doc'] ?? null);
-                if ($code !== null && mb_strlen($code) > 40) {
+                if ($code === null) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('imports.err_code_too_long'),
+                        'message' => __('companies.import_err_num_doc_required'),
+                        'value'   => $name,
+                    ];
+                    continue;
+                }
+                // 20 es lo que aguanta la columna y lo que valida el formulario.
+                if (mb_strlen($code) > 20) {
+                    $this->errors[] = [
+                        'row'     => $absoluteRow,
+                        'message' => __('companies.import_err_num_doc_too_long'),
                         'value'   => mb_substr($code, 0, 30) . '…',
                     ];
                     continue;
                 }
-                if ($code !== null) {
-                    $codeKey = mb_strtolower($code);
-                    if (isset($seenInFileByCode[$codeKey])) {
-                        $this->errors[] = [
-                            'row'     => $absoluteRow,
-                            'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFileByCode[$codeKey]]),
-                            'value'   => $code,
-                        ];
-                        continue;
-                    }
-                    $seenInFileByCode[$codeKey] = $absoluteRow;
+                $codeKey = mb_strtolower($code);
+                if (isset($seenInFileByCode[$codeKey])) {
+                    $this->errors[] = [
+                        'row'     => $absoluteRow,
+                        'message' => __('imports.err_duplicate_in_file', ['row' => $seenInFileByCode[$codeKey]]),
+                        'value'   => $code,
+                    ];
+                    continue;
                 }
+                $seenInFileByCode[$codeKey] = $absoluteRow;
 
                 // Layer 2: DB lookup case + accent insensitive (per-tenant).
                 $existing = $this->findExistingByNameInsensitive($name);
 
-                // code unico per-tenant: si choca con OTRO registro (no el matcheado
-                // por name), se rechaza la fila.
-                if ($code !== null && $this->codeTakenByOther($code, $existing?->id)) {
+                // RUC unico per-tenant: si choca con OTRO registro (no el
+                // matcheado por name), se rechaza la fila.
+                if ($this->codeTakenByOther($code, $existing?->id)) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
                         'message' => __('imports.err_code_duplicate', ['value' => $code]),
@@ -177,10 +203,13 @@ class CompaniesImport implements ToCollection, WithHeadingRow
                     }
 
                     // Solo tocar campos que cambian (evita audit logs vacios). El
-                    // import NO gestiona el estado (eso va por la UI / bulk); solo
-                    // refresca el RUC si cambió.
+                    // import NO gestiona el estado (eso va por la UI / bulk);
+                    // refresca el RUC y la razon social si vinieron distintos.
                     $patch = [];
-                    if ($code !== null && (string) $existing->num_doc !== $code) $patch['num_doc'] = $code;
+                    if ((string) $existing->num_doc !== $code) $patch['num_doc'] = $code;
+                    if ($completeName !== null && (string) $existing->complete_name !== $completeName) {
+                        $patch['complete_name'] = $completeName;
+                    }
                     if (!empty($patch)) {
                         $existing->fill($patch)->save();
                     }
@@ -205,14 +234,26 @@ class CompaniesImport implements ToCollection, WithHeadingRow
                         }
                     }
 
+                    // El pais es NOT NULL. Si el actor no tiene ninguno asignado
+                    // el alta reventaba contra la base; ahora se rechaza la fila
+                    // con un mensaje que dice que hacer.
+                    if ($this->countryId === null) {
+                        $this->errors[] = [
+                            'row'     => $absoluteRow,
+                            'message' => __('companies.import_err_no_country'),
+                            'value'   => $name,
+                        ];
+                        continue;
+                    }
+
                     // Las altas nacen activas. El import no importa registros inactivos (coherente con clientes/oil_types): el estado se gestiona desde la UI / bulk actions.
                     Company::create([
                         'name'          => $name,
                         'num_doc'       => $code,
                         // La razon social del documento: si no viene en el Excel
                         // se usa el nombre corto hasta que alguien la complete.
-                        'complete_name' => $name,
-                        'country_id'    => Auth::user()?->country_id,
+                        'complete_name' => $completeName ?? $name,
+                        'country_id'    => $this->countryId,
                         'is_active'   => true,
                         'created_by'  => Auth::id(),
                         // tenant_id lo autorellena BelongsToTenant (tenant del actor);
@@ -262,11 +303,15 @@ class CompaniesImport implements ToCollection, WithHeadingRow
         return $name === '' ? null : $name;
     }
 
-    /** Trim → null si vacío. El code es el identificador técnico. */
+    /**
+     * El RUC, limpio. Se quitan espacios y guiones igual que hace el formulario
+     * (StoreCompanyRequest): si el Excel trae «20-5123 45678» y la pantalla
+     * guarda «20512345678», la misma empresa entraba dos veces.
+     */
     protected function normalizeCode(mixed $value): ?string
     {
         if ($value === null) return null;
-        $code = trim((string) $value);
+        $code = preg_replace('/[\s-]/', '', trim((string) $value));
         return $code === '' ? null : $code;
     }
 

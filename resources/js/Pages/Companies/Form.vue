@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
+    Form, FormItem, Input, Switch, Space, Alert, Select,
 } from 'ant-design-vue';
 import { BankOutlined } from '@ant-design/icons-vue';
 

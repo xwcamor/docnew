@@ -24,7 +24,7 @@ use Illuminate\Support\Str;
  */
 class Company extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable;
+    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable, \App\Traits\HasDependents;
 
     protected string $auditModule = 'companies';
 
@@ -53,6 +53,37 @@ class Company extends Model
     public function workPlans()
     {
         return $this->hasMany(WorkPlan::class);
+    }
+
+    /**
+     * Lo que cuelga de una contratista y no puede quedarse huérfano.
+     *
+     * Un plan firmado es el papel que un inspector puede pedir: si la empresa
+     * que lo ejecutó desaparece del listado, el plan se queda sin contratista
+     * (docs/UI.md §6). Y la gente vinculada es quien firmó en obra. Por eso las
+     * dos bloquean el borrado: la salida es desactivar la empresa, que la saca
+     * de los planes nuevos sin tocar los viejos.
+     *
+     * Además la tabla lo respalda: `work_plans.company_id` y
+     * `person_company_links.company_id` son `restrictOnDelete`, así que un
+     * borrado definitivo sin este freno reventaba con un error de clave ajena.
+     */
+    public function dependents(): array
+    {
+        return [
+            'work_plans' => [
+                'model' => WorkPlan::class,
+                'fk'    => 'company_id',
+                'label' => __('companies.plans_count'),
+                'block' => true,
+            ],
+            'people' => [
+                'model' => PersonCompanyLink::class,
+                'fk'    => 'company_id',
+                'label' => __('companies.people_count'),
+                'block' => true,
+            ],
+        ];
     }
 
 
@@ -99,6 +130,12 @@ class Company extends Model
         $isPgsql = config('database.default') === 'pgsql';
         $tbl = 'companies';
 
+        // El buscador de la barra: una empresa se pide por su nombre corto, por
+        // su razon social o por su RUC («la de tal RUC»), y quien escribe no
+        // sabe cual de las tres columnas esta mirando. Los tres campos se
+        // buscan juntos. Antes solo miraba `name`, asi que teclear un RUC en el
+        // buscador no devolvia nada aunque la empresa estuviera ahi delante — y
+        // un comentario del propio modelo ya decia que iban juntos.
         $query->when($request->filled('name'), function ($q) use ($request, $isPgsql, $tbl) {
             $names = is_array($request->name) ? $request->name : [$request->name];
             $names = array_filter($names, fn ($n) => $n !== '');
@@ -108,19 +145,29 @@ class Company extends Model
                     $needle = LikeQuery::contains((string) $name);
                     if ($isPgsql) {
                         $qq->orWhereRaw("unaccent(lower({$tbl}.name)) LIKE unaccent(lower(?))", [$needle]);
+                        $qq->orWhereRaw("unaccent(lower({$tbl}.complete_name)) LIKE unaccent(lower(?))", [$needle]);
                     } else {
                         $qq->orWhereRaw("{$tbl}.name LIKE ? ESCAPE '\\'", [$needle]);
+                        $qq->orWhereRaw("{$tbl}.complete_name LIKE ? ESCAPE '\\'", [$needle]);
                     }
+                    // El RUC se guarda sin espacios ni guiones: se busca igual,
+                    // asi «20-5123 45678» encuentra a la de 20512345678.
+                    $ruc = LikeQuery::contains(preg_replace('/[\s-]/', '', (string) $name));
+                    $qq->orWhereRaw(
+                        $isPgsql ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'",
+                        [$ruc],
+                    );
                 }
             });
         });
 
-        $query->when($request->filled('num_doc'), function ($q) use ($request, $tbl) {
-            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->num_doc)]);
+        $query->when($request->filled('num_doc'), function ($q) use ($request, $isPgsql, $tbl) {
+            $ruc = LikeQuery::contains(preg_replace('/[\s-]/', '', (string) $request->num_doc));
+            $q->whereRaw($isPgsql ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'", [$ruc]);
         });
 
-        // El nombre corto y la razon social se buscan juntos: en obra se escribe
-        // uno u otro indistintamente.
+        // Filtro propio de la razon social (drawer de filtros): sigue existiendo
+        // aparte para poder acotar solo por ella.
         $query->when($request->filled('complete_name'), function ($q) use ($request, $tbl) {
             $q->whereRaw(config('database.default') === 'pgsql' ? "unaccent(lower({$tbl}.complete_name)) LIKE unaccent(lower(?))" : "{$tbl}.complete_name LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->complete_name)]);
         });

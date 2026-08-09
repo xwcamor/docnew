@@ -35,8 +35,8 @@ return [
     'plans_count'              => 'Planes',
     'is_active'                => 'Estado',
     'is_active_help'           => 'Si está inactiva, la empresa no aparecerá al crear un plan de trabajo.',
-    'filter_name'              => 'Nombre',
-    'search_placeholder'       => 'Buscar empresa por nombre…',
+    'filter_name'              => 'Nombre, razón social o RUC',
+    'search_placeholder'       => 'Buscar por nombre, razón social o RUC…',
 
     'edit_hint'   => 'Modificar este registro',
     'delete_hint' => 'Eliminar (queda en papelera)',
@@ -45,6 +45,15 @@ return [
     'created' => 'Empresa creada.',
     'saved'   => 'Empresa actualizada.',
     'deleted' => 'Empresa eliminada.',
+
+    // Lo que impide borrar: una empresa con planes o gente detrás no se va del
+    // listado, se desactiva (docs/UI.md §6).
+    'in_use_cannot_delete_plans'  => 'No se puede eliminar: tiene :count plan(es) de trabajo a su nombre. Desactívala para que no salga en los planes nuevos.',
+    'in_use_cannot_delete_people' => 'No se puede eliminar: tiene :count persona(s) vinculada(s). Desactívala para que no salga en los planes nuevos.',
+    'bulk_skipped_in_use'         => ':count empresa(s) no se eliminaron: tienen planes o gente a su nombre.',
+    'delete_dependents_title'     => 'Lo que cuelga de esta empresa',
+    'delete_dependents_plans'     => ':count plan(es) de trabajo',
+    'delete_dependents_people'    => ':count persona(s) vinculada(s)',
 
     'delete_about'                 => 'Va a eliminar ":name". Quedará en papelera.',
     'deleted_description_required' => 'Indica el motivo del borrado.',
@@ -69,6 +78,11 @@ return [
     'name_duplicate_in_batch'  => 'Nombre duplicado dentro del mismo batch.',
     'is_active_required'       => 'El campo estado es obligatorio.',
     'import_super_blocked'     => 'Un super sin workspace asignado no puede importar (el match por nombre podría actualizar registros de otro workspace).',
+    // Errores del import: la columna del RUC es obligatoria en la tabla, así que
+    // una celda vacía no puede llegar a la base.
+    'import_err_num_doc_required' => 'Falta el RUC. Es obligatorio para dar de alta una empresa.',
+    'import_err_num_doc_too_long' => 'El RUC supera los 20 caracteres.',
+    'import_err_no_country'       => 'Tu usuario no tiene país asignado y el país es obligatorio. Pídele a un administrador que te lo asigne antes de importar.',
 
     // Edit All
     'edit_all_title'    => 'Empresas — Editar todo',

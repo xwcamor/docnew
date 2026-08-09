@@ -35,8 +35,8 @@ return [
     'plans_count'              => 'Plans',
     'is_active'                => 'Status',
     'is_active_help'           => 'If inactive, the company will not show up when creating a work plan.',
-    'filter_name'              => 'Name',
-    'search_placeholder'       => 'Search company by name…',
+    'filter_name'              => 'Name, legal name or tax ID',
+    'search_placeholder'       => 'Search by name, legal name or tax ID…',
 
     'edit_hint'   => 'Edit this record',
     'delete_hint' => 'Delete (goes to trash)',
@@ -45,6 +45,15 @@ return [
     'created' => 'Company created.',
     'saved'   => 'Company updated.',
     'deleted' => 'Company deleted.',
+
+    // What blocks a deletion: a company with plans or people behind it is
+    // deactivated, not removed from the list (docs/UI.md §6).
+    'in_use_cannot_delete_plans'  => 'Cannot delete: it has :count work plan(s) under its name. Deactivate it so it stops showing up on new plans.',
+    'in_use_cannot_delete_people' => 'Cannot delete: it has :count linked person(s). Deactivate it so it stops showing up on new plans.',
+    'bulk_skipped_in_use'         => ':count company(ies) were not deleted: they have plans or people under their name.',
+    'delete_dependents_title'     => 'What depends on this company',
+    'delete_dependents_plans'     => ':count work plan(s)',
+    'delete_dependents_people'    => ':count linked person(s)',
 
     'delete_about'                 => 'You are about to delete ":name". It will go to the trash.',
     'deleted_description_required' => 'Provide a reason for the deletion.',
@@ -69,6 +78,11 @@ return [
     'name_duplicate_in_batch'  => 'Duplicate name in the same batch.',
     'is_active_required'       => 'The status field is required.',
     'import_super_blocked'     => 'A super without an assigned workspace cannot import (name matching could update records from another workspace).',
+    // Import errors: the tax ID column is NOT NULL in the table, so an empty
+    // cell can never reach the database.
+    'import_err_num_doc_required' => 'The tax ID is missing. It is required to create a company.',
+    'import_err_num_doc_too_long' => 'The tax ID exceeds 20 characters.',
+    'import_err_no_country'       => 'Your user has no country assigned and country is required. Ask an administrator to assign one before importing.',
 
     // Edit All
     'edit_all_title'    => 'Companies — Edit All',

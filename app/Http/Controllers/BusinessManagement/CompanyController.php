@@ -152,7 +152,7 @@ class CompanyController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -239,23 +239,32 @@ class CompanyController extends Controller
             ->with('success', __('companies.saved'));
     }
 
-    public function delete(Company $company)
+    public function delete(Company $company, CompanyService $service)
     {
         // Registro bloqueado (Lockable): ni se abre la confirmación de borrado.
         abort_if($company->is_locked, 403, __('locks.cannot_delete_locked'));
 
         // La confirmación muestra razón social y país: hay contratistas con
         // nombres cortos casi idénticos.
-        $company->load('country:id,name,iso_code');
+        $company->load('country:id,name,iso_code')->loadCount(['people', 'workPlans']);
 
         return inertia('Companies/Delete', [
             'company' => $this->payload($company),
+            // Lo que cuelga de la empresa, dicho ANTES de pedir el motivo: si
+            // hay planes o gente, el botón sale deshabilitado y explica por qué
+            // (docs/UI.md §6) en vez de fallar al pulsarlo.
+            'dependents'    => $company->countDependents(),
+            'blockedReason' => $service->motivoParaNoBorrar($company),
         ]);
     }
 
     public function deleteSave(DeleteCompanyRequest $request, Company $company, CompanyService $service): RedirectResponse
     {
-        $service->delete($company, $request->validated()['deleted_description']);
+        try {
+            $service->delete($company, $request->validated()['deleted_description']);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         $this->storeUndoableDelete([$company->id]);
 
@@ -291,9 +300,15 @@ class CompanyController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
 
+        // La papelera enseña nombre corto, razón social y RUC: el buscador mira
+        // los tres, igual que el del listado. Antes solo miraba el nombre corto
+        // y escribir el RUC no devolvía nada.
         $companies = Company::onlyTrashed()
             ->with('deleter:id,name,email')
-            ->when($name !== '', fn ($q) => $q->where('name', 'like', "%{$name}%"))
+            ->when($name !== '', fn ($q) => $q->where(fn ($qq) => $qq
+                ->where('name', 'like', "%{$name}%")
+                ->orWhere('complete_name', 'like', "%{$name}%")
+                ->orWhere('num_doc', 'like', '%' . preg_replace('/[\s-]/', '', $name) . '%')))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -424,7 +439,13 @@ class CompanyController extends Controller
             return back()->withErrors(['name_confirmation' => __('global.force_delete_name_mismatch')]);
         }
 
-        $service->forceDelete($model, $data['reason']);
+        try {
+            $service->forceDelete($model, $data['reason']);
+        } catch (\DomainException $e) {
+            // Planes o gente colgando: la clave ajena es `restrictOnDelete`, asi
+            // que sin este aviso el super se comia un error de base de datos.
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('business_management.companies.trash')
@@ -643,9 +664,19 @@ class CompanyController extends Controller
         }
 
         $deletedIds = $result['deleted'];
+        $inUseIds   = $result['in_use'] ?? [];
+
+        // Ninguna se pudo borrar: es un aviso, no un exito con cero.
+        if (empty($deletedIds)) {
+            return back()->with('error', __('companies.bulk_skipped_in_use', ['count' => count($inUseIds)]));
+        }
+
         $this->storeUndoableDelete($deletedIds);
 
         $msg = __('global.deleted_success') . ' (' . count($deletedIds) . ')';
+        if (!empty($inUseIds)) {
+            $msg .= ' · ' . __('companies.bulk_skipped_in_use', ['count' => count($inUseIds)]);
+        }
         if (!empty($lockedIds)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]);
         }

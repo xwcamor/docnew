@@ -151,18 +151,33 @@ abstract class BaseCompanyExportJob implements ShouldQueue
      * Apply scope: filtered / selected / all. Eager-load creator y country
      * si las columnas estan pedidas.
      *
-     * Companies es per-tenant: aplicamos `withoutGlobalScopes()` y manualmente
-     * filtramos por tenant_id capturado en el constructor â€” el worker no tiene
-     * la sesion del usuario para que el global scope BelongsToTenant funcione.
+     * Companies es PER-TENANT (BelongsToTenantOrGlobal): quitamos SOLO el scope
+     * de tenant —el worker no tiene sesion para resolverlo— y filtramos a mano
+     * por el tenant_id capturado en el constructor. El de SoftDeletes se queda
+     * vivo para que la papelera no acabe en el fichero.
+     *
+     * Antes se quitaba un scope llamado 'tenant', que en este modelo no existe,
+     * y un comentario daba companies por catalogo global. Como en el worker no
+     * hay usuario, el scope de verdad tampoco se aplica: no filtraba NADIE. Un
+     * admin que exportaba su listado de contratistas se bajaba tambien las de
+     * los demas workspaces.
      */
     protected function buildQuery()
     {
         $scope = $this->options['scope'] ?? 'filtered';
         $columns = $this->options['columns'] ?? ['creator'];
 
-        $base = Company::query()->withoutGlobalScope('tenant');
+        $base = Company::query()->withoutGlobalScope('tenantOrGlobal');
 
-        // companies es catálogo global (sin tenant), no filtramos por tenant_id.
+        // tenant_id null = super (sin workspace): exporta todo, igual que ve en
+        // pantalla. Con workspace: las suyas mas las globales del catalogo,
+        // exactamente el mismo criterio que el scope del listado.
+        if ($this->tenantId !== null) {
+            $base->where(function ($q) {
+                $q->where('companies.tenant_id', $this->tenantId)
+                  ->orWhereNull('companies.tenant_id');
+            });
+        }
 
         if (in_array('creator', $columns)) {
             $base->with('creator:id,name');
