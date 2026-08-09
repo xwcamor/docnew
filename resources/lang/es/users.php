@@ -67,6 +67,7 @@ return [
     'filter_name'      => 'Nombre',
     'filter_email'     => 'Correo',
     'filter_status'    => 'Estado',
+    'filter_pending_email' => 'Solo correo provisional',
     'filter_workspace' => 'Workspace',
     'search_placeholder' => 'Buscar por nombre…',
 
@@ -128,4 +129,19 @@ return [
         'step_audit_title' => 'Logs del sistema',
         'step_audit_body'  => 'Historial de cambios de usuarios: quien, que y cuando. Util para auditorias.',
     ],
+
+    // ── Correos provisionales de la migración ─────────────────────────────
+    // Los usuarios que vinieron del sistema anterior entraron con
+    // usuarioN@pendiente.local porque el origen no traía ningún correo. Hasta
+    // que se cambien no pueden entrar: no les llega ni el aviso de bienvenida
+    // ni el «olvidé mi contraseña».
+    'pending_email_title'    => '{1} 1 usuario sin correo real|[2,*] :count usuarios sin correo real',
+    'pending_email_body'     => 'Llegaron de la migración con un correo provisional. Mientras lo tengan no pueden entrar ni recuperar su contraseña.',
+    'pending_email_tag'      => 'Correo provisional',
+    'pending_email_only'     => 'Ver solo esos',
+    'pending_email_show_all' => 'Ver todos',
+    'pending_email_fix'      => 'Poner el correo real',
+    'email_taken'            => 'Ese correo ya está registrado en el sistema (incluso si ese usuario fue eliminado). Usa otro.',
+    'name_unique'            => 'Hay nombres de usuario repetidos en la tabla.',
+    'timezone_inherited' => '(heredada)',
 ];

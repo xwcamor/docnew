@@ -99,4 +99,9 @@ return [
         'editable_description' => 'Description (editable)',
         'editable_status'      => 'Status (editable)',
     ],
+
+    // Quick permission selection inside a module (role form).
+    'select_all'  => 'All',
+    'select_none' => 'None',
+    'name_unique' => 'There are duplicate role names in the table.',
 ];

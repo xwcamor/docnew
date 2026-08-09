@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert,
+    Button, Card, Tag, Space, Alert,
 } from 'ant-design-vue';
 import { UserOutlined } from '@ant-design/icons-vue';
 import UserAvatar from '@/Components/Common/UserAvatar.vue';
@@ -95,6 +95,19 @@ const fmt = (d) => formatDateTimeFull(d);
             </template>
         </Alert>
 
+        <!-- Correo provisional de la migración: esta persona todavía no puede
+             entrar. Se dice aquí y no sólo en el listado, porque la ficha es
+             donde se decide editarla. -->
+        <Alert v-if="user.email_pending" type="warning" show-icon class="pending-alert">
+            <template #message>{{ $t('users.pending_email_tag') }}</template>
+            <template #description>{{ $t('users.pending_email_body') }}</template>
+            <template v-if="can('users.edit')" #action>
+                <Link :href="route('user_management.users.edit', user.slug)">
+                    <Button size="small">{{ $t('users.pending_email_fix') }}</Button>
+                </Link>
+            </template>
+        </Alert>
+
         <EntityShowTabs :show-history="canSeeAudit" :history-count="activity.length">
             <!-- Tab 1 — Detalles: solo datos del dominio -->
             <template #general>
@@ -149,7 +162,14 @@ const fmt = (d) => formatDateTimeFull(d);
                             </div>
                             <div class="spec-cell">
                                 <span class="spec-cell__label">{{ $t('profile.timezone') }}</span>
-                                <span class="spec-cell__value">{{ user.timezone || '—' }}</span>
+                                <!-- Casi nadie fija la suya (se elige en el
+                                     perfil de cada uno), así que aquí salía
+                                     siempre una raya. Se enseña la que rige de
+                                     verdad y de dónde sale. -->
+                                <span class="spec-cell__value">
+                                    {{ user.timezone || user.timezone_effective || '—' }}
+                                    <span v-if="!user.timezone && user.timezone_effective" class="muted">{{ $t('users.timezone_inherited') }}</span>
+                                </span>
                             </div>
                             <div class="spec-cell">
                                 <span class="spec-cell__label">{{ $t('users.is_active') }}</span>
@@ -179,6 +199,7 @@ const fmt = (d) => formatDateTimeFull(d);
 .page-header__rel { font-size: 0.8125rem; color: var(--color-text-muted); }
 
 .deleted-alert { margin-bottom: 16px; }
+.pending-alert { margin-bottom: 16px; }
 .deleted-info { display: flex; flex-direction: column; gap: 4px; font-size: 0.875rem; }
 .deleted-reason { margin-top: 6px; padding-top: 6px; border-top: 1px dashed rgba(0,0,0,0.1); }
 

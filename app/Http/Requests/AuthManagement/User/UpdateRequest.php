@@ -45,18 +45,12 @@ class UpdateRequest extends FormRequest
         // Limite de tamaño KB del setting `uploads.user_photo_max_mb`.
         $maxKb = \App\Models\Setting::getInt('uploads.user_photo_max_mb', 2) * 1024;
 
-        // tenant_id efectivo (lo forzó prepareForValidation si no es super).
-        $tenantId = $this->input('tenant_id', $user?->tenant_id);
-
-        // Email único POR TENANT, ignorando soft-deleted y el propio user.
-        $emailUnique = Rule::unique('users', 'email')
-            ->ignore($user?->id)
-            ->where(function ($q) use ($tenantId) {
-                $tenantId === null
-                    ? $q->whereNull('tenant_id')
-                    : $q->where('tenant_id', $tenantId);
-            })
-            ->whereNull('deleted_at');
+        // Correo único en TODA la tabla (menos el propio), contando también a
+        // los eliminados: es lo que impone el índice UNIQUE de `users.email`.
+        // Mirando sólo las filas vivas del mismo workspace, cambiar un correo
+        // por el de un usuario borrado —o por uno de otro workspace— pasaba la
+        // validación y reventaba con un 23505. Ver StoreRequest y el informe.
+        $emailUnique = Rule::unique('users', 'email')->ignore($user?->id);
 
         // Validations
         return [
@@ -82,7 +76,7 @@ class UpdateRequest extends FormRequest
         // Validation Messages
         return [
             'name.max'           => 'El nombre debe tener como máximo 255 caracteres.',
-            'email.unique'       => 'El correo electrónico ya existe.',
+            'email.unique'       => __('users.email_taken'),
             'password.min'       => 'La contraseña debe tener al menos 6 caracteres.',
             'photo.image'        => 'El archivo debe ser una imagen válida.',
             'photo.mimes'        => 'La imagen debe ser de tipo: jpg, jpeg, png o gif.',

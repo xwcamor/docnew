@@ -99,4 +99,9 @@ return [
         'editable_description' => 'Descripcion (editable)',
         'editable_status'      => 'Estado (editable)',
     ],
+
+    // Selección rápida de permisos dentro de un módulo (form de perfiles).
+    'select_all'  => 'Todos',
+    'select_none' => 'Ninguno',
+    'name_unique' => 'Hay nombres de perfil repetidos en la tabla.',
 ];

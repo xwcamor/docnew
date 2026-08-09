@@ -67,7 +67,7 @@ const onPageChange = (page, pageSize) => {
             v-if="duplicateRows.size > 0"
             type="error"
             show-icon
-            :message="$t('users.name_unique') || 'Hay nombres de usuario duplicados.'"
+            :message="$t('users.name_unique')"
             class="status-bar"
         />
 

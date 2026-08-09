@@ -22,6 +22,9 @@ export const usersFilterFields = (t, { isSuper = false, roleOptions = [], tenant
     fields.push(
         { key: 'created_at',     label: t('global.created_at'),     type: 'date_range' },
         { key: 'only_favorites', label: t('global.only_favorites'), type: 'switch' },
+        // Los que se quedaron con el correo provisional de la migración: no
+        // pueden entrar hasta que alguien les ponga el de verdad.
+        { key: 'pending_email',  label: t('users.filter_pending_email'), type: 'switch' },
     );
     return fields;
 };
@@ -35,6 +38,7 @@ export const usersEmptyFilters = () => ({
     tenant_id: [],
     created_at: null,
     only_favorites: false,
+    pending_email: false,
 });
 
 /** Backend payload → form local (dates ISO → dayjs). */
@@ -48,6 +52,7 @@ export const hydrateUsersFilters = (sf) => ({
         ? [dayjs(sf.created_from), dayjs(sf.created_to)]
         : null,
     only_favorites: sf.only_favorites ?? false,
+    pending_email:  sf.pending_email ?? false,
 });
 
 /**
@@ -63,6 +68,7 @@ export const usersFiltersToQuery = (f, sf = {}) => ({
     created_from:   f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
     created_to:     f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
     only_favorites: f.only_favorites ? 1 : undefined,
+    pending_email:  f.pending_email ? 1 : undefined,
     sort:           sf.sort,
     direction:      sf.direction,
     per_page:       sf.per_page,
@@ -78,6 +84,7 @@ export const usersFiltersSummary = (f, t) => {
     }
     if (f.role_id?.length)   parts.push(`${t('users.role')}: ${f.role_id.length}`);
     if (f.tenant_id?.length) parts.push(`${t('users.tenant')}: ${f.tenant_id.length}`);
+    if (f.pending_email)     parts.push(t('users.filter_pending_email'));
     if (f.created_at)        parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
     return parts.join(' · ');
 };
@@ -93,6 +100,7 @@ export const serializeSavedFilters = (f) => ({
         ? [f.created_at[0].format('YYYY-MM-DD'), f.created_at[1]?.format('YYYY-MM-DD')]
         : null,
     only_favorites: !!f.only_favorites,
+    pending_email:  !!f.pending_email,
 });
 
 export const deserializeSavedFilters = (f = {}) => ({
@@ -103,4 +111,5 @@ export const deserializeSavedFilters = (f = {}) => ({
     tenant_id:  Array.isArray(f.tenant_id) ? f.tenant_id : [],
     created_at: f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
     only_favorites: f.only_favorites ?? false,
+    pending_email:  f.pending_email ?? false,
 });

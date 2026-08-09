@@ -42,19 +42,19 @@ class StoreRequest extends FormRequest
       // `uploads.user_photo_max_mb` (editable desde la UI). Default 2 MB.
       $maxKb = \App\Models\Setting::getInt('uploads.user_photo_max_mb', 2) * 1024;
 
-      // tenant_id efectivo para el unique scope: lo que ya forzó prepareForValidation.
-      $tenantId = $this->input('tenant_id');
-
-      // Email único POR TENANT y ignorando soft-deleted. Antes era unique
-      // global: tenant B bloqueaba a tenant A de registrar el mismo email,
-      // y una restauración fallida dejaba el email "tomado" para siempre.
-      $emailUnique = Rule::unique('users', 'email')
-          ->where(function ($q) use ($tenantId) {
-              $tenantId === null
-                  ? $q->whereNull('tenant_id')
-                  : $q->where('tenant_id', $tenantId);
-          })
-          ->whereNull('deleted_at');
+      // Correo único en TODA la tabla, contando también a los eliminados.
+      //
+      // No es la regla que uno querría —lo natural sería «único por
+      // workspace»— pero es la única que dice la verdad: `users.email` tiene
+      // un índice UNIQUE de tabla entera y el borrado lógico deja la fila (y
+      // su correo) dentro del índice. La regla anterior sólo miraba las filas
+      // vivas del mismo workspace, así que dos casos corrientes pasaban la
+      // validación y reventaban contra la base con un 23505 delante del
+      // usuario:
+      //   · dar de alta a alguien con el correo de un usuario ya eliminado,
+      //   · repetir un correo que existe en otro workspace.
+      // Para aflojarla hay que cambiar antes el índice (va en el informe).
+      $emailUnique = Rule::unique('users', 'email');
 
       // Validations
       return [
@@ -80,7 +80,7 @@ class StoreRequest extends FormRequest
       // Validation Messages
       return [
         'name.max'           => 'El nombre debe tener como máximo 255 caracteres.',
-        'email.unique'       => 'El email ya existe.',
+        'email.unique'       => __('users.email_taken'),
         'password.min'       => 'La contraseña debe tener al menos 6 caracteres.',
         'photo.image'        => 'El archivo debe ser una imagen válida.',
         'photo.mimes'        => 'La imagen debe ser de tipo: jpg, jpeg, png o gif.',

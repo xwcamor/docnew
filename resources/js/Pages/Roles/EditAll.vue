@@ -67,7 +67,7 @@ const onPageChange = (page, pageSize) => {
             v-if="duplicateRows.size > 0"
             type="error"
             show-icon
-            :message="$t('roles.name_unique') || 'Hay nombres de perfil duplicados.'"
+            :message="$t('roles.name_unique')"
             class="status-bar"
         />
 

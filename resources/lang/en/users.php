@@ -62,6 +62,7 @@ return [
     'filter_name'      => 'Name',
     'filter_email'     => 'Email',
     'filter_status'    => 'Status',
+    'filter_pending_email' => 'Placeholder email only',
     'filter_workspace' => 'Workspace',
     'search_placeholder' => 'Search by name…',
 
@@ -119,4 +120,15 @@ return [
         'step_audit_title' => 'System Logs',
         'step_audit_body'  => 'Change history of users: who, what and when. Useful for audits.',
     ],
+
+    // ── Placeholder emails left by the legacy migration ───────────────────
+    'pending_email_title'    => '{1} 1 user without a real email|[2,*] :count users without a real email',
+    'pending_email_body'     => 'They came from the migration with a placeholder email. Until it is replaced they cannot sign in or reset their password.',
+    'pending_email_tag'      => 'Placeholder email',
+    'pending_email_only'     => 'Show only these',
+    'pending_email_show_all' => 'Show all',
+    'pending_email_fix'      => 'Set the real email',
+    'email_taken'            => 'That email is already registered (even if that user was deleted). Use a different one.',
+    'name_unique'            => 'There are duplicate user names in the table.',
+    'timezone_inherited' => '(inherited)',
 ];

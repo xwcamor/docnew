@@ -30,6 +30,26 @@ class UserController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
 
+    /**
+     * Dominio de los correos provisionales.
+     *
+     * Los 26 usuarios que vinieron del sistema anterior entraron con
+     * `usuarioN@pendiente.local` porque el volcado no traía ningún correo (ver
+     * `MigrateLegacyDataCommand::migrarUsuarios()` y `docs/MIGRACION.md`).
+     * Hasta que se reemplacen por los de verdad esas personas NO PUEDEN
+     * ENTRAR: no reciben la bienvenida ni el «olvidé mi contraseña».
+     *
+     * Por eso el listado no los trata como un usuario más: los cuenta, los
+     * marca en su fila y deja filtrarlos de un toque.
+     */
+    public const PENDING_EMAIL_DOMAIN = '@pendiente.local';
+
+    /** ¿Este correo es de los provisionales de la migración? */
+    public static function isPendingEmail(?string $email): bool
+    {
+        return $email !== null && str_ends_with(mb_strtolower($email), self::PENDING_EMAIL_DOMAIN);
+    }
+
     protected function parseAdvancedWhere(\Illuminate\Http\Request $request): array
     {
         $raw = $request->input('advanced_where', []);
@@ -75,6 +95,9 @@ class UserController extends Controller
                 }
             })
             ->when($request->filled('email'), fn ($q) => $q->where('users.email', 'like', '%' . $request->email . '%'))
+            // «Sólo los del correo provisional»: el filtro de un toque para
+            // rematar lo que dejó pendiente la migración.
+            ->when($request->boolean('pending_email'), fn ($q) => $q->where('users.email', 'like', '%' . self::PENDING_EMAIL_DOMAIN))
             ->when($request->filled('is_active'), function ($q) use ($request) {
                 $q->where('users.is_active', filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN));
             })
@@ -131,6 +154,13 @@ class UserController extends Controller
         // Total unfiltered for the adaptive counter.
         $totalUnfiltered = User::query()->count();
 
+        // Cuántos siguen con el correo provisional de la migración. Va sin
+        // filtros a propósito: el aviso tiene que salir aunque el listado esté
+        // filtrado por otra cosa, si no los 26 se esconden detrás de un filtro.
+        $pendingEmailCount = User::query()
+            ->where('users.email', 'like', '%' . self::PENDING_EMAIL_DOMAIN)
+            ->count();
+
         // Normalize 'name' to always be an array (FilterBar uses tags).
         $names = $request->get('name', []);
         if (is_string($names)) {
@@ -146,6 +176,9 @@ class UserController extends Controller
         foreach ($usersArray['data'] as &$row) {
             $row['role'] = isset($row['roles'][0]) ? $row['roles'][0]['name'] : null;
             unset($row['roles']);
+            // Marca de fila: este usuario todavía no tiene un correo real y no
+            // puede entrar. El dominio se decide aquí, no en el frontend.
+            $row['email_pending'] = self::isPendingEmail($row['email'] ?? null);
         }
         unset($row);
 
@@ -153,6 +186,7 @@ class UserController extends Controller
             'users' => array_merge($usersArray, [
                 'total_unfiltered' => $totalUnfiltered,
             ]),
+            'pendingEmailCount' => $pendingEmailCount,
             // Limites de export por formato — el frontend deshabilita formatos
             // que exceden su limite. CSV con 0 = sin limite (streaming).
             'exportLimits' => \App\Models\Setting::getExportLimits('users'),
@@ -167,6 +201,7 @@ class UserController extends Controller
                 'created_from'   => $request->get('created_from', ''),
                 'created_to'     => $request->get('created_to', ''),
                 'only_favorites' => $request->boolean('only_favorites'),
+                'pending_email'  => $request->boolean('pending_email'),
                 'advanced_where' => $advanced,
                 'sort'           => $request->get('sort', 'id'),
                 'direction'      => $request->get('direction', 'desc'),
@@ -462,7 +497,7 @@ class UserController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -476,12 +511,21 @@ class UserController extends Controller
                 'slug'                => $user->slug,
                 'name'                => $user->name,
                 'email'               => $user->email,
+                // Aviso en la ficha: mientras el correo sea el provisional de
+                // la migración esta persona no puede entrar al sistema.
+                'email_pending'       => self::isPendingEmail($user->email),
                 'photo_url'           => $user->photo_url,
                 'is_active'           => $user->is_active,
                 'role'                => $user->roles->first()?->name,
                 'country'             => $user->country ? ['name' => $user->country->name] : null,
                 'locale'              => $user->locale ? ['code' => $user->locale->code, 'name' => $user->locale->name] : null,
                 'timezone'            => $user->timezone,
+                // La ficha enseñaba «Zona horaria: —» y no decía nada: la
+                // columna es opcional y casi siempre está vacía porque cada
+                // quien la elige en su perfil. Mandamos la que rige de verdad
+                // (usuario → workspace → país → UTC) para que la ficha diga
+                // algo útil en vez de una raya.
+                'timezone_effective'  => \App\Support\Tz::forUncached($user),
                 'created_at'          => $user->created_at,
                 'updated_at'          => $user->updated_at,
                 'deleted_at'          => $user->deleted_at,

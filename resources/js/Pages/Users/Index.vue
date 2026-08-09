@@ -34,6 +34,7 @@ import {
     AppstoreOutlined,
     AudioOutlined,
     ControlOutlined, ClearOutlined, SaveOutlined,
+    WarningOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -77,6 +78,8 @@ const props = defineProps({
     tenantOptions: { type: Array,  default: () => [] },
     filterSchema:  { type: Array,  default: () => [] },
     exportLimits:  { type: Object, default: () => ({}) },
+    // Cuántos usuarios siguen con el correo provisional de la migración.
+    pendingEmailCount: { type: Number, default: 0 },
 });
 
 const page = usePage();
@@ -335,6 +338,20 @@ const currentSortLabel = computed(() => sortOptions.value.find((o) => o.value ==
 const setSort = ({ key }) => { const dir = key === currentSort.value && currentDir.value === 'asc' ? 'desc' : 'asc'; reload({ sort: key, direction: dir, page: 1 }); };
 const toggleSortDir = () => reload({ sort: currentSort.value, direction: currentDir.value === 'asc' ? 'desc' : 'asc', page: 1 });
 
+// ─── Correos provisionales de la migración ─────────────────────────────────
+// Los usuarios que llegaron del sistema anterior traen usuarioN@pendiente.local
+// y NO PUEDEN ENTRAR hasta que alguien les ponga el correo real: no reciben la
+// bienvenida ni el «olvidé mi contraseña». En un listado de diez en diez pasan
+// desapercibidos, así que el módulo los cuenta arriba, los marca en su fila y
+// deja aislarlos de un toque.
+const pendingEmailActive = computed(() => !!filters.value.pending_email);
+const togglePendingEmail = () => {
+    const next = !pendingEmailActive.value;
+    suspendReload(() => { clearFilters(); filters.value.pending_email = next; });
+    advancedWhere.value = [];
+    applySavedViewState([], { sort: props.filters.sort, direction: props.filters.direction, perPage: props.filters.per_page });
+};
+
 const onlyFavorites = computed({ get: () => !!filters.value.only_favorites, set: (v) => { filters.value.only_favorites = v; } });
 const toggleOnlyFavorites = () => {
     const next = !onlyFavorites.value;
@@ -354,6 +371,20 @@ const toggleOnlyFavorites = () => {
             <UsersPageHeader
                 :title="$t('users.index_title')"
             />
+        </div>
+
+        <!-- Aviso de correos provisionales. Sale mientras quede alguno, aunque
+             el listado esté filtrado por otra cosa: si no, los que vinieron de
+             la migración se esconden detrás de un filtro y nadie los ve. -->
+        <div v-if="pendingEmailCount > 0" class="pending-banner" :class="{ 'pending-banner--on': pendingEmailActive }">
+            <WarningOutlined class="pending-banner__icon" />
+            <div class="pending-banner__txt">
+                <strong>{{ $tc('users.pending_email_title', pendingEmailCount) }}</strong>
+                <span>{{ $t('users.pending_email_body') }}</span>
+            </div>
+            <Button class="pending-banner__btn" @click="togglePendingEmail">
+                {{ pendingEmailActive ? $t('users.pending_email_show_all') : $t('users.pending_email_only') }}
+            </Button>
         </div>
 
         <!-- Consola de filtros: un panel que agrupa búsqueda + acciones + filtros.
@@ -516,7 +547,14 @@ const toggleOnlyFavorites = () => {
                             <UserAvatar class="lead__ava" :photo="record.photo" :name="record.name" :size="40" :updated-at="record.updated_at" />
                             <div class="lead__txt">
                                 <Link :href="route('user_management.users.show', record.slug)" class="lead__name lead__link">{{ record.name }}</Link>
-                                <span v-if="record.email" class="lead__sub">{{ record.email }}</span>
+                                <span v-if="record.email" class="lead__sub" :class="{ 'lead__sub--pending': record.email_pending }">{{ record.email }}</span>
+                                <!-- Renglón propio, no pegado al correo: la
+                                     línea del subtítulo recorta con puntos
+                                     suspensivos y la marca se perdía. Color Y
+                                     palabra, que al sol el matiz no se ve. -->
+                                <Tag v-if="record.email_pending" color="warning" :bordered="false" class="lead__flag">
+                                    {{ $t('users.pending_email_tag') }}
+                                </Tag>
                             </div>
                         </div>
                     </template>
@@ -615,6 +653,30 @@ const toggleOnlyFavorites = () => {
 <style scoped>
 .muted { color: var(--color-text-muted); font-size: 0.78rem; }
 
+/* Aviso de correos provisionales: naranja de «pendiente», texto legible al sol
+   y un botón de 44px que se acierta con guantes. */
+.pending-banner {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin: 0 0 12px; padding: 12px 16px; border-radius: 10px;
+    background: rgba(224, 122, 0, 0.10);
+    border: 1px solid rgba(224, 122, 0, 0.35);
+    color: #7a4300;
+}
+.pending-banner--on { background: rgba(224, 122, 0, 0.18); }
+.pending-banner__icon { font-size: 1.1rem; color: #b35a00; flex-shrink: 0; }
+.pending-banner__txt { display: flex; flex-direction: column; gap: 2px; flex: 1 1 260px; min-width: 0; }
+.pending-banner__txt strong { font-size: 0.9rem; font-weight: 700; }
+.pending-banner__txt span { font-size: 0.8rem; line-height: 1.35; }
+.pending-banner__btn { min-height: 44px; font-weight: 600; }
+@media (max-width: 767.98px) {
+    .pending-banner__btn { width: 100%; }
+}
+
+/* Correo provisional en la fila: el texto deja de ser gris de fondo y se
+   acompaña de la palabra, nunca solo el color. */
+.lead__sub--pending { color: #b35a00; font-weight: 600; }
+.lead__flag { align-self: flex-start; margin: 3px 0 0; }
+
 .page-header {
     display: flex;
     justify-content: space-between;
@@ -686,6 +748,10 @@ const toggleOnlyFavorites = () => {
 html[data-theme="dark"] .grid-card .ant-table-thead > tr > th {
     background: #2c3034 !important; color: #e5e6e7 !important;
 }
+
+html[data-theme="dark"] .pending-banner { color: #ffcf8a; border-color: rgba(255, 176, 74, 0.42); background: rgba(255, 176, 74, 0.14); }
+html[data-theme="dark"] .pending-banner__icon { color: #ffb04a; }
+html[data-theme="dark"] .lead__sub--pending { color: #ffb04a; }
 
 /* Espacio inferior para el bottom-bar fijo (mobile). Igual que Regions. */
 @media (max-width: 767.98px) {

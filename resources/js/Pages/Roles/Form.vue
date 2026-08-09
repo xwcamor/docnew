@@ -102,9 +102,16 @@ const submit = () => {
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="16">
+                <!-- `form-grid` es lo que deja que la fila se pinte en dos
+                     columnas: sin esa clase, `.sap-form` aplana toda columna a
+                     ancho completo y nombre y descripción salían apilados
+                     aunque el código dijera otra cosa. Parte en `lg` (≥992):
+                     en tablet vertical se apila a propósito. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('roles.name')"
                             :tooltip="$t('roles.name_help')"
                             required
@@ -114,8 +121,10 @@ const submit = () => {
                             <Input v-model:value="form.name" size="large" :maxlength="120" :placeholder="$t('roles.name_placeholder')" />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('roles.description')"
                             :tooltip="$t('roles.description_help')"
                             required
@@ -169,8 +178,8 @@ const submit = () => {
                             </template>
                             <template #extra>
                                 <Space @click.stop>
-                                    <Button size="small" @click="toggleModule(g.perms, true)">Todos</Button>
-                                    <Button size="small" @click="toggleModule(g.perms, false)">Ninguno</Button>
+                                    <Button size="small" @click="toggleModule(g.perms, true)">{{ $t('roles.select_all') }}</Button>
+                                    <Button size="small" @click="toggleModule(g.perms, false)">{{ $t('roles.select_none') }}</Button>
                                 </Space>
                             </template>
                             <div class="perm-grid">

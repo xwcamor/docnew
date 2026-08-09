@@ -376,7 +376,11 @@ class RoleController extends Controller
             return back()->with('error', __('global.duplicate_failed', ['default' => 'No se pudo duplicar el perfil.']));
         }
 
-        return redirect()->route('user_management.roles.edit', $copy->id)
+        // Por SLUG, no por id: la ruta liga el perfil por `slug`
+        // (getRouteKeyName), así que /roles/7/edit buscaba un perfil con
+        // slug = "7", no lo encontraba y echaba al usuario al escritorio. El
+        // clon quedaba creado pero nadie llegaba a verlo.
+        return redirect()->route('user_management.roles.edit', $copy->slug)
             ->with('success', __('global.duplicated_success', ['default' => 'Perfil duplicado.']));
     }
 
@@ -466,7 +470,7 @@ class RoleController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -744,15 +748,21 @@ class RoleController extends Controller
 
         $base = Role::query()->where('guard_name', 'web');
 
-        // Tenant scoping idem buildQuery del Job.
+        // Tenant scoping: EL MISMO que el del listado (y que el del Job).
+        //
+        // Estaba al revés: incluía los roles del sistema (super/admin/api) y
+        // dejaba fuera las plantillas globales. O sea que el fichero que se
+        // bajaba un admin no era la lista que tenía delante — le sobraban
+        // filas que la pantalla oculta a propósito y le faltaban las que sí
+        // ve. Exportar tiene que dar lo que se está mirando.
         $user = auth()->user();
         if (!$user->hasRole('super')) {
             $tenantId        = $user->tenant_id;
-            $systemRoleNames = ['super', 'admin', 'api'];
+            $systemRoleNames = $this->systemRoleNames;
             $base->where(function ($q) use ($tenantId, $systemRoleNames) {
                 $q->where('tenant_id', $tenantId)
                   ->orWhere(function ($qq) use ($systemRoleNames) {
-                      $qq->whereNull('tenant_id')->whereIn('name', $systemRoleNames);
+                      $qq->whereNull('tenant_id')->whereNotIn('name', $systemRoleNames);
                   });
             });
         }

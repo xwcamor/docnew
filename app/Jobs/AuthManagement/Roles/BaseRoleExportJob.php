@@ -182,13 +182,18 @@ abstract class BaseRoleExportJob implements ShouldQueue
         $base = Role::query()->where('guard_name', 'web');
 
         // Tenant scoping. super no filtra.
+        //
+        // El resto ve lo MISMO que en el listado: los perfiles de su workspace
+        // más las plantillas globales que publica el super. Los tres roles del
+        // sistema (super/admin/api) NO salen: la pantalla los oculta y el
+        // fichero tiene que decir lo mismo que la pantalla.
         if (!$this->isSuper) {
             $tenantId        = $this->tenantId;
             $systemRoleNames = $this->systemRoleNames;
             $base->where(function ($q) use ($tenantId, $systemRoleNames) {
                 $q->where('tenant_id', $tenantId)
                   ->orWhere(function ($qq) use ($systemRoleNames) {
-                      $qq->whereNull('tenant_id')->whereIn('name', $systemRoleNames);
+                      $qq->whereNull('tenant_id')->whereNotIn('name', $systemRoleNames);
                   });
             });
         }
