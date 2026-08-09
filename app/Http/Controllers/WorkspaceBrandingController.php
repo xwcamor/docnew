@@ -70,6 +70,15 @@ class WorkspaceBrandingController extends Controller
             ],
             'signers.*.name'    => ['nullable', 'string', 'max:120', 'required_without:signers.*.user_id'],
             'signers.*.title'   => ['required', 'string', 'max:120'],
+            // Sin esta regla `relation` NO llegaba: Laravel descarta las claves
+            // de un array validado que no tienen regla propia, así que la
+            // relación que elegía el admin ("Revisado por", "Autorizado por"…)
+            // se perdía y TODOS los firmantes se guardaban como "approved".
+            // El informe salía con un rótulo distinto del que se configuró.
+            'signers.*.relation' => [
+                'nullable', 'string',
+                \Illuminate\Validation\Rule::in(\App\Models\ReportSigner::RELATIONS),
+            ],
         ]);
 
         $tenant->update(\Illuminate\Support\Arr::only($data, ['address', 'report_disclaimer']));

@@ -101,6 +101,45 @@ class WorkspaceBrandingTest extends TestCase
         ])->assertSessionHasErrors('signers.0.title');
     }
 
+    /**
+     * La relación de cada firmante («Revisado por», «Autorizado por»…) se
+     * guarda tal cual la eligió el admin.
+     *
+     * `signers.*.relation` no tenía regla de validación, y Laravel descarta
+     * las claves de un array validado que no la tienen: la relación nunca
+     * llegaba al controlador y TODOS los firmantes se guardaban como
+     * `approved`. El informe salía rotulado «Aprobado por» aunque el admin
+     * hubiera elegido «Revisado por», y en pantalla no se notaba nada.
+     */
+    public function test_la_relacion_de_cada_firmante_se_guarda_como_se_eligio(): void
+    {
+        $insider = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $this->actingAs($this->makeUser('admin'));
+
+        $this->put(route('workspace.update'), [
+            'signers' => [
+                ['user_id' => $insider->id, 'title' => 'Supervisor', 'relation' => 'prepared'],
+                ['user_id' => null, 'name' => 'Ing. Externa', 'title' => 'Auditora', 'relation' => 'reviewed'],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(
+            ['prepared', 'reviewed'],
+            Tenant::find(1)->reportSigners->pluck('relation')->all(),
+        );
+
+        // Una relación inventada se rechaza en su campo en vez de guardarse.
+        $this->put(route('workspace.update'), [
+            'signers' => [['user_id' => $insider->id, 'title' => 'Supervisor', 'relation' => 'inventada']],
+        ])->assertSessionHasErrors('signers.0.relation');
+
+        // Sin relación se queda el valor por defecto documentado.
+        $this->put(route('workspace.update'), [
+            'signers' => [['user_id' => $insider->id, 'title' => 'Supervisor']],
+        ])->assertRedirect();
+        $this->assertSame('approved', Tenant::find(1)->reportSigners()->first()->relation);
+    }
+
     public function test_admin_updates_workspace_logo(): void
     {
         \Illuminate\Support\Facades\Storage::fake('public');

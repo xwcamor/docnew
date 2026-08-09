@@ -26,8 +26,8 @@ class CustomerService
     /**
      * Crea el cliente y le siembra una jerarquía geográfica por defecto
      * (Ubicación "Sede Principal" → Área "General" → Subestación "Principal"),
-     * para que se le puedan agregar transformadores de inmediato. Todo en una
-     * transacción: o se crea completo o nada.
+     * para que no nazca sin estructura. Todo en una transacción: o se crea
+     * completo o nada.
      */
     public function create(array $data, ?UploadedFile $logo = null): Customer
     {

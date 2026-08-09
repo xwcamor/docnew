@@ -13,14 +13,50 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * Customer — master template del scaffold `php artisan make:module`.
+ * Customer — cliente heredado de TRAFODEX.
  *
- * Patron base per-tenant: SoftDeletes + Auditable + BelongsToTenantOrGlobal + HasFavorites.
- * Las columnas custom del dominio se agregan a este modelo y a la migration.
+ * Qué papel juega en DOCUFIZ está SIN DECIDIR: si es la empresa contratista o
+ * el cliente del SaaS (y las contratistas van en `companies`). Hoy conviven las
+ * dos cosas. Ver `docs/PENDIENTES.md`, punto 3. Hasta que se decida, no se le
+ * cambia el dominio ni el nombre.
+ *
+ * NO es la plantilla del scaffold: `make:module` clona `Brand` desde que
+ * Customer creció (logo, dirección, jerarquía, RestrictedToAssignedCustomers).
+ * Sigue siendo el patrón de referencia para features avanzadas (API REST,
+ * jerarquía), que se copian a mano.
+ *
+ * Patron base per-tenant: SoftDeletes + Auditable + BelongsToTenantOrGlobal +
+ * HasFavorites + Lockable + HasDependents.
  */
 class Customer extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\RestrictedToAssignedCustomers, \App\Traits\Lockable;
+    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\RestrictedToAssignedCustomers, \App\Traits\Lockable, \App\Traits\HasDependents;
+
+    /**
+     * Lo que cuelga del cliente y hay que avisar antes de borrarlo.
+     *
+     * `block => false` porque el borrado del listado es blando y no destruye la
+     * jerarquía: solo la deja apuntando a un cliente eliminado. El aviso importa
+     * igual — la pantalla de borrado tenía el bloque escrito y NADIE le pasaba
+     * los datos, así que nunca salía.
+     *
+     * OJO: `customer_locations.customer_id` es `cascadeOnDelete`. El borrado
+     * DEFINITIVO desde la papelera sí se lleva ubicaciones, áreas y
+     * subestaciones por delante.
+     */
+    public function dependents(): array
+    {
+        return [
+            'locations' => [
+                'model' => CustomerLocation::class,
+                'fk'    => 'customer_id',
+                // En minusculas: el texto se incrusta a mitad de frase
+                // («2 ubicaciones ... este registro»).
+                'label' => Str::lower(__('customers.locations')),
+                'block' => false,
+            ],
+        ];
+    }
 
     /** El cliente se referencia a sí mismo por su id (no customer_id). */
     public function customerScopeColumn(): string
@@ -142,7 +178,7 @@ class Customer extends Model
             if (!empty($ids)) $q->whereIn("{$tbl}.country_id", $ids);
         });
 
-        // Chips rápidos: activos / inactivos / con trafos / sin trafos.
+        // Chips rápidos del listado: activos / inactivos.
         $query->when($request->filled('customer_group'), function ($q) use ($request, $tbl) {
             match ($request->customer_group) {
                 'active'     => $q->where("{$tbl}.is_active", true),

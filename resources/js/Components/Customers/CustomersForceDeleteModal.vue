@@ -41,6 +41,11 @@ const okDisabled = (target) => !target
             <template #message>
                 <ExclamationCircleFilled /> {{ $t('global.force_delete_warning') }}
             </template>
+            <!-- La estructura cuelga con `cascadeOnDelete`: el borrado
+                 definitivo se la lleva. Decirlo ANTES, no despues. -->
+            <template v-if="target?.locations_count" #description>
+                {{ $t('customers.force_delete_hierarchy_warning', { count: target.locations_count }) }}
+            </template>
         </Alert>
 
         <p class="force-msg">

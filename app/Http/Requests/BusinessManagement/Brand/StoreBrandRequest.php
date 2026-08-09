@@ -62,6 +62,11 @@ class StoreBrandRequest extends FormRequest
                     }
                 },
             ],
+            // `sort_order` existe en la tabla, se exporta por defecto y ordena el
+            // listado. Sin regla aqui, `validated()` lo descarta y la columna no
+            // se puede llenar desde ninguna pantalla: la exportacion salia
+            // siempre con la columna «Orden» en blanco.
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:99999'],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

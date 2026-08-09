@@ -68,6 +68,7 @@ return [
     'delete_reason_placeholder' => 'Why are you deleting this item',
     'delete_reason_required' => 'A reason is required.',
     'cannot_delete_last_hint' => 'At least one must remain; the last one cannot be deleted.',
+    'force_delete_hierarchy_warning' => 'Its whole structure goes with it: :count location(s) with their areas and substations. This cannot be undone.',
     'deleted_can_undo'   => 'Deleted. You can undo.',
     'undo'               => 'Undo',
     'empty_hierarchy'   => 'This customer has no structure yet. Add a location to get started.',
@@ -103,11 +104,11 @@ return [
 
     'name_required'            => 'The name field is required.',
     'name_unique'              => 'This customer already exists.',
-    'name_duplicate_in_batch'  => 'Duplicate name in the same batch.',
+    'name_duplicate_in_batch'  => 'That name is repeated twice in the same edit.',
     'is_active_required'       => 'The status field is required.',
 
-    'edit_all_title'    => 'Customer — Edit All',
-    'edit_all_subtitle' => 'Edit name and status of multiple customers at once. Click "Save all" to confirm, "Cancel" to discard.',
+    'edit_all_title'    => 'Customers — Edit All',
+    'edit_all_subtitle' => 'Edit name and status of multiple customers at once. Click "Save all" to confirm, "Discard changes" to undo.',
     'edit_all_changes'  => '{0} No changes|{1} 1 pending change|[2,*] :count pending changes',
     'edit_all_save_all' => 'Save all',
     'edit_all_discard'  => 'Discard changes',

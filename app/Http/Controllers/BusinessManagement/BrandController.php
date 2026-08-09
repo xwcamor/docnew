@@ -134,7 +134,7 @@ class BrandController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -175,8 +175,9 @@ class BrandController extends Controller
     }
 
     /**
-     * Alta rápida de marca desde un select de otro módulo (ej. el form de
-     * trafos) sin salir de la página. Misma validación que store() — incluye
+     * Alta rápida de marca desde el Select de otro formulario, sin salir de la
+     * página. Hoy NINGUNA pantalla la usa: el formulario que la llamaba se
+     * purgó con el dominio viejo. Misma validación que store() — incluye
      * unicidad insensible a acentos/mayúsculas, así que bloquea duplicados —
      * pero responde JSON con la marca creada para inyectarla en el select.
      * Gated por permission:brands.create (super/admin pasan por sus permisos).

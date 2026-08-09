@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { Button, Card, Pagination, Alert } from 'ant-design-vue';
 import { SaveOutlined, UndoOutlined, EditOutlined, TeamOutlined } from '@ant-design/icons-vue';
 
@@ -32,6 +32,11 @@ const { draft, isDirty, dirtyCount, dirtyChanges, duplicateRows, discardAll } = 
     editableFields: ['name', 'is_active'],
     uniqueField:    'name',
 });
+
+// Lo que rechaza el servidor (nombre repetido con una fila de OTRA pagina, que
+// el detector local no puede ver). Sin esto el guardado volvia sin decir nada.
+const inertiaPage = usePage();
+const serverErrors = computed(() => Object.values(inertiaPage.props.errors ?? {}).flat());
 
 const submitting = ref(false);
 const saveAll = () => {
@@ -76,6 +81,20 @@ const onPageChange = (page, pageSize) => {
             class="status-bar"
         />
 
+        <Alert
+            v-else-if="serverErrors.length > 0"
+            type="error"
+            show-icon
+            :message="$t('global.fix_marked_fields')"
+            class="status-bar"
+        >
+            <template #description>
+                <ul class="srv-errors">
+                    <li v-for="(e, i) in serverErrors" :key="i">{{ e }}</li>
+                </ul>
+            </template>
+        </Alert>
+
         <Card :bodyStyle="{ padding: 0 }" class="edit-table-card">
             <CustomersEditAllTable
                 v-model:draft="draft"
@@ -111,6 +130,8 @@ const onPageChange = (page, pageSize) => {
 
 <style scoped>
 .status-bar { margin-bottom: 12px; }
+.srv-errors { margin: 4px 0 0; padding-left: 20px; font-size: 0.875rem; }
+.srv-errors li { line-height: 1.5; }
 /* La tabla queda como card BLANCA sobre el fondo gris de .sap-form (que por
    defecto vuelve las cards transparentes). */
 .sap-form .edit-table-card {

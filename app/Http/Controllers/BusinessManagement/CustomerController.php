@@ -235,9 +235,12 @@ class CustomerController extends Controller
                 $subs = [];
                 foreach ($ar->substations as $su) {
                     $totalSubs++;
+                    // La subestación es la hoja: el nivel «transformador» que
+                    // colgaba de aquí se fue con la purga del dominio viejo, y
+                    // con él el contador que iba en `count`.
                     $subs[] = [
                         'type' => 'substation', 'id' => $su->id, 'slug' => $su->slug,
-                        'name' => $su->name, 'count' => 0, 'children' => [],
+                        'name' => $su->name, 'children' => [],
                     ];
                 }
                 $areas[] = ['type' => 'area', 'id' => $ar->id, 'slug' => $ar->slug, 'name' => $ar->name, 'children' => $subs];
@@ -287,9 +290,13 @@ class CustomerController extends Controller
     }
 
     /**
-     * Alta rápida de cliente desde otro formulario (ej. el de transformadores):
-     * valida con las mismas reglas, respeta el límite del plan y devuelve JSON
-     * {id, name} para que el front lo agregue al Select y lo seleccione.
+     * Alta rápida de cliente desde el Select de otro formulario, sin salir de
+     * la página: valida con las mismas reglas, respeta el límite del plan y
+     * devuelve JSON {id, name} para que el front lo agregue y lo seleccione.
+     *
+     * OJO: hoy NINGUNA pantalla la usa — el formulario que la llamaba era el de
+     * transformadores, que se purgó. La ruta sigue viva y gateada por
+     * `customers.create`. Ver punto 3 de `docs/PENDIENTES.md`.
      */
     public function quickStore(StoreCustomerRequest $request, CustomerService $service): \Illuminate\Http\JsonResponse
     {
@@ -357,6 +364,11 @@ class CustomerController extends Controller
 
         return inertia('Customers/Delete', [
             'customer' => $this->payload($customer),
+            // La pantalla ya traía el bloque de «datos relacionados» del
+            // generador, pero nadie le pasaba los conteos: el aviso no salía
+            // nunca. Borrar un cliente con toda su estructura detrás avisaba
+            // igual que borrar uno vacío.
+            'dependents' => $customer->countDependents(),
         ]);
     }
 
@@ -398,8 +410,13 @@ class CustomerController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
 
+        // `customer_locations.customer_id` es `cascadeOnDelete`: el borrado
+        // DEFINITIVO desde esta pantalla se lleva por delante ubicaciones,
+        // áreas y subestaciones. El conteo va al aviso del modal para que no
+        // sea una sorpresa.
         $customers = Customer::onlyTrashed()
             ->with('deleter:id,name,email')
+            ->withCount('locations')
             ->when($name !== '', fn ($q) => $q->where('name', 'like', "%{$name}%"))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)

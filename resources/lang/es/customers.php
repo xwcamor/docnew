@@ -68,6 +68,7 @@ return [
     'delete_reason_placeholder' => 'Indica por qué eliminas este elemento',
     'delete_reason_required' => 'El motivo es obligatorio.',
     'cannot_delete_last_hint' => 'Debe quedar al menos uno; no se puede eliminar el último.',
+    'force_delete_hierarchy_warning' => 'Se borrará también toda su estructura: :count ubicación(es) con sus áreas y subestaciones. Eso no se puede deshacer.',
     'deleted_can_undo'   => 'Eliminado. Puedes deshacer.',
     'undo'               => 'Deshacer',
     'empty_hierarchy'   => 'Este cliente aún no tiene estructura. Agrega una ubicación para empezar.',
@@ -105,12 +106,12 @@ return [
     // Validation
     'name_required'            => 'El campo nombre es obligatorio.',
     'name_unique'              => 'Este cliente ya existe.',
-    'name_duplicate_in_batch'  => 'Nombre duplicado dentro del mismo batch.',
+    'name_duplicate_in_batch'  => 'Ese nombre se repite dos veces en la misma edición.',
     'is_active_required'       => 'El campo estado es obligatorio.',
 
     // Edit All
-    'edit_all_title'    => 'Cliente — Editar Todo',
-    'edit_all_subtitle' => 'Edita nombre y estado de muchos clientes a la vez. Click "Guardar todo" para confirmar, "Cancelar" para descartar.',
+    'edit_all_title'    => 'Clientes — Editar Todo',
+    'edit_all_subtitle' => 'Edita nombre y estado de muchos clientes a la vez. Pulsa "Guardar todo" para confirmar, "Descartar cambios" para deshacer.',
     'edit_all_changes'  => '{0} Sin cambios|{1} 1 cambio pendiente|[2,*] :count cambios pendientes',
     'edit_all_save_all' => 'Guardar todo',
     'edit_all_discard'  => 'Descartar cambios',

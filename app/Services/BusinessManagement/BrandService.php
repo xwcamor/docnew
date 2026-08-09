@@ -91,9 +91,9 @@ class BrandService
     }
 
     /**
-     * Clona el brand. Sufijo "(copia)" con sanity guard de 100 intentos.
-     * El `cod` no se copia (es unique por tenant â€” se deja en null para que
-     * el usuario lo ajuste manualmente al editar el clon).
+     * Clona la marca. Sufijo "(copia)" con sanity guard de 100 intentos.
+     * El `code` no se copia (es unico por tenant: se deja en null para que el
+     * usuario lo ajuste al editar el clon).
      */
     public function duplicate(Brand $brand): ?Brand
     {

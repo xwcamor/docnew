@@ -301,4 +301,137 @@ class CustomerCrudTest extends CustomerTestCase
         $response->assertRedirect();
         $this->assertSoftDeleted('customers', ['id' => $customer->id]);
     }
+
+    /**
+     * Las pantallas del modulo no nombran rutas ni traducciones que no existen.
+     *
+     * Las cuatro vistas de la estructura del cliente venian del sistema viejo y
+     * seguian citando `business_management.transformers.show` y el namespace
+     * `transformers.*`. La ruta esta purgada (un `route()` a una ruta inexistente
+     * revienta Ziggy y deja la pagina EN BLANCO) y el namespace no se le manda al
+     * front, asi que la cabecera de la tabla de estructura salia literalmente
+     * «TRANSFORMERS.SINGULAR» y cada tarjeta decia «customers.transformers_count».
+     */
+    public function test_las_pantallas_no_citan_rutas_ni_claves_inexistentes(): void
+    {
+        $namespacesEnviados = ['global', 'customers', 'tenants', 'countries', 'imports',
+            'locks', 'audit_logs', 'users', 'search', 'sidebar', 'plans', 'notifications'];
+
+        foreach ($this->archivosDelModulo() as $archivo) {
+            $contenido = file_get_contents($archivo);
+            $rel       = str_replace(base_path() . DIRECTORY_SEPARATOR, '', $archivo);
+
+            preg_match_all("/route\(\s*'([a-z0-9_.]+)'/i", $contenido, $rutas);
+            foreach (array_unique($rutas[1]) as $ruta) {
+                $this->assertTrue(
+                    \Illuminate\Support\Facades\Route::has($ruta),
+                    "{$rel} llama a route('{$ruta}') y esa ruta no existe: Ziggy revienta y la pagina sale en blanco.",
+                );
+            }
+
+            preg_match_all("/\\\$tc?\(\s*'([a-z0-9_]+)\./i", $contenido, $claves);
+            foreach (array_unique($claves[1]) as $ns) {
+                $this->assertContains(
+                    $ns,
+                    $namespacesEnviados,
+                    "{$rel} usa el namespace de idioma '{$ns}', que no se le envia al front: la etiqueta sale como clave cruda.",
+                );
+            }
+        }
+    }
+
+    /** @return string[] */
+    private function archivosDelModulo(): array
+    {
+        return array_merge(
+            glob(resource_path('js/Pages/Customers/*.vue')) ?: [],
+            glob(resource_path('js/Components/Customers/*.vue')) ?: [],
+        );
+    }
+
+    /**
+     * La pantalla de borrado avisa de lo que cuelga del cliente.
+     *
+     * El bloque de «datos relacionados» venia escrito del generador y NADIE le
+     * pasaba los conteos: borrar un cliente con toda su estructura detras
+     * avisaba exactamente igual que borrar uno vacio.
+     */
+    public function test_la_pantalla_de_borrado_dice_cuanta_estructura_cuelga(): void
+    {
+        $this->actingAsTenantAdmin(1);
+
+        // create() siembra Sede Principal → General → Principal.
+        $this->post(route('business_management.customers.store'), [
+            'name' => 'Con estructura', 'cod' => 'RUC-EST', 'country_id' => 1,
+        ])->assertRedirect();
+
+        $cliente = Customer::where('name', 'Con estructura')->firstOrFail();
+
+        $this->get(route('business_management.customers.delete', $cliente->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Customers/Delete')
+                ->where('dependents.locations.count', 1)
+                ->where('dependents.locations.block', false));
+    }
+
+    /**
+     * «Editar todo» no revienta al repetir un nombre.
+     *
+     * La pantalla solo detecta repetidos DENTRO de la pagina que se ve. Poner
+     * en una fila el nombre de otra que esta en la pagina siguiente llegaba
+     * hasta el indice unico de Postgres: 500 en la cara del usuario y el lote
+     * entero perdido.
+     */
+    public function test_editar_todo_avisa_en_vez_de_reventar_con_un_nombre_repetido(): void
+    {
+        $this->actingAsTenantAdmin(1);
+        $alfa = Customer::factory()->create(['tenant_id' => 1, 'name' => 'Alfa']);
+        $beta = Customer::factory()->create(['tenant_id' => 1, 'name' => 'Beta']);
+
+        $this->post(route('business_management.customers.edit_all.update'), [
+            'changes' => [['id' => $beta->id, 'name' => 'Alfa']],
+        ])->assertSessionHasErrors('changes.0.name');
+
+        $this->assertSame('Beta', $beta->fresh()->name);
+        $this->assertSame('Alfa', $alfa->fresh()->name);
+    }
+
+    /** Renombrar sin colisiones sigue funcionando. */
+    public function test_editar_todo_deja_renombrar_dentro_del_lote(): void
+    {
+        $this->actingAsTenantAdmin(1);
+        $uno = Customer::factory()->create(['tenant_id' => 1, 'name' => 'Uno']);
+        $dos = Customer::factory()->create(['tenant_id' => 1, 'name' => 'Dos']);
+
+        $this->post(route('business_management.customers.edit_all.update'), [
+            'changes' => [
+                ['id' => $uno->id, 'name' => 'Primero'],
+                ['id' => $dos->id, 'name' => 'Segundo'],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('Primero', $uno->fresh()->name);
+        $this->assertSame('Segundo', $dos->fresh()->name);
+    }
+
+    /**
+     * Las siete pantallas del modulo abren sin reventar.
+     *
+     * Es la prueba que encuentra lo que ni el alta ni la baja ven: una clave que
+     * el controlador no manda, una ruta que la pagina nombra y no existe, o una
+     * relacion que llega como objeto donde el template esperaba texto.
+     */
+    public function test_las_pantallas_del_modulo_abren(): void
+    {
+        $this->actingAsSuperAdmin();
+        $cliente = Customer::factory()->create(['tenant_id' => 1, 'country_id' => 1]);
+
+        foreach (['index', 'create', 'trash', 'edit_all'] as $pantalla) {
+            $this->get(route("business_management.customers.{$pantalla}"))->assertOk();
+        }
+        foreach (['show', 'edit', 'delete'] as $pantalla) {
+            $this->get(route("business_management.customers.{$pantalla}", $cliente->slug))->assertOk();
+        }
+    }
 }

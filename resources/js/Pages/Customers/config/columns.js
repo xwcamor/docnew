@@ -9,7 +9,7 @@ import {
  * `isSuper` agrega la columna Workspace (tenant): cruz-tenant, super ve customers
  * de varios workspaces. Admin solo ve los suyos, la columna seria redundante.
  *
- * `mobile.icon`: ícono del chip en vista lista/tarjetas (estilo trafos: ícono +
+ * `mobile.icon`: ícono del chip en vista lista/tarjetas (ícono +
  * valor, sin etiqueta de texto; el nombre del campo va en el tooltip).
  */
 export const customersTableColumns = (t, { isSuper = false, isMobile = false } = {}) => [

@@ -215,4 +215,119 @@ class BrandCrudTest extends TestCase
         $this->assertDatabaseHas('brands', ['name' => 'Silicona', 'code' => 'silicona']);
         $this->assertDatabaseMissing('brands', ['name' => 'Otro']);
     }
+
+    /**
+     * El orden se guarda desde el formulario.
+     *
+     * La columna `sort_order` existe en la tabla, se exporta POR DEFECTO y
+     * ordena el listado, pero ni el formulario ni el FormRequest la conocian:
+     * `validated()` la tiraba y la columna «Orden» salia en blanco en todas
+     * las exportaciones. Brand es la plantilla de `make:module`, asi que el
+     * agujero se copiaba a cada modulo generado.
+     */
+    public function test_el_orden_se_guarda_al_crear_y_al_editar(): void
+    {
+        $this->post(route('business_management.brands.store'), [
+            'name' => 'Con orden', 'code' => 'con_orden', 'sort_order' => 30, 'is_active' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('brands', ['name' => 'Con orden', 'sort_order' => 30]);
+
+        $marca = Brand::where('name', 'Con orden')->firstOrFail();
+
+        $this->put(route('business_management.brands.update', $marca->slug), [
+            'name' => 'Con orden', 'code' => 'con_orden', 'sort_order' => 5, 'is_active' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('brands', ['id' => $marca->id, 'sort_order' => 5]);
+    }
+
+    /** Y se puede dejar vacio: la columna es opcional. */
+    public function test_el_orden_es_opcional(): void
+    {
+        $this->post(route('business_management.brands.store'), [
+            'name' => 'Sin orden', 'code' => 'sin_orden', 'sort_order' => null,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('brands', ['name' => 'Sin orden', 'sort_order' => null]);
+    }
+
+    /**
+     * «Editar todo» no revienta al repetir un nombre.
+     *
+     * La pantalla solo detecta repetidos DENTRO de la pagina que se ve. Poner
+     * en una fila el nombre de otra que esta en la pagina siguiente llegaba
+     * hasta el indice unico de Postgres: 500 en la cara del usuario y el lote
+     * entero perdido. Ahora se devuelve el error del campo y no se toca nada.
+     */
+    public function test_editar_todo_avisa_en_vez_de_reventar_con_un_nombre_repetido(): void
+    {
+        $alfa = Brand::create(['name' => 'Alfa', 'code' => 'alfa', 'is_active' => true]);
+        $beta = Brand::create(['name' => 'Beta', 'code' => 'beta', 'is_active' => true]);
+
+        $this->post(route('business_management.brands.edit_all.update'), [
+            'changes' => [['id' => $beta->id, 'name' => 'Alfa']],
+        ])->assertSessionHasErrors('changes.0.name');
+
+        $this->assertSame('Beta', $beta->fresh()->name);
+        $this->assertSame('Alfa', $alfa->fresh()->name);
+    }
+
+    /** Y tampoco si el nombre se repite dos veces dentro del mismo lote. */
+    public function test_editar_todo_rechaza_dos_filas_con_el_mismo_nombre(): void
+    {
+        $uno = Brand::create(['name' => 'Uno', 'code' => 'uno', 'is_active' => true]);
+        $dos = Brand::create(['name' => 'Dos', 'code' => 'dos', 'is_active' => true]);
+
+        $this->post(route('business_management.brands.edit_all.update'), [
+            'changes' => [
+                ['id' => $uno->id, 'name' => 'Igual'],
+                ['id' => $dos->id, 'name' => 'Igual'],
+            ],
+        ])->assertSessionHasErrors('changes.1.name');
+
+        $this->assertSame('Uno', $uno->fresh()->name);
+        $this->assertSame('Dos', $dos->fresh()->name);
+    }
+
+    /** Intercambiar nombres entre dos filas del mismo lote sigue permitido. */
+    public function test_editar_todo_deja_renombrar_dentro_del_lote(): void
+    {
+        $uno = Brand::create(['name' => 'Uno', 'code' => 'uno', 'is_active' => true]);
+        $dos = Brand::create(['name' => 'Dos', 'code' => 'dos', 'is_active' => true]);
+
+        $this->post(route('business_management.brands.edit_all.update'), [
+            'changes' => [
+                ['id' => $uno->id, 'name' => 'Primero'],
+                ['id' => $dos->id, 'name' => 'Segundo'],
+            ],
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('Primero', $uno->fresh()->name);
+        $this->assertSame('Segundo', $dos->fresh()->name);
+    }
+
+    /**
+     * Las siete pantallas del modulo abren sin reventar.
+     *
+     * Brand es la plantilla que clona `make:module`: si una de sus pantallas se
+     * cae, se cae la de todos los modulos generados a partir de ella.
+     */
+    public function test_las_pantallas_del_modulo_abren(): void
+    {
+        $super = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Test super'])
+            ->syncPermissions(Permission::all());
+        $super->assignRole('super');
+        $this->actingAs($super);
+
+        $marca = Brand::create(['name' => 'ACME', 'code' => 'acme', 'is_active' => true]);
+
+        foreach (['index', 'create', 'trash', 'edit_all'] as $pantalla) {
+            $this->get(route("business_management.brands.{$pantalla}"))->assertOk();
+        }
+        foreach (['show', 'edit', 'delete'] as $pantalla) {
+            $this->get(route("business_management.brands.{$pantalla}", $marca->slug))->assertOk();
+        }
+    }
 }

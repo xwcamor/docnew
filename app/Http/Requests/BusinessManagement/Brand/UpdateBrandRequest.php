@@ -64,6 +64,8 @@ class UpdateBrandRequest extends FormRequest
                     }
                 },
             ],
+            // Ver StoreBrandRequest: sin esta regla el orden nunca llega a guardarse.
+            'sort_order' => ['nullable', 'integer', 'min:0', 'max:99999'],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

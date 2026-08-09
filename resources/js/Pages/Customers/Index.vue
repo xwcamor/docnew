@@ -86,7 +86,7 @@ const props = defineProps({
 });
 
 // Un usuario acotado a clientes asignados es SOLO-LECTURA en el módulo Clientes:
-// gestiona la flota (trafos), no el registro maestro. Por eso todas las escrituras
+// solo consulta los suyos, no toca el registro maestro. Por eso todas las escrituras
 // (crear/duplicar/importar/editar/eliminar/masivas) suman `!isCustomerRestricted`.
 const canCreateCustomer = computed(() => can('customers.create') && !props.isCustomerRestricted);
 const canEditCustomer   = computed(() => can('customers.edit')   && !props.isCustomerRestricted);
@@ -99,7 +99,7 @@ const filterFields = computed(() =>
     customersFilterFields(t, { countryOptions: props.countryOptions }),
 );
 
-// Chips rápidos (ninguno por defecto): activos / inactivos / con / sin trafos.
+// Chips rápidos (ninguno por defecto): activos / inactivos.
 const customerChips = computed(() => [
     { value: 'active',     label: t('customers.chip_active'),     color: '#1D7044' },
     { value: 'inactive',   label: t('customers.chip_inactive'),   color: '#9aa0a6' },

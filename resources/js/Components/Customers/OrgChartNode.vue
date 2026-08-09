@@ -1,7 +1,6 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
 import {
-    EnvironmentFilled, AppstoreFilled, ClusterOutlined, ThunderboltFilled,
+    EnvironmentFilled, AppstoreFilled, ClusterOutlined,
 } from '@ant-design/icons-vue';
 
 /**
@@ -9,6 +8,9 @@ import {
  *
  * Vista alternativa al árbol: cajas top-down con conectores (CSS clásico de
  * organigrama). La edición vive en la vista de árbol; esta es para visualizar.
+ *
+ * Tenía un cuarto nivel «transformador» del sistema viejo que enlazaba a una
+ * ruta ya purgada (`transformers.show`). Purgado también aquí.
  */
 defineProps({
     node: { type: Object, required: true },
@@ -18,38 +20,15 @@ const ICONS = {
     location: EnvironmentFilled,
     area: AppstoreFilled,
     substation: ClusterOutlined,
-    transformer: ThunderboltFilled,
-};
-const healthColor = (hi) => {
-    if (hi === null || hi === undefined) return '#9aa0a6';
-    const v = Number(hi);
-    if (v > 85) return '#1D7044';
-    if (v > 70) return '#3FA66A';
-    if (v > 50) return '#E9A23B';
-    if (v > 30) return '#E8833A';
-    return '#C8281D';
 };
 </script>
 
 <template>
     <li>
-        <component
-            :is="node.type === 'transformer' ? 'div' : 'div'"
-            class="org-box"
-            :class="`org-box--${node.type}`"
-        >
+        <div class="org-box" :class="`org-box--${node.type}`">
             <component :is="ICONS[node.type] ?? AppstoreFilled" class="org-box__icon" />
-            <template v-if="node.type === 'transformer'">
-                <Link :href="route('business_management.transformers.show', node.slug)" class="org-box__name org-box__name--link">
-                    {{ node.name }}
-                </Link>
-                <span class="org-box__health" :style="{ background: healthColor(node.health_index) }"></span>
-            </template>
-            <template v-else>
-                <span class="org-box__name">{{ node.name }}</span>
-                <span v-if="node.type === 'substation' && node.count" class="org-box__badge">{{ node.count }}</span>
-            </template>
-        </component>
+            <span class="org-box__name">{{ node.name }}</span>
+        </div>
 
         <ul v-if="node.children && node.children.length">
             <OrgChartNode v-for="child in node.children" :key="`${child.type}-${child.id}`" :node="child" />
@@ -95,17 +74,7 @@ ul::before {
 .org-box--area .org-box__icon { color: #6A6D70; }
 .org-box--substation { border-top: 3px solid #8254c8; }
 .org-box--substation .org-box__icon { color: #8254c8; }
-.org-box--transformer { border-top: 3px solid #E9A23B; }
-.org-box--transformer .org-box__icon { color: #E9A23B; }
 .org-box__name { color: var(--color-text, #1f2937); }
-.org-box__name--link { color: #0A6ED1; text-decoration: none; }
-.org-box__name--link:hover { text-decoration: underline; }
-.org-box__badge {
-    display: inline-flex; align-items: center; justify-content: center;
-    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
-    background: #8254c8; color: #fff; font-size: 0.72rem; font-weight: 700;
-}
-.org-box__health { width: 9px; height: 9px; border-radius: 50%; }
 
 html[data-theme="dark"] .org-box { background: #2c3034; border-color: #3f4448; }
 html[data-theme="dark"] .org-box__name { color: #e5e6e7; }

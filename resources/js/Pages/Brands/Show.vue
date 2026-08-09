@@ -106,6 +106,10 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__label">{{ $t('brands.code') }}</span>
                             <span class="spec-cell__value"><code>{{ brand.code }}</code></span>
                         </div>
+                        <div v-if="brand.sort_order !== null && brand.sort_order !== undefined" class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('brands.sort_order') }}</span>
+                            <span class="spec-cell__value">{{ brand.sort_order }}</span>
+                        </div>
                         <!-- Estado: siempre al final. -->
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('brands.is_active') }}</span>

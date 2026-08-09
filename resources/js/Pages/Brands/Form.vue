@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
+    Form, FormItem, Input, InputNumber, Switch, Space, Alert, Row, Col,
 } from 'ant-design-vue';
 import { TagsOutlined } from '@ant-design/icons-vue';
 
@@ -21,6 +21,7 @@ const isEdit = computed(() => !!props.brand);
 const form = useForm({
     name:       props.brand?.name ?? '',
     code:       props.brand?.code ?? '',
+    sort_order: props.brand?.sort_order ?? null,
     is_active:  props.brand?.is_active ?? true,
 });
 
@@ -82,19 +83,48 @@ const submit = () => {
                     />
                 </FormItem>
 
-                <FormItem
-                    :label="$t('brands.code')"
-                    :tooltip="$t('brands.code_help')"
-                    :validate-status="form.errors.code ? 'error' : ''"
-                    :help="form.errors.code"
-                >
-                    <Input
-                        v-model:value="form.code"
-                        size="large"
-                        :maxlength="40"
-                        :placeholder="$t('brands.code')"
-                    />
-                </FormItem>
+                <!-- Codigo y orden son cortos: van en pareja. La rejilla parte
+                     en `lg` (>=992) — en tablet vertical se apila a proposito.
+                     Sin `class="form-grid"` el CSS aplana la fila entera. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('brands.code')"
+                            :tooltip="$t('brands.code_help')"
+                            :validate-status="form.errors.code ? 'error' : ''"
+                            :help="form.errors.code"
+                        >
+                            <Input
+                                v-model:value="form.code"
+                                size="large"
+                                :maxlength="40"
+                                :placeholder="$t('brands.code')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('brands.sort_order')"
+                            :tooltip="$t('brands.sort_order_help')"
+                            :validate-status="form.errors.sort_order ? 'error' : ''"
+                            :help="form.errors.sort_order"
+                        >
+                            <InputNumber
+                                v-model:value="form.sort_order"
+                                size="large"
+                                :min="0"
+                                :max="99999"
+                                :precision="0"
+                                style="width: 100%"
+                                :placeholder="$t('brands.sort_order_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <FormItem
                     v-if="isEdit"

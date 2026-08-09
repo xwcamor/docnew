@@ -14,13 +14,21 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 /**
- * Brand — catálogo de marcas/fabricantes de transformadores (ABB, Siemens…).
+ * Brand — catálogo de marcas por workspace.
  *
- * Metadato descriptivo del transformador (NO es eje de diagnóstico). Es un
- * catálogo PER-TENANT: cada workspace tiene su propio catálogo de marcas, por
- * eso usa BelongsToTenantOrGlobal (con bypass de super). Mantiene SoftDeletes + Auditable
- * + HasFavorites. Campos: `name`, `code` (slug técnico), `sort_order`, `is_active`,
+ * Viene de TRAFODEX (allí eran los fabricantes de transformadores) y **sigue en
+ * el proyecto porque es la plantilla que clona `make:module`**: borrarla deja el
+ * generador inservible. Qué papel tiene en DOCUFIZ está SIN DECIDIR — ver
+ * `docs/PENDIENTES.md`, punto 2. Hasta que se decida, no se le da un dominio
+ * nuevo ni se le cambia el nombre.
+ *
+ * Catálogo PER-TENANT (cada workspace tiene el suyo) vía BelongsToTenantOrGlobal
+ * con bypass de super. SoftDeletes + Auditable + HasFavorites + Lockable.
+ * Campos: `name`, `code` (identificador corto), `sort_order`, `is_active`,
  * `tenant_id`.
+ *
+ * OJO al tocar este modelo: lo que se rompa aquí se copia tal cual al próximo
+ * módulo que genere `make:module`.
  */
 class Brand extends Model
 {
@@ -159,6 +167,7 @@ class Brand extends Model
         return [
             ['key' => 'name',       'label' => __('brands.name'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'code',       'label' => __('brands.code'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            ['key' => 'sort_order', 'label' => __('brands.sort_order'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_active',  'label' => __('brands.is_active'), 'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],

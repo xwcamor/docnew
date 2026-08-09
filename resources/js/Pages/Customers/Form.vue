@@ -75,9 +75,15 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="16">
+                <!-- OJO: sin `class="form-grid"` el CSS de `.sap-form` aplana
+                     TODA columna al 100 % y la rejilla que dice el codigo se
+                     pintaba como una tira vertical. La rejilla parte en `lg`
+                     (>=992): en tablet vertical se apila a proposito. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('customers.name')"
                             :tooltip="$t('customers.name_help')"
                             required
@@ -95,8 +101,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('customers.cod')"
                             :tooltip="$t('customers.cod_help')"
                             required
@@ -112,8 +120,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="16">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('customers.country')"
                             :tooltip="$t('customers.country_help')"
                             required
@@ -128,6 +138,24 @@ const submit = () => {
                                 show-search
                                 :filter-option="(input, opt) => (opt.label ?? '').toLowerCase().includes(input.toLowerCase())"
                             />
+                        </FormItem>
+                    </Col>
+
+                    <Col v-if="isEdit" :xs="24" :lg="12">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :label="$t('customers.is_active')"
+                            :tooltip="$t('customers.is_active_help')"
+                            :validate-status="form.errors.is_active ? 'error' : ''"
+                            :help="form.errors.is_active"
+                        >
+                            <Space>
+                                <Switch v-model:checked="form.is_active" />
+                                <span class="state-label">
+                                    {{ form.is_active ? $t('global.active') : $t('global.inactive') }}
+                                </span>
+                            </Space>
                         </FormItem>
                     </Col>
 
@@ -170,22 +198,6 @@ const submit = () => {
                                     <div v-if="form.errors.logo" class="logo-error">{{ form.errors.logo }}</div>
                                 </div>
                             </div>
-                        </FormItem>
-                    </Col>
-
-                    <Col v-if="isEdit" :xs="24" :md="8">
-                        <FormItem
-                            :label="$t('customers.is_active')"
-                            :tooltip="$t('customers.is_active_help')"
-                            :validate-status="form.errors.is_active ? 'error' : ''"
-                            :help="form.errors.is_active"
-                        >
-                            <Space>
-                                <Switch v-model:checked="form.is_active" />
-                                <span class="state-label">
-                                    {{ form.is_active ? $t('global.active') : $t('global.inactive') }}
-                                </span>
-                            </Space>
                         </FormItem>
                     </Col>
                 </Row>
