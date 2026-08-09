@@ -46,7 +46,7 @@ class ProfileScreensTest extends TestCase
     {
         $user = User::factory()->create(array_merge([
             'tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1,
-            'password' => Hash::make('actual2026clave'),
+            'password' => Hash::make('not-a-real-password-old-1'),
         ], $attrs));
         $user->assignRole('user');
 
@@ -134,14 +134,14 @@ class ProfileScreensTest extends TestCase
 
         $this->from(route('profile.show'))
             ->put(route('profile.update_password'), [
-                'current_password'      => 'actual2026clave',
-                'password'              => 'nueva2026clave',
-                'password_confirmation' => 'nueva2026clave',
+                'current_password'      => 'not-a-real-password-old-1',
+                'password'              => 'not-a-real-password-new-2',
+                'password_confirmation' => 'not-a-real-password-new-2',
             ])
             ->assertRedirect()
             ->assertSessionHasNoErrors();
 
-        $this->assertTrue(Hash::check('nueva2026clave', $user->fresh()->password));
+        $this->assertTrue(Hash::check('not-a-real-password-new-2', $user->fresh()->password));
     }
 
     /** Con la contraseña actual equivocada no cambia nada y lo dice. */
@@ -153,12 +153,12 @@ class ProfileScreensTest extends TestCase
         $this->from(route('profile.show'))
             ->put(route('profile.update_password'), [
                 'current_password'      => 'no-es-esta',
-                'password'              => 'nueva2026clave',
-                'password_confirmation' => 'nueva2026clave',
+                'password'              => 'not-a-real-password-new-2',
+                'password_confirmation' => 'not-a-real-password-new-2',
             ])
             ->assertSessionHasErrors('current_password');
 
-        $this->assertTrue(Hash::check('actual2026clave', $user->fresh()->password));
+        $this->assertTrue(Hash::check('not-a-real-password-old-1', $user->fresh()->password));
     }
 
     /**
@@ -173,12 +173,12 @@ class ProfileScreensTest extends TestCase
 
         $this->from(route('profile.show'))
             ->put(route('profile.update_password'), [
-                'current_password'      => 'actual2026clave',
-                'password'              => 'solosonletras',
-                'password_confirmation' => 'solosonletras',
+                'current_password'      => 'not-a-real-password-old-1',
+                'password'              => 'onlylettersnodigits',
+                'password_confirmation' => 'onlylettersnodigits',
             ])
             ->assertSessionHasErrors('password');
 
-        $this->assertTrue(Hash::check('actual2026clave', $user->fresh()->password));
+        $this->assertTrue(Hash::check('not-a-real-password-old-1', $user->fresh()->password));
     }
 }

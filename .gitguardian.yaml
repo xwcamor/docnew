@@ -1,0 +1,24 @@
+# Configuracion de ggshield (el escaner de secretos de GitGuardian).
+#
+# Motivo: el 9 de agosto de 2026 GitGuardian marco 5 «Generic Password» en el
+# commit 362886d. Las cinco eran contrasenas inventadas dentro de pruebas
+# —usuarios de fabrica en una base SQLite en memoria que se tira al terminar—,
+# no credenciales de nada. Lo que las delato fue que PARECIAN reales
+# («obra2026segura», «actual2026clave»); las de `LoginLockoutTest`, que llevan
+# meses en el repositorio, nunca saltaron porque se llaman «wrong-password».
+#
+# Se hicieron dos cosas, y las dos hacen falta:
+#   1. renombrar esas cinco a algo que se lea como lo que es
+#      (`not-a-real-password-1`), que es lo que de verdad evita el aviso; y
+#   2. esta exclusion, para que una prueba futura no vuelva a disparar la
+#      alarma y acostumbrarnos a ignorarla — el dia que salte de verdad hay
+#      que hacerle caso.
+#
+# OJO: esto excluye SOLO el directorio de pruebas. No se anade aqui `.env`,
+# `config/`, ni nada de `app/`: ahi un secreto seria un secreto de verdad y
+# tiene que saltar. `.env` ya esta en `.gitignore` y nunca se ha versionado.
+version: 2
+
+secret:
+  ignored-paths:
+    - "tests/**"

@@ -83,8 +83,8 @@ class PasswordResetFlowTest extends TestCase
             ->post(route('password.update'), [
                 'token'                 => $token,
                 'email'                 => 'supervisor@empresa.pe',
-                'password'              => 'obra2026segura',
-                'password_confirmation' => 'obra2026segura',
+                'password'              => 'not-a-real-password-1',
+                'password_confirmation' => 'not-a-real-password-1',
             ])
             ->assertRedirect(route('login'))
             ->assertSessionHasNoErrors();
@@ -92,7 +92,7 @@ class PasswordResetFlowTest extends TestCase
         // La fila cambió de verdad, no solo la respuesta fue un 302.
         $user->refresh();
         $this->assertNotSame($anterior, $user->password);
-        $this->assertTrue(Hash::check('obra2026segura', $user->password));
+        $this->assertTrue(Hash::check('not-a-real-password-1', $user->password));
 
         // Y el token se consumió: un enlace no sirve dos veces.
         $this->assertDatabaseCount('password_reset_tokens', 0);
@@ -100,7 +100,7 @@ class PasswordResetFlowTest extends TestCase
         // Con la contraseña nueva se entra.
         $this->post(route('login.post'), [
             'email'    => 'supervisor@empresa.pe',
-            'password' => 'obra2026segura',
+            'password' => 'not-a-real-password-1',
         ]);
         $this->assertAuthenticatedAs($user);
     }
@@ -120,20 +120,20 @@ class PasswordResetFlowTest extends TestCase
             ->post(route('password.update'), [
                 'token'                 => $token,
                 'email'                 => 'tecnico@empresa.pe',
-                'password'              => 'solosonletras',
-                'password_confirmation' => 'solosonletras',
+                'password'              => 'onlylettersnodigits',
+                'password_confirmation' => 'onlylettersnodigits',
             ])
             ->assertSessionHasErrors('password');
 
-        $this->assertFalse(Hash::check('solosonletras', $user->fresh()->password));
+        $this->assertFalse(Hash::check('onlylettersnodigits', $user->fresh()->password));
 
         // Demasiado corta tampoco pasa.
         $this->from(route('password.reset', $token))
             ->post(route('password.update'), [
                 'token'                 => $token,
                 'email'                 => 'tecnico@empresa.pe',
-                'password'              => 'abc123',
-                'password_confirmation' => 'abc123',
+                'password'              => 'short1',
+                'password_confirmation' => 'short1',
             ])
             ->assertSessionHasErrors('password');
     }
@@ -148,7 +148,7 @@ class PasswordResetFlowTest extends TestCase
             ->post(route('password.update'), [
                 'token'                 => $token,
                 'email'                 => 'capataz@empresa.pe',
-                'password'              => 'obra2026segura',
+                'password'              => 'not-a-real-password-1',
                 'password_confirmation' => 'otra2026distinta',
             ])
             ->assertSessionHasErrors('password');
@@ -164,8 +164,8 @@ class PasswordResetFlowTest extends TestCase
             ->post(route('password.update'), [
                 'token'                 => 'token-inventado',
                 'email'                 => 'otro@empresa.pe',
-                'password'              => 'obra2026segura',
-                'password_confirmation' => 'obra2026segura',
+                'password'              => 'not-a-real-password-1',
+                'password_confirmation' => 'not-a-real-password-1',
             ])
             ->assertSessionHasErrors('email');
 
@@ -187,8 +187,8 @@ class PasswordResetFlowTest extends TestCase
         $this->post(route('password.update'), [
             'token'                 => $token,
             'email'                 => 'jefe@empresa.pe',
-            'password'              => 'obra2026segura',
-            'password_confirmation' => 'obra2026segura',
+            'password'              => 'not-a-real-password-1',
+            'password_confirmation' => 'not-a-real-password-1',
         ])->assertRedirect(route('login'));
 
         $this->assertNotSame('token-viejo-de-otro-equipo', $user->fresh()->remember_token);
