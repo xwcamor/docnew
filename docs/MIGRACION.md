@@ -287,15 +287,23 @@ vez — volver a migrar no le devuelve el candado a lo que alguien quitó a prop
 
 > **Si migraste cargos antes de agosto de 2026**, `Position` no tenía `legacy_id` en su `$fillable`
 > y Eloquent lo descartaba en silencio: los cargos llegaron, pero sin marca de origen, y por eso no
-> se bloquearon. Está arreglado. Vuelve a correr `docufiz:migrate-data catalogos` y los reconocerá
+> se bloquearon. Está arreglado. Vuelve a correr `docufiz:migrate-data personas` y los reconocerá
 > por el código, les pondrá el `legacy_id` y los bloqueará.
+>
+> El paso es `personas`, no `catalogos`: **no existe un paso `catalogos`**. Los cargos y las
+> nacionalidades se traen desde dentro del de personas, porque cada trabajador viene con el suyo
+> y sin el catálogo no hay a qué apuntar. Pedir `catalogos` no da error — el argumento no coincide
+> con ninguno y no se migra nada, que es peor que fallar.
 
 ## Qué queda pendiente
 
 - [ ] **Copiar los 4 027 ficheros de imagen** y correr `docufiz:migrate-data archivos`. Es lo único
       que falta para que la migración de datos esté completa.
-- [ ] Volver a correr `docufiz:migrate-data catalogos` para que los cargos ya migrados recuperen su
-      `legacy_id` y queden bloqueados (ver el aviso de arriba).
+- [ ] Volver a correr `docufiz:migrate-data personas` para que los cargos ya migrados recuperen su
+      `legacy_id` y queden bloqueados (ver el aviso de arriba). El comportamiento está fijado en
+      `tests/Feature/MigracionAdoptaCatalogosTest.php` contra una v1 falsa: adopta el cargo que ya
+      existe en vez de duplicarlo, y no le devuelve el candado a quien se lo quitó a propósito.
+      Lo que falta es correrlo contra el MySQL de verdad, que no se alcanza desde el contenedor.
 - [ ] **Reemplazar los 26 correos `usuarioN@pendiente.local`** por los reales, y revisar el rol de
       cada usuario (todos entraron con el de menos privilegios).
 - [ ] Revisar los 196 planes con código renombrado y decidir si el sufijo se queda o el dueño
