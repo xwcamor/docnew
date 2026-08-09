@@ -4,7 +4,7 @@ namespace App\Models;
 
 use App\Support\LikeQuery;
 use App\Traits\Auditable;
-use App\Traits\BelongsToTenantOrGlobal;
+use App\Traits\BelongsToTenant;
 use App\Traits\HasFavorites;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,12 +19,20 @@ use Illuminate\Support\Str;
  *
  * Se identifica por su RUC (`num_doc`, único por país dentro del workspace);
  * `name` es el nombre corto con el que se la conoce en obra y `complete_name`
- * la razón social del documento. Es PER-TENANT, por eso usa
- * BelongsToTenantOrGlobal. Mantiene SoftDeletes + Auditable + HasFavorites.
+ * la razón social del documento.
+ *
+ * Es PER-TENANT: cada workspace tiene sus propias contratistas y no se comparten.
+ * Usaba `BelongsToTenantOrGlobal` —el trait de los catálogos compartidos— por
+ * arrastre del módulo del que se clonó, contradiciendo a este mismo comentario.
+ * Eso hacía que una empresa creada por el super se viera desde TODOS los
+ * workspaces y era la raíz de que un solo registro global tumbara un import,
+ * un «Editar todo» o una masiva entera.
+ *
+ * Mantiene SoftDeletes + Auditable + HasFavorites.
  */
 class Company extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable, \App\Traits\HasDependents;
+    use HasFactory, SoftDeletes, Auditable, BelongsToTenant, HasFavorites, \App\Traits\Lockable, \App\Traits\HasDependents;
 
     protected string $auditModule = 'companies';
 

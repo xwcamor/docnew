@@ -27,7 +27,6 @@ use Illuminate\Http\Request;
 class CompanyController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
-    use \App\Http\Controllers\Concerns\HandlesGlobalRecords;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
 
     /** Pone el candado a la marca (super → nivel sistema; admin → nivel tenant). */
@@ -385,18 +384,17 @@ class CompanyController extends Controller
 
         $companies = Company::query()
             ->filter($request)
-            // `tenant_id` y `locked_at` viajan para que la tabla pueda apagar las
-            // filas que este usuario no puede tocar. Sin ellas el front no tenia
-            // con que decidir y las pintaba todas editables: el admin cambiaba una
-            // global, pulsaba «Guardar todo» y se le caia el lote entero.
+            // `locked_at` viaja para que la tabla pueda apagar las filas que este
+            // usuario no puede guardar. Sin ella el front no tenia con que decidir
+            // y las pintaba todas editables: se escribia el cambio, se pulsaba
+            // «Guardar todo» y se perdia el lote entero.
             ->select('companies.id', 'companies.slug', 'companies.name', 'companies.num_doc',
-                     'companies.is_active', 'companies.tenant_id', 'companies.locked_at')
+                     'companies.is_active', 'companies.locked_at')
             ->paginate($perPage)
             ->withQueryString();
 
         return inertia('Companies/EditAll', [
             'companies' => $companies,
-            'isSuper'   => $request->user()?->hasRole('super') ?? false,
             'filters'   => [
                 'name'      => $request->get('name', ''),
                 'is_active' => $request->filled('is_active')
@@ -421,27 +419,11 @@ class CompanyController extends Controller
             $changes = array_values(array_filter($changes, fn ($c) => !isset($lockedSet[(int) $c['id']])));
         }
 
-        // Y los GLOBALES, por lo mismo: el guard salta dentro de la transacción
-        // y tumbaba el lote entero — el usuario acababa en el dashboard sin
-        // mensaje y sin que se guardara ninguna de las filas que sí podía tocar.
-        [, $globalIds] = $this->splitGlobalIds(Company::class, $ids);
-        if (!empty($globalIds)) {
-            $globalSet = array_flip($globalIds);
-            $changes = array_values(array_filter($changes, fn ($c) => !isset($globalSet[(int) $c['id']])));
-        }
-
-        if (empty($changes)) {
-            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
-        }
-
         $touched = $service->editAllUpdate($changes);
 
         $msg = __('global.updated_success') . " ({$touched})";
         if (!empty($lockedIds)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]);
-        }
-        if (!empty($globalIds)) {
-            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return redirect()
@@ -713,13 +695,6 @@ class CompanyController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]));
         }
 
-        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro de la
-        // transaccion y hacia rollback del lote entero, con 403 al dashboard.
-        [$allowedIds, $globalIds] = $this->splitGlobalIds(Company::class, $allowedIds);
-        if (empty($allowedIds)) {
-            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
-        }
-
         $result = $service->bulkDelete($allowedIds, $data['deleted_description']);
 
         if (!empty($result['queued'])) {
@@ -745,9 +720,6 @@ class CompanyController extends Controller
         }
         if (!empty($lockedIds)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]);
-        }
-        if (!empty($globalIds)) {
-            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()
@@ -794,13 +766,6 @@ class CompanyController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]));
         }
 
-        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro de la
-        // transaccion y hacia rollback del lote entero, con 403 al dashboard.
-        [$allowedIds, $globalIds] = $this->splitGlobalIds(Company::class, $allowedIds);
-        if (empty($allowedIds)) {
-            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
-        }
-
         $result = $service->bulkSetActive($allowedIds, (bool) $data['is_active']);
 
         if (!empty($result['queued'])) {
@@ -810,9 +775,6 @@ class CompanyController extends Controller
         $msg = __('global.updated_success') . " ({$result['changed']})";
         if (!empty($lockedIds)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]);
-        }
-        if (!empty($globalIds)) {
-            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()->with('success', $msg);

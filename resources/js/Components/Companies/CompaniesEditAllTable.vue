@@ -4,21 +4,17 @@
  * v-model y predicados isDirty/isDuplicate del composable useEditAllDraft.
  */
 import { Input, Switch, Tag, Tooltip } from 'ant-design-vue';
-import { LockOutlined, GlobalOutlined } from '@ant-design/icons-vue';
+import { LockOutlined } from '@ant-design/icons-vue';
 
 const props = defineProps({
     isDirty:       { type: Function, required: true },
     duplicateRows: { type: Set,      required: true },
-    // ¿Quien mira es super? Solo el toca los registros globales del catalogo.
-    isSuper:       { type: Boolean,  default: false },
 });
 
-// Una fila que este usuario no puede guardar. El servidor ya las aparta, pero
+// Una fila bloqueada no se puede guardar. El servidor ya las aparta, pero
 // pintarlas editables es peor que no dejar tocarlas: el usuario escribia el
 // cambio, pulsaba «Guardar todo» y lo perdia sin saber por que.
-const bloqueada = (fila) => !!fila.locked_at;
-const global    = (fila) => fila.tenant_id === null && !props.isSuper;
-const soloLectura = (fila) => bloqueada(fila) || global(fila);
+const soloLectura = (fila) => !!fila.locked_at;
 
 const draft = defineModel('draft', { type: Array, required: true });
 </script>
@@ -50,11 +46,8 @@ const draft = defineModel('draft', { type: Array, required: true });
                         :status="duplicateRows.has(i) ? 'error' : (props.isDirty(i) ? 'warning' : '')"
                         size="small"
                     />
-                    <Tooltip v-if="bloqueada(row)" :title="$t('locks.locked_hint')">
+                    <Tooltip v-if="soloLectura(row)" :title="$t('locks.locked_hint')">
                         <Tag color="gold" :bordered="false"><LockOutlined /> {{ $t('locks.locked_tag') }}</Tag>
-                    </Tooltip>
-                    <Tooltip v-else-if="global(row)" :title="$t('global.global_record_hint')">
-                        <Tag :bordered="false"><GlobalOutlined /> {{ $t('global.global_record') }}</Tag>
                     </Tooltip>
                 </td>
                 <td class="col-cod">
