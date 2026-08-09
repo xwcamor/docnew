@@ -37,6 +37,7 @@ use Illuminate\Http\Request;
 class ApprovalRuleController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesGlobalRecords;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
 
     /**
@@ -377,11 +378,23 @@ class ApprovalRuleController extends Controller
             $cambios  = array_values(array_filter($cambios, fn ($c) => ! isset($saltadas[(int) $c['id']])));
         }
 
+        // Y los GLOBALES, por lo mismo: el guard salta dentro de la
+        // transaccion y tumbaba el lote entero — el usuario acababa en el
+        // dashboard sin mensaje y sin que se guardara nada de lo que escribio.
+        [, $globalIds] = $this->splitGlobalIds(ApprovalRule::class, array_column($cambios, 'id'));
+        if (!empty($globalIds)) {
+            $globalSet = array_flip($globalIds);
+            $changes = array_values(array_filter($changes, fn ($c) => !isset($globalSet[(int) $c['id']])));
+        }
+
         $tocadas = $service->editAllUpdate($cambios);
 
         $msg = __('global.updated_success') . " ({$tocadas})";
         if (! empty($bloqueadas)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return redirect()
@@ -602,6 +615,14 @@ class ApprovalRuleController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]));
         }
 
+        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro
+        // de la transaccion y hacia rollback del lote entero, con 403 al
+        // dashboard y sin tocar ninguna de las que si se podian.
+        [$permitidas, $globalIds] = $this->splitGlobalIds(ApprovalRule::class, $permitidas);
+        if (empty($permitidas)) {
+            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
+        }
+
         $resultado = $service->bulkDelete($permitidas, $data['deleted_description']);
 
         if (! empty($resultado['queued'])) {
@@ -613,6 +634,9 @@ class ApprovalRuleController extends Controller
         $msg = __('global.deleted_success') . ' (' . $resultado['count'] . ')';
         if (! empty($bloqueadas)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()
@@ -649,6 +673,14 @@ class ApprovalRuleController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]));
         }
 
+        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro
+        // de la transaccion y hacia rollback del lote entero, con 403 al
+        // dashboard y sin tocar ninguna de las que si se podian.
+        [$permitidas, $globalIds] = $this->splitGlobalIds(ApprovalRule::class, $permitidas);
+        if (empty($permitidas)) {
+            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
+        }
+
         $resultado = $service->bulkSetActive($permitidas, (bool) $data['is_active']);
 
         if (! empty($resultado['queued'])) {
@@ -658,6 +690,9 @@ class ApprovalRuleController extends Controller
         $msg = __('global.updated_success') . " ({$resultado['changed']})";
         if (! empty($bloqueadas)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()->with('success', $msg);

@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 class WorkstationController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesGlobalRecords;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
 
     /**
@@ -302,6 +303,14 @@ class WorkstationController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
         }
 
+        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro
+        // de la transaccion y hacia rollback del lote entero, con 403 al
+        // dashboard y sin tocar ninguna de las que si se podian.
+        [$permitidos, $globalIds] = $this->splitGlobalIds(Workstation::class, $permitidos);
+        if (empty($permitidos)) {
+            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
+        }
+
         $resultado = $service->bulkDelete($permitidos, $data['deleted_description']);
 
         if ($resultado['count'] === 0) {
@@ -316,6 +325,9 @@ class WorkstationController extends Controller
         }
         if (! empty($bloqueados)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()
@@ -332,11 +344,22 @@ class WorkstationController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
         }
 
+        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro
+        // de la transaccion y hacia rollback del lote entero, con 403 al
+        // dashboard y sin tocar ninguna de las que si se podian.
+        [$permitidos, $globalIds] = $this->splitGlobalIds(Workstation::class, $permitidos);
+        if (empty($permitidos)) {
+            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
+        }
+
         $cambiados = $service->bulkSetActive($permitidos, (bool) $data['is_active']);
 
         $msg = __('global.updated_success') . " ({$cambiados})";
         if (! empty($bloqueados)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()->with('success', $msg);

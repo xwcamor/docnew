@@ -150,6 +150,24 @@ class BrandsImport implements ToCollection, WithHeadingRow
                 }
 
                 if ($existing) {
+// Registro GLOBAL del catálogo (tenant_id null) y quien importa no es
+// super: el guard de BelongsToTenantOrGlobal lanza al guardar. Si se le
+// deja llegar, la excepción sale del save(), la transacción entera hace
+// rollback y el usuario pierde TODAS las filas buenas del fichero con un
+// 422 que no dice cuál falló. Se aparta y el resto sigue, igual que se
+// hace con las bloqueadas justo debajo.
+if ($existing->tenant_id === null && ! $this->actorEsSuper()) {
+    $this->skipped++;
+    $this->preview[] = [
+        'row'       => $absoluteRow,
+        'name'      => $name,
+        'is_active' => (bool) $existing->is_active,
+        'action'    => 'skipped',
+        'reason'    => 'global',
+    ];
+    continue;
+}
+
                     // Registro BLOQUEADO (Lockable): el import no lo pisa. Se reporta
                     // como saltado para que el usuario sepa que existe pero está
                     // congelado (hay que desbloquearlo para actualizarlo).
@@ -321,5 +339,12 @@ class BrandsImport implements ToCollection, WithHeadingRow
     protected function camposPropios($row): array
     {
         return []; // make:module:campos-propios-import
+    }
+    /** ¿Quien está importando es super? (los globales solo los toca él). */
+    protected function actorEsSuper(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && method_exists($user, 'hasRole') && $user->hasRole('super');
     }
 }

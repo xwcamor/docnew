@@ -127,6 +127,16 @@ class ApprovalRulesImport implements ToCollection, WithHeadingRow
                         continue;
                     }
 
+                    // Global del catálogo y quien importa no es super: el guard
+                    // lanza al guardar, y si se le deja llegar la transacción
+                    // entera hace rollback — se pierden todas las filas buenas
+                    // del fichero con un 422 que no dice cuál falló.
+                    if ($existente->tenant_id === null && ! $this->actorEsSuper()) {
+                        $this->skipped++;
+                        $this->errors[] = ['row' => $fila, 'message' => __('imports.skip_global'), 'value' => $etiqueta];
+                        continue;
+                    }
+
                     // Bloqueada: no se pisa. Se cuenta como saltada y se dice
                     // por qué, en vez de sobrescribir en silencio.
                     if ($existente->is_locked) {
@@ -192,4 +202,12 @@ class ApprovalRulesImport implements ToCollection, WithHeadingRow
             'dry_run'     => $this->dryRun,
         ];
     }
+    /** ¿Quien está importando es super? (los globales solo los toca él). */
+    protected function actorEsSuper(): bool
+    {
+        $user = auth()->user();
+
+        return $user !== null && method_exists($user, 'hasRole') && $user->hasRole('super');
+    }
+
 }
