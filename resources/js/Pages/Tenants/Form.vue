@@ -187,7 +187,11 @@ const submit = () => {
                             <Input v-model:value="form.report_approver" :maxlength="120" showCount />
                         </FormItem>
 
-                        <Row :gutter="[20, 0]">
+                        <!-- Hoy sus columnas son de 24, así que el aplanado de
+                             app.css no se nota — pero sin `form-grid` el día que
+                             alguien ponga un 12 aquí no pasará nada y no sabrá
+                             por qué. La clase va siempre, en toda fila. -->
+                        <Row :gutter="[20, 0]" class="form-grid">
                             <!-- Plan: SOLO en create. Al crear con un plan pago se
                                  arranca un trial automático. En edición el plan NO
                                  se toca aquí — se gestiona en el tab Suscripción. -->

@@ -168,6 +168,45 @@ class UiStandardTest extends TestCase
         $this->assertFileExists(base_path('docs/UI.md'));
     }
 
+    /**
+     * Ninguna fila de formulario sin `form-grid`.
+     *
+     * `app.css` aplana con `!important` toda `.ant-row` dentro de `.sap-form`
+     * que no lleve la clase. Es una regla deliberada —la mayoria de los
+     * formularios heredados escribian columnas que no querian— pero tiene un
+     * efecto feo: una fila nueva bien escrita, con sus `:lg="12"`, se pinta
+     * apilada y **no hay ningun error en ninguna parte**. Se ve, y sólo si
+     * alguien abre esa pantalla en un monitor ancho.
+     *
+     * Llego a once formularios a la vez. Se comprueba aqui porque es lo unico
+     * que lo caza sin abrir un navegador.
+     */
+    public function test_toda_fila_de_formulario_pide_su_rejilla(): void
+    {
+        $sinRejilla = [];
+
+        foreach ($this->archivosVue() as $archivo) {
+            $fuente = file_get_contents($archivo);
+
+            // Solo los formularios: el aplanado esta acotado a `.sap-form`.
+            if (! str_contains($fuente, 'sap-form') || ! preg_match('/<(Col|a-col)\b/', $fuente)) {
+                continue;
+            }
+
+            preg_match_all('/<(?:Row|a-row)\b[^>]*>/', $fuente, $filas);
+
+            foreach ($filas[0] as $fila) {
+                if (! str_contains($fila, 'form-grid')) {
+                    $sinRejilla[] = str_replace(base_path() . '/', '', $archivo);
+                }
+            }
+        }
+
+        $this->assertSame([], array_values(array_unique($sinRejilla)),
+            "Filas de formulario que se van a pintar apiladas (les falta class=\"form-grid\"):\n"
+            . implode("\n", array_unique($sinRejilla)));
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     /** Claves de un archivo de idioma, aplanadas: 'a.b.c'. */

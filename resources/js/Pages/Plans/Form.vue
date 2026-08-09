@@ -161,11 +161,17 @@ const submit = () => {
                 />
 
                 <!-- Identidad del plan -->
+                <!-- `form-grid` es obligatorio en cada fila: app.css aplana con
+                     !important toda la que no la lleve, y este formulario se
+                     pintaba como una tira vertical de veintidós campos aunque
+                     el template dijera tres columnas. El corte es `lg` (992) y
+                     no `md`: tres campos a lo ancho en una tablet vertical no
+                     se leen. -->
                 <Divider orientation="left" plain>
                     <strong>{{ $t('plans.section_identity') }}</strong>
                 </Divider>
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="6">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="6">
                         <FormItem
                             :required="!isEdit"
                             :validate-status="form.errors.slug ? 'error' : ''"
@@ -188,7 +194,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="10">
+                    <Col :xs="24" :lg="10">
                         <FormItem
                             :label="$t('plans.name')"
                             :tooltip="$t('plans.name_help')"
@@ -199,7 +205,7 @@ const submit = () => {
                             <Input v-model:value="form.name" size="large" :maxlength="100" :placeholder="$t('plans.name_placeholder')" />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.tagline')"
                             :tooltip="$t('plans.tagline_help')"
@@ -212,8 +218,8 @@ const submit = () => {
                 </Row>
 
                 <!-- Apariencia: icono + color + preview en vivo -->
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="10">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="10">
                         <FormItem
                             :label="$t('plans.icon')"
                             :tooltip="$t('plans.icon_help')"
@@ -235,7 +241,7 @@ const submit = () => {
                             </Select>
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.color')"
                             :tooltip="$t('plans.color_help')"
@@ -252,7 +258,7 @@ const submit = () => {
                             </Select>
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="6">
+                    <Col :xs="24" :lg="6">
                         <FormItem :label="$t('plans.preview')" :tooltip="$t('plans.preview_help')">
                             <Tag :color="form.color || 'default'" :bordered="false" class="preview-tag">
                                 <component :is="previewIconComponent" v-if="previewIconComponent" />
@@ -268,8 +274,8 @@ const submit = () => {
                 </Divider>
                 <p class="hint">{{ $t('plans.limits_hint') }}</p>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="8">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.max_users')"
                             :tooltip="$t('plans.max_users_help')"
@@ -286,7 +292,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.max_records_per_module')"
                             :tooltip="$t('plans.max_records_per_module_help')"
@@ -303,7 +309,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.export_rate_limit')"
                             :tooltip="$t('plans.export_rate_limit_help')"
@@ -320,7 +326,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.support_level')"
                             :tooltip="$t('plans.support_level_help')"
@@ -346,8 +352,8 @@ const submit = () => {
                     <strong>{{ $t('plans.section_pricing') }}</strong>
                 </Divider>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="8">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.price_monthly')"
                             :tooltip="$t('plans.price_monthly_help')"
@@ -363,7 +369,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.price_yearly')"
                             :tooltip="$t('plans.price_yearly_help')"
@@ -379,7 +385,7 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('plans.currency')"
                             :tooltip="$t('plans.currency_help')"
@@ -406,8 +412,8 @@ const submit = () => {
 
                 <div v-for="g in featureGroups" :key="g.title" class="feature-group">
                     <div class="feature-group__title">{{ g.title }}</div>
-                    <Row :gutter="[16, 8]">
-                        <Col v-for="key in g.keys" :key="key" :xs="24" :md="12" :lg="8">
+                    <Row :gutter="[16, 8]" class="form-grid">
+                        <Col v-for="key in g.keys" :key="key" :xs="24" :sm="12" :lg="8">
                             <div class="feature-row">
                                 <Switch v-model:checked="form.features[key]" />
                                 <span class="feature-label">{{ $t(`plans.feature_${key.replace(/_(.)/g, (_, c) => c.toUpperCase())}`) || key }}</span>
@@ -421,14 +427,14 @@ const submit = () => {
                     <strong>{{ $t('plans.section_visibility') }}</strong>
                 </Divider>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="12">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem :label="$t('plans.is_active')" :tooltip="$t('plans.is_active_help')">
                             <Switch v-model:checked="form.is_active" />
                             <p class="hint">{{ $t('plans.is_active_hint') }}</p>
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="12">
+                    <Col :xs="24" :lg="12">
                         <FormItem :label="$t('plans.is_public')" :tooltip="$t('plans.is_public_help')">
                             <Switch v-model:checked="form.is_public" />
                             <p class="hint">{{ $t('plans.is_public_hint') }}</p>
