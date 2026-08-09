@@ -345,6 +345,39 @@ defineOptions({ layout: AppLayout });
 
 ---
 
+## Los espacios sobrantes se quitan solos
+
+`Utils/espaciosLimpios.js`, enganchado una vez en `app.js`. **No hay que hacer
+nada en cada campo**: cubre los 129 archivos con `<Input>` y los 12 con
+`<Textarea>` sin tocar ninguno.
+
+| Cuándo | Qué quita |
+|---|---|
+| Mientras se teclea | los espacios del principio y los dobles de en medio |
+| Al salir del campo | el espacio del final |
+| En un área de texto, además | el doble Enter (nada de párrafos vacíos) y el espacio antes del salto de línea |
+
+Mientras se escribe se deja pasar **un** espacio final —si no, no se podrían
+separar dos palabras— y ese se va al salir. El cursor se conserva: se puede
+corregir en medio de una frase sin que salte al final.
+
+Por qué importa: «Carlos  Gamarra», « Carlos Gamarra» y «carlos gamarra » son la
+misma persona escrita de tres formas y el sistema las trata como tres. Un
+espacio al final además no se ve en pantalla, así que nadie lo borra, y el
+índice único da por distintas a dos filas que se leen igual. En la base del
+sistema anterior salieron nombres con dos y con seis espacios seguidos.
+
+**Dónde NO se toca nada:** la contraseña (un espacio suyo es un carácter como
+cualquier otro), el buscador de un desplegable, el selector de fecha, el campo
+numérico de Ant Design y el editor de texto enriquecido. Para dejar fuera un
+campo concreto: `data-espacios="libre"`.
+
+Va en fase de captura, así que limpia el valor **antes** de que Vue lo lea: al
+`v-model` le llega limpio y al servidor no sale lo sucio. Los extremos los
+garantiza además `TrimStrings` de Laravel, que corre en todas las peticiones.
+
+---
+
 ## Antes de escribir un componente, mira si ya existe
 
 `Components/Common/` es la parte más rentable de la base heredada. Un listado

@@ -8,9 +8,15 @@ import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import { autoAnimatePlugin } from '@formkit/auto-animate/vue';
 import I18nPlugin from '@/Plugins/i18n';
 import { setDiagnosticColors } from '@/Utils/severity';
+import { activarEspaciosLimpios } from '@/Utils/espaciosLimpios';
 
 // Register AG Grid Community modules once for the whole app
 ModuleRegistry.registerModules([AllCommunityModule]);
+
+// «Carlos  Gamarra» y « Carlos Gamarra» son la misma persona escrita de dos
+// formas, y el sistema las trata como dos. Se limpia en todos los campos de la
+// aplicacion antes de que Vue lea el valor.
+activarEspaciosLimpios();
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
