@@ -398,6 +398,11 @@ class ProfileController extends Controller
         }
 
         $user->password = Hash::make($data['password']);
+        // Rotar el remember_token invalida las cookies de "Recuérdame" viejas:
+        // si alguien cambia su contraseña porque sospecha que se la saben, la
+        // sesión recordada en otro dispositivo tiene que caerse con ella.
+        // La sesión actual sigue viva (Laravel reemite la cookie del que la usa).
+        $user->setRememberToken(\Illuminate\Support\Str::random(60));
         $user->save();
 
         $user->notify(new \App\Notifications\PasswordChangedNotification('self'));

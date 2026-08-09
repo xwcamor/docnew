@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { Head, Link, useForm } from '@inertiajs/vue3';
 import {
     Card, Button, Input, Select, SelectOption, Switch, DatePicker,
     Radio, RadioGroup, Form, FormItem, Space, Alert,
@@ -42,22 +42,24 @@ watch(() => form.audience_type, (val, oldVal) => {
     }
 });
 
+// Se envía SIEMPRE con el helper del form (form.put / form.post), nunca con
+// router.*: `router` no rellena `form.errors` ni `form.processing`, así que
+// con él un asunto vacío devolvía 422 y la pantalla no decía absolutamente
+// nada — el botón ni siquiera giraba. Los `:help` de cada campo dependen de
+// que los errores lleguen por aquí.
 const submit = (publishNow = false) => {
     form.publish_now = publishNow;
-    const payload = {
-        ...form.data(),
-        // expires_at: convertir dayjs a ISO string para el backend.
-        expires_at: form.expires_at ? form.expires_at.toISOString() : null,
-    };
+
+    // expires_at viaja como ISO; el DatePicker guarda un objeto dayjs.
+    form.transform((data) => ({
+        ...data,
+        expires_at: data.expires_at ? data.expires_at.toISOString() : null,
+    }));
 
     if (isEdit.value) {
-        router.put(route('communication.messages.update', props.message.slug), payload, {
-            onError: () => {},
-        });
+        form.put(route('communication.messages.update', props.message.slug));
     } else {
-        router.post(route('communication.messages.store'), payload, {
-            onError: () => {},
-        });
+        form.post(route('communication.messages.store'));
     }
 };
 
@@ -137,8 +139,10 @@ const isPublished = computed(() => !!props.message?.published_at);
                         :disabled="isPublished"
                         style="max-width: 420px"
                     >
-                        <SelectOption v-for="t in tenants" :key="t.id" :value="t.id" :label="t.name">
-                            {{ t.name }}
+                        <!-- `w`, no `t`: `t` es la función de traducción y
+                             dentro del v-for la tapaba. -->
+                        <SelectOption v-for="w in tenants" :key="w.id" :value="w.id" :label="w.name">
+                            {{ w.name }}
                         </SelectOption>
                     </Select>
                 </FormItem>

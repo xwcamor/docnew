@@ -15,6 +15,11 @@ import {
     CloseCircleFilled,
     CheckCircleFilled,
     BellOutlined,
+    NotificationOutlined,
+    MailOutlined,
+    SafetyCertificateOutlined,
+    MessageOutlined,
+    ThunderboltOutlined,
 } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
 
@@ -28,9 +33,14 @@ defineOptions({ layout: AppLayout });
 /**
  * Notifications Index — bandeja unificada de notificaciones del usuario.
  *
- * Hoy contiene "downloads" (archivos exportados listos para bajar). Cuando
- * se sumen tareas/alertas/etc., cada item del array tiene un `kind` que
- * permite renderizar diferente según el tipo (download / task / alert).
+ * Dos tipos, distinguidos por `kind`:
+ *   · `download` — un archivo exportado, listo para bajar.
+ *   · `app`      — un aviso del sistema (seguridad, automatización, respuesta
+ *                  a un mensaje). Son los mismos que enseña la campana.
+ *
+ * Las dos fuentes tienen que estar aquí: la campana lleva a esta página con
+ * "Ver todas", y una página que solo enseñara los archivos dejaría al usuario
+ * con un contador que no cuadra con lo que ve.
  */
 
 const props = defineProps({
@@ -60,6 +70,27 @@ const statusTag = (status) => {
     }
 };
 
+// ── UI helpers — kind 'app' (avisos del sistema) ──────────────────────
+// Un icono por concepto, los MISMOS que usa la campana del AppLayout.
+const appIcon = (n) => {
+    if (n.type === 'automation') return n.channel === 'email' ? MailOutlined : ThunderboltOutlined;
+    const map = {
+        security:      SafetyCertificateOutlined,
+        message_reply: MessageOutlined,
+        plan_change:   NotificationOutlined,
+    };
+    return map[n.type] ?? BellOutlined;
+};
+const appColor = (n) => {
+    if (n.type === 'automation') return n.channel === 'email' ? '#0A6ED1' : '#B45309';
+    const map = {
+        security:      '#C8281D',
+        message_reply: '#0A6ED1',
+        plan_change:   '#0A6ED1',
+    };
+    return map[n.type] ?? '#0A6ED1';
+};
+
 const fmtDate = (d) => d ? dayjs(d).format('YYYY-MM-DD HH:mm') : '—';
 
 const triggerDownload = (n) => {
@@ -67,6 +98,25 @@ const triggerDownload = (n) => {
     window.location.href = route('notifications.download', n.id);
     setTimeout(reload, 800);
 };
+
+const markRead = (n) => {
+    if (n.kind !== 'app' || n.status !== 'unread') return;
+    router.post(route('notifications.app.read', n.raw_id), {}, {
+        preserveScroll: true,
+        onFinish: reload,
+    });
+};
+
+const markAllRead = () => {
+    router.post(route('notifications.app.read_all'), {}, {
+        preserveScroll: true,
+        onFinish: reload,
+    });
+};
+
+const unreadAppCount = computed(
+    () => (props.notifications.data ?? []).filter((n) => n.kind === 'app' && n.status === 'unread').length,
+);
 
 const dismiss = (n) => {
     router.delete(
@@ -116,6 +166,11 @@ watch(
                     </p>
                 </div>
             </div>
+            <div v-if="unreadAppCount > 0" class="mi-title__actions">
+                <Button @click="markAllRead">
+                    <CheckCircleFilled /> {{ $t('notifications.mark_all_read') }}
+                </Button>
+            </div>
         </div>
 
         <Card v-if="notifications.data.length > 0" :bodyStyle="{ padding: 0 }" class="notif-card">
@@ -124,9 +179,11 @@ watch(
                     v-for="n in notifications.data"
                     :key="n.id"
                     class="notif-item"
-                    :class="{ 'notif-item--unread': n.kind === 'download' && n.status === 'ready' && !n.downloaded_at }"
+                    :class="{ 'notif-item--unread':
+                        (n.kind === 'download' && n.status === 'ready' && !n.downloaded_at)
+                        || (n.kind === 'app' && n.status === 'unread') }"
                 >
-                    <!-- Render por kind. Hoy solo download; mañana sumamos task/alert. -->
+                    <!-- Render por kind: download (archivo) | app (aviso del sistema). -->
                     <template v-if="n.kind === 'download'">
                         <component
                             :is="fileIcon(n.type).icon"
@@ -158,6 +215,36 @@ watch(
                                     <DownloadOutlined /> {{ $t('notifications.download') }}
                                 </Button>
                             </Tooltip>
+                            <Tooltip :title="$t('notifications.dismiss')">
+                                <Button danger ghost @click="dismiss(n)">
+                                    <DeleteOutlined />
+                                </Button>
+                            </Tooltip>
+                        </div>
+                    </template>
+
+                    <!-- ── Aviso del sistema (seguridad, automatización, respuesta) ── -->
+                    <template v-else-if="n.kind === 'app'">
+                        <component
+                            :is="appIcon(n)"
+                            class="notif-item__icon"
+                            :style="{ color: appColor(n) }"
+                        />
+                        <div class="notif-item__body">
+                            <div class="notif-item__name">{{ n.title }}</div>
+                            <div v-if="n.body" class="notif-item__text">{{ n.body }}</div>
+                            <div class="notif-item__meta">
+                                <!-- Color Y palabra: al sol el color solo no se lee (UI.md §5). -->
+                                <Tag :color="n.status === 'unread' ? 'processing' : 'default'" :bordered="false">
+                                    {{ n.status === 'unread' ? $t('notifications.status_unread') : $t('notifications.status_read') }}
+                                </Tag>
+                                <span class="notif-item__date">{{ $t('notifications.received') }}: {{ fmtDate(n.created_at) }}</span>
+                            </div>
+                        </div>
+                        <div class="notif-item__actions">
+                            <Button v-if="n.status === 'unread'" @click="markRead(n)">
+                                {{ $t('notifications.mark_read') }}
+                            </Button>
                             <Tooltip :title="$t('notifications.dismiss')">
                                 <Button danger ghost @click="dismiss(n)">
                                     <DeleteOutlined />
@@ -239,6 +326,13 @@ watch(
     margin-bottom: 4px;
     word-break: break-word;
 }
+.notif-item__text {
+    font-size: 0.85rem;
+    color: #4b5563;
+    margin-bottom: 5px;
+    line-height: 1.45;
+    word-break: break-word;
+}
 .notif-item__meta {
     display: flex;
     flex-wrap: wrap;
@@ -289,6 +383,7 @@ html[data-theme="dark"] .page-header p  { color: #a8aaae; }
 html[data-theme="dark"] .notif-item { border-bottom-color: #3f4448; }
 html[data-theme="dark"] .notif-item:hover { background: #313a44; }
 html[data-theme="dark"] .notif-item__name { color: #e5e6e7; }
+html[data-theme="dark"] .notif-item__text { color: #c3c6ca; }
 html[data-theme="dark"] .notif-item__meta,
 html[data-theme="dark"] .notif-item__date { color: #a8aaae; }
 html[data-theme="dark"] .notif-item--unread::before { background: #4db6e8; }

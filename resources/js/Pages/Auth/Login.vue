@@ -26,7 +26,10 @@ const props = defineProps({
 //   googleLoginEnabled     → feature flag para el boton Google
 const page = usePage();
 const googleLoginEnabled = computed(() => !!page.props.googleLoginEnabled);
-const effectiveAppName   = computed(() => props.appName || page.props.appName || 'TR Health');
+// Si `app.name` viniera vacío se enseña el nombre por defecto traducido. El
+// literal que había aquí era 'TR Health', la marca del producto anterior, en
+// la primerísima pantalla del sistema.
+const effectiveAppName   = computed(() => props.appName || page.props.appName || t('auth.app_default_name'));
 const effectiveAppLogo   = computed(() => page.props.appLogoUrl || null);
 
 // ─── Form ──────────────────────────────────────────────────────────────────
@@ -264,6 +267,19 @@ const disclosureHtml = computed(() => {
                             {{ $t('auth.login') }}
                         </Button>
                     </form>
+
+                    <!-- Primera entrada. Las cuentas que vienen del sistema
+                         anterior se crearon con una contraseña aleatoria que
+                         nadie conoce: el único camino es «¿Olvidaste tu
+                         contraseña?». Si no se dice aquí, el usuario prueba
+                         claves hasta que el freno de intentos lo bloquea. -->
+                    <div class="first-time">
+                        <p class="first-time__title">{{ $t('auth.first_time_title') }}</p>
+                        <p class="first-time__body">{{ $t('auth.first_time_body') }}</p>
+                        <Link :href="route('password.request')" class="first-time__link">
+                            {{ $t('auth.request_title') }}
+                        </Link>
+                    </div>
 
                     <!-- Divider + Google login. Gateado por el setting
                          `features.google_login_enabled` (shared prop). Si
@@ -682,6 +698,38 @@ const disclosureHtml = computed(() => {
 }
 .pass-toggle:hover { background: #f1f5f9; color: #0A6ED1; }
 
+/* Primera entrada — aviso para las cuentas migradas sin contraseña. */
+.first-time {
+    margin-top: 20px;
+    padding: 12px 14px;
+    border: 1px solid #dbeafe;
+    border-left: 3px solid #0A6ED1;
+    border-radius: 8px;
+    background: #f5f9ff;
+}
+.first-time__title {
+    margin: 0 0 4px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #1f2937;
+}
+.first-time__body {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: #475569;
+}
+.first-time__link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;   /* objetivo de toque con guantes (UI.md §3) */
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #0A6ED1;
+    text-decoration: none;
+}
+.first-time__link:hover { text-decoration: underline; }
+
 /* Divider */
 .divider {
     display: flex;
@@ -829,6 +877,15 @@ html[data-theme="dark"] .login-form .ant-input-prefix       { color: #7c8390; }
 html[data-theme="dark"] .login-form .ant-input::placeholder { color: #6b7785; }
 
 html[data-theme="dark"] .pass-toggle:hover { background: #313a44; color: #4db6e8; }
+
+html[data-theme="dark"] .first-time {
+    background: #202a35;
+    border-color: #2f3d4c;
+    border-left-color: #4db6e8;
+}
+html[data-theme="dark"] .first-time__title { color: #e5e6e7; }
+html[data-theme="dark"] .first-time__body  { color: #a8aaae; }
+html[data-theme="dark"] .first-time__link  { color: #4db6e8; }
 
 html[data-theme="dark"] .divider          { color: #6b7785; }
 html[data-theme="dark"] .divider::before,

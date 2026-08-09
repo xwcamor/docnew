@@ -7,24 +7,45 @@ import {
     CheckCircleFilled,
 } from '@ant-design/icons-vue';
 import AuthLayout from '@/Layouts/AuthLayout.vue';
+import { useI18n } from '@/Plugins/i18n';
+
+const { t } = useI18n();
 
 defineOptions({ layout: AuthLayout });
 
-defineProps({
+const props = defineProps({
     appName: { type: String, default: '' },
 });
 
 const page = usePage();
 
+// El nombre sale del ajuste `app.name` (shared prop). Antes caia a un
+// 'TR Health' escrito a mano: la marca del producto anterior en la primera
+// pantalla que ve un supervisor.
+const effectiveAppName = computed(() => props.appName || page.props.appName || '');
+
 const form = useForm({ email: '' });
 
 // Tras un envío exitoso mostramos un panel de confirmación en lugar del form.
-// El email confirmado viene del flash del backend (sent_to) para sobrevivir
-// si el componente se rehidrata, y como respaldo guardamos el último valor enviado.
+//
+// Dos fuentes a propósito: `sentEmail` es el valor local, que sirve dentro de
+// la misma vista, y el flash `sent_to` —que el controlador deja y comparte
+// `HandleInertiaRequests`— es el que sostiene la confirmación si el usuario
+// recarga la página a mano. Sin el segundo volvía al formulario vacío y creía
+// que no se había enviado nada.
 const sentEmail = ref('');
 const sentMessage = computed(() => page.props.flash?.success || '');
 const showConfirmation = computed(() => !!sentEmail.value || !!page.props.flash?.sent_to);
 const confirmedEmail = computed(() => page.props.flash?.sent_to || sentEmail.value);
+
+// «Si <correo> está registrado…» — el correo va en negrita dentro de la frase,
+// asi que se compone el HTML. Se escapa antes: el valor lo escribio el usuario.
+const escapeHtml = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+}[c]));
+const sentBodyHtml = computed(() => t('auth.forgot_sent_body', {
+    email: `<strong>${escapeHtml(confirmedEmail.value)}</strong>`,
+}));
 
 const submit = () => {
     const attempted = form.email;
@@ -56,7 +77,7 @@ const useDifferentEmail = () => {
 </script>
 
 <template>
-    <Head title="Recuperar contraseña" />
+    <Head :title="$t('auth.request_title')" />
 
     <div class="auth-grid">
         <!-- LEFT brand (desktop only) -->
@@ -64,8 +85,8 @@ const useDifferentEmail = () => {
             <div class="auth-brand__bg" />
             <div class="auth-brand__inner">
                 <div class="auth-brand__logo"><SafetyOutlined /></div>
-                <h2 class="auth-brand__title">{{ appName || 'TR Health' }}</h2>
-                <p class="auth-brand__tagline">¿Olvidaste tu contraseña?</p>
+                <h2 class="auth-brand__title">{{ effectiveAppName }}</h2>
+                <p class="auth-brand__tagline">{{ $t('auth.forgot_tagline') }}</p>
 
                 <!-- Abstract SVG hero (mismo estilo que Login) -->
                 <div class="auth-brand__hero">
@@ -99,9 +120,9 @@ const useDifferentEmail = () => {
                 </div>
 
                 <ul class="auth-brand__features">
-                    <li><CheckOutlined /><span>Enlace seguro enviado a tu correo</span></li>
-                    <li><CheckOutlined /><span>Restablecé en pocos minutos</span></li>
-                    <li><CheckOutlined /><span>Sin necesidad de contactar soporte</span></li>
+                    <li><CheckOutlined /><span>{{ $t('auth.forgot_point_link') }}</span></li>
+                    <li><CheckOutlined /><span>{{ $t('auth.forgot_point_minutes') }}</span></li>
+                    <li><CheckOutlined /><span>{{ $t('auth.forgot_point_nosupport') }}</span></li>
                 </ul>
             </div>
         </aside>
@@ -110,14 +131,14 @@ const useDifferentEmail = () => {
         <main class="auth-main">
             <header class="auth-mobile-header">
                 <div class="auth-mobile-header__logo"><SafetyOutlined /></div>
-                <h2>{{ appName || 'TR Health' }}</h2>
-                <p>Recuperar contraseña</p>
+                <h2>{{ effectiveAppName }}</h2>
+                <p>{{ $t('auth.request_title') }}</p>
             </header>
 
             <div class="auth-form-wrap">
                 <div class="auth-form">
                     <Link :href="route('login')" class="back-link">
-                        <ArrowLeftOutlined /> Volver al login
+                        <ArrowLeftOutlined /> {{ $t('auth.back_to_login') }}
                     </Link>
 
                     <!-- ── ESTADO 1: panel de confirmación tras envío ─────── -->
@@ -127,19 +148,16 @@ const useDifferentEmail = () => {
                         </div>
 
                         <div class="auth-form__header confirm-header">
-                            <h1>Revisa tu correo</h1>
-                            <p>
-                                Si <strong>{{ confirmedEmail }}</strong> está registrado,
-                                te enviamos un enlace para restablecer tu contraseña.
-                            </p>
+                            <h1>{{ $t('auth.forgot_sent_title') }}</h1>
+                            <p v-html="sentBodyHtml" />
                         </div>
 
                         <div class="confirm-tips">
-                            <p><strong>¿No lo encuentras?</strong></p>
+                            <p><strong>{{ $t('auth.forgot_notfound_title') }}</strong></p>
                             <ul>
-                                <li>El enlace puede tardar hasta 1–2 minutos en llegar.</li>
-                                <li>Revisa tu carpeta de <em>spam</em> o <em>promociones</em>.</li>
-                                <li>Verifica que escribiste bien el correo.</li>
+                                <li>{{ $t('auth.forgot_tip_wait') }}</li>
+                                <li>{{ $t('auth.forgot_tip_spam') }}</li>
+                                <li>{{ $t('auth.forgot_tip_typo') }}</li>
                             </ul>
                         </div>
 
@@ -151,7 +169,7 @@ const useDifferentEmail = () => {
                             class="submit-btn"
                             @click="sendAgain"
                         >
-                            Reenviar enlace
+                            {{ $t('auth.forgot_resend') }}
                         </Button>
 
                         <button
@@ -159,15 +177,15 @@ const useDifferentEmail = () => {
                             class="text-btn"
                             @click="useDifferentEmail"
                         >
-                            Usar otro correo
+                            {{ $t('auth.forgot_other_email') }}
                         </button>
                     </template>
 
                     <!-- ── ESTADO 2: formulario inicial ───────────────────── -->
                     <template v-else>
                         <div class="auth-form__header">
-                            <h1>Recuperar contraseña</h1>
-                            <p>Ingrese su correo y le enviaremos un enlace para restablecerla.</p>
+                            <h1>{{ $t('auth.request_title') }}</h1>
+                            <p>{{ $t('auth.request_message') }}</p>
                         </div>
 
                         <Alert
@@ -179,13 +197,13 @@ const useDifferentEmail = () => {
                         />
 
                         <form @submit.prevent="submit" autocomplete="off">
-                            <label for="auth-email" class="field-label">Correo electrónico</label>
+                            <label for="auth-email" class="field-label">{{ $t('auth.email') }}</label>
                             <Input
                                 id="auth-email"
                                 v-model:value="form.email"
                                 size="large"
                                 type="email"
-                                placeholder="tu@empresa.com"
+                                :placeholder="$t('auth.email_placeholder')"
                                 autocomplete="username"
                                 :status="form.errors.email ? 'error' : ''"
                             >
@@ -201,19 +219,19 @@ const useDifferentEmail = () => {
                                 :loading="form.processing"
                                 class="submit-btn"
                             >
-                                Enviar enlace
+                                {{ $t('auth.send_reset_link') }}
                             </Button>
                         </form>
 
                         <p class="hint">
-                            ¿Recordaste tu contraseña?
-                            <Link :href="route('login')" class="link-sm">Volver al login</Link>
+                            {{ $t('auth.forgot_remembered') }}
+                            <Link :href="route('login')" class="link-sm">{{ $t('auth.back_to_login') }}</Link>
                         </p>
                     </template>
                 </div>
 
                 <footer class="auth-footer">
-                    <p>© {{ new Date().getFullYear() }} {{ appName }} · Todos los derechos reservados</p>
+                    <p>© {{ new Date().getFullYear() }} {{ effectiveAppName }} · {{ $t('auth.all_rights_reserved') }}</p>
                 </footer>
             </div>
         </main>

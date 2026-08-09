@@ -12,16 +12,23 @@ return [
     'status_failed'      => 'Falló',
     'status_expired'     => 'Expirado',
 
+    // Status labels (avisos del sistema)
+    'status_unread'      => 'Sin leer',
+    'status_read'        => 'Leído',
+
     // Item labels
     'generated'          => 'Generado',
     'downloaded'         => 'Descargado',
     'expires'            => 'Expira',
+    'received'           => 'Recibido',
 
     // Actions
     'download'           => 'Descargar',
     'dismiss'            => 'Quitar',
+    'mark_read'          => 'Marcar como leído',
+    'mark_all_read'      => 'Marcar todo como leído',
 
     // Empty state
     'empty'              => 'No tienes notificaciones',
-    'empty_hint'         => 'Cuando exportes un reporte o se complete una tarea, aparecerá aquí.',
+    'empty_hint'         => 'Aquí aparecen los archivos que exportes y los avisos del sistema.',
 ];

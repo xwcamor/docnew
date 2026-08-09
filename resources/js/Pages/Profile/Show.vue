@@ -17,7 +17,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import { useI18n } from '@/Plugins/i18n';
 import { useAuth } from '@/Composables/useAuth';
 
-const { t } = useI18n();
+const { t, tc } = useI18n();
 const { isSuper } = useAuth();
 
 defineOptions({ layout: AppLayout });
@@ -211,14 +211,17 @@ const submitPassword = () => {
 // ─── Apariencia (esquema de color + posición de menú, guardado en BD) ──────
 // Al cambiar se guarda y se recargan los shared props → AppLayout aplica el
 // esquema/menú nuevos (tiene watchers sobre auth.user). Cross-device.
+// Los nombres van traducidos y en color de verdad, no en jerga de diseño:
+// estaban a medias en inglés ('Slate', 'Teal', 'Emerald') y a medias en
+// castellano ('Rojo', 'Ámbar'), así que en inglés salían dos en castellano.
 const SCHEMES = [
-    { value: 'sap',      label: 'SAP',             color: '#0A6ED1' },
-    { value: 'slate',    label: 'Slate',           color: '#475569' },
-    { value: 'emerald',  label: 'Emerald',         color: '#059669' },
-    { value: 'indigo',   label: 'Indigo',          color: '#4f46e5' },
-    { value: 'red',      label: 'Rojo',            color: '#B23A48' },
-    { value: 'amber',    label: 'Ámbar',           color: '#B45309' },
-    { value: 'teal',     label: 'Teal',            color: '#0E7490' },
+    { value: 'sap',      label: t('profile.scheme_sap'),      color: '#0A6ED1' },
+    { value: 'slate',    label: t('profile.scheme_slate'),    color: '#475569' },
+    { value: 'emerald',  label: t('profile.scheme_emerald'),  color: '#059669' },
+    { value: 'indigo',   label: t('profile.scheme_indigo'),   color: '#4f46e5' },
+    { value: 'red',      label: t('profile.scheme_red'),      color: '#B23A48' },
+    { value: 'amber',    label: t('profile.scheme_amber'),    color: '#B45309' },
+    { value: 'teal',     label: t('profile.scheme_teal'),     color: '#0E7490' },
     { value: 'contrast', label: t('profile.scheme_contrast'), color: '#1d4ed8' },
 ];
 const uiScheme    = ref(page.props.auth?.user?.ui_scheme ?? 'sap');
@@ -232,6 +235,7 @@ const saveAppearance = () => {
 // ─── Preferencias: tours completados ───────────────────────────────────────
 const tours = computed(() => page.props.auth?.user?.module_tours ?? {});
 const tourCount = computed(() => Object.keys(tours.value).length);
+const toursLabel = computed(() => tc('profile.tours_completed', tourCount.value));
 
 const resetTours = async () => {
     // Borramos por entero las marcas de tour. Lo más rápido: pegarle al
@@ -530,7 +534,11 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 
                         <Descriptions :column="1" bordered size="small" class="profile-desc">
                             <DescriptionsItem :label="$t('profile.tour_status')">
-                                {{ tourCount }} {{ tourCount === 1 ? $t('global.tour_show_again').toLowerCase() : 'tours' }}
+                                <!-- La clave `profile.tours_completed` ya existía
+                                     con su plural en los dos idiomas y no se usaba:
+                                     aquí se armaba la frase a mano y salía
+                                     «1 ver tour» / «3 tours». -->
+                                {{ toursLabel }}
                                 <Button
                                     v-if="tourCount > 0"
                                     type="link"
@@ -689,9 +697,10 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 </style>
 
 <style>
-html[data-theme="dark"] /* Hero a BORDE COMPLETO (franja cuadrada, como el resto de fichas): bleed
-   sobre el padding de .sap-show y sin esquinas redondeadas. */
-.profile-hero {
+/* Hero a BORDE COMPLETO (franja cuadrada, como el resto de fichas): bleed
+   sobre el padding de .sap-show y sin esquinas redondeadas. El comentario
+   estaba metido DENTRO del selector, partiéndolo en dos líneas ilegibles. */
+html[data-theme="dark"] .profile-hero {
     margin: -24px -24px 20px;
     border-radius: 0;
     background: linear-gradient(135deg, #354A5F 0%, #1a2530 100%);

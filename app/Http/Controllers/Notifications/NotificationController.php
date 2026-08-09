@@ -4,18 +4,24 @@ namespace App\Http\Controllers\Notifications;
 
 use App\Http\Controllers\Controller;
 use App\Models\Download;
+use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
  * NotificationController
  *
- * Bandeja unificada de notificaciones del usuario. Por ahora solo expone
- * "downloads" (archivos generados por exports), pero la idea es que crezca
- * para incluir tareas pendientes, alertas, mensajes, etc. Cuando se agreguen
- * más tipos, este controller los unifica en `index()` con un campo `type`
- * por entrada.
+ * Bandeja unificada de notificaciones del usuario: archivos exportados
+ * (`downloads`) MÁS las notificaciones de la tabla `notifications` estándar
+ * de Laravel (avisos de seguridad, automatizaciones, respuestas a mensajes…).
+ * Cada entrada lleva un `kind` para que la pantalla sepa cómo pintarla.
+ *
+ * Las dos fuentes son las MISMAS que alimentan la campana del AppLayout
+ * (`InboxService`): si aquí se dejara fuera una de ellas, la campana avisaría
+ * de algo que la página "ver todas" no enseña.
  */
 class NotificationController extends Controller
 {
@@ -27,34 +33,93 @@ class NotificationController extends Controller
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
 
-        // Por ahora la bandeja = sus downloads activos. Cuando se sumen
-        // tareas/alertas, se mergea aquí con un type discriminator.
-        $downloads = Download::where('user_id', Auth::id())
-            ->where('expires_at', '>=', now())
-            ->orderByDesc('created_at')
-            ->paginate($perPage)
-            ->withQueryString();
+        $items = collect($this->downloadItems())
+            ->concat($this->appItems())
+            ->sortByDesc(fn ($n) => $n['created_at'] ?? '')
+            ->values();
 
-        $payload = $downloads->toArray();
-        $payload['data'] = collect($downloads->items())->map(fn ($d) => [
-            'id'            => $d->id,
-            'slug'          => $d->slug,
-            'kind'          => 'download',  // Discriminator: download | task | alert (futuro)
-            'type'          => $d->type,    // Solo aplica a downloads (excel/pdf/word)
-            'filename'      => $d->filename,
-            'status'        => $d->status,
-            'created_at'    => $d->created_at,
-            'downloaded_at' => $d->downloaded_at,
-            'expires_at'    => $d->expires_at,
-            'error_message' => $d->error_message,
-        ])->all();
+        // Paginación en memoria: las dos fuentes viven en tablas distintas y
+        // el volumen por usuario es de decenas de filas, no de miles.
+        $page  = max(1, (int) $request->get('page', 1));
+        $paged = new LengthAwarePaginator(
+            $items->forPage($page, $perPage)->values()->all(),
+            $items->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()],
+        );
 
         return inertia('Notifications/Index', [
-            'notifications' => $payload,
+            'notifications' => $paged->toArray(),
             'filters'       => [
                 'per_page' => $perPage,
             ],
         ]);
+    }
+
+    /** Archivos exportados que siguen vigentes. */
+    protected function downloadItems(): array
+    {
+        return Download::where('user_id', Auth::id())
+            ->where('expires_at', '>=', now())
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn ($d) => [
+                'id'            => (string) $d->id,
+                'slug'          => $d->slug,
+                'kind'          => 'download',
+                'type'          => $d->type,    // excel / pdf / word
+                'filename'      => $d->filename,
+                'status'        => $d->status,
+                'created_at'    => $d->created_at?->toIso8601String(),
+                'downloaded_at' => $d->downloaded_at?->toIso8601String(),
+                'expires_at'    => $d->expires_at?->toIso8601String(),
+                'error_message' => $d->error_message,
+            ])
+            ->all();
+    }
+
+    /**
+     * Notificaciones de la tabla `notifications` (las que dispara
+     * $user->notify() por el canal database). Sin esto la página quedaba
+     * vacía aunque la campana marcara avisos sin leer.
+     */
+    protected function appItems(): array
+    {
+        return DB::table('notifications')
+            ->where('notifiable_type', User::class)
+            ->where('notifiable_id', Auth::id())
+            ->orderByDesc('created_at')
+            ->get(['id', 'type', 'data', 'read_at', 'created_at'])
+            ->map(function ($n) {
+                $data = json_decode($n->data, true) ?? [];
+
+                return [
+                    'id'         => "app-{$n->id}",
+                    'raw_id'     => $n->id,
+                    'kind'       => 'app',
+                    'type'       => $data['category'] ?? class_basename($n->type),
+                    'title'      => $data['title'] ?? class_basename($n->type),
+                    'body'       => $data['body'] ?? '',
+                    'channel'    => $data['channel'] ?? null,
+                    'status'     => $n->read_at ? 'read' : 'unread',
+                    'created_at' => $this->iso($n->created_at),
+                    'read_at'    => $this->iso($n->read_at),
+                ];
+            })
+            ->all();
+    }
+
+    protected function iso($value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        try {
+            return \Carbon\Carbon::parse($value)->toIso8601String();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

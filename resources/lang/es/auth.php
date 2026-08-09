@@ -28,12 +28,44 @@ return [
     'account_created_needs_activation' => 'Tu cuenta ha sido creada, pero necesita ser activada.',
 
     // Forgot Password
-    'request_title'         => 'Olvidé mi Contraseña',
-    'request_message'       => 'Ingresa tu correo electrónico para recibir un enlace de restablecimiento.',
-    'send_reset_link'       => 'Enviar Enlace de Restablecimiento',
-    'reset_title'           => 'Restablecer Contraseña',
-    'reset_message'         => 'Ingresa tu nueva contraseña.',
-    'reset_password_button' => 'Restablecer Contraseña',
+    'request_title'         => 'Recuperar contraseña',
+    'request_message'       => 'Escribe tu correo y te enviamos un enlace para poner una contraseña nueva.',
+    'send_reset_link'       => 'Enviar enlace',
+    'reset_title'           => 'Poner una contraseña nueva',
+    'reset_message'         => 'Elige la contraseña con la que vas a entrar a partir de ahora.',
+    'reset_password_button' => 'Guardar contraseña',
+
+    // Recuperar contraseña — pantalla completa
+    'forgot_tagline'        => '¿No puedes entrar?',
+    'forgot_back'           => 'Volver',
+    'forgot_point_link'     => 'Te llega un enlace a tu correo de trabajo',
+    'forgot_point_minutes'  => 'Se hace en un minuto, desde el móvil',
+    'forgot_point_nosupport'=> 'No hace falta llamar a nadie',
+    'forgot_remembered'     => '¿Ya te acordaste?',
+    'forgot_sent_title'     => 'Mira tu correo',
+    'forgot_sent_body'      => 'Si :email está registrado, ahí tienes el enlace para poner tu contraseña.',
+    'forgot_notfound_title' => '¿No te llega?',
+    'forgot_tip_wait'       => 'Puede tardar uno o dos minutos.',
+    'forgot_tip_spam'       => 'Mira la carpeta de correo no deseado.',
+    'forgot_tip_typo'       => 'Comprueba que el correo esté bien escrito.',
+    'forgot_resend'         => 'Enviar otra vez',
+    'forgot_other_email'    => 'Usar otro correo',
+
+    // Nueva contraseña — pantalla completa
+    'reset_tagline'         => 'Elige tu contraseña',
+    'reset_new_password'    => 'Contraseña nueva',
+    'reset_repeat_password' => 'Repite la contraseña',
+    'reset_min_placeholder' => 'Mínimo 8 caracteres',
+    'reset_repeat_placeholder' => 'Escríbela otra vez',
+    'reset_rule_length'     => 'Mínimo 8 caracteres',
+    'reset_rule_mix'        => 'Que lleve letras y números',
+    'reset_rule_instant'    => 'Empieza a valer al momento',
+
+    // Primera vez: los usuarios que vienen del sistema anterior no tienen
+    // contraseña propia, así que su ÚNICA entrada es «olvidé mi contraseña».
+    // Si esto no se dice en la pantalla de acceso, se quedan fuera.
+    'first_time_title' => '¿Es tu primera vez?',
+    'first_time_body'  => 'Si tu cuenta viene del sistema anterior, todavía no tienes contraseña. Pulsa «¿Olvidaste tu contraseña?» y crea la tuya con el enlace que te llegue.',
 
     // Token Reset
     'reset'     => '¡Tu contraseña ha sido restablecida!',
@@ -60,7 +92,7 @@ return [
     'disclosure'               => 'Al iniciar sesión aceptas los :terms y la :privacy.',
     'terms_short'              => 'Términos',
     'privacy_short'            => 'Privacidad',
-    'app_default_name'         => 'Aplication Name',
+    'app_default_name'         => 'DOCUFIZ',
 
     // Modal de aceptación registrada de Términos/Privacidad (LPDP Ley 29733).
     'legal_modal_title'  => 'Términos y Política de Privacidad',

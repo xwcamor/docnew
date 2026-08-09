@@ -28,12 +28,44 @@ return [
     'account_created_needs_activation' => 'Your account has been created but needs to be activated.',
 
     // Forgot Password
-    'request_title'         => 'Forgot Password',
-    'request_message'       => 'Enter your email to receive a password reset link.',
-    'send_reset_link'       => 'Send Password Reset Link',
-    'reset_title'           => 'Reset Password',
-    'reset_message'         => 'Enter your new password.',
-    'reset_password_button' => 'Reset Password',      
+    'request_title'         => 'Recover password',
+    'request_message'       => 'Type your email and we will send you a link to set a new password.',
+    'send_reset_link'       => 'Send link',
+    'reset_title'           => 'Set a new password',
+    'reset_message'         => 'Choose the password you will use from now on.',
+    'reset_password_button' => 'Save password',
+
+    // Recover password — full screen
+    'forgot_tagline'        => 'Can\'t get in?',
+    'forgot_back'           => 'Back',
+    'forgot_point_link'     => 'A link goes to your work email',
+    'forgot_point_minutes'  => 'Takes a minute, straight from your phone',
+    'forgot_point_nosupport' => 'No need to call anyone',
+    'forgot_remembered'     => 'Remembered it?',
+    'forgot_sent_title'     => 'Check your email',
+    'forgot_sent_body'      => 'If :email is registered, the link to set your password is there.',
+    'forgot_notfound_title' => 'Can\'t find it?',
+    'forgot_tip_wait'       => 'It can take a minute or two.',
+    'forgot_tip_spam'       => 'Check your junk mail folder.',
+    'forgot_tip_typo'       => 'Make sure the email is spelled right.',
+    'forgot_resend'         => 'Send it again',
+    'forgot_other_email'    => 'Use another email',
+
+    // New password — full screen
+    'reset_tagline'         => 'Choose your password',
+    'reset_new_password'    => 'New password',
+    'reset_repeat_password' => 'Repeat the password',
+    'reset_min_placeholder' => 'At least 8 characters',
+    'reset_repeat_placeholder' => 'Type it again',
+    'reset_rule_length'     => 'At least 8 characters',
+    'reset_rule_mix'        => 'Mix letters and numbers',
+    'reset_rule_instant'    => 'It works right away',
+
+    // First time in: users carried over from the old system have no password
+    // of their own, so "forgot my password" is their ONLY way in. If the login
+    // screen doesn't say so, they stay locked out.
+    'first_time_title' => 'First time here?',
+    'first_time_body'  => 'If your account comes from the old system you don\'t have a password yet. Tap "Forgot your password?" and set yours with the link you receive.',
 
     // Token Reset
     'reset'     => 'Your password has been reset!',
@@ -60,7 +92,7 @@ return [
     'disclosure'               => 'By signing in you accept the :terms and :privacy.',
     'terms_short'              => 'Terms',
     'privacy_short'            => 'Privacy',
-    'app_default_name'         => 'TR Health',
+    'app_default_name'         => 'DOCUFIZ',
 
     // Recorded Terms/Privacy acceptance modal (data protection law).
     'legal_modal_title'  => 'Terms and Privacy Policy',

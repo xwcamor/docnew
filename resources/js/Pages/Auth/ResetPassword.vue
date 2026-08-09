@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Input, Button, Alert } from 'ant-design-vue';
 import {
     MailOutlined, LockOutlined, EyeOutlined, EyeInvisibleOutlined,
@@ -23,6 +23,11 @@ const form = useForm({
     password_confirmation: '',
 });
 
+const page = usePage();
+// El nombre del producto sale del ajuste `app.name`. Antes caia a un
+// 'TR Health' escrito a mano — la marca del producto anterior.
+const effectiveAppName = computed(() => props.appName || page.props.appName || '');
+
 const showPassword = ref(false);
 const showConfirm  = ref(false);
 
@@ -34,7 +39,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Restablecer contraseña" />
+    <Head :title="$t('auth.reset_title')" />
 
     <div class="auth-grid">
         <!-- LEFT brand (desktop only) -->
@@ -42,8 +47,8 @@ const submit = () => {
             <div class="auth-brand__bg" />
             <div class="auth-brand__inner">
                 <div class="auth-brand__logo"><SafetyOutlined /></div>
-                <h2 class="auth-brand__title">{{ appName || 'TR Health' }}</h2>
-                <p class="auth-brand__tagline">Elige una nueva contraseña</p>
+                <h2 class="auth-brand__title">{{ effectiveAppName }}</h2>
+                <p class="auth-brand__tagline">{{ $t('auth.reset_tagline') }}</p>
 
                 <!-- Abstract SVG hero -->
                 <div class="auth-brand__hero">
@@ -80,9 +85,9 @@ const submit = () => {
                 </div>
 
                 <ul class="auth-brand__features">
-                    <li><CheckOutlined /><span>Mínimo 8 caracteres</span></li>
-                    <li><CheckOutlined /><span>Combiná mayúsculas, minúsculas y números</span></li>
-                    <li><CheckOutlined /><span>Tu nueva contraseña queda activa al instante</span></li>
+                    <li><CheckOutlined /><span>{{ $t('auth.reset_rule_length') }}</span></li>
+                    <li><CheckOutlined /><span>{{ $t('auth.reset_rule_mix') }}</span></li>
+                    <li><CheckOutlined /><span>{{ $t('auth.reset_rule_instant') }}</span></li>
                 </ul>
             </div>
         </aside>
@@ -91,19 +96,19 @@ const submit = () => {
         <main class="auth-main">
             <header class="auth-mobile-header">
                 <div class="auth-mobile-header__logo"><SafetyOutlined /></div>
-                <h2>{{ appName || 'TR Health' }}</h2>
-                <p>Restablecer contraseña</p>
+                <h2>{{ effectiveAppName }}</h2>
+                <p>{{ $t('auth.reset_title') }}</p>
             </header>
 
             <div class="auth-form-wrap">
                 <div class="auth-form">
                     <Link :href="route('login')" class="back-link">
-                        <ArrowLeftOutlined /> Volver al login
+                        <ArrowLeftOutlined /> {{ $t('auth.back_to_login') }}
                     </Link>
 
                     <div class="auth-form__header">
-                        <h1>Restablecer contraseña</h1>
-                        <p>Definí una nueva contraseña para tu cuenta.</p>
+                        <h1>{{ $t('auth.reset_title') }}</h1>
+                        <p>{{ $t('auth.reset_message') }}</p>
                     </div>
 
                     <Alert
@@ -115,7 +120,7 @@ const submit = () => {
                     />
 
                     <form @submit.prevent="submit" autocomplete="off">
-                        <label for="auth-email" class="field-label">Correo electrónico</label>
+                        <label for="auth-email" class="field-label">{{ $t('auth.email') }}</label>
                         <Input
                             id="auth-email"
                             v-model:value="form.email"
@@ -127,13 +132,13 @@ const submit = () => {
                             <template #prefix><MailOutlined /></template>
                         </Input>
 
-                        <label for="auth-password" class="field-label" style="margin-top: 14px">Nueva contraseña</label>
+                        <label for="auth-password" class="field-label" style="margin-top: 14px">{{ $t('auth.reset_new_password') }}</label>
                         <Input
                             id="auth-password"
                             v-model:value="form.password"
                             size="large"
                             :type="showPassword ? 'text' : 'password'"
-                            placeholder="Mínimo 8 caracteres"
+                            :placeholder="$t('auth.reset_min_placeholder')"
                             autocomplete="new-password"
                             :status="form.errors.password ? 'error' : ''"
                         >
@@ -143,7 +148,7 @@ const submit = () => {
                                     type="button"
                                     class="pass-toggle"
                                     @click="showPassword = !showPassword"
-                                    :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                                    :aria-label="showPassword ? $t('auth.hide_password') : $t('auth.show_password')"
                                 >
                                     <EyeOutlined v-if="!showPassword" />
                                     <EyeInvisibleOutlined v-else />
@@ -152,13 +157,13 @@ const submit = () => {
                         </Input>
                         <div v-if="form.errors.password" class="field-error">{{ form.errors.password }}</div>
 
-                        <label for="auth-password-confirm" class="field-label" style="margin-top: 14px">Confirmar contraseña</label>
+                        <label for="auth-password-confirm" class="field-label" style="margin-top: 14px">{{ $t('auth.reset_repeat_password') }}</label>
                         <Input
                             id="auth-password-confirm"
                             v-model:value="form.password_confirmation"
                             size="large"
                             :type="showConfirm ? 'text' : 'password'"
-                            placeholder="Repetí la contraseña"
+                            :placeholder="$t('auth.reset_repeat_placeholder')"
                             autocomplete="new-password"
                         >
                             <template #prefix><LockOutlined /></template>
@@ -167,7 +172,7 @@ const submit = () => {
                                     type="button"
                                     class="pass-toggle"
                                     @click="showConfirm = !showConfirm"
-                                    :aria-label="showConfirm ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                                    :aria-label="showConfirm ? $t('auth.hide_password') : $t('auth.show_password')"
                                 >
                                     <EyeOutlined v-if="!showConfirm" />
                                     <EyeInvisibleOutlined v-else />
@@ -183,13 +188,13 @@ const submit = () => {
                             :loading="form.processing"
                             class="submit-btn"
                         >
-                            Cambiar contraseña
+                            {{ $t('auth.reset_password_button') }}
                         </Button>
                     </form>
                 </div>
 
                 <footer class="auth-footer">
-                    <p>© {{ new Date().getFullYear() }} {{ appName }} · Todos los derechos reservados</p>
+                    <p>© {{ new Date().getFullYear() }} {{ effectiveAppName }} · {{ $t('auth.all_rights_reserved') }}</p>
                 </footer>
             </div>
         </main>

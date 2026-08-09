@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { computed } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import {
     Card, Button, Tag, Empty, Pagination, Avatar, Tabs, TabPane,
@@ -112,7 +112,11 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '-';
                         <div class="msg-item__body">
                             <div class="msg-item__head">
                                 <strong>{{ m.subject }}</strong>
-                                <Tag v-if="!m.read_at" color="red" :bordered="false">{{ t('messages.badge_new') }}</Tag>
+                                <!-- Azul, no rojo: en este sistema el rojo
+                                     significa bloqueado o no conforme
+                                     (UI.md §5). Un mensaje sin leer no es una
+                                     alarma. -->
+                                <Tag v-if="!m.read_at" color="processing" :bordered="false">{{ t('messages.badge_new') }}</Tag>
                                 <Tag :color="audienceTag(m.audience_type).color" :bordered="false">
                                     {{ audienceTag(m.audience_type).label }}
                                 </Tag>
@@ -120,8 +124,10 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '-';
                             </div>
                             <div class="msg-item__snippet">{{ m.snippet }}</div>
                             <div class="msg-item__meta">
-                                <span v-if="m.creator">· {{ m.creator.name }}</span>
-                                <span>· {{ fmtRel(m.published_at) }}</span>
+                                <!-- Sin el «·» delante del primer dato: la
+                                     línea empezaba con un punto suelto. -->
+                                <span v-if="m.creator">{{ m.creator.name }} ·</span>
+                                <span>{{ fmtRel(m.published_at) }}</span>
                             </div>
                         </div>
                     </Link>

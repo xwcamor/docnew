@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class ResetPasswordController extends Controller
 {
@@ -39,14 +40,25 @@ class ResetPasswordController extends Controller
         $request->validate([
             'token' => 'required',
             'email' => 'required|email',
-            'password' => 'required|confirmed|min:8',
+            // MISMA exigencia que el cambio desde Mi perfil
+            // (ProfileController::updatePassword). Antes aquí bastaba con
+            // `min:8`, así que por el camino de «olvidé mi contraseña» —el
+            // único que tienen los usuarios que vienen del sistema anterior—
+            // se podía dejar "aaaaaaaa", y encima la propia pantalla prometía
+            // "que lleve letras y números".
+            'password' => ['required', 'confirmed', PasswordRule::min(8)->letters()->numbers()],
         ]);
 
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function ($user, $password) {
                 $user->forceFill([
-                    'password' => Hash::make($password)
+                    'password' => Hash::make($password),
+                    // Rotar el remember_token invalida las cookies de "Recuérdame"
+                    // emitidas antes. Sin esto, cambiar la contraseña no echaba a
+                    // quien ya tuviera la sesión recordada — que es justo el motivo
+                    // por el que se restablece una contraseña.
+                    'remember_token' => Str::random(60),
                 ])->save();
 
                 // Aviso de seguridad: la clave se cambio via flujo de "olvide".
