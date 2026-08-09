@@ -118,4 +118,8 @@ return [
         'step9_title' => 'Need a refresher?',
         'step9_body'  => 'Reopen this tour anytime with the ? button. "Recent" in the avatar menu shows the last records you viewed.',
     ],
+    'ruc_buscando'      => 'Checking with SUNAT…',
+    'ruc_encontrado'    => 'SUNAT data: legal name filled in.',
+    'ruc_no_encontrado' => 'SUNAT returned no data for this tax ID. Type the legal name manually.',
+    'ruc_error'         => 'Could not reach SUNAT. Type the data manually.',
 ];

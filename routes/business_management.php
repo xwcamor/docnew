@@ -256,6 +256,11 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         // Alta rápida JSON desde otros módulos. El método estaba escrito desde el
         // principio y sin ruta: código muerto. Clientes y Marcas sí la tenían.
         Route::post('companies/quick_store', [CompanyController::class, 'quickStore'])->name('companies.quick_store');
+        // Consulta de RUC en SUNAT para autorrellenar la razón social. Va con
+        // `.create` porque solo sirve mientras se da de alta o se edita, y con
+        // throttle porque detrás hay una API de terceros con cuota.
+        Route::middleware('throttle:20,1')
+            ->get('companies/lookup_ruc', [CompanyController::class, 'lookupRuc'])->name('companies.lookup_ruc');
         Route::post('companies/{company}/duplicate', [CompanyController::class, 'duplicate'])->name('companies.duplicate');
     });
 

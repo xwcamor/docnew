@@ -168,6 +168,24 @@ class CompanyController extends Controller
         ]);
     }
 
+    /**
+     * Consulta el RUC en SUNAT y devuelve la razon social.
+     *
+     * La v1 lo hacia al teclear el documento y rellenaba sola la razon social;
+     * al portar el modulo se perdio y ese par —RUC y razon social, justo lo que
+     * un inspector contrasta— quedo a mano. Nunca falla de forma que estorbe:
+     * si no hay token, si la API no contesta o si el RUC no existe, devuelve el
+     * estado y la pantalla deja escribir.
+     */
+    public function lookupRuc(Request $request, \App\Services\Peru\ConsultaRuc $sunat): \Illuminate\Http\JsonResponse
+    {
+        $validado = $request->validate([
+            'ruc' => ['required', 'string', 'max:20'],
+        ]);
+
+        return response()->json($sunat->buscar($validado['ruc']));
+    }
+
     public function create()
     {
         return inertia('Companies/Form', [

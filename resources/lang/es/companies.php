@@ -118,4 +118,8 @@ return [
         'step9_title' => '¿Necesitas un repaso?',
         'step9_body'  => 'Reabre este tour cuando quieras con el botón ? aquí arriba. También tienes "Recientes" en el menú del avatar — los últimos registros que viste en cualquier módulo.',
     ],
+    'ruc_buscando'      => 'Consultando en SUNAT…',
+    'ruc_encontrado'    => 'Datos de SUNAT: razón social rellenada.',
+    'ruc_no_encontrado' => 'SUNAT no devolvió datos para este RUC. Escribe la razón social a mano.',
+    'ruc_error'         => 'No se pudo consultar SUNAT. Escribe los datos a mano.',
 ];

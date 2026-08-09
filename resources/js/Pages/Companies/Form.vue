@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
     Form, FormItem, Input, Switch, Space, Alert, Select,
@@ -20,6 +20,7 @@ const props = defineProps({
 
 const isEdit = computed(() => !!props.company);
 
+
 const form = useForm({
     name:          props.company?.name ?? '',
     complete_name: props.company?.complete_name ?? '',
@@ -28,6 +29,47 @@ const form = useForm({
     country_id:    props.company?.country_id ?? props.defaultCountryId ?? null,
     is_active:     props.company?.is_active ?? true,
 });
+
+// ─── Consulta del RUC en SUNAT ─────────────────────────────────────────────
+// Lo que hacia la v1 y se perdio al portar el modulo: al teclear un RUC de 11
+// digitos se pregunta a SUNAT y se rellena sola la razon social. Nunca estorba
+// — si no hay token, si la API no contesta o si el RUC no existe, el campo
+// sigue siendo editable a mano.
+const rucEstado = ref(null);   // 'buscando' | 'encontrado' | 'no_encontrado' | 'error' | null
+let temporizador = null;
+
+const paisEsPeru = computed(() => {
+    const p = props.countryOptions.find((o) => o.value === form.country_id);
+    return /\(PE\)\s*$/.test(p?.label ?? '');
+});
+
+const consultarRuc = async (ruc) => {
+    rucEstado.value = 'buscando';
+    try {
+        const { data } = await window.axios.get(route('business_management.companies.lookup_ruc'), {
+            params: { ruc },
+        });
+        // `sin_configurar` no se le enseña al usuario: no ha hecho nada mal y no
+        // puede arreglarlo. La pantalla se queda como estaba.
+        rucEstado.value = data.estado === 'sin_configurar' ? null : data.estado;
+        if (data.estado === 'encontrado' && data.razon_social) {
+            form.complete_name = data.razon_social;
+        }
+    } catch {
+        rucEstado.value = 'error';
+    }
+};
+
+watch(() => form.num_doc, (valor) => {
+    clearTimeout(temporizador);
+    const ruc = (valor ?? '').replace(/\D/g, '');
+    if (ruc.length !== 11 || !paisEsPeru.value) {
+        rucEstado.value = null;
+        return;
+    }
+    temporizador = setTimeout(() => consultarRuc(ruc), 500);
+});
+
 
 // El selector de país se escribe, no se scrollea.
 const filterOption = (input, option) =>
@@ -112,7 +154,7 @@ const submit = () => {
                     :tooltip="$t('companies.num_doc_help')"
                     required
                     :validate-status="form.errors.num_doc ? 'error' : ''"
-                    :help="form.errors.num_doc"
+                    :help="form.errors.num_doc || (rucEstado ? $t(`companies.ruc_${rucEstado}`) : '')"
                 >
                     <Input
                         v-model:value="form.num_doc"

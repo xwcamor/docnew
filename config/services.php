@@ -41,4 +41,19 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],    
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | apis.net.pe — consulta de RUC en SUNAT
+    |--------------------------------------------------------------------------
+    |
+    | Lo que el sistema anterior usaba para autorrellenar la razon social al
+    | teclear un RUC. Sin `APIS_NET_PE_TOKEN` la consulta no se hace y el
+    | formulario simplemente se rellena a mano: no es un error.
+    */
+    'apis_net_pe' => [
+        'url'     => env('APIS_NET_PE_URL', 'https://api.apis.net.pe'),
+        'token'   => env('APIS_NET_PE_TOKEN'),
+        'timeout' => env('APIS_NET_PE_TIMEOUT', 6),
+    ],
 ];
