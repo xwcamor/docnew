@@ -247,8 +247,16 @@ const onTableChange = (pag, _filters, sorter) => {
 // ─── Vista: tabla | lista | tarjetas (persistida en localStorage) ──────────
 const VIEW_KEY = 'roles_view_mode';
 const viewMode = ref('table');
-onMounted(() => { const s = localStorage.getItem(VIEW_KEY); if (s==='cards'||s==='table'||s==='list') viewMode.value = s; });
-watch(viewMode, (v) => localStorage.setItem(VIEW_KEY, v));
+const vistaElegida = ref(false);
+onMounted(() => { const s = localStorage.getItem(VIEW_KEY); if (s==='cards'||s==='table'||s==='list') { viewMode.value = s; vistaElegida.value = true; } });
+watch(viewMode, (v) => { localStorage.setItem(VIEW_KEY, v); vistaElegida.value = true; });
+// Mientras el usuario no elija vista, `auto`: tabla en escritorio y tarjetas
+// en el movil. La tabla en un movil sale a dos columnas y con la cabecera
+// de acciones partida; la tarjeta enseña nombre, codigo, estado y los cinco
+// botones. `columns.js` ya declara que va en cada tarjeta (`mobile.role`),
+// solo que nadie lo veia: pasar 'table' explicito apaga las tarjetas, y eso
+// es justo lo que hacian los 25 indices. En cuanto elige una, manda la suya.
+const vistaEfectiva = computed(() => (! vistaElegida.value && viewMode.value === 'table') ? 'auto' : viewMode.value);
 const viewOptions = computed(() => [
     { value: 'table', label: t('global.view_table'),      icon: TableOutlined },
     { value: 'list',  label: t('global.view_list_short'), icon: BarsOutlined },
@@ -463,7 +471,7 @@ useKeyboardShortcuts({
                 :pagination="tablePagination"
                 :scroll="{ x: 'max-content' }"
                 :row-selection="{ selectedRowKeys, onChange: onSelectChange, getCheckboxProps: r => ({ disabled: r.is_editable !== undefined ? !r.is_editable : r.is_system }) }"
-                :view="viewMode"
+                :view="vistaEfectiva"
                 data-tour="bulk"
                 @change="onTableChange"
             >

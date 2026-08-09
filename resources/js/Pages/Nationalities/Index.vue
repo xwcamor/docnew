@@ -197,11 +197,20 @@ const applySavedViewState = (clauses, meta) => {
 // ─── Vista: tabla | lista | tarjetas (se recuerda en el navegador) ──────────
 const VIEW_KEY = 'nationalities_view_mode';
 const viewMode = ref('table');
+const vistaElegida = ref(false);
 onMounted(() => {
     const saved = localStorage.getItem(VIEW_KEY);
     if (saved === 'cards' || saved === 'table' || saved === 'list') viewMode.value = saved;
+    if (saved) vistaElegida.value = true;
 });
-watch(viewMode, (v) => localStorage.setItem(VIEW_KEY, v));
+watch(viewMode, (v) => { localStorage.setItem(VIEW_KEY, v); vistaElegida.value = true; });
+// Mientras el usuario no elija vista, `auto`: tabla en escritorio y tarjetas
+// en el movil. La tabla en un movil sale a dos columnas y con la cabecera
+// de acciones partida; la tarjeta enseña nombre, codigo, estado y los cinco
+// botones. `columns.js` ya declara que va en cada tarjeta (`mobile.role`),
+// solo que nadie lo veia: pasar 'table' explicito apaga las tarjetas, y eso
+// es justo lo que hacian los 25 indices. En cuanto elige una, manda la suya.
+const vistaEfectiva = computed(() => (! vistaElegida.value && viewMode.value === 'table') ? 'auto' : viewMode.value);
 const viewOptions = computed(() => [
     { value: 'table', label: t('global.view_table'),      icon: TableOutlined },
     { value: 'list',  label: t('global.view_list_short'), icon: BarsOutlined },
@@ -426,7 +435,7 @@ const goDelete = (record) => router.visit(route('business_management.nationaliti
                 :pagination="tablePagination"
                 :row-selection="(can('nationalities.delete') || can('nationalities.edit')) ? rowSelection : null"
                 :scroll="{ x: 'max-content' }"
-                :view="viewMode"
+                :view="vistaEfectiva"
                 rowKey="id"
                 @change="onTableChange"
                 data-tour="bulk"
