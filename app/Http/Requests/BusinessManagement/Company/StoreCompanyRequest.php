@@ -40,9 +40,12 @@ class StoreCompanyRequest extends FormRequest
         return [
             // Unicidad case + accent insensitive. companies es PER-TENANT: el nombre
             // es unico dentro del workspace del actor (no cross-tenant). Se filtra
-            // por tenant_id para alinear con el indice unico parcial de la tabla.
+            // por tenant_id. OJO: esto lo sostiene SOLO esta regla — en la tabla
+            // el indice de `name` es un btree normal, no unico (el unico parcial
+            // que si existe es el de `num_doc`). Cualquier escritura que no pase
+            // por aqui, como la migracion legacy, puede meter nombres repetidos.
             'name' => [
-                'required', 'string', 'max:255',
+                'required', 'string', 'min:3', 'max:255',
                 function ($attribute, $value, $fail) {
                     $isPgsql = DB::getDriverName() === 'pgsql';
                     $needle  = trim((string) $value);
@@ -59,11 +62,16 @@ class StoreCompanyRequest extends FormRequest
                     }
                 },
             ],
-            'complete_name' => ['required', 'string', 'max:255'],
+            'complete_name' => ['required', 'string', 'min:3', 'max:255'],
             // El RUC no se repite dentro del mismo país y workspace — es el
             // mismo criterio del índice único parcial de la tabla.
             'num_doc' => [
-                'required', 'string', 'max:20',
+                // `min:3`: el sistema anterior lo exigia (parsley_minlength en
+                // _form.html.erb) y aqui se habia quedado solo el maximo, asi que
+                // se podia guardar un RUC de un solo caracter. No pongo
+                // `digits:11` porque eso es el RUC peruano y el modulo es
+                // multi-pais: cada uno tiene su documento fiscal.
+                'required', 'string', 'min:3', 'max:20',
                 function ($attribute, $value, $fail) {
                     $exists = DB::table('companies')
                         ->whereNull('deleted_at')

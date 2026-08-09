@@ -13,18 +13,18 @@ return [
      * Bulk operations — umbral por encima del cual la operacion se
      * dispatcha a queue en lugar de ejecutar inline.
      */
-    'bulk_async_threshold' => env('CUSTOMERS_BULK_ASYNC_THRESHOLD', 200),
+    'bulk_async_threshold' => env('WORK_PLANS_BULK_ASYNC_THRESHOLD', 200),
 
     /**
      * Undo despues de delete — segundos durante los cuales el usuario
      * puede hacer click en "Deshacer" para restaurar lo eliminado.
      */
-    'undo_window_seconds' => env('CUSTOMERS_UNDO_WINDOW', 60),
+    'undo_window_seconds' => env('WORK_PLANS_UNDO_WINDOW', 60),
 
     /**
      * Recent items — cuantos registros vistos guardar por usuario.
      */
-    'recent_views_keep' => env('CUSTOMERS_RECENTS_KEEP', 10),
+    'recent_views_keep' => env('WORK_PLANS_RECENTS_KEEP', 10),
 
     /**
      * Per-page options — valores aceptados en el listado.
@@ -49,15 +49,15 @@ return [
      *  - Word: PhpWord similar a Excel.
      */
     'export_limits' => [
-        'csv'   => env('CUSTOMERS_EXPORT_LIMIT_CSV',   0),
-        'excel' => env('CUSTOMERS_EXPORT_LIMIT_EXCEL', 25000),
-        'pdf'   => env('CUSTOMERS_EXPORT_LIMIT_PDF',   5000),
-        'word'  => env('CUSTOMERS_EXPORT_LIMIT_WORD',  10000),
+        'csv'   => env('WORK_PLANS_EXPORT_LIMIT_CSV',   0),
+        'excel' => env('WORK_PLANS_EXPORT_LIMIT_EXCEL', 25000),
+        'pdf'   => env('WORK_PLANS_EXPORT_LIMIT_PDF',   5000),
+        'word'  => env('WORK_PLANS_EXPORT_LIMIT_WORD',  10000),
     ],
 
     /**
      * Memory limit para los jobs de export. Sobreescribe el `memory_limit`
      * de PHP solo dentro del worker que ejecuta el job.
      */
-    'export_job_memory_limit' => env('CUSTOMERS_EXPORT_MEMORY', '512M'),
+    'export_job_memory_limit' => env('WORK_PLANS_EXPORT_MEMORY', '512M'),
 ];

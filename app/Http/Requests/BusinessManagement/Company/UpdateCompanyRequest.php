@@ -43,9 +43,11 @@ class UpdateCompanyRequest extends FormRequest
         return [
             // Unicidad de name case + accent insensitive PER-TENANT, ignorando el
             // propio company y soft-deleted. Se filtra por tenant_id para alinear con
-            // el indice unico parcial (tenant_id, name) de la tabla.
+            // por tenant_id. OJO: ese indice unico (tenant_id, name) NO existe en
+            // la tabla — `companies_name_index` es un btree normal. La unicidad
+            // del nombre la sostiene solo esta regla.
             'name'       => [
-                'required', 'string', 'max:255',
+                'required', 'string', 'min:3', 'max:255',
                 function ($attribute, $value, $fail) use ($companyId) {
                     $isPgsql = DB::getDriverName() === 'pgsql';
                     $needle  = trim((string) $value);
@@ -63,11 +65,16 @@ class UpdateCompanyRequest extends FormRequest
                     }
                 },
             ],
-            'complete_name' => ['required', 'string', 'max:255'],
+            'complete_name' => ['required', 'string', 'min:3', 'max:255'],
             // El RUC no se repite dentro del mismo país y workspace — mismo
             // criterio que el índice único parcial de la tabla.
             'num_doc' => [
-                'required', 'string', 'max:20',
+                // `min:3`: el sistema anterior lo exigia (parsley_minlength en
+                // _form.html.erb) y aqui se habia quedado solo el maximo, asi que
+                // se podia guardar un RUC de un solo caracter. No pongo
+                // `digits:11` porque eso es el RUC peruano y el modulo es
+                // multi-pais: cada uno tiene su documento fiscal.
+                'required', 'string', 'min:3', 'max:20',
                 function ($attribute, $value, $fail) use ($companyId, $company) {
                     $countryId = $this->input('country_id')
                         ?? (is_object($company) ? $company->country_id : null);
