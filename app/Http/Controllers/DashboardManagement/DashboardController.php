@@ -209,7 +209,12 @@ class DashboardController extends Controller
             ->with([
                 'company:id,name',
                 'workLocation:id,name',
-                'workType:id,code,name_es,name_en',
+                // Solo `code`: el tipo de trabajo del sistema anterior tenia
+                // `name_es`/`name_en` y aqui no existen, asi que pedirlas
+                // reventaba con un 42703. Se precarga porque
+                // `expectedFormTemplates()` —dentro de `loQueFalta()`— entra al
+                // tipo de cada plan, y sin esto son N consultas mas.
+                'workType:id,code',
                 'formTemplateOverrides',
             ])
             // Sin terminar primero: lo que hay que atender va arriba.
