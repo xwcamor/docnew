@@ -46,7 +46,7 @@ return [
     'form_name_placeholder' => 'Ex: Acme Corp, Globex',
     'form_change_logo'    => 'Change logo',
     'form_upload_logo'    => 'Upload logo',
-    'form_logo_hint'      => 'JPG, PNG or WebP. Max 2 MB.',
+    'form_logo_hint'      => 'JPG, PNG or WebP. Max :mb MB.',
     'logo_change'         => 'Change workspace logo',
     'logo_label'          => 'Company logo',
     'logo_upload'         => 'Upload logo',
@@ -77,7 +77,7 @@ return [
     'form_approver_help'    => 'Alternative when the approver is NOT a system user: name (and role) printed under "Reviewed / Approved", always for handwritten signing. If a user is selected above, this field is ignored.',
     'form_workspace_type' => 'Workspace type',
     'form_status_label'   => 'Status',
-    'form_status_help'    => 'If inactive, workspace users will not be able to log in until it is reactivated.',
+    'form_status_help'    => 'Housekeeping flag for the workspace. NOTE: today it does NOT block access — its users can still sign in. To cut them off, deactivate each user or suspend the subscription.',
     'form_create_button'  => 'Create workspace',
 
     // Admin section (in create)
@@ -156,9 +156,6 @@ return [
     'ability_customers_read'   => 'Customers — read',
     'ability_customers_write'  => 'Customers — create/edit',
     'ability_customers_delete' => 'Customers — delete',
-    'ability_transformers_read'  => 'Transformers — search (laboratory)',
-    'ability_transformers_write' => 'Transformers — create (laboratory)',
-    'ability_lab_write'          => 'Laboratory — submit test results',
 
     'table_headers' => [
         'editable_name'   => 'Name (editable)',
@@ -179,7 +176,7 @@ return [
 
     'logo_image' => 'The logo must be an image.',
     'logo_mimes' => 'The logo must be jpg, jpeg, png, or webp.',
-    'logo_max'   => 'The logo may not be greater than 2MB.',
+    'logo_max'   => 'The logo may not be greater than :max KB.',
 
     'plan_invalid' => 'Invalid plan. Accepted values: :allowed.',
 

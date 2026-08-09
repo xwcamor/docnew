@@ -29,15 +29,19 @@ class UpdateRequest extends FormRequest
     {
         $tenant = $this->route('tenant');
         $allowedTimezones = \App\Support\Tz::availableTimezones();
+        $maxLogoKb = \App\Models\Setting::getInt('uploads.tenant_logo_max_mb', 2) * 1024;
 
         return [
             'name' => [
                 'required', 'string', 'max:255',
                 new UniqueNormalizedName('tenants', 'name', ignoreId: $tenant?->id),
             ],
-            // logo viene como string (path) en update o file en upload-replace.
-            // El controller decide cómo procesar — aquí solo validamos el tipo.
-            'logo'      => 'nullable',
+            // El logo SOLO llega como archivo nuevo; el controller lo saca del
+            // payload y lo pasa aparte. Antes esta regla dejaba pasar el
+            // `logo: null` que manda el formulario cuando NO se cambió la
+            // imagen, y ese null se escribía en la columna: guardar el nombre
+            // del workspace borraba su logo.
+            'logo'      => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:' . $maxLogoKb],
             // Membrete de los informes PDF (dirección + disclaimer legal de la empresa).
             'address'            => ['nullable', 'string', 'max:255'],
             'report_disclaimer'  => ['nullable', 'string', 'max:2000'],
@@ -54,6 +58,9 @@ class UpdateRequest extends FormRequest
         return [
             'name.required'      => __('tenants.name_required'),
             'is_active.required' => __('tenants.is_active_required'),
+            'logo.image'         => __('tenants.logo_image'),
+            'logo.mimes'         => __('tenants.logo_mimes'),
+            'logo.max'           => __('tenants.logo_max'),
         ];
     }
 }

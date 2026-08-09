@@ -63,21 +63,35 @@ const roleTagColor = (roleName) => {
     return 'cyan'; // custom roles (Soporte, Editor, Visitante, etc.)
 };
 
+// Usuarios humanos vivos / tope del plan. Un tope enorme (plan sin límite) se
+// muestra sin el "de N": decir "3 de 9223372036854775807" no informa nada.
+const usersLabel = computed(() => {
+    const used = props.tenant.users_count ?? props.users.length;
+    const max  = props.tenant.max_users ?? 0;
+    return (max > 0 && max < 100000) ? `${used} / ${max}` : String(used);
+});
+const usersAtLimit = computed(() => {
+    const used = props.tenant.users_count ?? props.users.length;
+    const max  = props.tenant.max_users ?? 0;
+    return max > 0 && max < 100000 && used >= max;
+});
+
 // El backend devuelve `logo_url` ya completo + cache-busted (?v=updated_at).
 // Sin esto el browser cachea el logo viejo despues de un upload.
 const logoUrl = computed(() => props.tenant.logo_url ?? null);
 
-// ─── Available API abilities (extend as new modules expose APIs) ───────────
+// Permisos que se pueden marcar en un token. Sólo los que EXISTEN en
+// `routes/api.php`: marcar uno que no gatea ninguna ruta da un token que
+// promete algo que el sistema no hace. Hoy la única API expuesta es Clientes;
+// al publicar otra, se agrega aquí y en la ruta a la vez.
+//
+// Se quitaron `transformers:read`, `transformers:write` y `lab:write`: son
+// restos de la integración con el laboratorio de transformadores, purgada del
+// producto (docs/PURGA.md). No hay endpoint detrás de ninguno de los tres.
 const availableAbilities = computed(() => [
     { value: 'customers:read',   label: t('tenants.ability_customers_read') },
     { value: 'customers:write',  label: t('tenants.ability_customers_write') },
     { value: 'customers:delete', label: t('tenants.ability_customers_delete') },
-    // Integración con el laboratorio (docs/API-LABORATORIO.md). El token del
-    // laboratorio lleva lab:write + transformers:read; transformers:write solo
-    // si además se le permite dar de alta equipos que no existen.
-    { value: 'transformers:read',  label: t('tenants.ability_transformers_read') },
-    { value: 'transformers:write', label: t('tenants.ability_transformers_write') },
-    { value: 'lab:write',          label: t('tenants.ability_lab_write') },
 ]);
 
 // ─── Create token modal ────────────────────────────────────────────────────
@@ -254,6 +268,24 @@ const tokenAbilitiesLabel = (abilities) => {
                                         {{ (tenant.plan || 'free').toUpperCase() }}
                                     </Tag>
                                 </span>
+                            </div>
+                            <!-- Cuántos de cuántos: el dato que dice si el
+                                 workspace puede seguir dando de alta gente. -->
+                            <div class="spec-cell">
+                                <span class="spec-cell__label">{{ $t('tenants.users_count') }}</span>
+                                <span class="spec-cell__value">
+                                    <Tag :color="usersAtLimit ? 'warning' : 'default'" :bordered="false">
+                                        {{ usersLabel }}
+                                    </Tag>
+                                </span>
+                            </div>
+                            <div class="spec-cell">
+                                <span class="spec-cell__label">{{ $t('tenants.timezone') }}</span>
+                                <span class="spec-cell__value">{{ tenant.timezone || '—' }}</span>
+                            </div>
+                            <div class="spec-cell spec-cell--wide">
+                                <span class="spec-cell__label">{{ $t('tenants.form_address_label') }}</span>
+                                <span class="spec-cell__value">{{ tenant.address || '—' }}</span>
                             </div>
                             <div class="spec-cell spec-cell--wide">
                                 <span class="spec-cell__label">{{ $t('tenants.system_user_email') }}</span>

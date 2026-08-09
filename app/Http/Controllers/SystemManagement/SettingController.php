@@ -60,6 +60,9 @@ class SettingController extends Controller
         // is_favorite viene como int 0/1 o bool según driver — normalizar.
         $settings->getCollection()->transform(function ($r) {
             $r->is_favorite = (bool) ($r->is_favorite ?? false);
+            // Marca los tres ajustes heredados que no lee nadie, para que el
+            // listado no los presente como perillas que hacen algo.
+            $r->is_unused = Setting::isUnused($r->key);
             return $r;
         });
 
@@ -80,6 +83,16 @@ class SettingController extends Controller
             'exportLimits' => \App\Models\Setting::getExportLimits('settings'),
             'filters' => [
                 'name'         => array_values($names),
+                // Estos cuatro los aplica `scopeFilter` pero el controlador NO
+                // los devolvía: al recargar la página el chip desaparecía y el
+                // siguiente cambio de orden o de página perdía el filtro,
+                // aunque la URL siguiera diciendo `?type=bool`.
+                'key'          => array_values((array) $request->get('key', [])),
+                'type'         => array_values((array) $request->get('type', [])),
+                'group'        => array_values((array) $request->get('group', [])),
+                'is_secret'    => $request->filled('is_secret')
+                    ? filter_var($request->is_secret, FILTER_VALIDATE_BOOLEAN)
+                    : null,
                 'is_active'    => $request->filled('is_active')
                     ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
                     : null,
@@ -116,7 +129,9 @@ class SettingController extends Controller
     public function create()
     {
         return inertia('Settings/Form', [
-            'setting' => null,
+            'setting'     => null,
+            'valueLimits' => Setting::VALUE_LIMITS,
+            'unusedKeys'  => Setting::UNUSED_KEYS,
         ]);
     }
 
@@ -165,7 +180,7 @@ class SettingController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -181,6 +196,7 @@ class SettingController extends Controller
                 'description'         => $setting->description,
                 'is_secret'           => $setting->is_secret,
                 'is_active'           => $setting->is_active,
+                'is_unused'           => Setting::isUnused($setting->key),
                 'created_at'          => $setting->created_at,
                 'updated_at'          => $setting->updated_at,
                 'deleted_at'          => $setting->deleted_at,
@@ -216,6 +232,11 @@ class SettingController extends Controller
                 'is_secret'   => (bool) $setting->is_secret,
                 'is_active'   => (bool) $setting->is_active,
             ],
+            // Márgenes con sentido de los ajustes que el sistema lee de verdad
+            // (el formulario acota el campo y lo explica) + los que no lee
+            // nadie, para avisarlo en vez de fingir que sirven.
+            'valueLimits' => Setting::VALUE_LIMITS,
+            'unusedKeys'  => Setting::UNUSED_KEYS,
         ]);
     }
 
@@ -538,7 +559,9 @@ class SettingController extends Controller
         }
 
         $settings = Setting::filter($request)
-            ->select('settings.id', 'settings.slug', 'settings.name', 'settings.is_active')
+            // `key` sólo para mostrarla: es lo que identifica al ajuste y sin
+            // ella la tabla de edición masiva era una lista de nombres sueltos.
+            ->select('settings.id', 'settings.slug', 'settings.name', 'settings.key', 'settings.is_active')
             ->paginate($perPage)
             ->withQueryString();
 

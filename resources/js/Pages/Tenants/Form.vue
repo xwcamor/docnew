@@ -24,6 +24,8 @@ const props = defineProps({
     // Planes disponibles — viene del controller (Plan::publicOptions()), 100%
     // DB-driven. Cualquier plan que cree el super aparece automaticamente.
     planOptions: { type: Array, default: () => [] },
+    // Tope de tamaño del logo en MB, leído del ajuste `uploads.tenant_logo_max_mb`.
+    logoMaxMb: { type: Number, default: 2 },
 });
 
 const isEdit = computed(() => !!props.tenant);
@@ -103,7 +105,10 @@ const submit = () => {
                 :message="$t('global.fix_marked_fields')"
                 class="mb-4"
             />
-            <Row :gutter="[20, 20]">
+            <!-- `form-grid`: sin esa clase `app.css` aplana toda columna a
+                 ancho completo y las dos tarjetas (workspace / admin) salían
+                 una debajo de la otra aunque el código pida dos columnas. -->
+            <Row :gutter="[20, 20]" class="form-grid">
                 <!-- COL IZQ: datos del workspace -->
                 <Col :xs="24" :lg="!isEdit ? 14 : 24">
                     <Card class="form-card" :bodyStyle="{ padding: '24px 28px' }">
@@ -130,7 +135,11 @@ const submit = () => {
                                 <Button v-if="form.logo" @click="onLogoChange(null)" type="text" danger>
                                     {{ $t('global.remove') }}
                                 </Button>
-                                <p class="logo-hint">{{ $t('tenants.form_logo_hint') }}</p>
+                                <!-- El tope sale del ajuste `uploads.tenant_logo_max_mb`,
+                                     que es el que valida el servidor. Estaba
+                                     escrito «Máximo 2 MB» a mano y quedaba
+                                     mintiendo en cuanto el super lo cambiaba. -->
+                                <p class="logo-hint">{{ $t('tenants.form_logo_hint', { mb: logoMaxMb }) }}</p>
                             </div>
                         </div>
                         <div v-if="form.errors.logo" class="field-error">{{ form.errors.logo }}</div>

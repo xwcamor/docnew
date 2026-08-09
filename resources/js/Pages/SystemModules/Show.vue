@@ -142,7 +142,7 @@ const removePermission = (permissionId) => {
                             <span class="spec-cell__value">{{ system_module.name }}</span>
                         </div>
                         <div class="spec-cell">
-                            <span class="spec-cell__label">permission_key</span>
+                            <span class="spec-cell__label">{{ $t('system_modules.permission_key') }}</span>
                             <span class="spec-cell__value">
                                 <Space :size="6">
                                     <KeyOutlined />

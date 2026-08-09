@@ -66,8 +66,8 @@ return [
     'is_active'       => 'Status',
 
     'table_headers' => [
+        'key_readonly'      => 'Key',
         'editable_name'     => 'Name (editable)',
-        'editable_value'    => 'Value (editable)',
         'editable_status'   => 'Status (editable)',
     ],
 
@@ -84,6 +84,18 @@ return [
     'key_unique'     => 'This key already exists.',
     'type_required'  => 'The type is required.',
     'type_invalid'   => 'Invalid type. Accepted: string, int, bool, json.',
+    'name_unique'    => 'Another setting already uses that name.',
+
+    'value_not_int'    => 'This setting is a whole number: type digits only.',
+    'value_not_bool'   => 'This setting is a yes/no: use the switch.',
+    'value_not_json'   => 'Invalid JSON. Check braces, commas and quotes.',
+    'value_not_number' => 'This setting is a number: type a figure (decimals allowed).',
+    'value_out_of_range' => 'Out of range. ":key" only accepts values between :min and :max; outside that the system stops behaving as expected.',
+    'value_range_hint'   => 'Between :min and :max.',
+
+    // Seeded settings nothing reads today (see docs/PENDIENTES.md).
+    'unused_badge'   => 'Unused',
+    'unused_warning' => 'No part of the system reads this setting: it is left over from the transformer module, which was removed from the product. Changing its value changes nothing. Pending the owner\'s decision on whether to retire it.',
 
     'is_active_required' => 'The status is required.',
 
@@ -91,7 +103,7 @@ return [
     'deleted_description_min'      => 'The reason must be at least 3 characters.',
     'deleted_description_max'      => 'The reason cannot exceed 1000 characters.',
 
-    'edit_all_subtitle'   => 'Edit value and status across many settings at once.',
+    'edit_all_subtitle'   => 'Change the name and status of several settings at once. The VALUE is not edited here: each setting has its own format and bounds, and is edited on its own page.',
     'edit_all_changes'    => '{0} No changes|{1} 1 pending change|[2,*] :count pending changes',
     'edit_all_save_all'   => 'Save all',
     'edit_all_discard'    => 'Discard changes',
@@ -114,7 +126,7 @@ return [
         'step5_title' => 'Export & Import',
         'step5_body'  => 'Excel/PDF/Word/CSV.',
         'step6_title' => 'Bulk edit',
-        'step6_body'  => 'Edit values across many settings together.',
+        'step6_body'  => 'Change name and status across many settings. The value is edited on each setting page.',
         'step7_title' => 'Favorites ★',
         'step7_body'  => 'The star ★ marks a row as a favorite. Favorites always show at the top of the list; each user has their own.',
         'step8_title' => 'Bulk operations',

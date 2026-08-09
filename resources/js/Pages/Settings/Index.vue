@@ -511,6 +511,11 @@ const tour = useModuleTour({ module: 'settings', steps: () => moduleTourSteps(t,
                         <div class="lead">
                             <div class="lead__txt">
                                 <Link :href="route('system_management.settings.show', record.slug)" class="lead__name lead__link">{{ record.name }}</Link>
+                                <!-- Los tres ajustes heredados que nadie lee
+                                     salían idénticos a los que sí mandan. -->
+                                <Tag v-if="record.is_unused" color="warning" :bordered="false" class="unused-tag">
+                                    {{ $t('settings.unused_badge') }}
+                                </Tag>
                                 <span v-if="record.key" class="lead__sub">{{ record.key }}</span>
                             </div>
                         </div>
@@ -541,7 +546,7 @@ const tour = useModuleTour({ module: 'settings', steps: () => moduleTourSteps(t,
                             :color="valuePreview(record).value ? 'success' : 'default'"
                             :bordered="false"
                         >
-                            {{ valuePreview(record).value ? 'true' : 'false' }}
+                            {{ valuePreview(record).value ? $t('global.yes') : $t('global.no') }}
                         </Tag>
                         <Tooltip
                             v-else-if="valuePreview(record).kind === 'json'"
@@ -734,6 +739,7 @@ const tour = useModuleTour({ module: 'settings', steps: () => moduleTourSteps(t,
     gap: 4px;
 }
 .value-empty   { color: var(--color-text-muted); font-size: 0.875rem; }
+.unused-tag    { margin-left: 6px; font-size: 0.7rem; }
 .value-invalid { color: var(--color-danger); font-size: 0.8125rem; }
 .secret-icon   { color: var(--color-warning); }
 

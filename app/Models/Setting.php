@@ -28,6 +28,77 @@ class Setting extends Model
 
     public const TYPES = ['string', 'int', 'bool', 'json'];
 
+    /**
+     * Márgenes de los ajustes que el sistema LEE de verdad.
+     *
+     * Un ajuste mal puesto aquí no es un número feo: es un agujero. Con
+     * `docufiz.num_doc_minimum` en 0 el buscador de personas contesta con la
+     * caja vacía y devuelve el padrón entero; con `security.max_login_attempts`
+     * en 0 se desactiva el freno del login; con `downloads.expire_after_hours`
+     * en 0 toda exportación nace caducada. El consumidor de cada uno se
+     * defiende como puede, pero la pantalla dejaba escribir el disparate y
+     * después enseñaba el 0 como si fuera la configuración vigente.
+     *
+     * `decimal` marca los que se guardan como texto pero son un número con
+     * coma (el umbral facial). El resto son enteros.
+     *
+     * Un ajuste que NO esté en esta lista no se acota: sólo se le exige que
+     * cuadre con su tipo.
+     */
+    public const VALUE_LIMITS = [
+        // Trabajo en obra.
+        'docufiz.num_doc_minimum'      => ['min' => 4,    'max' => 20],
+        'docufiz.face_threshold'       => ['min' => 0.30, 'max' => 0.65, 'decimal' => true],
+        'docufiz.face_timeout_seconds' => ['min' => 5,    'max' => 120],
+
+        // Seguridad de acceso.
+        'security.max_login_attempts'      => ['min' => 1, 'max' => 50],
+        'security.lockout_minutes'         => ['min' => 1, 'max' => 1440],
+        'security.session_lifetime_minutes'=> ['min' => 5, 'max' => 10080],
+
+        // Operación.
+        'bulk.async_threshold'                => ['min' => 1,  'max' => 100000],
+        'downloads.expire_after_hours'        => ['min' => 1,  'max' => 8760],
+        'downloads.grace_hours'               => ['min' => 0,  'max' => 8760],
+        // El job de export tiene 10 min de timeout: por debajo de 11 se
+        // marcarían como atascadas descargas que siguen corriendo bien.
+        'downloads.stale_processing_minutes'  => ['min' => 11, 'max' => 1440],
+        'notifications.poll_interval_seconds' => ['min' => 4,  'max' => 600],
+        'audit.retention_days'                => ['min' => 30, 'max' => 3650],
+        'uploads.user_photo_max_mb'           => ['min' => 1,  'max' => 50],
+        'uploads.tenant_logo_max_mb'          => ['min' => 1,  'max' => 50],
+        // 0 = sin límite (CSV va en streaming); el resto se arma en memoria.
+        'exports.max_csv_rows'   => ['min' => 0, 'max' => 10000000],
+        'exports.max_excel_rows' => ['min' => 1, 'max' => 1000000],
+        'exports.max_pdf_rows'   => ['min' => 1, 'max' => 100000],
+        'exports.max_word_rows'  => ['min' => 1, 'max' => 100000],
+    ];
+
+    /** @return array{min: int|float, max: int|float, decimal?: bool}|null */
+    public static function limitsFor(?string $key): ?array
+    {
+        return $key ? (self::VALUE_LIMITS[$key] ?? null) : null;
+    }
+
+    /**
+     * Ajustes que están sembrados pero que HOY no lee nadie: sobraron del
+     * dominio de transformadores que se purgó del producto. Se conservan
+     * porque el seeder es archivo compartido, pero la pantalla los marca en
+     * vez de presentarlos como una perilla que hace algo.
+     *
+     * Ver `docs/PENDIENTES.md` → «Defectos heredados que siguen abiertos».
+     */
+    public const UNUSED_KEYS = [
+        'fleet_report.pdf_max_transformers',
+        'reports.frozen_retention_years',
+        'diagnostics.cell_alert_sev',
+    ];
+
+    public static function isUnused(?string $key): bool
+    {
+        return $key !== null && in_array($key, self::UNUSED_KEYS, true);
+    }
+
     protected $fillable = [
         'key',
         'name',

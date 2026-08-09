@@ -9,6 +9,8 @@ import { dateRangeFromISO, dateRangeToISO } from '@/Composables/useModuleFilters
  */
 export const system_modulesFilterFields = (t) => [
     { key: 'name',       label: t('system_modules.name'),       type: 'tags' },
+    // El modelo ya filtraba por clave de permiso; la pantalla nunca lo ofrecía.
+    { key: 'permission_key', label: t('system_modules.permission_key'), type: 'tags' },
     { key: 'is_active',  label: t('system_modules.is_active'),  type: 'select', options: [
         { value: true,  label: t('global.active')   },
         { value: false, label: t('global.inactive') },
@@ -22,6 +24,7 @@ export const system_modulesFilterFields = (t) => [
 /** Estado vacío del form de filtros (también usado por clearFilters). */
 export const system_modulesEmptyFilters = () => ({
     name: [],
+    permission_key: [],
     is_active: null,
     created_at: null,
     updated_at: null,
@@ -32,6 +35,7 @@ export const system_modulesEmptyFilters = () => ({
 /** Backend payload → form local (dates ISO → dayjs, etc). */
 export const hydrateSystemModulesFilters = (sf) => ({
     name:       Array.isArray(sf.name) ? sf.name : [],
+    permission_key: Array.isArray(sf.permission_key) ? sf.permission_key : [],
     is_active:  sf.is_active ?? null,
     created_at: dateRangeFromISO(sf.created_from, sf.created_to),
     updated_at: dateRangeFromISO(sf.updated_from, sf.updated_to),
@@ -42,6 +46,7 @@ export const hydrateSystemModulesFilters = (sf) => ({
 /** Form local → request params para Inertia reload. */
 export const system_modulesFiltersToQuery = (f, sf) => ({
     name:           f.name?.length ? f.name : undefined,
+    permission_key: f.permission_key?.length ? f.permission_key : undefined,
     is_active:      f.is_active ?? undefined,
     created_from:   f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
     created_to:     f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
@@ -59,6 +64,7 @@ export const system_modulesFiltersToQuery = (f, sf) => ({
 export const system_modulesFiltersSummary = (f, t) => {
     const parts = [];
     if (f.name?.length)        parts.push(`${t('system_modules.name')}: ${f.name.join(', ')}`);
+    if (f.permission_key?.length) parts.push(`${t('system_modules.permission_key')}: ${f.permission_key.join(', ')}`);
     if (f.is_active === true)  parts.push(`${t('system_modules.is_active')}: ${t('global.active')}`);
     if (f.is_active === false) parts.push(`${t('system_modules.is_active')}: ${t('global.inactive')}`);
     if (f.created_at?.[0])     parts.push(`${t('global.created_at')}: ${f.created_at[0].format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD') ?? ''}`);
@@ -75,6 +81,7 @@ export const system_modulesFiltersSummary = (f, t) => {
  */
 export const serializeSavedFilters = (f) => ({
     name:       f.name ?? [],
+    permission_key: f.permission_key ?? [],
     is_active:  f.is_active ?? null,
     created_at: dateRangeToISO(f.created_at),
     updated_at: dateRangeToISO(f.updated_at),
@@ -84,6 +91,7 @@ export const serializeSavedFilters = (f) => ({
 
 export const deserializeSavedFilters = (f = {}) => ({
     name:       Array.isArray(f.name) ? f.name : [],
+    permission_key: Array.isArray(f.permission_key) ? f.permission_key : [],
     is_active:  f.is_active ?? null,
     created_at: f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
     updated_at: f.updated_at?.[0] ? [dayjs(f.updated_at[0]), dayjs(f.updated_at[1])] : null,

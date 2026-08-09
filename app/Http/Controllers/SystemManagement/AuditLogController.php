@@ -15,17 +15,51 @@ use Illuminate\Http\Request;
 class AuditLogController extends Controller
 {
     /**
-     * Modulos que el ADMIN puede auditar (solo de SU tenant). El super ve TODOS
-     * los modulos; el admin queda acotado a esta lista — el resto (catalogos,
-     * core de system_management, automations, etc.) es exclusivo de super.
+     * Lo que el admin de un workspace puede auditar, ademas de lo que sale de
+     * `system_modules` (ver adminModules()).
+     *
+     * Son las piezas que SI se auditan pero que no son un modulo con CRUD
+     * propio: la cadena de evidencia de una firma, los subobjetos de un
+     * formato y las herramientas del workspace. Sin ellas el admin veria
+     * «formato modificado» pero no quien cambio una respuesta.
      */
-    private const ADMIN_MODULES = [
-        'users', 'roles', 'brands', 'customers', 'transformers',
-        // Catálogos de diagnóstico que el admin gestiona (laboratorio, aceites,
-        // tipos de trafo y conmutador): también debe poder auditarlos.
-        'laboratories', 'oil_types', 'transformer_types',
-        'tap_changer_brands', 'tap_changer_models', 'tap_changer_technologies', 'tap_changer_types',
+    private const EXTRA_ADMIN_MODULES = [
+        // Evidencia de obra — lo que puede acabar delante de un inspector.
+        'signature_events', 'evidence_files', 'person_signatures', 'person_biometrics',
+        'form_submissions', 'form_answers', 'form_attachments', 'form_sections', 'form_fields',
+        'person_roles', 'person_company_links',
+        // Herramientas y datos del propio workspace.
+        'brands', 'comments', 'messages', 'automations',
+        'customer_areas', 'customer_locations', 'customer_substations',
     ];
+
+    /**
+     * Modulos que el ADMIN puede auditar (solo de SU tenant). El super ve TODOS.
+     *
+     * La lista NO se escribe a mano: sale de `system_modules`, que es el
+     * registro de lo que un admin puede delegar en sus perfiles. Si un modulo
+     * esta ahi, el admin lo gestiona y por tanto debe poder auditarlo; si no
+     * esta, es nucleo de plataforma (ajustes, workspaces, catalogos globales,
+     * planes) y sigue siendo exclusivo del super.
+     *
+     * Antes era una constante con la lista del dominio de transformadores
+     * (`transformers`, `laboratories`, `oil_types`, `tap_changer_*`), purgado
+     * del producto. O sea que el admin abria «Logs del sistema» y no veia NADA
+     * de planes de trabajo, personas, formatos ni firmas: justo el rastro que
+     * este producto existe para conservar. Derivarlo de la tabla evita que
+     * vuelva a quedarse atras cuando se agregue un modulo.
+     *
+     * @return string[]
+     */
+    private function adminModules(): array
+    {
+        $registrados = \App\Models\SystemModule::query()
+            ->whereNull('deleted_at')
+            ->pluck('permission_key')
+            ->all();
+
+        return array_values(array_unique(array_merge($registrados, self::EXTRA_ADMIN_MODULES)));
+    }
 
     public function index(Request $request)
     {
@@ -36,6 +70,7 @@ class AuditLogController extends Controller
         );
 
         $isSuper = $user->hasRole('super');
+        $adminModules = $isSuper ? [] : $this->adminModules();
 
         $perPage = (int) $request->get('per_page', 10);
         $perPage = in_array($perPage, [10, 25, 50, 100, 200]) ? $perPage : 10;
@@ -50,13 +85,13 @@ class AuditLogController extends Controller
 
         // Tenant scope: admin solo ve logs de users de SU tenant.
         // (Super ve todo, incluidos logs propios y de otros tenants.)
-        // Ademas: el admin queda acotado a ADMIN_MODULES (users/roles/brands/
-        // customers/transformers); el resto de modulos es exclusivo de super.
+        // Ademas: el admin queda acotado a los modulos que gestiona
+        // (adminModules()); el nucleo de plataforma es exclusivo de super.
         if (! $isSuper) {
             $query->whereHas('user', function ($q) use ($user) {
                 $q->withoutGlobalScopes()->where('tenant_id', $user->tenant_id);
             });
-            $query->whereIn('module', self::ADMIN_MODULES);
+            $query->whereIn('module', $adminModules);
         }
 
         // Filters
@@ -91,9 +126,9 @@ class AuditLogController extends Controller
                 $q->withoutGlobalScopes()->where('tenant_id', $user->tenant_id);
             };
             $modulesQuery->whereHas('user', $tenantScope)
-                ->whereIn('module', self::ADMIN_MODULES);
+                ->whereIn('module', $adminModules);
             $eventsQuery->whereHas('user', $tenantScope)
-                ->whereIn('module', self::ADMIN_MODULES);
+                ->whereIn('module', $adminModules);
         }
         $modules = $modulesQuery->distinct()->orderBy('module')->pluck('module');
         $events  = $eventsQuery->distinct()->orderBy('event')->pluck('event');

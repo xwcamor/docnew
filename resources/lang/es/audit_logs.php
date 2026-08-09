@@ -31,8 +31,15 @@ return [
     'event_deleted'       => 'Eliminado',
     'event_force_deleted' => 'Borrado permanente',
     'event_restored'      => 'Restaurado',
-    'event_login'         => 'Login',
-    'event_logout'        => 'Logout',
+    'event_login'         => 'Inicio de sesión',
+    'event_logout'        => 'Cierre de sesión',
+    'event_purged'        => 'Purgado',
+    'event_export_queued' => 'Exportación solicitada',
+    'event_terms_accepted' => 'Términos aceptados',
+    'event_personal_data_exported'     => 'Datos personales descargados',
+    'event_account_deletion_requested' => 'Baja de cuenta solicitada',
+    'event_report_autosign_granted'    => 'Firma automática activada',
+    'event_report_autosign_revoked'    => 'Firma automática desactivada',
 
     // Cells
     'system'       => 'Sistema',

@@ -18,6 +18,11 @@ const draft = defineModel('draft', { type: Array, required: true });
         <thead>
             <tr>
                 <th class="col-id">ID</th>
+                <!-- La clave es lo que identifica al ajuste. Sin ella la tabla
+                     era una lista de nombres parecidos sin saber cuál controla
+                     qué. Va de solo lectura: cambiarla rompe el código que la
+                     lee, y por eso tampoco se puede editar en la ficha. -->
+                <th class="col-key">{{ $t('settings.table_headers.key_readonly') }}</th>
                 <th class="col-name">{{ $t('settings.table_headers.editable_name') }}</th>
                 <th class="col-status">{{ $t('settings.table_headers.editable_status') }}</th>
             </tr>
@@ -32,6 +37,7 @@ const draft = defineModel('draft', { type: Array, required: true });
                 }"
             >
                 <td class="col-id">{{ row.id }}</td>
+                <td class="col-key"><code>{{ row.key || '—' }}</code></td>
                 <td class="col-name">
                     <Input
                         v-model:value="row.name"
@@ -79,6 +85,13 @@ const draft = defineModel('draft', { type: Array, required: true });
 }
 .edit-table tbody tr:last-child td { border-bottom: 0; }
 .edit-table .col-id     { width: 80px;  color: var(--color-text-muted); }
+.edit-table .col-key    { width: 260px; }
+.edit-table .col-key code {
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    word-break: break-all;
+}
 .edit-table .col-status { width: 160px; }
 .edit-table tbody tr.is-dirty     { background: var(--tint-dirty); }
 .edit-table tbody tr.is-duplicate { background: var(--tint-duplicate); }

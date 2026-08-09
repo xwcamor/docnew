@@ -19,6 +19,7 @@ import EntityShowActions from '@/Components/Common/EntityShowActions.vue';
 import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useDateFormat } from '@/Composables/useDateFormat';
+import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
 
@@ -30,6 +31,7 @@ const props = defineProps({
 
 const { can, isSuper, canSeeAudit } = useAuth();
 const { formatDateTimeFull } = useDateFormat();
+const { t: t18n } = useI18n();
 
 const isDeleted = computed(() => !!props.setting.deleted_at);
 const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--color-primary)');
@@ -39,12 +41,20 @@ const fmt = (d) => formatDateTimeFull(d);
 const lastUpdatedRel = computed(() => props.setting.updated_at ? dayjs(props.setting.updated_at).fromNow() : null);
 
 // Format del value según el type — secret se enmascara siempre.
+//
+// OJO con el booleano: el valor llega como TEXTO ('true' / 'false' / '1' / '0')
+// y la versión anterior hacía `v ? 'true' : 'false'`, así que la cadena
+// 'false' —que en JavaScript es verdadera— se enseñaba como «true». Un ajuste
+// apagado (por ejemplo el modo mantenimiento) se leía como encendido en su
+// propia ficha. Además ahora se dice Sí/No, no true/false.
+const isTruthyText = (v) => ['1', 'true', 'yes', 'on'].includes(String(v).trim().toLowerCase());
+
 const displayValue = computed(() => {
     if (props.setting.is_secret) return '••••••••';
     const t = props.setting.type;
     const v = props.setting.value;
     if (v === null || v === undefined || v === '') return '—';
-    if (t === 'bool' || t === 'boolean') return v ? 'true' : 'false';
+    if (t === 'bool' || t === 'boolean') return isTruthyText(v) ? t18n('global.yes') : t18n('global.no');
     if (t === 'json' && typeof v !== 'string') return JSON.stringify(v, null, 2);
     return String(v);
 });
@@ -95,6 +105,17 @@ const typeColor = computed(() => {
             </template>
         </SectionHeader>
 
+        <!-- Los tres ajustes heredados que no lee nadie: se dice, en vez de
+             dejar creer que mover el número cambia algo. -->
+        <Alert
+            v-if="setting.is_unused"
+            type="warning"
+            show-icon
+            class="deleted-alert"
+            :message="$t('settings.unused_badge')"
+            :description="$t('settings.unused_warning')"
+        />
+
         <Alert
             v-if="isDeleted"
             type="error"
@@ -137,19 +158,19 @@ const typeColor = computed(() => {
                             <span class="spec-cell__value">{{ setting.name }}</span>
                         </div>
                         <div v-if="setting.key" class="spec-cell">
-                            <span class="spec-cell__label">Key</span>
+                            <span class="spec-cell__label">{{ $t('settings.key') }}</span>
                             <span class="spec-cell__value"><code>{{ setting.key }}</code></span>
                         </div>
                         <div v-if="setting.group" class="spec-cell">
-                            <span class="spec-cell__label">Group</span>
+                            <span class="spec-cell__label">{{ $t('settings.group') }}</span>
                             <span class="spec-cell__value"><Tag :bordered="false">{{ setting.group }}</Tag></span>
                         </div>
                         <div v-if="setting.type" class="spec-cell">
-                            <span class="spec-cell__label">Type</span>
+                            <span class="spec-cell__label">{{ $t('settings.type') }}</span>
                             <span class="spec-cell__value"><Tag :color="typeColor" :bordered="false">{{ setting.type }}</Tag></span>
                         </div>
                         <div class="spec-cell spec-cell--wide">
-                            <span class="spec-cell__label">Value</span>
+                            <span class="spec-cell__label">{{ $t('settings.value') }}</span>
                             <span class="spec-cell__value">
                                 <Space :size="6">
                                     <EyeInvisibleOutlined v-if="setting.is_secret" />
@@ -158,7 +179,7 @@ const typeColor = computed(() => {
                             </span>
                         </div>
                         <div v-if="setting.description" class="spec-cell spec-cell--wide">
-                            <span class="spec-cell__label">{{ $t('global.description') || 'Descripción' }}</span>
+                            <span class="spec-cell__label">{{ $t('settings.description') }}</span>
                             <span class="spec-cell__value">{{ setting.description }}</span>
                         </div>
                         <div class="spec-cell">

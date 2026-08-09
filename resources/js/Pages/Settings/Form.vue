@@ -15,6 +15,11 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     setting: { type: Object, default: null },
+    // Márgenes con sentido por clave (Setting::VALUE_LIMITS) y claves que hoy
+    // no lee nadie (Setting::UNUSED_KEYS). Vienen del backend para que la
+    // pantalla y la validación no puedan decir cosas distintas.
+    valueLimits: { type: Object, default: () => ({}) },
+    unusedKeys:  { type: Array,  default: () => [] },
 });
 
 const isEdit = computed(() => !!props.setting);
@@ -36,6 +41,16 @@ const form = useForm({
 // exponer credentials. El usuario clickea "Revelar" para editarlo.
 const secretRevealed = ref(!isEdit.value || !props.setting?.is_secret);
 const revealSecret = () => { secretRevealed.value = true; };
+
+// Márgenes del ajuste que se está editando, si es uno de los que el sistema
+// lee de verdad. Un `docufiz.num_doc_minimum` en 0 convertiría el buscador de
+// personas en un volcado del padrón: el campo no deja llegar ahí.
+const fmtLimit = (n) => Number.isInteger(n) ? String(n) : String(n).replace('.', ',');
+const limits = computed(() => props.valueLimits[form.key] ?? null);
+const isUnused = computed(() => props.unusedKeys.includes(form.key));
+const limitHint = computed(() => limits.value
+    ? { min: fmtLimit(limits.value.min), max: fmtLimit(limits.value.max) }
+    : null);
 
 const jsonError = ref('');
 const validateJson = (raw) => {
@@ -108,11 +123,25 @@ const submit = () => {
                     class="mb-4"
                 />
 
+                <!-- Ajuste heredado que hoy no lee nadie: se avisa antes de
+                     que alguien pierda el rato afinando un número inerte. -->
+                <Alert
+                    v-if="isUnused"
+                    type="warning"
+                    show-icon
+                    :message="$t('settings.unused_badge')"
+                    :description="$t('settings.unused_warning')"
+                    class="mb-4"
+                />
+
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="12">
+                <!-- `form-grid`: sin esa clase, app.css aplana toda columna a
+                     ancho completo y este formulario, escrito en dos y tres
+                     columnas, salía como una tira vertical. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem
                             :label="$t('settings.key')"
                             :tooltip="$t('settings.key_help')"
@@ -132,7 +161,7 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="12">
+                    <Col :xs="24" :lg="12">
                         <FormItem
                             :label="$t('settings.name')"
                             :tooltip="$t('settings.name_help')"
@@ -151,7 +180,7 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('settings.type')"
                             :tooltip="$t('settings.type_help')"
@@ -171,7 +200,7 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('settings.group')"
                             :tooltip="$t('settings.group_help')"
@@ -187,7 +216,7 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8">
+                    <Col :xs="24" :lg="8">
                         <FormItem
                             :label="$t('settings.is_secret')"
                             :tooltip="$t('settings.is_secret_help')"
@@ -208,7 +237,7 @@ const submit = () => {
                             :label="$t('settings.value')"
                             :tooltip="$t('settings.value_help')"
                             :validate-status="(form.errors.value || (form.type === 'json' && jsonError)) ? 'error' : ''"
-                            :help="valueHelp ? (valueHelp.startsWith('settings.') ? $t(valueHelp) : valueHelp) : ''"
+                            :help="valueHelp ? (valueHelp.startsWith('settings.') ? $t(valueHelp) : valueHelp) : (limitHint ? $t('settings.value_range_hint', limitHint) : '')"
                         >
                             <div v-if="!secretRevealed" class="value-hidden">
                                 <code class="value-masked"><LockOutlined /> {{ $t('settings.secret_masked') }}</code>
@@ -225,11 +254,15 @@ const submit = () => {
                                     @update:checked="(v) => form.value = v ? 'true' : 'false'"
                                 />
 
+                                <!-- min/max salen de Setting::VALUE_LIMITS: son
+                                     los mismos números que valida el servidor. -->
                                 <InputNumber
                                     v-else-if="form.type === 'int'"
                                     :value="form.value === '' || form.value === null ? null : Number(form.value)"
                                     @update:value="(v) => form.value = v === null ? '' : String(v)"
                                     size="large"
+                                    :min="limits ? limits.min : undefined"
+                                    :max="limits ? limits.max : undefined"
                                     :placeholder="$t(valuePlaceholder)"
                                     style="width: 100%"
                                 />
@@ -271,7 +304,7 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col v-if="isEdit" :xs="24" :md="8">
+                    <Col v-if="isEdit" :xs="24" :lg="8">
                         <FormItem
                             :label="$t('settings.is_active')"
                             :tooltip="$t('settings.is_active_help')"

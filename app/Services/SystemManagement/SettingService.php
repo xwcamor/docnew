@@ -4,7 +4,6 @@ namespace App\Services\SystemManagement;
 
 use App\Jobs\SystemManagement\Settings\BulkSettingsActionJob;
 use App\Models\AuditLog;
-use App\Models\Country;
 use App\Models\Setting;
 use App\Rules\UniqueNormalizedName;
 use Illuminate\Support\Facades\DB;
@@ -125,14 +124,11 @@ class SettingService
         return DB::transaction(function () use ($ids, $reason) {
             $settings = Setting::whereIn('id', $ids)->get();
 
-            // Dependency check con 1 query agrupada (vs N de hasBlockingDependents).
-            $blockConfig = (new Setting)->dependents()['countries']['block'] ?? false;
-            if ($blockConfig) {
-                $hasBlocker = Country::whereIn('setting_id', $settings->pluck('id'))->exists();
-                if ($hasBlocker) {
-                    return ['queued' => false, 'count' => 0, 'blocked' => true];
-                }
-            }
+            // Un ajuste no tiene dependientes (`dependents()` devuelve []).
+            // Aquí quedaba, clonado de la plantilla, un `Country::whereIn(
+            // 'setting_id', ...)`: esa columna no existe en `countries`, así
+            // que el día que alguien declarase un dependiente bloqueante,
+            // borrar en lote habría muerto con un error de SQL.
 
             foreach ($settings as $setting) {
                 $this->delete($setting, $reason);
@@ -239,11 +235,44 @@ class SettingService
                 if ($i > 100) return null;
             }
 
+            // Se copiaba SOLO el nombre y el estado: la copia salía sin clave,
+            // sin valor, sin grupo y con el tipo puesto en `string` por defecto
+            // de la tabla. O sea una fila que no configura nada y que en el
+            // listado aparece con la columna «Clave» en blanco.
+            //
+            // Ahora se clona el ajuste entero y se le da una clave libre
+            // (`app.name_copy`, `_copy_2`…): un ajuste sin clave no lo puede
+            // leer nadie, así que copiar sin ella no tiene ningún sentido.
             return $this->create([
-                'name'      => $candidate,
-                'is_active' => $setting->is_active,
+                'key'         => $setting->key ? $this->freeKeyFrom($setting->key) : null,
+                'name'        => $candidate,
+                'type'        => $setting->type,
+                'value'       => $setting->value,
+                'group'       => $setting->group,
+                'description' => $setting->description,
+                'is_secret'   => $setting->is_secret,
+                // La copia nace INACTIVA a propósito: dos ajustes activos que
+                // dicen lo mismo es justo lo que no se quiere. El super la
+                // activa cuando le ha puesto la clave definitiva.
+                'is_active'   => false,
             ]);
         });
+    }
+
+    /** Primera variante libre de `{key}_copy`, `{key}_copy_2`, … */
+    private function freeKeyFrom(string $key): string
+    {
+        $base = $key . '_copy';
+        $candidate = $base;
+        $i = 2;
+
+        while (Setting::withTrashed()->where('key', $candidate)->exists()) {
+            $candidate = $base . '_' . $i;
+            $i++;
+            if ($i > 100) return $base . '_' . uniqid();
+        }
+
+        return mb_substr($candidate, 0, 100);
     }
 
     // ─── Edit-All batch ────────────────────────────────────────────────────

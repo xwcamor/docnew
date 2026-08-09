@@ -37,8 +37,16 @@ class SystemModule extends Model
 
     public function dependents(): array
     {
-        // Sin FKs entrantes — los permissions referencian el `permission_key`
-        // por string, no por FK. El Observer maneja el cleanup en delete.
+        // Sin FKs entrantes — los permisos referencian el `permission_key` por
+        // texto, no por FK.
+        //
+        // OJO: al borrar un módulo los permisos NO se tocan (el `deleted()` del
+        // observer está vacío, y está bien: quitar un permiso lo quitaría
+        // también de todos los perfiles que lo tuvieran, y eso no puede pasar
+        // por un borrado que se deshace en 60 segundos). Lo que sí ocurre es
+        // que la clave de permiso queda RESERVADA mientras el módulo esté en la
+        // papelera: `permission_key` tiene UNIQUE de tabla entera. Los
+        // FormRequest lo comprueban y lo explican en su campo.
         return [];
     }
 

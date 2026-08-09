@@ -130,6 +130,7 @@ class TenantController extends Controller
         return inertia('Tenants/Form', [
             'tenant'      => null,
             'planOptions' => $this->planOptions(),
+            'logoMaxMb'   => \App\Models\Setting::getInt('uploads.tenant_logo_max_mb', 2),
         ]);
     }
 
@@ -247,7 +248,7 @@ class TenantController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -260,6 +261,13 @@ class TenantController extends Controller
                 'logo_url'            => $tenant->logo_url,
                 'plan'                => $tenant->currentPlan(),
                 'is_active'           => $tenant->is_active,
+                // Lo que hacía falta de un vistazo y no estaba en la ficha:
+                // dónde está el workspace (zona horaria + dirección) y cuántos
+                // usuarios tiene DE los que su plan le permite.
+                'timezone'            => $tenant->timezone,
+                'address'             => $tenant->address,
+                'users_count'         => $tenant->activeUserCount(),
+                'max_users'           => $tenant->maxUsers(),
                 'created_at'          => $tenant->created_at,
                 'updated_at'          => $tenant->updated_at,
                 'deleted_at'          => $tenant->deleted_at,
@@ -316,6 +324,10 @@ class TenantController extends Controller
                 'logo_url'  => $tenant->logo_url,
                 'address'           => $tenant->address,
                 'report_disclaimer' => $tenant->report_disclaimer,
+                // Faltaba: el formulario tiene el campo y lo manda de vuelta,
+                // así que sin cargarlo aquí abrir «Editar» y guardar borraba el
+                // aprobador que ya estaba escrito.
+                'report_approver'   => $tenant->report_approver,
                 // Solo display — el plan NO se edita desde el form del tenant.
                 // Los cambios de plan van por el tab Suscripción.
                 'plan'      => $tenant->currentPlan(),
@@ -323,12 +335,21 @@ class TenantController extends Controller
                 'timezone'  => $tenant->timezone,
             ],
             'planOptions' => $this->planOptions(),
+            'logoMaxMb'   => \App\Models\Setting::getInt('uploads.tenant_logo_max_mb', 2),
         ]);
     }
 
     public function update(UpdateRequest $request, Tenant $tenant, TenantService $service)
     {
-        $service->update($tenant, $request->validated(), $request->file('logo'));
+        $data = $request->validated();
+
+        // `logo` es un ARCHIVO, no una columna que este payload deba escribir:
+        // el service guarda el fichero y sólo entonces actualiza la ruta. Si se
+        // deja aquí, el `logo: null` que manda el formulario cuando NO se
+        // cambió la imagen vacía la columna y el workspace pierde su logo.
+        unset($data['logo']);
+
+        $service->update($tenant, $data, $request->file('logo'));
 
         return redirect()
             ->route('system_management.tenants.index')

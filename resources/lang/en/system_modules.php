@@ -7,7 +7,7 @@ return [
     'records'         => 'modules',
     'record'          => 'module',
     'empty_hint'      => 'Create the first module or import a batch from Excel.',
-    'name_placeholder'=> 'E.g.: Patient',
+    'name_placeholder'=> 'E.g.: Scaffold',
     'form_create_hint'=> 'Fill in the data. Permissions are auto-generated on create.',
     'delete_hint'     => 'The module record will be removed. Associated permissions are preserved.',
     'delete_about'    => 'You are about to delete the module :name.',
@@ -21,27 +21,27 @@ return [
     'edit_all_title'  => 'Module - Edit All',
     'id'              => 'No.',
     'name'            => 'Name',
-    'name_help'       => 'Module name in PascalCase singular (e.g. Patient, Doctor). The system derives the permission key from it.',
+    'name_help'       => 'Module name in PascalCase singular (e.g. Scaffold, WorkPlan). It is normalised on save: "scaffolds on site" becomes "ScaffoldsOnSite". The permission key is derived from it.',
     'permission_key'  => 'Permission key',
     'permissions'     => 'Associated permissions',
     'is_active'       => 'Status',
-    'is_active_help'  => 'If inactive, the module is hidden from the sidebar and its permissions cannot be used.',
+    'is_active_help'  => 'Housekeeping flag: use it to mark modules no longer in use. It does NOT disable the module nor withdraw its permissions — to remove access, take the permissions off the roles.',
 
     // Form — preview section
     'generated_section_title'   => 'Generated identifier and permissions',
     'permission_key_preview_label'   => 'permission_key (auto-derived from name)',
     'permissions_preview_label' => 'Permissions that will be created automatically',
-    'permissions_preview_hint'  => 'The model Observer creates these 6 permissions on save. If you change the name, they get renamed automatically.',
+    'permissions_preview_hint'  => 'These permissions are created automatically on save. If you rename the module later, they are renamed with it.',
     'generated_permissions_title' => 'Generated permissions',
     'generated_permissions_hint'  => 'The Observer creates these permissions automatically on save. Roles that have them assigned can execute each action.',
 
     // Permission management (Show)
     'add_action'              => 'Add action',
-    'add_action_hint'         => 'Create an extra action for this module (e.g. import, approve, archive)',
+    'add_action_hint'         => 'Create an extra action, on top of the seven standard ones (e.g. approve, archive, close)',
     'add_action_modal_title'  => 'New action for this module',
-    'add_action_modal_hint'   => 'Define an extra action (e.g. import, approve, archive). The permission will be named :prefix.{action}.',
+    'add_action_modal_hint'   => 'Define an extra action (e.g. approve, archive, close). The permission will be named :prefix.{action}. The seven standard ones already exist.',
     'action_name_label'       => 'Action name',
-    'action_name_placeholder' => 'E.g. import',
+    'action_name_placeholder' => 'E.g. approve',
     'action_regex'            => 'Only lowercase letters, numbers and underscores. Must start with a letter.',
     'permission_exists'       => 'Permission :name already exists.',
     'permission_created'      => 'Permission :name created.',
@@ -65,8 +65,9 @@ return [
 
     'name_required'           => 'The name field is required.',
     'name_unique'             => 'This module already exists.',
+    'permission_key_in_trash' => 'The permission key ":key" belongs to a module in the trash. Restore it or delete it permanently before reusing the name.',
     'name_duplicate_in_batch' => 'Duplicate name within the same batch.',
-    'name_format_hint'        => 'Use PascalCase singular (e.g. "Patient", "Doctor"). The system converts it to "patients"/"doctors" for permissions.',
+    'name_format_hint'        => 'Use PascalCase singular (e.g. "Scaffold", "WorkPlan"). The system converts it to "scaffolds"/"work_plans" for permissions.',
 
     'is_active_required' => 'The status field is required.',
 
@@ -82,7 +83,7 @@ return [
 
     'tour' => [
         'step1_title' => 'Welcome to Modules',
-        'step1_body'  => 'Catalog of system modules. Each one auto-generates 6 permissions on creation.',
+        'step1_body'  => 'Catalog of system modules. Each one generates its seven permissions (view, show, create, edit, delete, export, import). A module missing from here has no permissions and stays invisible even to super.',
         'step2_title' => 'Filters',
         'step2_body'  => 'Search by name, permission key or status.',
         'step3_title' => 'Saved views',

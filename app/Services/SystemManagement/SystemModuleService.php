@@ -4,7 +4,6 @@ namespace App\Services\SystemManagement;
 
 use App\Jobs\SystemManagement\SystemModules\BulkSystemModulesActionJob;
 use App\Models\AuditLog;
-use App\Models\Country;
 use App\Models\SystemModule;
 use App\Rules\UniqueNormalizedName;
 use Illuminate\Support\Facades\DB;
@@ -126,13 +125,10 @@ class SystemModuleService
             $system_modules = SystemModule::whereIn('id', $ids)->get();
 
             // Dependency check con 1 query agrupada (vs N de hasBlockingDependents).
-            $blockConfig = (new SystemModule)->dependents()['countries']['block'] ?? false;
-            if ($blockConfig) {
-                $hasBlocker = Country::whereIn('system_module_id', $system_modules->pluck('id'))->exists();
-                if ($hasBlocker) {
-                    return ['queued' => false, 'count' => 0, 'blocked' => true];
-                }
-            }
+            // Un módulo del sistema no tiene FKs entrantes (`dependents()`
+            // devuelve []): los permisos lo referencian por texto. Aquí quedaba
+            // un `Country::whereIn('system_module_id', ...)` clonado de la
+            // plantilla sobre una columna que no existe.
 
             foreach ($system_modules as $system_module) {
                 $this->delete($system_module, $reason);

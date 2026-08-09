@@ -65,8 +65,8 @@ return [
     'is_active'       => 'Estado',
 
     'table_headers' => [
+        'key_readonly'      => 'Clave',
         'editable_name'     => 'Nombre (editable)',
-        'editable_value'    => 'Valor (editable)',
         'editable_status'   => 'Estado (editable)',
     ],
 
@@ -83,6 +83,18 @@ return [
     'key_unique'     => 'Esta clave ya existe.',
     'type_required'  => 'El tipo es obligatorio.',
     'type_invalid'   => 'Tipo inválido. Valores aceptados: string, int, bool, json.',
+    'name_unique'    => 'Ya hay otro ajuste con ese nombre.',
+
+    'value_not_int'    => 'Este ajuste es un número entero: escriba solo cifras.',
+    'value_not_bool'   => 'Este ajuste es un sí/no: use el interruptor.',
+    'value_not_json'   => 'El JSON no es válido. Revise llaves, comas y comillas.',
+    'value_not_number' => 'Este ajuste es un número: escriba una cifra (se admite decimal).',
+    'value_out_of_range' => 'Fuera de rango. «:key» solo admite valores entre :min y :max; fuera de ahí el sistema deja de comportarse como se espera.',
+    'value_range_hint'   => 'Entre :min y :max.',
+
+    // Ajustes sembrados que hoy no lee nadie (ver docs/PENDIENTES.md).
+    'unused_badge'   => 'Sin uso',
+    'unused_warning' => 'Este ajuste no lo lee ninguna parte del sistema: quedó del módulo de transformadores, que se retiró del producto. Cambiar su valor no cambia nada. Está pendiente de que el dueño decida si se retira.',
 
     'is_active_required' => 'El estado es obligatorio.',
 
@@ -90,7 +102,7 @@ return [
     'deleted_description_min'      => 'El motivo debe tener al menos 3 caracteres.',
     'deleted_description_max'      => 'El motivo no puede superar los 1000 caracteres.',
 
-    'edit_all_subtitle'   => 'Edita valor y estado de varios ajustes a la vez.',
+    'edit_all_subtitle'   => 'Cambia el nombre y el estado de varios ajustes a la vez. El VALOR no se toca aquí: cada ajuste tiene su formato y sus márgenes, y se edita en su propia ficha.',
     'edit_all_changes'    => '{0} Sin cambios|{1} 1 cambio pendiente|[2,*] :count cambios pendientes',
     'edit_all_save_all'   => 'Guardar todo',
     'edit_all_discard'    => 'Descartar cambios',
@@ -113,7 +125,7 @@ return [
         'step5_title' => 'Exportar & Importar',
         'step5_body'  => 'Excel/PDF/Word/CSV.',
         'step6_title' => 'Editar muchas a la vez',
-        'step6_body'  => 'Edita valores de varios ajustes juntos.',
+        'step6_body'  => 'Cambia nombre y estado de varios ajustes juntos. El valor se edita en la ficha de cada uno.',
         'step7_title' => 'Favoritos ★',
         'step7_body'  => 'La estrella ★ marca un registro como favorito. Los favoritos aparecen siempre arriba del listado y cada usuario tiene los suyos.',
         'step8_title' => 'Operaciones masivas',

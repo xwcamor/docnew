@@ -492,6 +492,8 @@ const tour = useModuleTour({ module: 'system_modules', steps: () => moduleTourSt
                         </div>
                     </template>
 
+                    <code v-else-if="column.key === 'permission_key'" class="perm-key">{{ record.permission_key }}</code>
+
                     <template v-else-if="column.key === 'status'">
                         <span class="pill" :class="record.is_active ? 'pill--ok' : 'pill--off'">
                             <span class="pill__dot" />
@@ -607,6 +609,16 @@ const tour = useModuleTour({ module: 'system_modules', steps: () => moduleTourSt
 .pill--ok  .pill__dot { background: #1d7a44; box-shadow: 0 0 0 3px rgba(29,122,68,0.12); }
 .pill--off { color: #6a6d70; background: var(--color-surface-alt, #f3f4f6); border-color: var(--color-border, #e5e7eb); }
 .pill--off .pill__dot { background: #9aa0a6; }
+
+/* Clave de permiso: es un identificador y se lee como tal. */
+.perm-key {
+    font-family: ui-monospace, 'SF Mono', Consolas, 'Liberation Mono', monospace;
+    font-size: 0.8125rem;
+    color: var(--color-text);
+    background: var(--color-surface-alt);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
 
 /* Cabecera minimal + filas aireadas + hover suave. */
 .grid-card :deep(.ant-table-thead > tr > th) {

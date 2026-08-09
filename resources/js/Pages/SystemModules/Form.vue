@@ -14,6 +14,9 @@ defineOptions({ layout: AppLayout });
 
 const props = defineProps({
     system_module: { type: Object, default: null },  // null = create, object = edit
+    // Acciones canónicas REALES (las que crea el observer). Vienen del backend
+    // para que la vista previa no pueda volver a desincronizarse.
+    canonicalActions: { type: Array, default: () => [] },
 });
 
 const isEdit = computed(() => !!props.system_module);
@@ -24,8 +27,9 @@ const form = useForm({
 });
 
 // Auto-derivar permission_key del nombre (mirror del backend setNameAttribute).
-// "Mi Modulo Genial" → "mi_modulos_geniales"... no exactamente, la lógica del
-// backend es: PascalCase singular → snake_case plural. Lo aproximamos para preview:
+// La lógica del backend es: PascalCase singular → snake_case plural. Aquí se
+// aproxima; la definitiva la calcula el servidor y por eso el texto de ayuda
+// dice que es una vista previa.
 const previewPermissionKey = computed(() => {
     if (isEdit.value) return props.system_module.permission_key ?? '';
     const n = (form.name ?? '').trim();
@@ -36,11 +40,18 @@ const previewPermissionKey = computed(() => {
     return snake.endsWith('s') ? snake : snake + 's';
 });
 
-const ACTIONS = ['view', 'show', 'create', 'edit', 'delete', 'export'];
+// Las acciones vienen del backend (SystemModuleObserver::CANONICAL_ACTIONS).
+// Estaban escritas a mano y se habían quedado en seis mientras el observer ya
+// creaba siete: la pantalla enseñaba un permiso menos de los que se guardaban.
+const ACTIONS = computed(() =>
+    props.canonicalActions.length
+        ? props.canonicalActions
+        : ['view', 'show', 'create', 'edit', 'delete', 'export', 'import']
+);
 
 const previewPermissions = computed(() => {
     const key = previewPermissionKey.value;
-    return key ? ACTIONS.map(a => `${key}.${a}`) : [];
+    return key ? ACTIONS.value.map(a => `${key}.${a}`) : [];
 });
 
 const submit = () => {
@@ -83,8 +94,10 @@ const submit = () => {
                      md=12 dos columnas, lg=8 tres columnas, etc.). -->
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="isEdit ? 16 : 24">
+                <!-- `form-grid`: sin esa clase, app.css aplana las columnas y
+                     nombre/estado salen apilados aunque se pidan en dos. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="isEdit ? 16 : 24">
                         <FormItem
                             :label="$t('system_modules.name')"
                             :tooltip="$t('system_modules.name_help')"
@@ -103,7 +116,7 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col v-if="isEdit" :xs="24" :md="8">
+                    <Col v-if="isEdit" :xs="24" :lg="8">
                         <FormItem
                             :label="$t('system_modules.is_active')"
                             :tooltip="$t('system_modules.is_active_help')"

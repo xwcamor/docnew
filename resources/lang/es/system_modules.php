@@ -7,7 +7,7 @@ return [
     'records'         => 'módulos',
     'record'          => 'módulo',
     'empty_hint'      => 'Crea el primer módulo o importa un lote desde Excel para empezar.',
-    'name_placeholder'=> 'Ej: Patient',
+    'name_placeholder'=> 'Ej: Andamio',
     'form_create_hint'=> 'Completa los datos para crear un nuevo módulo. Los permisos se generan automáticamente al crear.',
     'delete_hint'     => 'Se borrará la información del módulo. Los permisos asociados se preservan en el sistema.',
     'delete_about'    => 'Está a punto de eliminar el módulo :name.',
@@ -21,27 +21,27 @@ return [
     'edit_all_title'  => 'Módulo - Editar Todo',
     'id'              => 'N°',
     'name'            => 'Nombre',
-    'name_help'       => 'Nombre del módulo en PascalCase singular (ej. Patient, Doctor). El sistema lo usa para derivar la clave de permiso.',
+    'name_help'       => 'Nombre del módulo en PascalCase singular (ej. Andamio, WorkPlan). Al guardar se normaliza solo: «andamios de obra» queda «AndamioDeObra». De ahí sale la clave de permiso.',
     'permission_key'  => 'Clave de permiso',
     'permissions'     => 'Permisos asociados',
     'is_active'       => 'Estado',
-    'is_active_help'  => 'Si está inactivo, el módulo no aparece en el sidebar y sus permisos no se pueden usar.',
+    'is_active_help'  => 'Marca de gestión: sirve para señalar módulos que ya no se usan. NO desactiva el módulo ni retira sus permisos — para quitar el acceso hay que sacar los permisos de los perfiles.',
 
     // Form — preview section
     'generated_section_title'   => 'Identificador y permisos generados',
     'permission_key_preview_label'   => 'permission_key (auto-derivado del nombre)',
     'permissions_preview_label' => 'Permissions que se crearán automáticamente',
-    'permissions_preview_hint'  => 'El Observer del modelo crea estos 6 permisos al guardar. Si cambia el nombre, se renombran automáticamente.',
+    'permissions_preview_hint'  => 'Estos permisos se crean solos al guardar el módulo. Si después cambia el nombre, se renombran con él.',
     'generated_permissions_title' => 'Permisos generados',
     'generated_permissions_hint'  => 'El Observer crea estos permisos automáticamente cuando se guarda el módulo. Los roles que los tengan asignados pueden ejecutar cada acción.',
 
     // Permission management (Show)
     'add_action'              => 'Agregar acción',
-    'add_action_hint'         => 'Crear una acción adicional para este módulo (ej. import, approve, archive)',
+    'add_action_hint'         => 'Crear una acción extra, además de las siete de siempre (ej. approve, archive, close)',
     'add_action_modal_title'  => 'Nueva acción para este módulo',
-    'add_action_modal_hint'   => 'Define una acción extra (ej: import, approve, archive). El permission se llamará :prefix.{accion}.',
+    'add_action_modal_hint'   => 'Define una acción extra (ej: approve, archive, close). El permiso se llamará :prefix.{accion}. Las siete de siempre ya existen: no hace falta crearlas.',
     'action_name_label'       => 'Nombre de la acción',
-    'action_name_placeholder' => 'Ej: import',
+    'action_name_placeholder' => 'Ej: approve',
     'action_regex'            => 'Solo minúsculas, números y guion bajo. Debe empezar con letra.',
     'permission_exists'       => 'El permiso :name ya existe.',
     'permission_created'      => 'Permiso :name creado.',
@@ -65,8 +65,9 @@ return [
 
     'name_required'           => 'El campo nombre es obligatorio.',
     'name_unique'             => 'Este módulo ya existe.',
+    'permission_key_in_trash' => 'La clave de permiso «:key» la tiene un módulo que está en la papelera. Restáuralo desde la papelera o bórralo definitivamente antes de reutilizar el nombre.',
     'name_duplicate_in_batch' => 'Nombre duplicado dentro del mismo batch.',
-    'name_format_hint'        => 'Use PascalCase singular (ej. "Patient", "Doctor"). El sistema lo convierte a "patients"/"doctors" para los permisos.',
+    'name_format_hint'        => 'Use PascalCase singular (ej. "Andamio", "WorkPlan"). El sistema lo convierte a "andamios"/"work_plans" para los permisos.',
 
     'is_active_required' => 'El campo estado es obligatorio.',
 
@@ -82,7 +83,7 @@ return [
 
     'tour' => [
         'step1_title' => 'Bienvenido a Módulos',
-        'step1_body'  => 'Catálogo de módulos. Cada uno auto-genera 6 permisos (view, show, create, edit, delete, export).',
+        'step1_body'  => 'Catálogo de módulos. Cada uno genera solo sus siete permisos (ver, abrir, crear, editar, eliminar, exportar, importar). Un módulo que no esté aquí no tiene permisos y queda invisible incluso para el super.',
         'step2_title' => 'Filtros',
         'step2_body'  => 'Busca por nombre, clave de permiso o estado.',
         'step3_title' => 'Vistas guardadas',

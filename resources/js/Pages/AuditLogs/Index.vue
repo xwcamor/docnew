@@ -101,20 +101,37 @@ const eventColor = (event) => ({
     updated:        'blue',
     deleted:        'orange',
     force_deleted:  'red',
+    purged:         'red',
     restored:       'cyan',
     login:          'purple',
     logout:         'default',
+    export_queued:  'geekblue',
+    terms_accepted: 'green',
+    personal_data_exported:     'geekblue',
+    account_deletion_requested: 'orange',
+    report_autosign_granted:    'green',
+    report_autosign_revoked:    'orange',
 }[event] || 'default');
 
-const eventLabel = (event) => ({
-    created:        t('audit_logs.event_created'),
-    updated:        t('audit_logs.event_updated'),
-    deleted:        t('audit_logs.event_deleted'),
-    force_deleted:  t('audit_logs.event_force_deleted'),
-    restored:       t('audit_logs.event_restored'),
-    login:          t('audit_logs.event_login'),
-    logout:         t('audit_logs.event_logout'),
-}[event] || event);
+// Etiqueta del evento. Lo que NO tenga traducción sale con su clave cruda
+// (`export_queued`), que es una clave sin traducir en la cara del usuario: por
+// eso están los siete de siempre MÁS los que el sistema escribe de verdad
+// (exportar, purgar, aceptar términos, datos personales).
+const eventLabel = (event) => {
+    const key = `audit_logs.event_${event}`;
+    const label = t(key);
+    return label === key ? event : label;
+};
+
+// El módulo se guarda como identificador de tabla (`work_plans`). En pantalla
+// se dice como en obra: la misma etiqueta que el menú lateral. Si un módulo no
+// tiene entrada de menú (subobjetos como `form_answers`), cae al identificador.
+const moduleLabel = (module) => {
+    if (!module) return '—';
+    const key = `sidebar.${module}`;
+    const label = t(key);
+    return label === key ? module : label;
+};
 
 // ─── Columnas ──────────────────────────────────────────────────────────────
 const allColumns = computed(() => [
@@ -187,7 +204,7 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
                     allow-clear
                     style="width: 180px"
                 >
-                    <SelectOption v-for="m in modules" :key="m" :value="m">{{ m }}</SelectOption>
+                    <SelectOption v-for="m in modules" :key="m" :value="m">{{ moduleLabel(m) }}</SelectOption>
                 </Select>
 
                 <Select
@@ -250,7 +267,9 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
                     </template>
 
                     <template v-else-if="column.key === 'module'">
-                        <Tag :bordered="false">{{ record.module ?? '—' }}</Tag>
+                        <Tooltip :title="record.module ?? ''">
+                            <Tag :bordered="false">{{ moduleLabel(record.module) }}</Tag>
+                        </Tooltip>
                     </template>
 
                     <template v-else-if="column.key === 'user'">
@@ -311,7 +330,7 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
                             {{ eventLabel(selectedLog.event) }}
                         </Tag>
                     </DescriptionsItem>
-                    <DescriptionsItem :label="$t('audit_logs.detail_module')">{{ selectedLog.module ?? '—' }}</DescriptionsItem>
+                    <DescriptionsItem :label="$t('audit_logs.detail_module')">{{ moduleLabel(selectedLog.module) }}</DescriptionsItem>
                     <DescriptionsItem :label="$t('audit_logs.detail_model')">
                         <code>{{ selectedLog.auditable_type }}</code>
                     </DescriptionsItem>
@@ -352,21 +371,23 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
 <style scoped>
 .filters-card { margin-bottom: 16px; }
 
+/* Tokens del tema, no hex claros: esta pantalla se ve tambien en oscuro y los
+   #F8FAFC/#32363A dejaban cabecera blanca con texto casi blanco. */
 .grid-card :deep(.ant-table-thead > tr > th) {
-    background: #F8FAFC;
-    color: #334155;
+    background: var(--color-surface-alt, #F8FAFC);
+    color: var(--color-text-strong, #334155);
     font-weight: 600;
     font-size: 0.8125rem;
 }
 .grid-card :deep(.ant-table-tbody > tr) { cursor: pointer; }
-.grid-card :deep(.ant-table-tbody > tr:hover > td) { background: #F5F9FE !important; }
+.grid-card :deep(.ant-table-tbody > tr:hover > td) { background: var(--color-surface-hover, #F5F9FE) !important; }
 
-.user-name  { font-weight: 500; color: #32363A; font-size: 0.875rem; }
-.user-email { color: #6A6D70; font-size: 0.75rem; }
-.url-cell   { color: #0A6ED1; font-size: 0.8125rem; font-family: ui-monospace, monospace; }
-.url-detail { font-size: 0.75rem; color: #0A6ED1; word-break: break-all; }
-.ua         { font-size: 0.75rem; color: #6A6D70; word-break: break-all; }
-.text-muted { color: #9aa0a6; font-style: italic; }
+.user-name  { font-weight: 500; color: var(--color-text-strong, #32363A); font-size: 0.875rem; }
+.user-email { color: var(--color-text-muted, #6A6D70); font-size: 0.75rem; }
+.url-cell   { color: var(--color-primary, #0A6ED1); font-size: 0.8125rem; font-family: ui-monospace, monospace; }
+.url-detail { font-size: 0.75rem; color: var(--color-primary, #0A6ED1); word-break: break-all; }
+.ua         { font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); word-break: break-all; }
+.text-muted { color: var(--color-text-muted, #9aa0a6); font-style: italic; }
 
 .json-block {
     margin-top: 18px;
@@ -375,13 +396,13 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
     margin: 0 0 6px 0;
     font-size: 0.875rem;
     font-weight: 600;
-    color: #32363A;
+    color: var(--color-text-strong, #32363A);
 }
 .json-block pre {
     margin: 0;
     padding: 12px;
-    background: #F8FAFC;
-    border: 1px solid #E5E5E5;
+    background: var(--color-surface-alt, #F8FAFC);
+    border: 1px solid var(--color-border, #E5E5E5);
     border-radius: 4px;
     font-size: 0.75rem;
     overflow-x: auto;
@@ -396,9 +417,9 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
     align-items: center;
     gap: 8px;
 }
-.empty-state__icon { font-size: 56px; color: #b8c5d0; margin-bottom: 8px; }
-.empty-state h3 { margin: 0; font-size: 1rem; font-weight: 600; color: #32363A; }
-.empty-state p { margin: 0; color: #6A6D70; font-size: 0.875rem; }
+.empty-state__icon { font-size: 56px; color: var(--color-text-muted, #b8c5d0); margin-bottom: 8px; }
+.empty-state h3 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--color-text-strong, #32363A); }
+.empty-state p { margin: 0; color: var(--color-text-muted, #6A6D70); font-size: 0.875rem; }
 
 </style>
 

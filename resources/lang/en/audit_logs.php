@@ -31,8 +31,15 @@ return [
     'event_deleted'       => 'Deleted',
     'event_force_deleted' => 'Permanently deleted',
     'event_restored'      => 'Restored',
-    'event_login'         => 'Login',
-    'event_logout'        => 'Logout',
+    'event_login'         => 'Sign in',
+    'event_logout'        => 'Sign out',
+    'event_purged'        => 'Purged',
+    'event_export_queued' => 'Export requested',
+    'event_terms_accepted' => 'Terms accepted',
+    'event_personal_data_exported'     => 'Personal data downloaded',
+    'event_account_deletion_requested' => 'Account deletion requested',
+    'event_report_autosign_granted'    => 'Auto-signature enabled',
+    'event_report_autosign_revoked'    => 'Auto-signature disabled',
 
     // Cells
     'system'       => 'System',

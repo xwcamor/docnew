@@ -44,7 +44,7 @@ class SystemModuleController extends Controller
         // orderByFavoriteFirst hace LEFT JOIN a user_favorites y expone
         // is_favorite como columna calculada en la misma query (no N+1).
         $system_modules = SystemModule::filter($request)
-            ->select('system_modules.id', 'system_modules.slug', 'system_modules.name', 'system_modules.is_active', 'system_modules.created_at', 'system_modules.updated_at', 'system_modules.created_by')
+            ->select('system_modules.id', 'system_modules.slug', 'system_modules.name', 'system_modules.permission_key', 'system_modules.is_active', 'system_modules.created_at', 'system_modules.updated_at', 'system_modules.created_by')
             ->with(['creator:id,name,email'])
             ->orderByFavoriteFirst($userId)
             ->paginate($perPage)
@@ -73,6 +73,10 @@ class SystemModuleController extends Controller
             'exportLimits' => \App\Models\Setting::getExportLimits('system_modules'),
             'filters' => [
                 'name'         => array_values($names),
+                // Se devuelve para que el chip del filtro sobreviva a un
+                // refresco: si el backend no lo repite, la pantalla lo olvida
+                // y el siguiente cambio de orden o de página lo pierde.
+                'permission_key' => array_values((array) $request->get('permission_key', [])),
                 'is_active'    => $request->filled('is_active')
                     ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
                     : null,
@@ -110,6 +114,10 @@ class SystemModuleController extends Controller
     {
         return inertia('SystemModules/Form', [
             'system_module' => null,
+            // La lista real de acciones la manda el servidor. Estaba escrita a
+            // mano en el Vue con SEIS y el observer crea SIETE: la pantalla
+            // prometía un juego de permisos distinto del que se guardaba.
+            'canonicalActions' => \App\Observers\SystemModuleObserver::CANONICAL_ACTIONS,
         ]);
     }
 
@@ -158,7 +166,7 @@ class SystemModuleController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -278,6 +286,7 @@ class SystemModuleController extends Controller
                 'permission_key'  => $system_module->permission_key,
                 'is_active'       => $system_module->is_active,
             ],
+            'canonicalActions' => \App\Observers\SystemModuleObserver::CANONICAL_ACTIONS,
         ]);
     }
 

@@ -42,7 +42,7 @@ return [
     'form_name_placeholder' => 'Ej: Acme Corp, Globex',
     'form_change_logo'    => 'Cambiar logo',
     'form_upload_logo'    => 'Subir logo',
-    'form_logo_hint'      => 'JPG, PNG o WebP. Máximo 2 MB.',
+    'form_logo_hint'      => 'JPG, PNG o WebP. Máximo :mb MB.',
     'logo_change'         => 'Cambiar logo del workspace',
     'logo_label'          => 'Logo de la empresa',
     'logo_upload'         => 'Subir logo',
@@ -73,7 +73,7 @@ return [
     'form_approver_help'    => 'Alternativa si el aprobador NO es usuario del sistema: nombre (y cargo) impreso bajo "Revisado / Aprobado", siempre para firma a mano. Si seleccionas un usuario arriba, este campo se ignora.',
     'form_workspace_type' => 'Tipo de workspace',
     'form_status_label'   => 'Estado',
-    'form_status_help'    => 'Si está inactivo, los usuarios del workspace no podrán iniciar sesión hasta reactivarlo.',
+    'form_status_help'    => 'Marca de gestión del workspace. OJO: hoy NO impide el acceso — sus usuarios siguen entrando. Para cortarles el paso hay que desactivar a cada usuario o suspender la suscripción.',
     'form_create_button'  => 'Crear workspace',
 
     // Admin section (en create)
@@ -147,9 +147,6 @@ return [
     'ability_customers_read'   => 'Clientes — leer',
     'ability_customers_write'  => 'Clientes — crear/editar',
     'ability_customers_delete' => 'Clientes — eliminar',
-    'ability_transformers_read'  => 'Transformadores — buscar (laboratorio)',
-    'ability_transformers_write' => 'Transformadores — dar de alta (laboratorio)',
-    'ability_lab_write'          => 'Laboratorio — cargar resultados de ensayo',
     'is_active'       => 'Estado',
     'users_count'     => 'Usuarios',
     'system_user'     => 'Usuario del sistema',
@@ -181,7 +178,7 @@ return [
 
     'logo_image' => 'El logo debe ser una imagen.',
     'logo_mimes' => 'El logo debe ser jpg, jpeg, png o webp.',
-    'logo_max'   => 'El logo no puede superar los 2MB.',
+    'logo_max'   => 'El logo no puede superar los :max KB.',
 
     'plan_invalid' => 'Plan inválido. Valores aceptados: :allowed.',
 
