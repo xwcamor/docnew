@@ -43,11 +43,48 @@ class BrandCrudTest extends TestCase
         $this->actingAs($u);
     }
 
+    /**
+     * Los datos de una fila: lo que dice cada prueba, mas los campos propios
+     * del modulo.
+     *
+     * Todo alta y toda edicion de este archivo pasa por aqui, y no por gusto:
+     * este es el molde que `make:module` clona. Un modulo nuevo declarado con
+     * `--fields="price:decimal"` tiene una columna obligatoria que Brand no
+     * tiene, asi que sus pruebas clonadas nacian **todas en rojo** con «The
+     * Price field is required» — el generador las copiaba y ninguna pasaba, que
+     * es casi peor que no copiarlas.
+     *
+     * El `+` conserva la clave de la IZQUIERDA: lo que la prueba dice a
+     * proposito manda sobre el valor de muestra.
+     *
+     * @param  array<string, mixed>  $datos
+     * @return array<string, mixed>
+     */
+    protected function campos(array $datos): array
+    {
+        return $datos + $this->camposPropios();
+    }
+
+    /**
+     * ANCLA DEL GENERADOR — no borrar ni renombrar.
+     *
+     * `MakeModuleCommand` sustituye el cuerpo de este metodo por un valor de
+     * muestra de cada campo declarado con `--fields`. En Brand va vacio porque
+     * Brand no tiene campos propios: son `name`, `code` e `is_active`, que ya
+     * los pone cada prueba.
+     *
+     * @return array<string, mixed>
+     */
+    protected function camposPropios(): array
+    {
+        return []; // make:module:campos-propios
+    }
+
     public function test_admin_can_create_brand(): void
     {
-        $response = $this->post(route('business_management.brands.store'), [
+        $response = $this->post(route('business_management.brands.store'), $this->campos([
             'name' => 'Éster Natural', 'code' => 'ester_natural', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
@@ -56,9 +93,9 @@ class BrandCrudTest extends TestCase
 
     public function test_empty_code_is_derived_from_name_lowercased(): void
     {
-        $response = $this->post(route('business_management.brands.store'), [
+        $response = $this->post(route('business_management.brands.store'), $this->campos([
             'name' => 'Megger Group', 'code' => '', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
@@ -68,11 +105,11 @@ class BrandCrudTest extends TestCase
 
     public function test_admin_can_update_brand(): void
     {
-        $oil = Brand::create(['name' => 'Prueba', 'code' => 'prueba', 'is_active' => true]);
+        $oil = Brand::create($this->campos(['name' => 'Prueba', 'code' => 'prueba', 'is_active' => true]));
 
-        $response = $this->put(route('business_management.brands.update', $oil->slug), [
+        $response = $this->put(route('business_management.brands.update', $oil->slug), $this->campos([
             'name' => 'Prueba Editada', 'code' => 'prueba', 'is_active' => false,
-        ]);
+        ]));
 
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
@@ -85,7 +122,7 @@ class BrandCrudTest extends TestCase
         // que limpia el cache estático de Plan::findBySlug).
         \App\Models\Plan::find(1)->update(['max_records_per_module' => 1]);
 
-        $brand = Brand::create(['name' => 'Marca 1', 'code' => 'marca-1', 'is_active' => true]);
+        $brand = Brand::create($this->campos(['name' => 'Marca 1', 'code' => 'marca-1', 'is_active' => true]));
         $this->assertSame(1, Brand::count());
 
         // Ya en el límite → duplicar debe bloquearse, sin crear el clon.
@@ -95,13 +132,13 @@ class BrandCrudTest extends TestCase
 
     public function test_name_is_unique_per_tenant(): void
     {
-        Brand::create(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]);
+        Brand::create($this->campos(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]));
 
         // Per-tenant: el mismo nombre (case/accent insensitive) en el mismo
         // workspace se rechaza.
-        $response = $this->post(route('business_management.brands.store'), [
+        $response = $this->post(route('business_management.brands.store'), $this->campos([
             'name' => 'mineral', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertSessionHasErrors('name');
     }
@@ -111,7 +148,7 @@ class BrandCrudTest extends TestCase
         // Aislamiento cross-tenant: 'Mineral' existe en tenant 1; otro workspace
         // puede tener su propia 'Mineral' sin chocar (índice único es por tenant).
         DB::table('tenants')->insertOrIgnore([['id' => 2, 'slug' => Str::random(22), 'name' => 'Empresa 2', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
-        Brand::create(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]); // tenant 1 (actor)
+        Brand::create($this->campos(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true])); // tenant 1 (actor)
 
         // BelongsToTenant fuerza el tenant del actor al crear; corregimos a 2 por DB.
         $other = User::factory()->create(['tenant_id' => 2, 'country_id' => 1, 'locale_id' => 1]);
@@ -120,9 +157,9 @@ class BrandCrudTest extends TestCase
         $other->assignRole('admin');
         $this->actingAs($other);
 
-        $response = $this->post(route('business_management.brands.store'), [
+        $response = $this->post(route('business_management.brands.store'), $this->campos([
             'name' => 'Mineral', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertSessionHasNoErrors();
         $this->assertSame(2, Brand::withoutGlobalScopes()->whereRaw('LOWER(name) = ?', ['mineral'])->count());
@@ -130,9 +167,9 @@ class BrandCrudTest extends TestCase
 
     public function test_quick_store_creates_brand_and_returns_json(): void
     {
-        $response = $this->postJson(route('business_management.brands.quick_store'), [
+        $response = $this->postJson(route('business_management.brands.quick_store'), $this->campos([
             'name' => 'ABB', 'code' => 'abb', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertCreated();
         $response->assertJsonStructure(['id', 'name']);
@@ -142,12 +179,12 @@ class BrandCrudTest extends TestCase
 
     public function test_quick_store_rejects_duplicate_name(): void
     {
-        Brand::create(['name' => 'Siemens', 'code' => 'siemens', 'is_active' => true]);
+        Brand::create($this->campos(['name' => 'Siemens', 'code' => 'siemens', 'is_active' => true]));
 
         // Mismo nombre con otra capitalización → rechazado (422 con error en name).
-        $response = $this->postJson(route('business_management.brands.quick_store'), [
+        $response = $this->postJson(route('business_management.brands.quick_store'), $this->campos([
             'name' => 'siemens', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertStatus(422);
         $response->assertJsonValidationErrors('name');
@@ -162,9 +199,9 @@ class BrandCrudTest extends TestCase
         $u->assignRole('viewer');
         $this->actingAs($u);
 
-        $response = $this->postJson(route('business_management.brands.quick_store'), [
+        $response = $this->postJson(route('business_management.brands.quick_store'), $this->campos([
             'name' => 'Hyundai', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertForbidden();
         $this->assertDatabaseMissing('brands', ['name' => 'Hyundai']);
@@ -172,12 +209,12 @@ class BrandCrudTest extends TestCase
 
     public function test_update_to_existing_name_is_rejected(): void
     {
-        Brand::create(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]);
-        $other = Brand::create(['name' => 'Silicona', 'code' => 'silicona', 'is_active' => true]);
+        Brand::create($this->campos(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]));
+        $other = Brand::create($this->campos(['name' => 'Silicona', 'code' => 'silicona', 'is_active' => true]));
 
-        $response = $this->put(route('business_management.brands.update', $other->slug), [
+        $response = $this->put(route('business_management.brands.update', $other->slug), $this->campos([
             'name' => 'Mineral', 'code' => 'silicona', 'is_active' => true,
-        ]);
+        ]));
 
         $response->assertSessionHasErrors('name');
     }
@@ -185,12 +222,12 @@ class BrandCrudTest extends TestCase
     public function test_import_crea_y_deduplica_por_tenant(): void
     {
         // El import crea/dedup dentro del tenant del actor (tenant 1).
-        Brand::create(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]);
+        Brand::create($this->campos(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]));
 
         $importer = new \App\Imports\BusinessManagement\Brands\BrandsImport('update_or_create', false);
         $importer->collection(collect([
-            collect(['name' => 'Girasol', 'is_active' => 1]),  // crea
-            collect(['name' => 'mineral', 'is_active' => 0]),  // dedup en tenant -> actualiza
+            collect($this->campos(['name' => 'Girasol', 'is_active' => 1])),  // crea
+            collect($this->campos(['name' => 'mineral', 'is_active' => 0])),  // dedup en tenant -> actualiza
         ]));
 
         $this->assertSame(1, $importer->created);
@@ -202,12 +239,12 @@ class BrandCrudTest extends TestCase
 
     public function test_import_maneja_code_y_deduplica_por_code(): void
     {
-        Brand::create(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]);
+        Brand::create($this->campos(['name' => 'Mineral', 'code' => 'mineral', 'is_active' => true]));
 
         $importer = new \App\Imports\BusinessManagement\Brands\BrandsImport('update_or_create', false);
         $importer->collection(collect([
-            collect(['name' => 'Silicona', 'code' => 'silicona', 'is_active' => 1]), // crea con code
-            collect(['name' => 'Otro',     'code' => 'mineral',  'is_active' => 1]), // code ya existe → error
+            collect($this->campos(['name' => 'Silicona', 'code' => 'silicona', 'is_active' => 1])), // crea con code
+            collect($this->campos(['name' => 'Otro',     'code' => 'mineral',  'is_active' => 1])), // code ya existe → error
         ]));
 
         $this->assertSame(1, $importer->created);
@@ -227,17 +264,17 @@ class BrandCrudTest extends TestCase
      */
     public function test_el_orden_se_guarda_al_crear_y_al_editar(): void
     {
-        $this->post(route('business_management.brands.store'), [
+        $this->post(route('business_management.brands.store'), $this->campos([
             'name' => 'Con orden', 'code' => 'con_orden', 'sort_order' => 30, 'is_active' => true,
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        ]))->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('brands', ['name' => 'Con orden', 'sort_order' => 30]);
 
         $marca = Brand::where('name', 'Con orden')->firstOrFail();
 
-        $this->put(route('business_management.brands.update', $marca->slug), [
+        $this->put(route('business_management.brands.update', $marca->slug), $this->campos([
             'name' => 'Con orden', 'code' => 'con_orden', 'sort_order' => 5, 'is_active' => true,
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        ]))->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('brands', ['id' => $marca->id, 'sort_order' => 5]);
     }
@@ -245,9 +282,9 @@ class BrandCrudTest extends TestCase
     /** Y se puede dejar vacio: la columna es opcional. */
     public function test_el_orden_es_opcional(): void
     {
-        $this->post(route('business_management.brands.store'), [
+        $this->post(route('business_management.brands.store'), $this->campos([
             'name' => 'Sin orden', 'code' => 'sin_orden', 'sort_order' => null,
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        ]))->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('brands', ['name' => 'Sin orden', 'sort_order' => null]);
     }
@@ -262,12 +299,12 @@ class BrandCrudTest extends TestCase
      */
     public function test_editar_todo_avisa_en_vez_de_reventar_con_un_nombre_repetido(): void
     {
-        $alfa = Brand::create(['name' => 'Alfa', 'code' => 'alfa', 'is_active' => true]);
-        $beta = Brand::create(['name' => 'Beta', 'code' => 'beta', 'is_active' => true]);
+        $alfa = Brand::create($this->campos(['name' => 'Alfa', 'code' => 'alfa', 'is_active' => true]));
+        $beta = Brand::create($this->campos(['name' => 'Beta', 'code' => 'beta', 'is_active' => true]));
 
-        $this->post(route('business_management.brands.edit_all.update'), [
+        $this->post(route('business_management.brands.edit_all.update'), $this->campos([
             'changes' => [['id' => $beta->id, 'name' => 'Alfa']],
-        ])->assertSessionHasErrors('changes.0.name');
+        ]))->assertSessionHasErrors('changes.0.name');
 
         $this->assertSame('Beta', $beta->fresh()->name);
         $this->assertSame('Alfa', $alfa->fresh()->name);
@@ -276,15 +313,15 @@ class BrandCrudTest extends TestCase
     /** Y tampoco si el nombre se repite dos veces dentro del mismo lote. */
     public function test_editar_todo_rechaza_dos_filas_con_el_mismo_nombre(): void
     {
-        $uno = Brand::create(['name' => 'Uno', 'code' => 'uno', 'is_active' => true]);
-        $dos = Brand::create(['name' => 'Dos', 'code' => 'dos', 'is_active' => true]);
+        $uno = Brand::create($this->campos(['name' => 'Uno', 'code' => 'uno', 'is_active' => true]));
+        $dos = Brand::create($this->campos(['name' => 'Dos', 'code' => 'dos', 'is_active' => true]));
 
-        $this->post(route('business_management.brands.edit_all.update'), [
+        $this->post(route('business_management.brands.edit_all.update'), $this->campos([
             'changes' => [
                 ['id' => $uno->id, 'name' => 'Igual'],
                 ['id' => $dos->id, 'name' => 'Igual'],
             ],
-        ])->assertSessionHasErrors('changes.1.name');
+        ]))->assertSessionHasErrors('changes.1.name');
 
         $this->assertSame('Uno', $uno->fresh()->name);
         $this->assertSame('Dos', $dos->fresh()->name);
@@ -293,15 +330,15 @@ class BrandCrudTest extends TestCase
     /** Intercambiar nombres entre dos filas del mismo lote sigue permitido. */
     public function test_editar_todo_deja_renombrar_dentro_del_lote(): void
     {
-        $uno = Brand::create(['name' => 'Uno', 'code' => 'uno', 'is_active' => true]);
-        $dos = Brand::create(['name' => 'Dos', 'code' => 'dos', 'is_active' => true]);
+        $uno = Brand::create($this->campos(['name' => 'Uno', 'code' => 'uno', 'is_active' => true]));
+        $dos = Brand::create($this->campos(['name' => 'Dos', 'code' => 'dos', 'is_active' => true]));
 
-        $this->post(route('business_management.brands.edit_all.update'), [
+        $this->post(route('business_management.brands.edit_all.update'), $this->campos([
             'changes' => [
                 ['id' => $uno->id, 'name' => 'Primero'],
                 ['id' => $dos->id, 'name' => 'Segundo'],
             ],
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        ]))->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame('Primero', $uno->fresh()->name);
         $this->assertSame('Segundo', $dos->fresh()->name);
@@ -321,7 +358,7 @@ class BrandCrudTest extends TestCase
         $super->assignRole('super');
         $this->actingAs($super);
 
-        $marca = Brand::create(['name' => 'ACME', 'code' => 'acme', 'is_active' => true]);
+        $marca = Brand::create($this->campos(['name' => 'ACME', 'code' => 'acme', 'is_active' => true]));
 
         foreach (['index', 'create', 'trash', 'edit_all'] as $pantalla) {
             $this->get(route("business_management.brands.{$pantalla}"))->assertOk();

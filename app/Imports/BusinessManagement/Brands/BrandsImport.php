@@ -213,7 +213,7 @@ class BrandsImport implements ToCollection, WithHeadingRow
                         'created_by'  => Auth::id(),
                         // tenant_id lo autorellena BelongsToTenant (tenant del actor);
                         // el slug lo auto-genera el modelo en `creating`.
-                    ]);
+                    ] + $this->camposPropios($row));
 
                     $newRecordsCount++;
                     $this->created++;
@@ -301,5 +301,25 @@ class BrandsImport implements ToCollection, WithHeadingRow
         }
 
         return $query->first();
+    }
+
+    /**
+     * ANCLA DEL GENERADOR — no borrar ni renombrar.
+     *
+     * Los campos propios del modulo, leidos de la fila del Excel.
+     * `MakeModuleCommand` sustituye el cuerpo por una linea por cada campo
+     * declarado con `--fields`.
+     *
+     * En Brand va vacio porque Brand no tiene campos propios. Sin esto, un
+     * modulo con una columna obligatoria nacia con un importador que reventaba
+     * en la primera fila con un NOT NULL — y no lo veia nadie hasta que un
+     * cliente subia su primer Excel.
+     *
+     * @param  \Illuminate\Support\Collection<string, mixed>|array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    protected function camposPropios($row): array
+    {
+        return []; // make:module:campos-propios-import
     }
 }

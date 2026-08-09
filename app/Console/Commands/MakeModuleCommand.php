@@ -183,14 +183,18 @@ class MakeModuleCommand extends Command
     protected function fieldTypeMap(): array
     {
         return [
-            'string'   => ['migration' => "string('%s')",          'cast' => null,        'rule' => 'string|max:255',        'faker' => '$this->faker->word()',                 'input' => 'text'],
-            'text'     => ['migration' => "text('%s')",            'cast' => null,        'rule' => 'string',                'faker' => '$this->faker->sentence()',             'input' => 'textarea'],
-            'integer'  => ['migration' => "integer('%s')",         'cast' => 'integer',   'rule' => 'integer',               'faker' => '$this->faker->numberBetween(0, 1000)', 'input' => 'number'],
-            'decimal'  => ['migration' => "decimal('%s', 10, 2)",  'cast' => 'decimal:2', 'rule' => 'numeric',               'faker' => '$this->faker->randomFloat(2, 0, 9999)','input' => 'number'],
-            'boolean'  => ['migration' => "boolean('%s')",         'cast' => 'boolean',   'rule' => 'boolean',               'faker' => '$this->faker->boolean()',              'input' => 'switch'],
-            'date'     => ['migration' => "date('%s')",            'cast' => 'date',      'rule' => 'date',                  'faker' => '$this->faker->date()',                 'input' => 'date'],
-            'datetime' => ['migration' => "dateTime('%s')",        'cast' => 'datetime',  'rule' => 'date',                  'faker' => '$this->faker->dateTime()',             'input' => 'date'],
-            'year'     => ['migration' => "integer('%s')",         'cast' => 'integer',   'rule' => 'integer|min:1900|max:2100', 'faker' => '$this->faker->year()',             'input' => 'number'],
+            // `sample` es el valor que se le pone al campo en las pruebas
+            // clonadas. Es un literal y no un faker a proposito: una prueba que
+            // cambia de datos en cada corrida es una prueba que falla un martes
+            // y nadie sabe por que.
+            'string'   => ['migration' => "string('%s')",          'cast' => null,        'rule' => 'string|max:255',        'faker' => '$this->faker->word()',                 'input' => 'text',     'sample' => "'texto'"],
+            'text'     => ['migration' => "text('%s')",            'cast' => null,        'rule' => 'string',                'faker' => '$this->faker->sentence()',             'input' => 'textarea', 'sample' => "'Un texto largo de prueba.'"],
+            'integer'  => ['migration' => "integer('%s')",         'cast' => 'integer',   'rule' => 'integer',               'faker' => '$this->faker->numberBetween(0, 1000)', 'input' => 'number',   'sample' => '7'],
+            'decimal'  => ['migration' => "decimal('%s', 10, 2)",  'cast' => 'decimal:2', 'rule' => 'numeric',               'faker' => '$this->faker->randomFloat(2, 0, 9999)','input' => 'number',   'sample' => '10.50'],
+            'boolean'  => ['migration' => "boolean('%s')",         'cast' => 'boolean',   'rule' => 'boolean',               'faker' => '$this->faker->boolean()',              'input' => 'switch',   'sample' => 'true'],
+            'date'     => ['migration' => "date('%s')",            'cast' => 'date',      'rule' => 'date',                  'faker' => '$this->faker->date()',                 'input' => 'date',     'sample' => "'2026-01-15'"],
+            'datetime' => ['migration' => "dateTime('%s')",        'cast' => 'datetime',  'rule' => 'date',                  'faker' => '$this->faker->dateTime()',             'input' => 'date',     'sample' => "'2026-01-15 08:30:00'"],
+            'year'     => ['migration' => "integer('%s')",         'cast' => 'integer',   'rule' => 'integer|min:1900|max:2100', 'faker' => '$this->faker->year()',             'input' => 'number',   'sample' => '2026'],
         ];
     }
 
@@ -606,6 +610,7 @@ class MakeModuleCommand extends Command
 
         $content = file_get_contents($sourceAbs);
         $content = str_replace(array_keys($this->replacements), array_values($this->replacements), $content);
+        $content = $this->rellenarCamposDePrueba($content);
 
         File::ensureDirectoryExists(dirname($destAbs));
         // Escritura sin BOM — crítico en Windows PowerShell.
@@ -613,6 +618,67 @@ class MakeModuleCommand extends Command
 
         $this->createdFiles[] = $destAbs;
         $this->line("  CREADO: {$destRel}");
+    }
+
+    /**
+     * Rellena el ancla `camposPropios()` de las pruebas clonadas.
+     *
+     * Sin esto, un modulo declarado con `--fields="price:decimal"` nacia con
+     * **todas** sus pruebas en rojo: la columna es obligatoria, Brand no la
+     * tiene, y cada alta contestaba «The Price field is required». Copiar las
+     * pruebas y que ninguna pase es casi peor que no copiarlas — se aprende a
+     * ignorarlas, y entonces no protegen de nada.
+     *
+     * Los campos nullable tambien van: un valor de muestra en un campo opcional
+     * no estorba, y de paso comprueba que se guarda.
+     */
+    protected function rellenarCamposDePrueba(string $contenido): string
+    {
+        if (empty($this->fields)) {
+            return $contenido;
+        }
+
+        $map = $this->fieldTypeMap();
+
+        // OJO AL ORDEN: el marcador de las pruebas es PREFIJO del del import
+        // (`…campos-propios` vs `…campos-propios-import`). Sustituyendo el
+        // corto primero, el largo se queda con un «-import» colgando y el
+        // archivo generado no compila. El largo va SIEMPRE antes.
+        //
+        // Importador: cada campo se lee de su columna del Excel. Los que no son
+        // nullable no pueden quedarse fuera, o la insercion revienta en la
+        // primera fila y no lo ve nadie hasta que un cliente sube su Excel.
+        $marcaImport = 'return []; // make:module:campos-propios-import';
+
+        if (str_contains($contenido, $marcaImport)) {
+            $lineas = [];
+
+            foreach ($this->fields as $f) {
+                $lineas[] = "            '{$f['name']}' => \$row['{$f['name']}'] ?? null,";
+            }
+
+            $contenido = str_replace(
+                $marcaImport,
+                "return [\n" . implode("\n", $lineas) . "\n        ];",
+                $contenido,
+            );
+        }
+
+        // Pruebas: un valor de muestra literal por campo.
+        $marca = 'return []; // make:module:campos-propios';
+
+        if (str_contains($contenido, $marca)) {
+            $lineas = [];
+
+            foreach ($this->fields as $f) {
+                $valor    = $map[$f['type']]['sample'] ?? "'valor'";
+                $lineas[] = "            '{$f['name']}' => {$valor},";
+            }
+
+            $contenido = str_replace($marca, "return [\n" . implode("\n", $lineas) . "\n        ];", $contenido);
+        }
+
+        return $contenido;
     }
 
     protected function cloneBackend(): void
@@ -1003,6 +1069,10 @@ PHP;
     Route::middleware('permission:{$newLowerPl}.create')->group(function () {
         Route::get('{$newLowerPl}/create', [{$ctrl}::class, 'create'])->name('{$newLowerPl}.create');
         Route::post('{$newLowerPl}',       [{$ctrl}::class, 'store'])->name('{$newLowerPl}.store');
+        // Alta rapida desde el selector de otro modulo (devuelve JSON). El
+        // controlador clonado SIEMPRE trae `quickStore()`; sin esta linea el
+        // modulo nuevo nacia con un metodo publico al que no llega ninguna ruta.
+        Route::post('{$newLowerPl}/quick_store', [{$ctrl}::class, 'quickStore'])->name('{$newLowerPl}.quick_store');
         Route::post('{$newLowerPl}/{{$newLower}}/duplicate', [{$ctrl}::class, 'duplicate'])->name('{$newLowerPl}.duplicate');
     });
 

@@ -81,4 +81,51 @@ class MakeModuleScaffoldTest extends TestCase
         $cols = File::get(base_path('resources/js/Pages/Brands/config/columns.js'));
         $this->assertStringContainsString("key: 'name'", $cols, 'Anchor de columns.js roto.');
     }
+
+    /**
+     * Las dos anclas de los campos propios: pruebas e importador.
+     *
+     * Sin ellas, un módulo declarado con `--fields="price:decimal"` nace con
+     * todas sus pruebas en rojo («The Price field is required») y con un
+     * importador que revienta en la primera fila con un NOT NULL. Lo segundo no
+     * lo ve nadie hasta que un cliente sube su primer Excel.
+     *
+     * Son comentarios: un formateador o un despiste los borra sin que nada se
+     * queje. Por eso están fijadas aquí.
+     */
+    public function test_brand_conserva_las_anclas_de_los_campos_propios(): void
+    {
+        $prueba = File::get(base_path('tests/Feature/BusinessManagement/BrandCrudTest.php'));
+
+        $this->assertStringContainsString('return []; // make:module:campos-propios', $prueba,
+            'Ancla de camposPropios() en BrandCrudTest rota: los módulos nuevos nacerían con todas las pruebas en rojo.');
+
+        // Todo payload de alta/edición tiene que pasar por `campos()`, o el
+        // módulo clonado no recibirá sus campos propios en esa prueba.
+        $this->assertStringNotContainsString("brands.store'), [", $prueba,
+            'Hay un payload que no pasa por $this->campos().');
+        $this->assertStringNotContainsString('Brand::create([', $prueba,
+            'Hay un Brand::create que no pasa por $this->campos().');
+
+        $import = File::get(base_path('app/Imports/BusinessManagement/Brands/BrandsImport.php'));
+
+        $this->assertStringContainsString('return []; // make:module:campos-propios-import', $import,
+            'Ancla de camposPropios() en BrandsImport rota: el importador del módulo nuevo reventaría con un NOT NULL.');
+    }
+
+    /**
+     * El generador emite la ruta de «alta rápida».
+     *
+     * El controlador clonado SIEMPRE trae `quickStore()`. La plantilla de rutas
+     * no la emitía, así que cada módulo generado nacía con un método público al
+     * que no llegaba ninguna ruta — y su prueba clonada fallaba con
+     * `RouteNotFoundException`.
+     */
+    public function test_el_generador_emite_la_ruta_de_alta_rapida(): void
+    {
+        $generador = File::get(base_path('app/Console/Commands/MakeModuleCommand.php'));
+
+        $this->assertStringContainsString(".quick_store'", $generador,
+            'La plantilla de rutas de make:module no emite quick_store.');
+    }
 }
