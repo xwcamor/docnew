@@ -20,7 +20,7 @@ class GenerateApprovalRulesPdfJob extends BaseApprovalRuleExportJob
         $title          = $this->options['title']                   ?? __('approval_rules.export_title');
         $orientation    = $this->options['orientation']             ?? 'landscape';
         $paperSize      = $this->options['paper_size']              ?? 'a4';
-        $columns        = $this->options['columns']                 ?? ['country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active'];
+        $columns        = $this->options['columns']                 ?? ['name', 'country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active'];
         $includeFilters = $this->options['include_filters_summary'] ?? true;
         $filtersSummary = $includeFilters ? $this->buildFiltersSummary() : [];
         $generatedBy    = optional(\App\Models\User::find($this->userId))->name ?? 'â€”';

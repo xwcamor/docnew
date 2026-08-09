@@ -113,9 +113,13 @@ const sourceColor = (source) => ({
                 <ol v-else class="flow-steps">
                     <li v-for="(firma, i) in flow.signatures" :key="firma.role" class="flow-step">
                         <span class="flow-step__level">{{ firma.level }}</span>
+                        <!-- Arriba, cómo se llama la firma en obra; debajo, el
+                             rol genérico. El código interno (`hse_supervisor`)
+                             ya no se enseña: no significa nada para quien lleva
+                             el casco puesto. -->
                         <span class="flow-step__body">
-                            <span class="flow-step__label">{{ firma.label }}</span>
-                            <span class="flow-step__code">{{ firma.role }}</span>
+                            <span class="flow-step__label">{{ firma.name }}</span>
+                            <span v-if="firma.name !== firma.label" class="flow-step__code">{{ firma.label }}</span>
                         </span>
                         <Tag :color="firma.required ? 'red' : 'default'" :bordered="false">
                             {{ firma.required ? $t('approval_rules.required') : $t('approval_rules.optional') }}
@@ -181,7 +185,7 @@ const sourceColor = (source) => ({
 }
 .flow-step__body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
 .flow-step__label { font-weight: 500; }
-.flow-step__code { font-family: ui-monospace, Consolas, monospace; font-size: 0.75rem; color: var(--color-text-muted); }
+.flow-step__code { font-size: 0.75rem; color: var(--color-text-muted); }
 .flow-step__arrow { display: none; }
 
 .preview-footer { margin-top: 18px; }

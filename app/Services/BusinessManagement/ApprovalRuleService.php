@@ -38,8 +38,9 @@ class ApprovalRuleService
         $isPgsql = config('database.default') === 'pgsql';
         $tbl = 'approval_rules';
 
-        // El buscador general va contra el código del rol que firma: es lo
-        // único textual que tiene una regla.
+        // El buscador general va contra el nombre de la firma Y el código del
+        // rol. Buscaba solo por el código, así que quien tecleaba lo que veía
+        // en la tabla —«Supervisor Autorizante - HITACHI»— no encontraba nada.
         $query->when($request->filled('name'), function ($q) use ($request, $isPgsql, $tbl) {
             $terminos = is_array($request->name) ? $request->name : [$request->name];
             $terminos = array_filter($terminos, fn ($n) => $n !== '');
@@ -49,10 +50,12 @@ class ApprovalRuleService
             $q->where(function ($qq) use ($terminos, $isPgsql, $tbl) {
                 foreach ($terminos as $termino) {
                     $needle = LikeQuery::contains((string) $termino);
-                    if ($isPgsql) {
-                        $qq->orWhereRaw("unaccent(lower({$tbl}.approver_role)) LIKE unaccent(lower(?))", [$needle]);
-                    } else {
-                        $qq->orWhereRaw("{$tbl}.approver_role LIKE ? ESCAPE '\\'", [$needle]);
+                    foreach (['name', 'approver_role'] as $col) {
+                        if ($isPgsql) {
+                            $qq->orWhereRaw("unaccent(lower(coalesce({$tbl}.{$col}, ''))) LIKE unaccent(lower(?))", [$needle]);
+                        } else {
+                            $qq->orWhereRaw("coalesce({$tbl}.{$col}, '') LIKE ? ESCAPE '\\'", [$needle]);
+                        }
                     }
                 }
             });
@@ -90,7 +93,7 @@ class ApprovalRuleService
         $direction = $request->get('direction', 'asc');
         if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'], true)) {
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'country_id', 'work_type_id', 'approver_role', 'priority_level', 'is_required', 'is_active', 'created_at', 'updated_at'], true)
+        } elseif (in_array($sort, ['id', 'name', 'country_id', 'work_type_id', 'approver_role', 'priority_level', 'is_required', 'is_active', 'created_at', 'updated_at'], true)
             && in_array($direction, ['asc', 'desc'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
@@ -101,6 +104,7 @@ class ApprovalRuleService
     public static function filterSchema(): array
     {
         return [
+            ['key' => 'name',           'label' => __('approval_rules.name'),           'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'approver_role',  'label' => __('approval_rules.approver_role'),  'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'priority_level', 'label' => __('approval_rules.priority_level'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_required',    'label' => __('approval_rules.is_required'),    'type' => 'boolean', 'operators' => ['=']],
@@ -122,7 +126,7 @@ class ApprovalRuleService
      * @return array<int, array{
      *     work_type: array{id:int|null, code:string},
      *     source: string,
-     *     signatures: array<int, array{level:int, role:string, label:string, required:bool}>
+     *     signatures: array<int, array{level:int, role:string, label:string, name:string, required:bool}>
      * }>
      */
     public function previewPorPais(int $countryId, ?int $tenantId): array
@@ -167,9 +171,12 @@ class ApprovalRuleService
             'work_type'  => ['id' => $workTypeId, 'code' => $codigo],
             'source'     => $origen,
             'signatures' => $reglas->map(fn ($r) => [
-                'level'    => (int) $r->priority_level,
-                'role'     => $r->approver_role,
-                'label'    => $etiquetas[$r->approver_role] ?? $r->approver_role,
+                'level' => (int) $r->priority_level,
+                'role'  => $r->approver_role,
+                'label' => $etiquetas[$r->approver_role] ?? $r->approver_role,
+                // Como se llama la firma en obra. Sin nombre propio se cae al
+                // rol genérico, que es lo que se enseñaba antes.
+                'name'     => $r->name ?: ($etiquetas[$r->approver_role] ?? $r->approver_role),
                 'required' => (bool) $r->is_required,
             ])->values()->all(),
         ];
@@ -244,6 +251,7 @@ class ApprovalRuleService
                 'auditable_id'   => $bloqueada->id,
                 'event'          => 'force_deleted',
                 'old_values'     => [
+                    'name'           => $bloqueada->name,
                     'approver_role'  => $bloqueada->approver_role,
                     'priority_level' => $bloqueada->priority_level,
                     'slug'           => $bloqueada->slug,

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
-import { Form, FormItem, Select, InputNumber, Switch, Space, Alert, Tag } from 'ant-design-vue';
+import { Form, FormItem, Input, Select, InputNumber, Switch, Space, Alert, Tag } from 'ant-design-vue';
 import { NodeIndexOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -23,6 +23,10 @@ const props = defineProps({
 const isEdit = computed(() => !!props.approvalRule);
 
 const form = useForm({
+    // Cómo se llama esta firma en la obra. La columna existe desde la
+    // migración de la v1 y el formulario nunca la dejaba rellenar: las reglas
+    // dadas de alta a mano nacían sin nombre y en pantalla salía el rol.
+    name:           props.approvalRule?.name ?? '',
     country_id:     props.approvalRule?.country_id ?? props.defaultCountryId ?? null,
     // null (no 0, no '') significa «todos los tipos de trabajo».
     work_type_id:   props.approvalRule?.work_type_id ?? null,
@@ -60,7 +64,7 @@ const submit = () => {
         <SectionHeader
             :back-href="route('business_management.approval_rules.index')"
             :title="isEdit ? $t('approval_rules.edit_title') : $t('approval_rules.new')"
-            :subtitle="$t('approval_rules.create_subtitle')"
+            :subtitle="isEdit ? (approvalRule.display_name || $t('approval_rules.edit_title')) : $t('approval_rules.create_subtitle')"
         >
             <template #icon><NodeIndexOutlined /></template>
         </SectionHeader>
@@ -83,6 +87,22 @@ const submit = () => {
                 />
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
+
+                <FormItem
+                    :label="$t('approval_rules.name')"
+                    :tooltip="$t('approval_rules.name_help')"
+                    :validate-status="form.errors.name ? 'error' : ''"
+                    :help="form.errors.name"
+                >
+                    <Input
+                        v-model:value="form.name"
+                        size="large"
+                        :maxlength="255"
+                        :placeholder="$t('approval_rules.name_placeholder')"
+                        autofocus
+                    />
+                    <p class="field-note">{{ $t('approval_rules.name_help') }}</p>
+                </FormItem>
 
                 <FormItem
                     :label="$t('approval_rules.country')"

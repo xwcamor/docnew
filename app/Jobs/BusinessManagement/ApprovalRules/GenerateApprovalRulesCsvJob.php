@@ -17,7 +17,7 @@ class GenerateApprovalRulesCsvJob extends BaseApprovalRuleExportJob
 
     protected function executeExport(Download $download): void
     {
-        $columns = $this->options['columns'] ?? ['country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active'];
+        $columns = $this->options['columns'] ?? ['name', 'country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active'];
 
         $tempFile = tempnam(sys_get_temp_dir(), 'approval_rules_csv') . '.csv';
         $handle   = fopen($tempFile, 'w');
@@ -30,6 +30,7 @@ class GenerateApprovalRulesCsvJob extends BaseApprovalRuleExportJob
 
             $headings = [
                 'id'             => __('approval_rules.id'),
+                'name'           => __('approval_rules.name'),
                 'country'        => __('approval_rules.country'),
                 'work_type'      => __('approval_rules.work_type'),
                 'approver_role'  => __('approval_rules.approver_role'),

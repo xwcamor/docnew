@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\BelongsToTenantOrGlobal;
 use App\Traits\Lockable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,12 @@ class ApprovalRule extends Model
     use Auditable;
     use SoftDeletes;
     use Lockable;
+    // Un workspace no ve las reglas de otro. Faltaba: el listado consultaba la
+    // tabla entera y un admin de la Empresa 1 leía el flujo de aprobación de la
+    // Empresa 2. Es el mismo trait que ya usa `ApproverRole`, el catálogo del
+    // que cuelgan estas reglas: en nulo la fila es global y la ven todos; con
+    // workspace, solo el suyo. Sin sesión (comandos, colas) no filtra nada.
+    use BelongsToTenantOrGlobal;
 
     // `name` es como se llama esa firma en la obra: «Supervisor Autorizante -
     // HITACHI», no el rol genérico. El rol dice qué clase de persona firma; el

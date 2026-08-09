@@ -281,6 +281,47 @@ class ApproverRoleCrudTest extends TestCase
         $this->assertProhibido($this->actingAs($this->admin())->get(route('business_management.approver_roles.trash')));
     }
 
+    /** Ninguna pantalla del modulo puede reventar al abrirse. */
+    public function test_todas_las_pantallas_del_modulo_abren(): void
+    {
+        $rol = ApproverRole::firstWhere('code', ApproverRole::SUPERVISOR);
+        $this->regla(ApproverRole::SUPERVISOR, 2);
+
+        $this->actingAs($this->admin());
+        foreach (['index', 'create', 'edit_all'] as $pantalla) {
+            $this->get(route("business_management.approver_roles.{$pantalla}"))
+                ->assertOk("la pantalla {$pantalla} no abre");
+        }
+        foreach (['show', 'edit', 'delete'] as $pantalla) {
+            $this->get(route("business_management.approver_roles.{$pantalla}", $rol->slug))
+                ->assertOk("la pantalla {$pantalla} no abre");
+        }
+
+        // La papelera, con una fila dentro para que pinte columnas de verdad.
+        $propio = ApproverRole::create(['slug' => Str::random(22), 'code' => 'jefe_obra',
+            'name_es' => 'Jefe de obra', 'name_en' => 'Site manager', 'sort_order' => 9,
+            'is_active' => true, 'tenant_id' => 1, 'created_by' => 1]);
+        $propio->delete();
+
+        $this->actingAs($this->makeSuper())
+            ->get(route('business_management.approver_roles.trash'))->assertOk();
+    }
+
+    /** La ficha del rol dice COMO SE LLAMA cada firma que lo usa, no solo su nivel. */
+    public function test_la_ficha_del_rol_lista_las_reglas_por_su_nombre(): void
+    {
+        $regla = $this->regla(ApproverRole::SUPERVISOR, 2);
+        $regla->update(['name' => 'Supervisor Autorizante - HITACHI']);
+        $rol = ApproverRole::firstWhere('code', ApproverRole::SUPERVISOR);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.approver_roles.show', $rol->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('ApproverRoles/Show')
+                ->where('rules.0.name', 'Supervisor Autorizante - HITACHI'));
+    }
+
     public function test_el_listado_dice_cuantas_reglas_usan_cada_rol(): void
     {
         $this->actingAs($this->admin());

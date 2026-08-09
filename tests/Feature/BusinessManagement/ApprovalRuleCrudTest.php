@@ -83,10 +83,19 @@ class ApprovalRuleCrudTest extends TestCase
             'tenant_id' => 1, 'created_by' => 1, 'code' => $codigo, 'is_active' => true]);
     }
 
-    private function regla(string $rol, int $nivel, bool $obligatoria = true, ?int $tipoId = null): ApprovalRule
+    private function super(): User
+    {
+        $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $u->assignRole(Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Test super']));
+
+        return $u;
+    }
+
+    private function regla(string $rol, int $nivel, bool $obligatoria = true, ?int $tipoId = null, ?string $nombre = null): ApprovalRule
     {
         return ApprovalRule::create([
             'slug' => Str::random(22), 'country_id' => 1, 'work_type_id' => $tipoId,
+            'name' => $nombre,
             'approver_role' => $rol, 'priority_level' => $nivel,
             'is_required' => $obligatoria, 'is_active' => true, 'tenant_id' => 1, 'created_by' => 1,
         ]);
@@ -344,6 +353,218 @@ class ApprovalRuleCrudTest extends TestCase
         // Y un admin no puede quitar un candado que puso el sistema.
         $this->assertProhibido($this->post(route('business_management.approval_rules.unlock', $regla->slug)));
         $this->assertTrue($regla->fresh()->is_locked);
+    }
+
+    /**
+     * La edicion en masa era la puerta de atras del candado.
+     *
+     * El formulario, el borrado y las masivas ya lo hacian valer; `edit_all`
+     * no, asi que las tres reglas migradas —que llegan bloqueadas— se dejaban
+     * reordenar desde ahi.
+     */
+    public function test_la_edicion_en_masa_no_toca_una_regla_bloqueada(): void
+    {
+        $bloqueada = $this->regla(ApproverRole::SUPERVISOR, 2);
+        $libre     = $this->regla(ApproverRole::WORKER, 1);
+        $bloqueada->lock($this->super());
+
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.approval_rules.edit_all.update'), [
+            'changes' => [
+                ['id' => $bloqueada->id, 'priority_level' => 9],
+                ['id' => $libre->id,     'priority_level' => 7],
+            ],
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertSame(2, $bloqueada->fresh()->priority_level, 'la bloqueada no se toca');
+        $this->assertSame(7, $libre->fresh()->priority_level, 'la libre si');
+    }
+
+    // ── El nombre de la firma ────────────────────────────────────────────────
+
+    /**
+     * «Supervisor Autorizante - HITACHI» es el nombre de la regla; el rol
+     * aprobador es el generico. La columna existia desde la migracion de la v1
+     * y el formulario no la dejaba rellenar: toda regla dada de alta a mano
+     * nacia sin nombre y en pantalla salia el rol.
+     */
+    public function test_el_nombre_de_la_firma_se_guarda_al_crear_y_al_editar(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'name' => 'Supervisor Autorizante - HITACHI',
+            'country_id' => 1, 'work_type_id' => null,
+            'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 2, 'is_required' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('approval_rules', [
+            'name' => 'Supervisor Autorizante - HITACHI',
+            'approver_role' => ApproverRole::SUPERVISOR,
+        ]);
+
+        $regla = ApprovalRule::firstWhere('approver_role', ApproverRole::SUPERVISOR);
+
+        $this->put(route('business_management.approval_rules.update', $regla->slug), [
+            'name' => 'Supervisor de Seguridad - HITACHI',
+            'country_id' => 1, 'work_type_id' => null,
+            'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 2, 'is_required' => true,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame('Supervisor de Seguridad - HITACHI', $regla->fresh()->name);
+    }
+
+    /** Un nombre en blanco es no tener nombre, no tener el nombre «». */
+    public function test_un_nombre_en_blanco_se_guarda_como_nulo(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.approval_rules.store'), [
+            'name' => '   ',
+            'country_id' => 1, 'approver_role' => ApproverRole::WORKER, 'priority_level' => 1,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertNull(ApprovalRule::first()->name);
+    }
+
+    /**
+     * El buscador iba solo contra el codigo del rol, asi que teclear lo que se
+     * ve en la tabla no encontraba nada.
+     */
+    public function test_el_buscador_encuentra_por_el_nombre_de_la_firma(): void
+    {
+        $this->actingAs($this->admin());
+        $this->regla(ApproverRole::SUPERVISOR, 2, true, null, 'Supervisor Autorizante - HITACHI');
+        $this->regla(ApproverRole::WORKER, 1, true, null, 'Supervisor Ejecutante');
+
+        $this->get(route('business_management.approval_rules.index', ['name' => 'HITACHI']))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                $filas = $page->toArray()['props']['approval_rules']['data'];
+                $this->assertCount(1, $filas);
+                $this->assertSame('Supervisor Autorizante - HITACHI', $filas[0]['name']);
+
+                return $page;
+            });
+    }
+
+    /**
+     * La cabecera «Rol aprobador» pedia ordenar por `approver_role_label`, que
+     * no es una columna: el backend lo descartaba y pulsarla no hacia nada.
+     */
+    public function test_ordenar_por_rol_ordena_de_verdad(): void
+    {
+        $this->actingAs($this->admin());
+        $this->regla(ApproverRole::WORKER, 3);
+        $this->regla(ApproverRole::HSE_SUPERVISOR, 1);
+
+        $this->get(route('business_management.approval_rules.index', ['sort' => 'approver_role', 'direction' => 'asc']))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                $filas = $page->toArray()['props']['approval_rules']['data'];
+                $this->assertSame(
+                    [ApproverRole::HSE_SUPERVISOR, ApproverRole::WORKER],
+                    array_column($filas, 'approver_role'),
+                );
+
+                return $page;
+            });
+    }
+
+    // ── Aislamiento entre workspaces ─────────────────────────────────────────
+
+    /**
+     * El listado consultaba la tabla entera: un admin de la Empresa 1 leia el
+     * flujo de aprobacion de la Empresa 2. Las reglas globales (sin workspace)
+     * si las ve todo el mundo — son el estandar compartido.
+     */
+    public function test_un_workspace_no_ve_las_reglas_de_otro(): void
+    {
+        DB::table('tenants')->insertOrIgnore([['id' => 2, 'slug' => Str::random(22), 'name' => 'Empresa 2', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        DB::table('subscriptions')->insertOrIgnore([['id' => 2, 'tenant_id' => 2, 'plan' => 'enterprise', 'status' => 'active', 'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(), 'currency' => 'USD', 'payment_method' => 'manual', 'created_at' => now(), 'updated_at' => now()]]);
+
+        $ajena = $this->regla(ApproverRole::WORKER, 1, true, null, 'Regla de la Empresa 2');
+        $ajena->forceFill(['tenant_id' => 2])->saveQuietly();
+
+        $global = $this->regla(ApproverRole::SUPERVISOR, 2, true, null, 'Regla de la Plataforma');
+        $global->forceFill(['tenant_id' => null])->saveQuietly();
+
+        $propia = $this->regla(ApproverRole::HSE_SUPERVISOR, 3, true, null, 'Regla de la Empresa 1');
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.approval_rules.index'))
+            ->assertOk()
+            ->assertInertia(function ($page) {
+                $nombres = array_column($page->toArray()['props']['approval_rules']['data'], 'name');
+                sort($nombres);
+                $this->assertSame(['Regla de la Empresa 1', 'Regla de la Plataforma'], $nombres);
+
+                return $page;
+            });
+
+        // Y tampoco se llega a la ficha por la URL: la fila no existe para
+        // este usuario, asi que el enrutador no la resuelve.
+        $this->get(route('business_management.approval_rules.show', $ajena->slug))
+            ->assertRedirect();
+        $this->get(route('business_management.approval_rules.show', $propia->slug))
+            ->assertOk();
+    }
+
+    // ── Que las pantallas abran ──────────────────────────────────────────────
+
+    /** Ninguna de estas pantallas puede reventar: son todas las del modulo. */
+    public function test_todas_las_pantallas_del_modulo_abren(): void
+    {
+        $regla = $this->regla(ApproverRole::SUPERVISOR, 2, true, null, 'Supervisor Autorizante - HITACHI');
+        $this->tipo('IZAJE');
+
+        $this->actingAs($this->admin());
+        foreach (['index', 'create', 'preview', 'edit_all'] as $pantalla) {
+            $this->get(route("business_management.approval_rules.{$pantalla}"))
+                ->assertOk("la pantalla {$pantalla} no abre");
+        }
+        foreach (['show', 'edit', 'delete'] as $pantalla) {
+            $this->get(route("business_management.approval_rules.{$pantalla}", $regla->slug))
+                ->assertOk("la pantalla {$pantalla} no abre");
+        }
+
+        // La papelera es del super, con una regla dentro para que pinte filas.
+        $regla->delete();
+        $this->actingAs($this->super())
+            ->get(route('business_management.approval_rules.trash'))->assertOk();
+    }
+
+    /** La ficha tiene que poder decir que esta bloqueada, y quien la bloqueo. */
+    public function test_la_ficha_de_una_regla_bloqueada_lo_dice(): void
+    {
+        $regla = $this->regla(ApproverRole::SUPERVISOR, 2, true, null, 'Supervisor Autorizante - HITACHI');
+        $super = $this->super();
+        $regla->lock($super);
+
+        $this->actingAs($super)
+            ->get(route('business_management.approval_rules.show', $regla->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('ApprovalRules/Show')
+                ->where('approvalRule.name', 'Supervisor Autorizante - HITACHI')
+                ->where('approvalRule.display_name', 'Supervisor Autorizante - HITACHI')
+                ->where('approvalRule.lock.is_locked', true)
+                ->where('approvalRule.lock.lock_scope', 'super')
+                ->where('approvalRule.lock.locked_by.name', $super->name));
+    }
+
+    /** Sin nombre propio, la pantalla cae al rol y no se queda en blanco. */
+    public function test_sin_nombre_propio_la_pantalla_ensena_el_rol(): void
+    {
+        $regla = $this->regla(ApproverRole::HSE_SUPERVISOR, 3);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.approval_rules.show', $regla->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('approvalRule.name', null)
+                ->where('approvalRule.display_name', ApproverRole::opciones()[ApproverRole::HSE_SUPERVISOR]));
     }
 
     /** El listado trae los catalogos de los selectores: sin ellos no se filtra. */

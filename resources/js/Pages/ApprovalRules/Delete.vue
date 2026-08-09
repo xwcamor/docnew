@@ -29,7 +29,7 @@ const submit = () => {
     <DeletePage
         :back-href="route('business_management.approval_rules.index')"
         :title="$t('approval_rules.delete_title')"
-        :subtitle="approvalRule.approver_role_label"
+        :subtitle="approvalRule.display_name || approvalRule.approver_role_label"
         v-model="form.deleted_description"
         :error="form.errors.deleted_description"
         :processing="form.processing"
@@ -45,6 +45,9 @@ const submit = () => {
         </template>
 
         <template #summary>
+            <DeleteSummaryRow :label="$t('approval_rules.name')">
+                {{ approvalRule.name || $t('approval_rules.name_missing') }}
+            </DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('approval_rules.country')">{{ approvalRule.country ?? '—' }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('approval_rules.work_type')">
                 <Tag :color="approvalRule.work_type ? 'geekblue' : 'default'" :bordered="false">
@@ -52,7 +55,7 @@ const submit = () => {
                 </Tag>
             </DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('approval_rules.approver_role')">
-                {{ approvalRule.approver_role_label }} <code>{{ approvalRule.approver_role }}</code>
+                {{ approvalRule.approver_role_label }}
             </DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('approval_rules.priority_level')">{{ approvalRule.priority_level }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('approval_rules.is_required')">

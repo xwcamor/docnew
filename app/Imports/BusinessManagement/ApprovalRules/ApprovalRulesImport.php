@@ -16,14 +16,17 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
 /**
  * Alta masiva de reglas del flujo desde .xlsx/.csv.
  *
- * Columnas: `country` (código ISO), `work_type` (código del tipo; vacío = todos
- * los tipos), `approver_role` (código del catálogo), `priority_level`,
- * `is_required`.
+ * Columnas: `name` (cómo se llama la firma en obra, opcional), `country`
+ * (código ISO), `work_type` (código del tipo; vacío = todos los tipos),
+ * `approver_role` (código del catálogo), `priority_level`, `is_required`.
  *
  * Se referencia todo por código y no por id: un archivo con ids solo sirve en
  * la base de datos de la que salió. Una regla se identifica por la terna
  * país + tipo + rol, que es la misma clave con la que el motor resuelve el
  * flujo, así que reimportar el mismo archivo actualiza en vez de duplicar.
+ *
+ * Una regla BLOQUEADA (Lockable) no se pisa: el candado vale también por esta
+ * puerta, que es justo por donde se colaría una hoja de cálculo mal copiada.
  */
 class ApprovalRulesImport implements ToCollection, WithHeadingRow
 {
@@ -96,6 +99,11 @@ class ApprovalRulesImport implements ToCollection, WithHeadingRow
 
                 $obligatoria = filter_var($row['is_required'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
+                // Como se llama esa firma en obra. Sin nombre, la regla se
+                // queda con el rol genérico, que es lo que se enseñaba antes.
+                $nombre = trim((string) ($row['name'] ?? ''));
+                $nombre = $nombre === '' ? null : mb_substr($nombre, 0, 255);
+
                 // El mismo rol no firma dos veces el mismo flujo.
                 $clave = $countryId . '|' . ($workTypeId ?? '*') . '|' . $rol;
                 if (isset($vistas[$clave])) {
@@ -110,7 +118,7 @@ class ApprovalRulesImport implements ToCollection, WithHeadingRow
                     ->when($workTypeId === null, fn ($q) => $q->whereNull('work_type_id'), fn ($q) => $q->where('work_type_id', $workTypeId))
                     ->first();
 
-                $etiqueta = $iso . ' · ' . ($tipoCodigo ?: __('approval_rules.all_work_types')) . ' · ' . $rol;
+                $etiqueta = ($nombre ?: $rol) . ' · ' . $iso . ' · ' . ($tipoCodigo ?: __('approval_rules.all_work_types'));
 
                 if ($existente) {
                     if ($this->mode === 'create_only') {
@@ -119,7 +127,16 @@ class ApprovalRulesImport implements ToCollection, WithHeadingRow
                         continue;
                     }
 
+                    // Bloqueada: no se pisa. Se cuenta como saltada y se dice
+                    // por qué, en vez de sobrescribir en silencio.
+                    if ($existente->is_locked) {
+                        $this->skipped++;
+                        $this->errors[] = ['row' => $fila, 'message' => __('locks.cannot_edit_locked'), 'value' => $etiqueta];
+                        continue;
+                    }
+
                     $parche = [];
+                    if ($nombre !== null && $existente->name !== $nombre)     $parche['name']           = $nombre;
                     if ((int) $existente->priority_level !== $nivel)          $parche['priority_level'] = $nivel;
                     if ((bool) $existente->is_required !== $obligatoria)      $parche['is_required']    = $obligatoria;
                     if (! empty($parche)) {
@@ -139,6 +156,7 @@ class ApprovalRulesImport implements ToCollection, WithHeadingRow
 
                 ApprovalRule::create([
                     'slug'           => Str::random(22),
+                    'name'           => $nombre,
                     'country_id'     => $countryId,
                     'work_type_id'   => $workTypeId,
                     'approver_role'  => $rol,

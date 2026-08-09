@@ -50,6 +50,9 @@ class ApprovalRulesExport implements FromCollection, WithEvents, WithTitle
         $tz = $this->tz;
         $this->columnDefs = [
             'id'             => ['heading' => __('approval_rules.id'),             'value' => fn($c, $i) => $c->id],
+            // El nombre de la firma. `approver_role` sigue saliendo como codigo
+            // para que exportar y volver a importar siga funcionando.
+            'name'           => ['heading' => __('approval_rules.name'),           'value' => fn($c, $i) => $c->name ?? ''],
             'country'        => ['heading' => __('approval_rules.country'),        'value' => fn($c, $i) => $c->country?->name ?? '—'],
             'work_type'      => ['heading' => __('approval_rules.work_type'),      'value' => fn($c, $i) => $c->workType?->code ?? __('approval_rules.all_work_types')],
             'approver_role'  => ['heading' => __('approval_rules.approver_role'),  'value' => fn($c, $i) => $c->approver_role],

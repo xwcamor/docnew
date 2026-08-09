@@ -53,6 +53,7 @@ class ApprovalRulesWord
 
         $this->columnDefs = [
             'id'             => ['heading' => __('approval_rules.id'),             'value' => fn($c) => (string) $c->id],
+            'name'           => ['heading' => __('approval_rules.name'),           'value' => fn($c) => (string) ($c->name ?? '')],
             'country'        => ['heading' => __('approval_rules.country'),        'value' => fn($c) => (string) ($c->country?->name ?? '—')],
             'work_type'      => ['heading' => __('approval_rules.work_type'),      'value' => fn($c) => (string) ($c->workType?->code ?? __('approval_rules.all_work_types'))],
             'approver_role'  => ['heading' => __('approval_rules.approver_role'),  'value' => fn($c) => (string) $c->approver_role],

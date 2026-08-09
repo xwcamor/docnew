@@ -75,9 +75,12 @@ class ApprovalRuleController extends Controller
         )->paginate($perPage)->withQueryString();
 
         // La etiqueta del rol sale del catálogo: la regla solo guarda el código.
+        // El nombre de la firma —«Supervisor Autorizante - HITACHI»— sí es de
+        // la regla, y es lo que identifica la fila; el rol solo la matiza.
         $etiquetas = ApproverRole::opciones();
         $reglas->getCollection()->transform(function ($regla) use ($etiquetas) {
             $regla->approver_role_label = $etiquetas[$regla->approver_role] ?? $regla->approver_role;
+            $regla->display_name        = $regla->name ?: $regla->approver_role_label;
 
             return $regla;
         });
@@ -152,7 +155,10 @@ class ApprovalRuleController extends Controller
 
     public function show(Request $request, ApprovalRule $approvalRule, ApprovalRuleService $service)
     {
-        $approvalRule->load(['country:id,name,iso_code', 'workType:id,code', 'role']);
+        // `locker` hace falta para que la ficha pueda decir QUIÉN puso el
+        // candado: sin la relación cargada, `lockMeta()` devuelve locked_by en
+        // nulo y el aviso queda a medias.
+        $approvalRule->load(['country:id,name,iso_code', 'workType:id,code', 'role', 'locker:id,name']);
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
@@ -163,7 +169,7 @@ class ApprovalRuleController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -281,7 +287,11 @@ class ApprovalRuleController extends Controller
 
         $reglas = ApprovalRule::onlyTrashed()
             ->with(['country:id,name', 'workType:id,code'])
-            ->when($termino !== '', fn ($q) => $q->where('approver_role', 'like', "%{$termino}%"))
+            // Se busca por el nombre de la firma y por el código del rol: en la
+            // papelera se reconoce una regla por cómo se llamaba, no por su rol.
+            ->when($termino !== '', fn ($q) => $q->where(fn ($w) => $w
+                ->where('name', 'like', "%{$termino}%")
+                ->orWhere('approver_role', 'like', "%{$termino}%")))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -290,8 +300,11 @@ class ApprovalRuleController extends Controller
         $nombres = \App\Models\User::withTrashed()
             ->whereIn('id', $reglas->pluck('deleted_by')->filter()->unique())
             ->pluck('name', 'id');
-        $reglas->getCollection()->transform(function ($regla) use ($nombres) {
-            $regla->deleter_name = $nombres[$regla->deleted_by] ?? null;
+        $etiquetas = ApproverRole::opciones();
+        $reglas->getCollection()->transform(function ($regla) use ($nombres, $etiquetas) {
+            $regla->deleter_name        = $nombres[$regla->deleted_by] ?? null;
+            $regla->approver_role_label = $etiquetas[$regla->approver_role] ?? $regla->approver_role;
+            $regla->display_name        = $regla->name ?: $regla->approver_role_label;
 
             return $regla;
         });
@@ -330,12 +343,17 @@ class ApprovalRuleController extends Controller
         $etiquetas = ApproverRole::opciones();
         $reglas->getCollection()->transform(function ($regla) use ($etiquetas) {
             $regla->approver_role_label = $etiquetas[$regla->approver_role] ?? $regla->approver_role;
+            $regla->display_name        = $regla->name ?: $regla->approver_role_label;
 
             return $regla;
         });
 
         return inertia('ApprovalRules/EditAll', [
             'approval_rules' => $reglas,
+            // Una regla global (workspace = Plataforma) solo la gestiona el
+            // super: sus controles salen apagados para los demás en vez de
+            // dejarles escribir un cambio que el servidor va a rechazar.
+            'isSuper'        => $request->user()?->hasRole('super') ?? false,
             'filters' => [
                 'name'      => $request->get('name', ''),
                 'is_active' => $request->filled('is_active') ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN) : null,
@@ -348,11 +366,27 @@ class ApprovalRuleController extends Controller
 
     public function editAllUpdate(EditAllUpdateApprovalRuleRequest $request, ApprovalRuleService $service): RedirectResponse
     {
-        $tocadas = $service->editAllUpdate($request->validated()['changes']);
+        $cambios = $request->validated()['changes'];
+
+        // Las bloqueadas se apartan también aquí. El candado se hace valer en
+        // el formulario y en las masivas, pero la edición en lote entraba por
+        // otra puerta y las tres reglas migradas se dejaban reordenar.
+        [, $bloqueadas] = $this->splitLockedIds(ApprovalRule::class, array_column($cambios, 'id'));
+        if (! empty($bloqueadas)) {
+            $saltadas = array_flip($bloqueadas);
+            $cambios  = array_values(array_filter($cambios, fn ($c) => ! isset($saltadas[(int) $c['id']])));
+        }
+
+        $tocadas = $service->editAllUpdate($cambios);
+
+        $msg = __('global.updated_success') . " ({$tocadas})";
+        if (! empty($bloqueadas)) {
+            $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueadas)]);
+        }
 
         return redirect()
             ->route('business_management.approval_rules.edit_all')
-            ->with('success', __('global.updated_success') . " ({$tocadas})");
+            ->with('success', $msg);
     }
 
     public function bulkRestore(BulkRestoreApprovalRuleRequest $request, ApprovalRuleService $service): RedirectResponse
@@ -395,6 +429,10 @@ class ApprovalRuleController extends Controller
         $base = [
             'id'                  => $m->id,
             'slug'                => $m->slug,
+            // El nombre de la firma en obra y, si no lo tiene, el rol genérico:
+            // la pantalla nunca se queda sin cómo llamar a la regla.
+            'name'                => $m->name,
+            'display_name'        => $m->name ?: ($etiquetas[$m->approver_role] ?? $m->approver_role),
             'country_id'          => $m->country_id,
             'country'             => $m->country?->name,
             'work_type_id'        => $m->work_type_id,
@@ -632,7 +670,7 @@ class ApprovalRuleController extends Controller
         $isSuper = $request->user()?->hasRole('super') ?? false;
 
         $columnasPermitidas = array_values(array_filter([
-            'country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active',
+            'name', 'country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active',
             'created_at', 'updated_at',
         ]));
 

@@ -132,6 +132,9 @@ const fmt = (d) => formatDateTimeFull(d);
                         <li v-for="r in rules" :key="r.slug" class="rules-list__item">
                             <Link :href="route('business_management.approval_rules.show', r.slug)" class="rules-list__link">
                                 <span class="rules-list__level">{{ $t('approval_rules.level_short') }} {{ r.priority_level }}</span>
+                                <!-- Cómo se llama esa firma. Sin el nombre,
+                                     dos reglas del mismo rol se ven iguales. -->
+                                <span class="rules-list__name">{{ r.name }}</span>
                                 <span class="rules-list__country">{{ r.country ?? '—' }}</span>
                                 <Tag :bordered="false" :color="r.work_type ? 'geekblue' : 'default'">
                                     {{ r.work_type ?? $t('approver_roles.all_work_types') }}
@@ -172,6 +175,7 @@ const fmt = (d) => formatDateTimeFull(d);
 }
 .rules-list__link:hover { background: var(--color-surface-hover, #f8fafc); }
 .rules-list__level { font-weight: 600; min-width: 80px; }
+.rules-list__name { font-weight: 500; }
 .rules-list__country { color: var(--color-text-muted); }
 
 @media (max-width: 767px) {

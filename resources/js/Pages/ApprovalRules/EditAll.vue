@@ -26,18 +26,50 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     approval_rules: { type: Object, required: true },
     filters:   { type: Object, required: true },
+    isSuper:   { type: Boolean, default: false },
 });
 
 const source = computed(() => props.approval_rules.data);
-const { draft, isDirty, dirtyCount, dirtyChanges, duplicateRows, discardAll } = useEditAllDraft({
+const { draft, isDirty, dirtyCount, dirtyChanges, discardAll } = useEditAllDraft({
     source,
     editableFields: ['priority_level', 'is_required', 'is_active'],
+    // `uniqueField` compara un campo de texto fila contra fila, y aquí no hay
+    // ninguno: lo que no se puede repetir es el NIVEL, y solo dentro del mismo
+    // flujo. Se calcula abajo. Antes se pasaba `null`, con lo que
+    // `duplicateRows` salía siempre vacío y el aviso de niveles repetidos —que
+    // la pantalla promete— no llegaba a mostrarse nunca.
     uniqueField:    null,
+});
+
+/**
+ * Dos firmas en el mismo nivel DENTRO DEL MISMO FLUJO (mismo país y mismo tipo
+ * de trabajo): el orden entre ellas queda al azar. Repetir el nivel en flujos
+ * distintos es lo normal y no se avisa.
+ *
+ * Las inactivas no cuentan: no se exigen en ningún plan nuevo.
+ */
+const duplicateRows = computed(() => {
+    const vistos = new Map();
+    const dupes  = new Set();
+    draft.value.forEach((r, i) => {
+        if (!r.is_active) return;
+        const clave = `${r.country_id ?? '-'}|${r.work_type_id ?? '*'}|${r.priority_level ?? '-'}`;
+        if (vistos.has(clave)) {
+            dupes.add(i);
+            dupes.add(vistos.get(clave));
+        } else {
+            vistos.set(clave, i);
+        }
+    });
+    return dupes;
 });
 
 const submitting = ref(false);
 const saveAll = () => {
-    if (dirtyCount.value === 0 || duplicateRows.value.size > 0) return;
+    // Dos firmas en el mismo nivel es un AVISO, no un error: el sistema lo
+    // acepta y solo deja el orden entre ellas al azar. Bloquear el guardado
+    // habría dejado la pantalla muerta con datos que ya venían así.
+    if (dirtyCount.value === 0) return;
     submitting.value = true;
     router.post(
         route('business_management.approval_rules.edit_all.update'),
@@ -83,6 +115,7 @@ const onPageChange = (page, pageSize) => {
                 v-model:draft="draft"
                 :is-dirty="isDirty"
                 :duplicate-rows="duplicateRows"
+                :is-super="isSuper"
             />
 
         <div v-if="approval_rules.total > approval_rules.per_page" class="edit-pagination">
@@ -101,7 +134,7 @@ const onPageChange = (page, pageSize) => {
             :discard-label="$t('approval_rules.edit_all_discard')"
             :save-label="$t('approval_rules.edit_all_save_all')"
             :discard-disabled="dirtyCount === 0"
-            :save-disabled="dirtyCount === 0 || duplicateRows.size > 0"
+            :save-disabled="dirtyCount === 0"
             :submitting="submitting"
             :status-text="dirtyCount > 0 ? $tc('approval_rules.edit_all_changes', dirtyCount) : ''"
             @discard="discardAll"

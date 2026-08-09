@@ -122,7 +122,7 @@ class ApproverRoleController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -134,6 +134,8 @@ class ApproverRoleController extends Controller
             ->get()
             ->map(fn ($r) => [
                 'slug'           => $r->slug,
+                // Cómo se llama esa firma en obra. Sin nombre propio, el rol.
+                'name'           => $r->name ?: $approverRole->label,
                 'country'        => $r->country?->name,
                 'work_type'      => $r->workType?->code,
                 'priority_level' => $r->priority_level,

@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head } from '@inertiajs/vue3';
 import { Card, Tag, Space, Alert } from 'ant-design-vue';
-import { NodeIndexOutlined } from '@ant-design/icons-vue';
+import { NodeIndexOutlined, LockOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -31,21 +31,35 @@ const { formatDateTimeFull } = useDateFormat();
 const isDeleted = computed(() => !!props.approvalRule.deleted_at);
 const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--color-primary)');
 
+// Cómo se llama esta firma en obra; sin nombre propio, el rol genérico.
+const titulo = computed(() => props.approvalRule.display_name || props.approvalRule.approver_role_label);
+
+// El candado explicado donde se ve, no solo en un tooltip del botón: en una
+// tablet a pleno sol nadie descubre un tooltip.
+const lock = computed(() => props.approvalRule.lock ?? {});
+const isLocked = computed(() => !!lock.value.is_locked);
+
 const fmt = (d) => formatDateTimeFull(d);
 </script>
 
 <template>
-    <Head :title="approvalRule.approver_role_label" />
+    <Head :title="titulo" />
 
     <div class="show-page sap-show">
         <SectionHeader
             :back-href="route('business_management.approval_rules.index')"
-            :title="approvalRule.approver_role_label"
+            :title="titulo"
             :icon-bg="iconBg"
         >
             <template #icon><NodeIndexOutlined /></template>
             <template #subtitle>
                 <Space :size="6" wrap>
+                    <!-- El rol solo si el título es el nombre propio: si no,
+                         el título YA es el rol y repetirlo no dice nada. -->
+                    <template v-if="approvalRule.name">
+                        <span>{{ approvalRule.approver_role_label }}</span>
+                        <span>·</span>
+                    </template>
                     <span>{{ approvalRule.country ?? '—' }}</span>
                     <Tag :color="approvalRule.work_type ? 'geekblue' : 'default'" :bordered="false">
                         {{ approvalRule.work_type ?? $t('approval_rules.all_work_types') }}
@@ -73,6 +87,23 @@ const fmt = (d) => formatDateTimeFull(d);
                 />
             </template>
         </SectionHeader>
+
+        <!-- Bloqueada: se dice aquí y en claro, porque es la razón de que no
+             haya botón de editar ni de eliminar. Un botón que no está y no se
+             explica es peor que uno deshabilitado. -->
+        <Alert v-if="!isDeleted && isLocked" type="warning" show-icon class="locked-alert">
+            <template #icon><LockOutlined /></template>
+            <template #message>
+                {{ lock.lock_scope === 'super' ? $t('locks.locked_by_super') : $t('locks.locked_tag') }}
+            </template>
+            <template #description>
+                <div>{{ lock.lock_scope === 'super' ? $t('locks.locked_by_super_hint') : $t('locks.locked_hint') }}</div>
+                <div v-if="lock.locked_at" class="locked-alert__meta">
+                    {{ fmt(lock.locked_at) }}
+                    <template v-if="lock.locked_by"> · {{ lock.locked_by.name }}</template>
+                </div>
+            </template>
+        </Alert>
 
         <Alert v-if="isDeleted" type="error" show-icon class="deleted-alert">
             <template #message>{{ $t('global.record_is_deleted') }}</template>
@@ -104,6 +135,13 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__value"><code class="muted">{{ approvalRule.slug }}</code></span>
                         </div>
                         <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('approval_rules.name') }}</span>
+                            <span class="spec-cell__value">
+                                <template v-if="approvalRule.name">{{ approvalRule.name }}</template>
+                                <span v-else class="muted">{{ $t('approval_rules.name_missing') }}</span>
+                            </span>
+                        </div>
+                        <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('approval_rules.country') }}</span>
                             <span class="spec-cell__value">{{ approvalRule.country ?? '—' }}</span>
                         </div>
@@ -116,7 +154,8 @@ const fmt = (d) => formatDateTimeFull(d);
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('approval_rules.approver_role') }}</span>
                             <span class="spec-cell__value">
-                                {{ approvalRule.approver_role_label }} <code class="muted">{{ approvalRule.approver_role }}</code>
+                                {{ approvalRule.approver_role_label }}
+                                <code v-if="isSuper" class="muted">{{ approvalRule.approver_role }}</code>
                             </span>
                         </div>
                         <div class="spec-cell">
@@ -155,7 +194,10 @@ const fmt = (d) => formatDateTimeFull(d);
                             :class="{ 'flow-step--self': firma.role === approvalRule.approver_role }"
                         >
                             <span class="flow-step__level">{{ firma.level }}</span>
-                            <span class="flow-step__label">{{ firma.label }}</span>
+                            <span class="flow-step__body">
+                                <span class="flow-step__label">{{ firma.name }}</span>
+                                <span v-if="firma.name !== firma.label" class="flow-step__role">{{ firma.label }}</span>
+                            </span>
                             <Tag :color="firma.required ? 'red' : 'default'" :bordered="false">
                                 {{ firma.required ? $t('approval_rules.required') : $t('approval_rules.optional') }}
                             </Tag>
@@ -174,6 +216,8 @@ const fmt = (d) => formatDateTimeFull(d);
 <style scoped>
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; }
 .deleted-alert { margin-bottom: 16px; }
+.locked-alert { margin-bottom: 16px; }
+.locked-alert__meta { margin-top: 4px; font-size: 0.8125rem; color: var(--color-text-muted); }
 .info-card { margin-bottom: 16px; border-radius: 8px; }
 .flow-note { margin: 0 0 10px 0; color: var(--color-text-muted); font-size: 0.82rem; line-height: 1.5; }
 
@@ -194,7 +238,9 @@ const fmt = (d) => formatDateTimeFull(d);
     background: rgba(10, 110, 209, 0.10);
     border: 1px solid rgba(10, 110, 209, 0.20);
 }
+.flow-step__body { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
 .flow-step__label { font-weight: 500; }
+.flow-step__role { font-size: 0.75rem; color: var(--color-text-muted); }
 
 @media (max-width: 767px) {
     :deep(.ant-descriptions-item-label) {

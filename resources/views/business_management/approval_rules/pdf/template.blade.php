@@ -58,6 +58,7 @@
     @php
         $headings = [
             'id'         => __('approval_rules.id'),
+            'name'           => __('approval_rules.name'),
             'country'        => __('approval_rules.country'),
             'work_type'      => __('approval_rules.work_type'),
             'approver_role'  => __('approval_rules.approver_role'),

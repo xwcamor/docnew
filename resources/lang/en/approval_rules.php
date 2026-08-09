@@ -20,6 +20,10 @@ return [
     'empty_hint'       => 'Create the first rule or import the flow from Excel.',
 
     // Fields
+    'name'               => 'Signature name',
+    'name_help'          => 'What this signature is called on site: "Authorising Supervisor - HITACHI". The role says what kind of person signs; the name says on whose behalf. Leave it empty and the screen falls back to the role.',
+    'name_placeholder'   => 'Authorising Supervisor - HITACHI',
+    'name_missing'       => 'No name of its own: showing the role',
     'country'            => 'Country',
     'country_help'       => 'Rules are per country: each country has its own procedure.',
     'work_type'          => 'Work type',
@@ -36,7 +40,7 @@ return [
     'optional'           => 'Optional',
     'is_active'          => 'Status',
     'is_active_help'     => 'An inactive rule stops being demanded on new plans. Plans already created keep the approval they were given.',
-    'filter_name'        => 'Search by role',
+    'filter_name'        => 'Search by name or role',
 
     // What needs explaining, because this is what trips people up
     'how_it_works_title'    => 'How the flow resolves',
@@ -92,7 +96,7 @@ return [
 
     // Edit all
     'edit_all_title'      => 'Approval rules — Edit all',
-    'edit_all_subtitle'   => 'Reorder levels and change which signatures are required. Country, type and role are edited on the record: changing those means a different rule.',
+    'edit_all_subtitle'   => 'Reorder levels and change which signatures are required. Name, country, type and role are edited on the record: changing those means a different rule. Locked rules show up here but cannot be touched.',
     'edit_all_changes'    => '{0} No changes|{1} 1 pending change|[2,*] :count pending changes',
     'edit_all_save_all'   => 'Save all',
     'edit_all_discard'    => 'Discard changes',

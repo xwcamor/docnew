@@ -26,11 +26,25 @@ trait ValidatesApprovalRule
         if ($this->input('work_type_id') === '' || $this->input('work_type_id') === 0) {
             $this->merge(['work_type_id' => null]);
         }
+
+        // Un nombre en blanco es no tener nombre, no tener el nombre «».
+        if (is_string($this->input('name'))) {
+            $limpio = trim($this->input('name'));
+            $this->merge(['name' => $limpio === '' ? null : $limpio]);
+        }
     }
 
     protected function ruleRules(?int $ignoreId = null): array
     {
         return [
+            // Como se llama esta firma en la obra: «Supervisor Autorizante -
+            // HITACHI». El rol dice qué clase de persona firma; el nombre dice
+            // por parte de quién, y eso es lo que distingue una firma de otra.
+            // Opcional porque la columna es nullable y una regla importada
+            // puede llegar sin él: entonces la pantalla cae al rol, que es lo
+            // que se enseñaba antes de que la columna existiera.
+            'name'         => ['nullable', 'string', 'max:255'],
+
             'country_id'   => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
 
             // En nulo la regla vale para todos los tipos: es el caso por

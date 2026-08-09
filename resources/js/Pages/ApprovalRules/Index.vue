@@ -10,7 +10,7 @@ import {
     ControlOutlined, FormOutlined, ClearOutlined, SaveOutlined,
     SortAscendingOutlined, SortDescendingOutlined,
     BarsOutlined, AppstoreOutlined, NodeIndexOutlined, InfoCircleOutlined,
-    AudioOutlined,
+    AudioOutlined, LockOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -265,7 +265,10 @@ const {
     bulkSetActiveRoute: 'business_management.approval_rules.bulk_set_active',
     bulkDeleteRoute:    'business_management.approval_rules.bulk_delete',
     resourceLabel:      t('approval_rules.records'),
-    rowDisabled:      (r) => !isSuper.value && r.tenant_id == null,
+    // Una regla BLOQUEADA no se puede marcar: el servidor la aparta igual, así
+    // que dejar marcarla solo servía para que la masiva volviera con un aviso.
+    // Las tres reglas migradas llegan bloqueadas, o sea que era el caso normal.
+    rowDisabled:      (r) => (!isSuper.value && r.tenant_id == null) || !!r.locked_at,
 });
 
 // ─── Export / Import (columnas + endpoints en config/exports.js) ────────────
@@ -499,13 +502,29 @@ const goDelete = (record) => router.visit(route('business_management.approval_ru
                         <span class="level-chip">{{ record.priority_level }}</span>
                     </template>
 
-                    <template v-else-if="column.key === 'approver_role'">
+                    <!-- Lo que identifica la regla es el nombre de la firma.
+                         Si no lo tiene, se cae al rol y se dice que se está
+                         cayendo, en vez de dejar la celda a medias. -->
+                    <template v-else-if="column.key === 'name'">
                         <div class="lead">
                             <div class="lead__txt">
-                                <Link :href="route('business_management.approval_rules.show', record.slug)" class="lead__name lead__link">{{ record.approver_role_label }}</Link>
-                                <span class="lead__sub">{{ record.approver_role }}</span>
+                                <span class="lead__name-row">
+                                    <Link :href="route('business_management.approval_rules.show', record.slug)" class="lead__name lead__link">
+                                        {{ record.display_name ?? record.name ?? record.approver_role_label }}
+                                    </Link>
+                                    <Tooltip v-if="record.locked_at" :title="$t('locks.locked_hint')">
+                                        <Tag color="gold" :bordered="false" class="lock-tag">
+                                            <LockOutlined /> {{ $t('locks.locked_tag') }}
+                                        </Tag>
+                                    </Tooltip>
+                                </span>
+                                <span v-if="!record.name" class="lead__sub">{{ $t('approval_rules.name_missing') }}</span>
                             </div>
                         </div>
+                    </template>
+
+                    <template v-else-if="column.key === 'approver_role'">
+                        {{ record.approver_role_label }}
                     </template>
 
                     <!-- Sin tipo de trabajo la regla vale para todos: se dice,
@@ -639,6 +658,11 @@ const goDelete = (record) => router.visit(route('business_management.approval_ru
 
 /* Botón a la vista previa: objetivo de toque grande, va en tablet. */
 .preview-btn { min-height: 44px; }
+
+/* Nombre de la firma + candado en la misma línea, sin que el candado empuje
+   el nombre fuera de la celda. */
+.lead__name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lock-tag { flex-shrink: 0; }
 
 /* El nivel, como ficha numerada. */
 .level-chip {

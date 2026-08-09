@@ -3,6 +3,7 @@
  * plantilla de importación, para que exportar y volver a importar funcione.
  */
 export const approvalRulesExportableColumns = (t, { isSuper = false } = {}) => [
+    { key: 'name',           label: t('approval_rules.name'),           default: true  },
     { key: 'country',        label: t('approval_rules.country'),        default: true  },
     { key: 'work_type',      label: t('approval_rules.work_type'),      default: true  },
     { key: 'approver_role',  label: t('approval_rules.approver_role'),  default: true  },

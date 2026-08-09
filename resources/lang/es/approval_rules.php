@@ -20,6 +20,10 @@ return [
     'empty_hint'       => 'Crea la primera regla o importa el flujo desde Excel.',
 
     // Campos
+    'name'               => 'Nombre de la firma',
+    'name_help'          => 'Cómo se llama esta firma en la obra: «Supervisor Autorizante - HITACHI». El rol dice qué clase de persona firma; el nombre dice por parte de quién. Si lo dejas vacío, en pantalla saldrá el rol.',
+    'name_placeholder'   => 'Supervisor Autorizante - HITACHI',
+    'name_missing'       => 'Sin nombre propio: se muestra el rol',
     'country'            => 'País',
     'country_help'       => 'Las reglas son por país: cada país tiene su procedimiento.',
     'work_type'          => 'Tipo de trabajo',
@@ -36,7 +40,7 @@ return [
     'optional'           => 'Opcional',
     'is_active'          => 'Estado',
     'is_active_help'     => 'Una regla inactiva deja de exigirse en los planes nuevos. Los planes ya creados conservan la aprobación que se les propuso.',
-    'filter_name'        => 'Buscar por rol',
+    'filter_name'        => 'Buscar por nombre o rol',
 
     // Lo que hay que explicar, porque es lo que confunde
     'how_it_works_title'    => 'Cómo se resuelve el flujo',
@@ -92,7 +96,7 @@ return [
 
     // Editar en masa
     'edit_all_title'      => 'Reglas de aprobación — Editar todo',
-    'edit_all_subtitle'   => 'Reordena los niveles y cambia qué firmas son obligatorias. El país, el tipo y el rol se editan en la ficha: cambiarlos es cambiar de regla.',
+    'edit_all_subtitle'   => 'Reordena los niveles y cambia qué firmas son obligatorias. El nombre, el país, el tipo y el rol se editan en la ficha: cambiarlos es cambiar de regla. Las reglas bloqueadas salen aquí, pero no se pueden tocar.',
     'edit_all_changes'    => '{0} Sin cambios|{1} 1 cambio pendiente|[2,*] :count cambios pendientes',
     'edit_all_save_all'   => 'Guardar todo',
     'edit_all_discard'    => 'Descartar cambios',
