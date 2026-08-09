@@ -63,6 +63,37 @@ El procedimiento completo está en [`BASE-DE-DATOS-LOCAL.md`](BASE-DE-DATOS-LOCA
 
 ---
 
+## Consultas a SUNAT y RENIEC (apis.net.pe)
+
+Un solo token para las dos consultas que hacía el sistema anterior y que aquí se
+recuperaron:
+
+- **RUC en SUNAT** → al teclear un RUC de 11 dígitos en el alta de una empresa,
+  rellena la razón social. ([`ConsultaRuc`](../app/Services/Peru/ConsultaRuc.php))
+- **DNI en RENIEC** → al teclear un DNI de 8 dígitos en el alta de una persona,
+  rellena nombre y apellidos y los deja bloqueados. Solo Perú y solo DNI: un
+  carné de extranjería, un PTP o un pasaporte no están en RENIEC.
+  ([`ConsultaDni`](../app/Services/Peru/ConsultaDni.php))
+
+Es el mismo token que la v1 guardaba en las credenciales de Rails como
+`pe_reniec_token`. Se saca en <https://apis.net.pe>.
+
+| Variable | Default | Descripción |
+|---|---|---|
+| `APIS_NET_PE_URL` | `https://api.apis.net.pe` | |
+| `APIS_NET_PE_TOKEN` | (vacío) | Sin él no se consulta nada y todo se escribe a mano |
+| `APIS_NET_PE_TIMEOUT` | `6` | Segundos antes de rendirse |
+
+**Sin token no es un error.** Las dos consultas degradan sin estorbar: sin
+credencial, con la API caída o con un número que no existe, devuelven un estado,
+la pantalla deja escribir a mano y el alta sigue. En obra se registra la cuadrilla
+a las seis de la mañana y no se espera a un tercero.
+
+El acierto de RENIEC se guarda en caché 30 días (un nombre no cambia); el fallo
+no, porque el que no aparece hoy puede aparecer mañana.
+
+---
+
 ## Sesión y cache
 
 | Variable | Default | Descripción |

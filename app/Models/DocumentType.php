@@ -30,8 +30,14 @@ class DocumentType extends Model
     use Lockable;
     use BelongsToTenantOrGlobal;
 
+    /** Solo cifras: el DNI peruano, el carné de extranjería, el PTP. */
+    public const SOLO_CIFRAS = 'digits';
+
+    /** Cifras y letras: el pasaporte. */
+    public const CIFRAS_Y_LETRAS = 'alphanumeric';
+
     protected $fillable = [
-        'slug', 'country_id', 'code', 'name', 'min_length', 'max_length', 'is_active',
+        'slug', 'country_id', 'code', 'name', 'min_length', 'max_length', 'allowed_chars', 'is_active',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
@@ -79,6 +85,31 @@ class DocumentType extends Model
             $this->min_length ? 'min:' . $this->min_length : null,
             $this->max_length ? 'max:' . $this->max_length : null,
         ]));
+    }
+
+    /**
+     * ¿Este numero encaja con los caracteres que admite el tipo?
+     *
+     * Los espacios no entran en ningun caso: no hay documento que los lleve
+     * dentro, y uno invisible al final parte en dos a la misma persona.
+     */
+    public function admiteElNumero(string $numDoc): bool
+    {
+        return match ($this->allowed_chars) {
+            self::SOLO_CIFRAS     => (bool) preg_match('/^[0-9]+$/', $numDoc),
+            self::CIFRAS_Y_LETRAS => (bool) preg_match('/^[A-Za-z0-9]+$/', $numDoc),
+            default               => ! preg_match('/\s/', $numDoc),
+        };
+    }
+
+    /** Como decirle a alguien que ese numero no vale, en su idioma. */
+    public function porQueNoAdmite(): string
+    {
+        return match ($this->allowed_chars) {
+            self::SOLO_CIFRAS     => __('people.num_doc_solo_cifras', ['type' => $this->code]),
+            self::CIFRAS_Y_LETRAS => __('people.num_doc_cifras_y_letras', ['type' => $this->code]),
+            default               => __('people.num_doc_sin_espacios'),
+        };
     }
 
     /**

@@ -96,6 +96,34 @@ const tipoElegido = computed(() =>
 // inventado sería peor que no cortar.
 const largoMaximo = computed(() => tipoElegido.value?.max ?? 20);
 
+// Qué caracteres admite el tipo, además de cuántos. El largo puede cuadrar y el
+// contenido no: «1111111A» son ocho caracteres y no es un DNI. Los espacios no
+// entran en ningún caso — uno al final es invisible y convierte a la misma
+// persona en dos.
+const filtroDelNumero = computed(() => ({
+    digits:       /[^0-9]/g,
+    alphanumeric: /[^A-Za-z0-9]/g,
+}[tipoElegido.value?.allowed_chars] ?? /\s/g));
+
+// Se limpia lo que se escribe en vez de rechazar la tecla: así el pegar desde
+// un Excel —que es como llega la mitad de la cuadrilla— también se limpia, y no
+// se pierde lo que sí valía de lo pegado.
+//
+// El tope también se aplica aquí y no con el `maxlength` del navegador. Con el
+// atributo puesto, pegar «  436 735-35  » se cortaba a los ocho PRIMEROS
+// caracteres —espacios incluidos— y quedaba «43673»: se perdían tres dígitos
+// buenos. Primero se limpia y después se cuenta.
+watch(() => form.num_doc, (valor) => {
+    if (typeof valor !== 'string') return;
+
+    let limpio = valor.replace(filtroDelNumero.value, '');
+    if (limpio.length > largoMaximo.value) {
+        limpio = limpio.slice(0, largoMaximo.value);
+    }
+
+    if (limpio !== valor) form.num_doc = limpio;
+});
+
 // Cuántos faltan para llegar al mínimo, para avisar mientras se teclea.
 const faltanDigitos = computed(() => {
     const min = tipoElegido.value?.min ?? 0;
@@ -274,7 +302,6 @@ const submit = () => {
                                     size="large"
                                     autofocus
                                     :disabled="docLocked"
-                                    :maxlength="largoMaximo"
                                     :placeholder="$t('people.num_doc_placeholder')"
                                 />
                             </Tooltip>

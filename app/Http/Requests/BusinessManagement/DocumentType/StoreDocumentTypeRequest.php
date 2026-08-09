@@ -54,6 +54,13 @@ class StoreDocumentTypeRequest extends FormRequest
             // longitud mal puesta deja gente fuera del sistema.
             'min_length' => ['nullable', 'integer', 'min:1', 'max:40'],
             'max_length' => ['nullable', 'integer', 'min:1', 'max:40', 'gte:min_length'],
+            // Y CUALES, no solo cuantos: el largo puede cuadrar y el contenido
+            // no. «1111111A» son ocho caracteres y no es un DNI. En blanco =
+            // sin restriccion, para un pais cuyo documento no se conoce.
+            'allowed_chars' => ['nullable', Rule::in([
+                \App\Models\DocumentType::SOLO_CIFRAS,
+                \App\Models\DocumentType::CIFRAS_Y_LETRAS,
+            ])],
             'is_active' => 'sometimes|boolean',
         ];
     }

@@ -27,6 +27,12 @@ return [
     'max_length'                   => 'Maximum length',
     'length'                       => 'Length',
     'length_help'                  => 'How many characters the number has. This helps when registering a person, it is not what the search uses: the worker search matches the number exactly. Leave blank if the document has no fixed length.',
+    'allowed_chars'                => 'What the number accepts',
+    'allowed_chars_help'           => 'Which characters the number may contain, on top of how many. The length can match while the content does not: "1111111A" is eight characters and is not a DNI. With this set, the person form will not even let you type what does not fit. Spaces are never accepted.',
+    'allowed_chars_digits'         => 'Digits only',
+    'allowed_chars_alphanumeric'   => 'Digits and letters',
+    'allowed_chars_any'            => 'No restriction',
+
     'length_range'                 => ':min to :max characters',
     'length_min_only'              => 'from :min characters',
     'length_max_only'              => 'up to :max characters',

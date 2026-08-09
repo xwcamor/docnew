@@ -13,7 +13,7 @@ import RecordHistory from '@/Components/Common/RecordHistory.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useDateFormat } from '@/Composables/useDateFormat';
 import { useI18n } from '@/Plugins/i18n';
-import { documentTypeLengthLabel } from './config/length';
+import { documentTypeCharsLabel, documentTypeLengthLabel } from './config/length';
 
 defineOptions({ layout: AppLayout });
 
@@ -34,6 +34,10 @@ const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--c
 // «de 7 a 8 caracteres». La ficha abre con la sigla arriba y el nombre largo
 // debajo: lo que identifica arriba, lo que matiza debajo (docs/UI.md §5).
 const lengthLabel = computed(() => documentTypeLengthLabel(t, props.documentType));
+
+// «Solo números». Sin esto la ficha decía cuántos caracteres admite el número
+// pero no cuáles, que es lo que impide que entre un celular en un DNI.
+const charsLabel = computed(() => documentTypeCharsLabel(t, props.documentType));
 
 const fmt = (d) => formatDateTimeFull(d);
 </script>
@@ -128,6 +132,10 @@ const fmt = (d) => formatDateTimeFull(d);
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('document_types.length') }}</span>
                             <span class="spec-cell__value">{{ lengthLabel }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('document_types.allowed_chars') }}</span>
+                            <span class="spec-cell__value">{{ charsLabel }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('document_types.is_active') }}</span>

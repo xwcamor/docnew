@@ -408,6 +408,9 @@ class DocumentTypeController extends Controller
             'name'        => $m->name,
             'min_length'  => $m->min_length,
             'max_length'  => $m->max_length,
+            // Que caracteres admite, no solo cuantos: sin esto el formulario de
+            // la persona no sabe si cortar las letras al teclear.
+            'allowed_chars' => $m->allowed_chars,
             'country_id'  => $m->country_id,
             'country'     => $m->country?->name,
             'is_active'   => $m->is_active,

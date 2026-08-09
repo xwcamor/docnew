@@ -93,12 +93,17 @@ trait ReglasDelDocumento
                     return;
                 }
 
-                $largo = mb_strlen(trim((string) $value));
+                $numero = trim((string) $value);
+                $largo = mb_strlen($numero);
 
                 if ($tipo->min_length && $largo < $tipo->min_length) {
                     $fail(__('people.num_doc_too_short', ['type' => $tipo->code, 'min' => $tipo->min_length]));
                 } elseif ($tipo->max_length && $largo > $tipo->max_length) {
                     $fail(__('people.num_doc_too_long', ['type' => $tipo->code, 'max' => $tipo->max_length]));
+                } elseif (! $tipo->admiteElNumero($numero)) {
+                    // El largo puede cuadrar y el contenido no: «1111111A» son
+                    // ocho caracteres y no es un DNI.
+                    $fail($tipo->porQueNoAdmite());
                 }
             },
         ];

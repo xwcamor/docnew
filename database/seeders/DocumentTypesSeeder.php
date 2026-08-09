@@ -39,10 +39,11 @@ class DocumentTypesSeeder extends Seeder
             // el unico documento peruano que no era de 8 digitos resulto ser un
             // numero de celular tecleado en el campo del documento. Un minimo
             // mas flojo que la realidad es justo lo que deja entrar esa basura.
-            ['code' => 'DNI',       'name' => 'Documento Nacional de Identidad', 'min' => 8,  'max' => 8],
-            ['code' => 'CE',        'name' => 'Carné de Extranjería',            'min' => 9,  'max' => 12],
-            ['code' => 'PTP',       'name' => 'Permiso Temporal de Permanencia', 'min' => 9,  'max' => 12],
-            ['code' => 'PASAPORTE', 'name' => 'Pasaporte',                       'min' => 6,  'max' => 20],
+            ['code' => 'DNI',       'name' => 'Documento Nacional de Identidad', 'min' => 8,  'max' => 8,  'chars' => DocumentType::SOLO_CIFRAS],
+            ['code' => 'CE',        'name' => 'Carné de Extranjería',            'min' => 9,  'max' => 12, 'chars' => DocumentType::SOLO_CIFRAS],
+            ['code' => 'PTP',       'name' => 'Permiso Temporal de Permanencia', 'min' => 9,  'max' => 12, 'chars' => DocumentType::SOLO_CIFRAS],
+            // El unico que lleva letras.
+            ['code' => 'PASAPORTE', 'name' => 'Pasaporte',                       'min' => 6,  'max' => 20, 'chars' => DocumentType::CIFRAS_Y_LETRAS],
         ];
 
         foreach ($tipos as $t) {
@@ -51,8 +52,9 @@ class DocumentTypesSeeder extends Seeder
                 [
                     'slug'       => Str::random(22),
                     'name'       => $t['name'],
-                    'min_length' => $t['min'],
-                    'max_length' => $t['max'],
+                    'min_length'    => $t['min'],
+                    'max_length'    => $t['max'],
+                    'allowed_chars' => $t['chars'],
                     'is_active'  => true,
                     'created_by' => 1,
                 ],

@@ -38,12 +38,20 @@ class PersonDocumentLengthTest extends CatalogTestCase
         DocumentType::firstOrCreate(
             ['country_id' => 1, 'code' => 'DNI'],
             ['slug' => Str::random(22), 'name' => 'Documento Nacional de Identidad',
-             'min_length' => 8, 'max_length' => 8, 'is_active' => true, 'created_by' => 1],
+             'min_length' => 8, 'max_length' => 8, 'allowed_chars' => DocumentType::SOLO_CIFRAS,
+             'is_active' => true, 'created_by' => 1],
         );
         DocumentType::firstOrCreate(
             ['country_id' => 1, 'code' => 'CE'],
             ['slug' => Str::random(22), 'name' => 'Carné de Extranjería',
-             'min_length' => 9, 'max_length' => 12, 'is_active' => true, 'created_by' => 1],
+             'min_length' => 9, 'max_length' => 12, 'allowed_chars' => DocumentType::SOLO_CIFRAS,
+             'is_active' => true, 'created_by' => 1],
+        );
+        DocumentType::firstOrCreate(
+            ['country_id' => 1, 'code' => 'PASAPORTE'],
+            ['slug' => Str::random(22), 'name' => 'Pasaporte',
+             'min_length' => 6, 'max_length' => 20, 'allowed_chars' => DocumentType::CIFRAS_Y_LETRAS,
+             'is_active' => true, 'created_by' => 1],
         );
     }
 
@@ -106,6 +114,29 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->assertDatabaseHas('people', ['doc_type' => 'CE', 'num_doc' => '003028674']);
     }
 
+    /**
+     * El largo cuadra y el contenido no: ocho caracteres, pero uno es letra.
+     *
+     * Sin esto, la regla de longitud sola dejaba pasar «1111111A» — que es
+     * exactamente la forma que tenia el «11111111» inventado de la v1.
+     */
+    public function test_un_dni_con_letras_no_entra_aunque_mida_ocho(): void
+    {
+        $this->alta(['doc_type' => 'DNI', 'num_doc' => '1111111A'])
+            ->assertSessionHasErrors('num_doc');
+
+        $this->assertDatabaseMissing('people', ['num_doc' => '1111111A']);
+    }
+
+    /** Y el pasaporte si las lleva: la regla es por tipo, no una para todos. */
+    public function test_el_pasaporte_si_admite_letras(): void
+    {
+        $this->alta(['doc_type' => 'PASAPORTE', 'num_doc' => 'AB123456'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('people', ['doc_type' => 'PASAPORTE', 'num_doc' => 'AB123456']);
+    }
+
     /** @param array<int, array<string, string>> $filas */
     private function importar(array $filas): PeopleImport
     {
@@ -127,6 +158,19 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->assertCount(1, $import->errors);
         $this->assertSame(0, $import->created);
         $this->assertDatabaseMissing('people', ['num_doc' => '946733493']);
+    }
+
+    /** Por Excel tampoco entran las letras en un DNI. */
+    public function test_el_excel_rechaza_el_dni_con_letras(): void
+    {
+        $this->actingAs($this->admin());
+
+        $import = $this->importar([
+            ['doc_type' => 'DNI', 'num_doc' => '1111111A', 'name' => 'Falso', 'lastname' => 'Inventado'],
+        ]);
+
+        $this->assertCount(1, $import->errors);
+        $this->assertSame(0, $import->created);
     }
 
     /** Y no se lleva por delante las filas buenas del mismo fichero. */

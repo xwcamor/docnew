@@ -27,6 +27,12 @@ return [
     'max_length'                   => 'Máximo de caracteres',
     'length'                       => 'Longitud',
     'length_help'                  => 'Cuántos caracteres tiene el número. Es ayuda al dar de alta a una persona, no la condición para buscarla: el buscador de trabajadores va por coincidencia exacta del número. Déjalo en blanco si el documento no tiene una longitud fija.',
+    'allowed_chars'                => 'Qué admite el número',
+    'allowed_chars_help'           => 'Qué caracteres puede llevar el número, además de cuántos. El largo puede cuadrar y el contenido no: «1111111A» son ocho caracteres y no es un DNI. Con esto puesto, la ficha de la persona no deja ni teclear lo que no encaja. Los espacios no se admiten en ningún caso.',
+    'allowed_chars_digits'         => 'Solo números',
+    'allowed_chars_alphanumeric'   => 'Números y letras',
+    'allowed_chars_any'            => 'Sin restricción',
+
     'length_range'                 => 'de :min a :max caracteres',
     'length_min_only'              => 'desde :min caracteres',
     'length_max_only'              => 'hasta :max caracteres',

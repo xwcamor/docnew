@@ -236,14 +236,15 @@ class PersonController extends Controller
         return \App\Models\DocumentType::query()
             ->active()
             ->orderBy('code')
-            ->get(['country_id', 'code', 'name', 'min_length', 'max_length'])
+            ->get(['country_id', 'code', 'name', 'min_length', 'max_length', 'allowed_chars'])
             ->groupBy('country_id')
             ->map(fn ($tipos) => $tipos
                 ->map(fn ($t) => [
-                    'value' => $t->code,
-                    'label' => $t->label,
-                    'min'   => $t->min_length,
-                    'max'   => $t->max_length,
+                    'value'         => $t->code,
+                    'label'         => $t->label,
+                    'min'           => $t->min_length,
+                    'max'           => $t->max_length,
+                    'allowed_chars' => $t->allowed_chars,
                 ])
                 ->values()
                 ->all())

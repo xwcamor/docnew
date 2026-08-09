@@ -3,13 +3,46 @@
 Todo lo que quedó sin confirmar, sin terminar o marcado para mejorar. Nada se da por cerrado en
 silencio.
 
+## Preguntas abiertas: te las hice y siguen sin respuesta
+
+Esta tabla existe porque en una conversación larga se pierde el hilo de qué se preguntó y qué se
+contestó. **Mientras algo esté aquí, NO está hecho** — y lo que sí se hizo asumiendo una respuesta
+lo dice explícitamente.
+
+| Asunto | Qué hace falta decidir | Qué pasa mientras tanto |
+| --- | --- | --- |
+| **`Brand` y la familia `Customer`** | ¿Se borran o se dejan desactivados? Ninguna columna del dominio de DOCUFIZ apunta a `brands`, no existe equivalente en la v1, y `Customer` + sus ubicaciones/áreas/subestaciones es una isla del producto de diagnóstico de transformadores del que se clonó esto | Siguen registrados como módulos activos y aparecen en el menú |
+| **Planes cerrados** | Un plan cerrado ¿congela su lista de documentos, o se corrigen los cuatro mensajes de la pantalla que hoy dicen cosas distintas? | Reservado para la sesión de Planes, que dijiste que haríamos juntos |
+| **Personas por workspace** | Empresas quedó estricto por workspace («cada workspace tiene sus propias empresas»). ¿Personas igual, o una persona puede trabajar para contratistas de workspaces distintos? | Hoy es por workspace, heredado; sin confirmar |
+| **`positions.is_signature_approver`** | ¿Debe filtrar quién puede ser aprobador de un plan? La columna existe y nadie la lee | No filtra nada |
+| **150 416 observaciones del histórico de EPP** | ¿Se migran, se resumen o se quedan en la v1? | No se migran |
+| **Herramientas y Comentarios** | Los dos módulos están muertos: `CommentController::TYPES` está vacío y los permisos no gatean nada | Siguen en el menú sin hacer nada |
+| **Estado `archived` de los formatos** | No se llega a él desde ninguna pantalla, y `nuevaVersion()` es código que nadie llama | Código muerto |
+| **`requires_signature` de un formato** | Existe en la base y no hay forma de marcarlo desde la interfaz | Siempre falso |
+| **Editor de campos de un formato** | Sin pantalla para definir los campos, un formato estructurado o híbrido no se puede publicar nunca | El módulo de plantillas no se puede cerrar |
+
+## Lo que depende de ti, fuera del código
+
+| Qué | Por qué | Cómo |
+| --- | --- | --- |
+| **Poner `APIS_NET_PE_TOKEN` en el `.env`** | Sin él no se consultan ni el RUC en SUNAT ni el DNI en RENIEC. No falla nada: todo se escribe a mano | Es el mismo token que la v1 guardaba en las credenciales de Rails como `pe_reniec_token` |
+| **Borrar `users.real_password` de la v1** | Hay 20 contraseñas guardadas en texto plano | `UPDATE users SET real_password = NULL;` en la base vieja |
+| **Copiar los archivos de firmas y fotos** | 3 801 evidencias apuntan hoy a rutas con `byte_size = 0` | `php artisan docufiz:migrate-data archivos --desde=…` |
+| **Probar el ingreso con un usuario migrado real** | Los 26 correos son provisionales (`usuarioN@pendiente.local`) | Antes de abrir el sistema |
+
 ## Para revisar a mano tras la migración
 
-**13 documentos con nombres distintos entre las tablas del sistema viejo.** El comando se quedó con
-el nombre más largo, pero conviene mirarlos: hay tildes que faltan (`sánchez` / `sanchez`), apellidos
-invertidos (`Cruz Jose Luis Benavides Santa` / `Jose Luis Benavides Santa Cruz`) y uno que parece un
-registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al correr
-`php artisan docufiz:migrate-data personas`.
+**Los 13 documentos con nombres distintos entre las tablas del sistema viejo: cerrado.** Se
+corrigieron uno por uno en la base maestra de la v1 (agosto de 2026) y el listado de conflictos ya
+devuelve cero. Conviene saber por qué hubo que hacerlo a mano: la regla de «me quedo con el nombre
+más largo» solo resolvía bien 2 de los 13. Cuando los dos nombres miden lo mismo —que es justo lo
+que pasa con las tildes, `fernández` y `fernandez` tienen las mismas letras— ganaba el primero por
+orden de tabla, o sea al azar. Y en dos casos elegía lo peor: el que tenía seis espacios seguidos y
+uno donde ninguna de las dos versiones era un nombre.
+
+**Aviso para cualquier comprobación de documentos:** un DNI peruano **puede empezar por cero**
+(`06842865` es válido y real). Una consulta que use `^[1-9][0-9]{7}$` para «buscar los que no son
+DNI» devuelve falsos positivos; lo correcto es `^[0-9]{8}$`.
 
 ## Necesito que lo confirmes
 
@@ -31,6 +64,12 @@ registro de relleno (`47019236: Carlos M.. / Contrata 7 .`). Salen listados al c
 
 | Asunto | Decisión |
 | --- | --- |
+| Empresas | **por workspace**: cada workspace tiene las suyas, no hay catálogo compartido |
+| Roles | `super` = administrador del SaaS, `admin` = administrador de su workspace, y los perfiles con permisos a medida. El super puede **entrar** en un workspace y mientras está dentro se comporta como su admin |
+| DNI | **8 dígitos exactos y solo cifras**. Se había dejado en 7 por dos peruanos del volcado; al repasar la base maestra no queda ninguno |
+| Reglas del número de documento | van en el **catálogo de tipos de documento**, por tipo y por país: cuántos caracteres y cuáles. No escritas en el código |
+| Nombres de personas | se escriben en **Mayúsculas y minúsculas** (`José Luis Benavides`), no todo en mayúsculas |
+| Consulta a RENIEC | se recupera la de la v1 (apis.net.pe). Si encuentra el DNI, rellena el nombre y lo bloquea; si no, se escribe a mano. **Nunca bloquea el alta** |
 | Umbral facial | arranca en 0,50 (el de tenkofiz) y se ajusta con las distancias reales que registre el sistema, no por corazonada |
 | Firma por tiempo de espera | no bloquea el trabajo: firma, guarda la foto y queda pendiente de revisión |
 | Evidencias de firma | no se purgan a los 90 días como en tenkofiz: son documentación legal |

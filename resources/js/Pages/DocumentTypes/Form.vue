@@ -32,6 +32,7 @@ const form = useForm({
     name: props.documentType?.name ?? '',
     min_length: props.documentType?.min_length ?? null,
     max_length: props.documentType?.max_length ?? null,
+    allowed_chars: props.documentType?.allowed_chars ?? null,
     is_active: props.documentType?.is_active ?? true,
 });
 
@@ -148,6 +149,28 @@ const submit = () => {
                         </FormItem>
                     </Col>
                 </Row>
+
+                <!-- Y CUÁLES, no solo cuántos: el largo puede cuadrar y el
+                     contenido no. «1111111A» son ocho caracteres y no es un
+                     DNI. Con esto puesto, la ficha de la persona no deja ni
+                     teclear lo que no encaja. -->
+                <FormItem
+                    :label="$t('document_types.allowed_chars')"
+                    :tooltip="$t('document_types.allowed_chars_help')"
+                    :validate-status="form.errors.allowed_chars ? 'error' : ''"
+                    :help="form.errors.allowed_chars"
+                >
+                    <Select
+                        v-model:value="form.allowed_chars"
+                        size="large"
+                        allow-clear
+                        :options="[
+                            { value: 'digits',       label: $t('document_types.allowed_chars_digits') },
+                            { value: 'alphanumeric', label: $t('document_types.allowed_chars_alphanumeric') },
+                        ]"
+                        :placeholder="$t('document_types.allowed_chars_any')"
+                    />
+                </FormItem>
 
                 <FormItem
                     v-if="isEdit"
