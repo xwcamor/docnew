@@ -96,6 +96,12 @@ class SetupProjectCommand extends Command
             return false;
         }
 
+        // Las plantillas primero: cada AST llenado necesita su plantilla a la
+        // que colgarse. Lo hacia el seeder, y al dejar de migrar ahi hay que
+        // hacerlo aqui. (`migrate-data todo` las crearia igualmente, pero
+        // explicito se lee mejor y el orden queda a la vista.)
+        $this->call('docufiz:migrate-formats');
+
         $argumentos = ['paso' => 'todo'];
 
         if ($this->option('desde')) {

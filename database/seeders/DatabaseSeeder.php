@@ -79,7 +79,12 @@ class DatabaseSeeder extends Seeder
             // anterior, y de eso se encarga el bloque de abajo.
         ]);
 
-        $this->traerElSistemaAnterior();
+        // El sistema anterior NO se trae aqui. Lo hacia, y con dos efectos malos:
+        // `setup:project --datos` acababa migrandolo DOS VECES —el seeder una y el
+        // comando otra, con los 3.728 planes y las 48.596 respuestas recorridos dos
+        // veces— y la bandera `--datos` no controlaba nada, porque sin ella el
+        // seeder lo traia igual. Ahora sembrar es sembrar; traer la v1 se pide.
+        $this->avisoDeLaV1();
 
         // Los dumps legacy se insertan con IDs explícitos (SQL crudo), lo que NO
         // avanza las secuencias de Postgres → el primer create/duplicate del
@@ -105,19 +110,12 @@ class DatabaseSeeder extends Seeder
      * El orden importa: las plantillas de formato antes que los datos, porque
      * cada AST llenado necesita su plantilla a la que colgarse.
      */
-    protected function traerElSistemaAnterior(): void
+    protected function avisoDeLaV1(): void
     {
-        try {
-            \Illuminate\Support\Facades\DB::connection('legacy')->getPdo();
-        } catch (\Throwable $e) {
-            $this->command?->warn('Sin base del sistema anterior: se salta la migracion de datos.');
-            $this->command?->line('  Para traerlos, levanta el MySQL viejo y repite. Sin ellos la base');
-            $this->command?->line('  queda sembrada pero sin planes ni personas.');
-
-            return;
-        }
-
-        \Illuminate\Support\Facades\Artisan::call('docufiz:migrate-formats', [], $this->command?->getOutput());
-        \Illuminate\Support\Facades\Artisan::call('docufiz:migrate-data', ['paso' => 'todo'], $this->command?->getOutput());
+        $this->command?->newLine();
+        $this->command?->line('  La base queda sembrada, sin planes ni personas. Para traer el sistema');
+        $this->command?->line('  anterior (necesita LEGACY_DB_* en el .env):');
+        $this->command?->line('    php artisan docufiz:migrate-data todo');
+        $this->command?->line('  o de una vez, desde cero:  php artisan setup:project --datos');
     }
 }
