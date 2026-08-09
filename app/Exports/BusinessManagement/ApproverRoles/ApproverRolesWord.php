@@ -9,7 +9,7 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
 
 /**
  * Generates a styled .docx report of ApproverRoles using PhpWord directly
- * (no .docx template dependency â€” full programmatic control).
+ * (no .docx template dependency — full programmatic control).
  *
  * Layout follows SAP Fiori Quartz Light (mismo patron que RegionsWord):
  *   - Cover page: title, subtitle, optional "Filtros aplicados" box.
@@ -17,11 +17,11 @@ use PhpOffice\PhpWord\SimpleType\JcTable;
  *     borders, alternating row tint (#F8FAFC).
  *   - Footer: "Page X of Y" + app name.
  *
- * Columns dinamicas â€” driven by $options['columns'].
+ * Columns dinamicas — driven by $options['columns'].
  */
 class ApproverRolesWord
 {
-    /** Map column key â†’ ['heading' => string, 'value' => fn($approverRole) => mixed] */
+    /** Map column key → ['heading' => string, 'value' => fn($approverRole) => mixed] */
     protected array $columnDefs;
 
     /** SAP Fiori palette */
@@ -39,13 +39,13 @@ class ApproverRolesWord
         string $filename,
         array $options = [],
         array $filtersSummary = [],
-        string $generatedBy = 'â€”',
+        string $generatedBy = '—',
         ?int $count = null,
     ): void {
         $tz = $options['timezone'] ?? config('app.timezone', 'UTC');
 
         // Si no nos pasaron el count, lo derivamos. NUNCA hacer count() sobre
-        // una LazyCollection que ya vamos a iterar despuÃ©s â€” la materializa.
+        // una LazyCollection que ya vamos a iterar después — la materializa.
         // El Job pasa el count siempre; este fallback es solo para compat.
         $count = $count !== null
             ? $count
@@ -87,13 +87,13 @@ class ApproverRolesWord
             'marginRight'  => 900,
         ]);
 
-        // â”€â”€ Footer with page numbers + app name â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── Footer with page numbers + app name ─────────────────────────
         $footer = $section->addFooter();
         $footerTable = $footer->addTable(['borderTopSize' => 6, 'borderTopColor' => self::COLOR_BORDER]);
         $footerTable->addRow();
         $footerTable->addCell(6000)
             ->addText(
-                config('app.name') . ' Â· ' . now()->setTimezone($tz)->format(\App\Support\Tz::DATE_FORMAT),
+                config('app.name') . ' · ' . now()->setTimezone($tz)->format(\App\Support\Tz::DATE_FORMAT),
                 ['size' => 8, 'color' => self::COLOR_TEXT_SOFT]
             );
         $cellRight = $footerTable->addCell(3000, ['valign' => 'top']);
@@ -103,7 +103,7 @@ class ApproverRolesWord
         $rightP->addText(' / ', ['size' => 8, 'color' => self::COLOR_TEXT_SOFT]);
         $rightP->addField('NUMPAGES');
 
-        // â”€â”€ COVER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── COVER ────────────────────────────────────────────────────────
         $approverRoleTable = $section->addTable([
             'cellMargin'   => 200,
             'borderSize'   => 0,
@@ -118,7 +118,7 @@ class ApproverRolesWord
             'name' => 'Calibri', 'size' => 22, 'bold' => true, 'color' => 'FFFFFF',
         ], ['spaceAfter' => 60]);
         $approverRoleCell->addText(
-            __('global.generated_at') . ': ' . now()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) . ' Â· ' . trans_choice('global.records_in_report', $count, ['count' => $count]),
+            __('global.generated_at') . ': ' . now()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT) . ' · ' . trans_choice('global.records_in_report', $count, ['count' => $count]),
             ['size' => 10, 'color' => 'CBD5E1']
         );
 
@@ -156,7 +156,7 @@ class ApproverRolesWord
 
         $section->addTextBreak(1);
 
-        // â”€â”€ DATA TABLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // ── DATA TABLE ──────────────────────────────────────────────────
         if ($count === 0) {
             $section->addText(
                 __('global.no_matching_records'),

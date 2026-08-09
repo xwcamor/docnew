@@ -23,7 +23,7 @@ class GenerateApprovalRulesPdfJob extends BaseApprovalRuleExportJob
         $columns        = $this->options['columns']                 ?? ['name', 'country', 'work_type', 'approver_role', 'priority_level', 'is_required', 'is_active'];
         $includeFilters = $this->options['include_filters_summary'] ?? true;
         $filtersSummary = $includeFilters ? $this->buildFiltersSummary() : [];
-        $generatedBy    = optional(\App\Models\User::find($this->userId))->name ?? 'â€”';
+        $generatedBy    = optional(\App\Models\User::find($this->userId))->name ?? '—';
 
         $pdf = Pdf::loadView('business_management.approval_rules.pdf.template', [
             'approval_rules'      => $approval_rules,

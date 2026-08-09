@@ -34,7 +34,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  *     errores (no se crean). Las filas que actualizan existentes no cuentan
  *     contra el limite. El conteo es global (catalogo unico).
  *
- * Todo va en transaccion. dryRun=true â†’ rollback al final (preview UI).
+ * Todo va en transaccion. dryRun=true → rollback al final (preview UI).
  */
 class BrandsImport implements ToCollection, WithHeadingRow
 {
@@ -59,7 +59,7 @@ class BrandsImport implements ToCollection, WithHeadingRow
     ) {
         $user = Auth::user();
 
-        // Limite del plan del usuario. Sin tenant/plan â†’ sin limite.
+        // Limite del plan del usuario. Sin tenant/plan → sin limite.
         if ($user && $user->tenant) {
             $this->maxRecords = $user->tenant->maxRecordsPerModule();
         } else {
@@ -88,7 +88,7 @@ class BrandsImport implements ToCollection, WithHeadingRow
                     $this->errors[] = [
                         'row'     => $absoluteRow,
                         'message' => __('imports.err_name_required'),
-                        'value'   => 'â€”',
+                        'value'   => '—',
                     ];
                     continue;
                 }
@@ -96,7 +96,7 @@ class BrandsImport implements ToCollection, WithHeadingRow
                     $this->errors[] = [
                         'row'     => $absoluteRow,
                         'message' => __('imports.err_name_too_long'),
-                        'value'   => mb_substr($name, 0, 60) . 'â€¦',
+                        'value'   => mb_substr($name, 0, 60) . '…',
                     ];
                     continue;
                 }
@@ -277,7 +277,7 @@ class BrandsImport implements ToCollection, WithHeadingRow
             ->whereRaw('LOWER(code) = LOWER(?)', [trim($code)])
             ->exists();
     }
-    /** Lowercase + strip accents (iconv) â€” mismo pattern que el DB-level layer 2. */
+    /** Lowercase + strip accents (iconv) — mismo pattern que el DB-level layer 2. */
     protected function normalizeKey(string $name): string
     {
         $lower    = mb_strtolower(trim($name));

@@ -8,7 +8,7 @@ use App\Models\Company;
 use Illuminate\Support\Facades\DB;
 
 /**
- * CompanyService â€” operaciones de negocio del modulo companies.
+ * CompanyService — operaciones de negocio del modulo companies.
  *
  * Clon del patron de RegionService/RoleService: el controller queda thin
  * y delega aquí toda la mutacion de datos. Mantiene los audit logs cerca
@@ -169,7 +169,7 @@ class CompanyService
         });
     }
 
-    // â”€â”€â”€ Bulk ops â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Bulk ops ──────────────────────────────────────────────────────────
     //
     // Auto-async: si count(ids) excede el umbral, dispatchamos el job y
     // devolvemos un payload "queued" para que el controller redirija con

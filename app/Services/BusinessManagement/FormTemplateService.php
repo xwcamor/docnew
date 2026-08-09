@@ -8,7 +8,7 @@ use App\Models\FormTemplate;
 use Illuminate\Support\Facades\DB;
 
 /**
- * FormTemplateService â€” operaciones de negocio del modulo form_templates.
+ * FormTemplateService — operaciones de negocio del modulo form_templates.
  *
  * Clon del patron de RegionService/RoleService: el controller queda thin
  * y delega aquí toda la mutacion de datos. Mantiene los audit logs cerca
@@ -177,7 +177,7 @@ class FormTemplateService
         return mb_substr($base, 0, 30) . '_' . \Illuminate\Support\Str::random(6);
     }
 
-    // â”€â”€â”€ Bulk ops â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Bulk ops ──────────────────────────────────────────────────────────
     //
     // Auto-async: si count(ids) excede el umbral, dispatchamos el job y
     // devolvemos un payload "queued" para que el controller redirija con

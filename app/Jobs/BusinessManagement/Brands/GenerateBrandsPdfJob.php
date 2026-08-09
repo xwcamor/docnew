@@ -23,7 +23,7 @@ class GenerateBrandsPdfJob extends BaseBrandExportJob
         $columns        = $this->options['columns']                 ?? ['id', 'name', 'code', 'is_active', 'created_at', 'creator'];
         $includeFilters = $this->options['include_filters_summary'] ?? true;
         $filtersSummary = $includeFilters ? $this->buildFiltersSummary() : [];
-        $generatedBy    = optional(\App\Models\User::find($this->userId))->name ?? 'â€”';
+        $generatedBy    = optional(\App\Models\User::find($this->userId))->name ?? '—';
 
         $pdf = Pdf::loadView('business_management.brands.pdf.template', [
             'brands'      => $brands,

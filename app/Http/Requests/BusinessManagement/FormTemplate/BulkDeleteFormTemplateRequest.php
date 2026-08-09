@@ -8,7 +8,7 @@ class BulkDeleteFormTemplateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // El middleware permission:form_templates.delete ya gatea la ruta â€” este
+        // El middleware permission:form_templates.delete ya gatea la ruta — este
         // authorize() esta aquí por consistencia con el patron FormRequest.
         return $this->user()?->can('form_templates.delete') ?? false;
     }

@@ -15,13 +15,13 @@ use Illuminate\Queue\SerializesModels;
  * Bulk operations en background cuando count > asyncThreshold().
  * Actions: 'delete' | 'set_active' | 'restore'.
  *
- * Clon del patron de BulkRegionsActionJob â€” el threshold y el wiring de
+ * Clon del patron de BulkRegionsActionJob — el threshold y el wiring de
  * dispatch viven en ApproverRoleService.
  *
  * ShouldBeUnique: si el worker muere mid-execution y el supervisor lo retry,
  * el lock por hash(userId+action+ids) impide que se reprocese mientras el job
  * original sigue activo. Evita audit log doble + notificaciones duplicadas en
- * el bell. TTL = 30min (mÃ¡s que el timeout del job, 1800s).
+ * el bell. TTL = 30min (más que el timeout del job, 1800s).
  */
 class BulkApproverRolesActionJob implements ShouldQueue, ShouldBeUnique
 {

@@ -21,7 +21,7 @@ use Illuminate\Support\Str;
  *
  * Subclase debe implementar:
  *   - `protected string $type` y `protected string $extension`
- *   - `executeExport(Download $download): void` â€” renderiza el archivo y
+ *   - `executeExport(Download $download): void` — renderiza el archivo y
  *     deja `$download->status = 'ready'` + `$download->path` seteado.
  */
 abstract class BaseApprovalRuleExportJob implements ShouldQueue
@@ -43,14 +43,14 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
     protected int $userId;
     protected array $options;
     protected string $locale;
-    /** TZ del user que disparÃ³ el export â€” fechas se convierten al display. */
+    /** TZ del user que disparó el export — fechas se convierten al display. */
     protected string $userTimezone;
     protected ?Download $download = null;
 
     /**
      * Tenant del usuario que dispara el job. Lo capturamos al construir
      * (auth context) y lo aplicamos manualmente en buildQuery() porque el
-     * worker de queue no tiene la sesion del usuario â€” el BelongsToTenant
+     * worker de queue no tiene la sesion del usuario — el BelongsToTenant
      * trait no scopea sin un user autenticado.
      */
     protected ?int $tenantId = null;
@@ -63,14 +63,14 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
         $this->userId   = $userId;
         $this->options  = $options;
         $this->locale   = app()->getLocale();
-        // Capturamos tenant_id del user que dispara â€” el worker no tiene sesion.
+        // Capturamos tenant_id del user que dispara — el worker no tiene sesion.
         $user = \App\Models\User::find($userId);
         $this->tenantId     = $user?->tenant_id;
         $this->userTimezone = \App\Support\Tz::for($user);
 
-        // Pre-creamos el Download row aquÃ­ (en el web request, antes de que el
-        // job entre al queue). AsÃ­ el inbox del usuario ve el item en
-        // status='processing' al instante â€” el bell arranca su polling sin
+        // Pre-creamos el Download row aquí (en el web request, antes de que el
+        // job entre al queue). Así el inbox del usuario ve el item en
+        // status='processing' al instante — el bell arranca su polling sin
         // esperar a que el worker tome el job. Si el worker tarda 30s en
         // tomar el job, el usuario igual ve "Generando..." en su bell.
         $this->download = Download::create([
@@ -94,11 +94,11 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
         app()->setLocale($this->locale);
 
         // El Download ya fue creado en __construct. Lo recargamos en el
-        // worker (el `$this->download` serializado podrÃ­a estar stale).
+        // worker (el `$this->download` serializado podría estar stale).
         $this->download = Download::find($this->downloadId);
-        if (!$this->download) return; // el usuario lo borrÃ³ antes de que arrancara
+        if (!$this->download) return; // el usuario lo borró antes de que arrancara
 
-        // Si es un retry, el status puede estar en 'failed' â€” reseteamos a
+        // Si es un retry, el status puede estar en 'failed' — reseteamos a
         // 'processing' y limpiamos el error anterior antes de re-intentar.
         if ($this->download->status !== 'processing') {
             $this->download->update(['status' => 'processing', 'error_message' => null]);
@@ -152,7 +152,7 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
      * si las columnas estan pedidas.
      *
      * ApprovalRules es per-tenant: aplicamos `withoutGlobalScopes()` y manualmente
-     * filtramos por tenant_id capturado en el constructor â€” el worker no tiene
+     * filtramos por tenant_id capturado en el constructor — el worker no tiene
      * la sesion del usuario para que el global scope BelongsToTenant funcione.
      */
     protected function buildQuery()
@@ -204,7 +204,7 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
             $out[] = ['label' => __('approval_rules.is_active'), 'value' => $bool ? __('global.active') : __('global.inactive')];
         }
         if (!empty($f['created_from']) || !empty($f['created_to'])) {
-            $out[] = ['label' => __('global.created_at'), 'value' => ($f['created_from'] ?? 'â€¦') . ' â†’ ' . ($f['created_to'] ?? 'â€¦')];
+            $out[] = ['label' => __('global.created_at'), 'value' => ($f['created_from'] ?? '…') . ' → ' . ($f['created_to'] ?? '…')];
         }
         return $out;
     }

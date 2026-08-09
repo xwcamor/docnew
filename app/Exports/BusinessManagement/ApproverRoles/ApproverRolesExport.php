@@ -29,9 +29,9 @@ class ApproverRolesExport implements FromCollection, WithEvents, WithTitle
     public function __construct($approver_roles, array $options = [], ?int $count = null)
     {
         // Aceptamos Collection, LazyCollection, array o cualquier iterable. Solo
-        // forzamos collect() para arrays â€” Collections/LazyCollections pasan
+        // forzamos collect() para arrays — Collections/LazyCollections pasan
         // tal cual para preservar el streaming (LazyCollection genera models
-        // de a uno; collect() las materializarÃ­a y comeria memoria).
+        // de a uno; collect() las materializaría y comeria memoria).
         $this->approver_roles = is_array($approver_roles) ? collect($approver_roles) : $approver_roles;
         $this->options   = $options;
         $this->count     = $count !== null
@@ -78,7 +78,7 @@ class ApproverRolesExport implements FromCollection, WithEvents, WithTitle
         $title    = $this->options['title'] ?? __('approver_roles.export_title');
         $count    = $this->count;
         $subtitle = sprintf(
-            '%s Â· %s Â· %s',
+            '%s · %s · %s',
             __('global.generated_at'),
             now()->setTimezone($this->tz)->format(\App\Support\Tz::DATETIME_FORMAT),
             trans_choice('global.records_in_report', $count, ['count' => $count])
@@ -86,16 +86,16 @@ class ApproverRolesExport implements FromCollection, WithEvents, WithTitle
 
         $rows = collect();
 
-        // Row 1 â€” title
+        // Row 1 — title
         $rows->push([$title]);
-        // Row 2 â€” subtitle
+        // Row 2 — subtitle
         $rows->push([$subtitle]);
-        // Row 3 â€” spacer
+        // Row 3 — spacer
         $rows->push(['']);
-        // Row 4 â€” header
+        // Row 4 — header
         $rows->push(array_map(fn($k) => $this->columnDefs[$k]['heading'], $this->activeColumns));
 
-        // Row 5+ â€” data
+        // Row 5+ — data
         $i = 0;
         foreach ($this->approver_roles as $approverRole) {
             $rows->push(array_map(

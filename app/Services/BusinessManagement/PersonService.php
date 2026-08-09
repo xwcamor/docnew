@@ -10,7 +10,7 @@ use App\Models\PersonCompanyLink;
 use Illuminate\Support\Facades\DB;
 
 /**
- * PersonService â€” operaciones de negocio del modulo people.
+ * PersonService — operaciones de negocio del modulo people.
  *
  * Clon del patron de RegionService/RoleService: el controller queda thin
  * y delega aquí toda la mutacion de datos. Mantiene los audit logs cerca
@@ -237,7 +237,7 @@ class PersonService
         });
     }
 
-    // â”€â”€â”€ Bulk ops â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Bulk ops ──────────────────────────────────────────────────────────
     //
     // Auto-async: si count(ids) excede el umbral, dispatchamos el job y
     // devolvemos un payload "queued" para que el controller redirija con

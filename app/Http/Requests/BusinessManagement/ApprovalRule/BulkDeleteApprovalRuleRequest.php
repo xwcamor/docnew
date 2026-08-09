@@ -8,7 +8,7 @@ class BulkDeleteApprovalRuleRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // El middleware permission:approval_rules.delete ya gatea la ruta â€” este
+        // El middleware permission:approval_rules.delete ya gatea la ruta — este
         // authorize() esta aquí por consistencia con el patron FormRequest.
         return $this->user()?->can('approval_rules.delete') ?? false;
     }

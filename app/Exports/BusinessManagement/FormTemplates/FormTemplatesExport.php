@@ -29,9 +29,9 @@ class FormTemplatesExport implements FromCollection, WithEvents, WithTitle
     public function __construct($form_templates, array $options = [], ?int $count = null)
     {
         // Aceptamos Collection, LazyCollection, array o cualquier iterable. Solo
-        // forzamos collect() para arrays â€” Collections/LazyCollections pasan
+        // forzamos collect() para arrays — Collections/LazyCollections pasan
         // tal cual para preservar el streaming (LazyCollection genera models
-        // de a uno; collect() las materializarÃ­a y comeria memoria).
+        // de a uno; collect() las materializaría y comeria memoria).
         $this->form_templates = is_array($form_templates) ? collect($form_templates) : $form_templates;
         $this->options   = $options;
         $this->count     = $count !== null
@@ -61,7 +61,7 @@ class FormTemplatesExport implements FromCollection, WithEvents, WithTitle
             'slug'       => ['heading' => 'Slug',                    'value' => fn($c, $i) => $c->slug],
             'created_at' => ['heading' => __('global.created_at'),   'value' => fn($c, $i) => $c->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT)],
             'updated_at' => ['heading' => __('global.updated_at'),   'value' => fn($c, $i) => $c->updated_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT)],
-            'creator'    => ['heading' => __('global.created_by'),   'value' => fn($c, $i) => $c->creator->name ?? 'â€”'],
+            'creator'    => ['heading' => __('global.created_by'),   'value' => fn($c, $i) => $c->creator->name ?? '—'],
             // Workspace (tenant): el controller solo la habilita para super.
             'tenant'     => ['heading' => __('tenants.singular'),    'value' => fn($c, $i) => $c->tenant?->name ?? '—'],
         ];
@@ -83,7 +83,7 @@ class FormTemplatesExport implements FromCollection, WithEvents, WithTitle
         $title    = $this->options['title'] ?? __('form_templates.export_title');
         $count    = $this->count;
         $subtitle = sprintf(
-            '%s Â· %s Â· %s',
+            '%s · %s · %s',
             __('global.generated_at'),
             now()->setTimezone($this->tz)->format(\App\Support\Tz::DATETIME_FORMAT),
             trans_choice('global.records_in_report', $count, ['count' => $count])
@@ -91,16 +91,16 @@ class FormTemplatesExport implements FromCollection, WithEvents, WithTitle
 
         $rows = collect();
 
-        // Row 1 â€” title
+        // Row 1 — title
         $rows->push([$title]);
-        // Row 2 â€” subtitle
+        // Row 2 — subtitle
         $rows->push([$subtitle]);
-        // Row 3 â€” spacer
+        // Row 3 — spacer
         $rows->push(['']);
-        // Row 4 â€” header
+        // Row 4 — header
         $rows->push(array_map(fn($k) => $this->columnDefs[$k]['heading'], $this->activeColumns));
 
-        // Row 5+ â€” data
+        // Row 5+ — data
         $i = 0;
         foreach ($this->form_templates as $formTemplate) {
             $rows->push(array_map(

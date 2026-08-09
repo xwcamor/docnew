@@ -20,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  *
  * No incluye is_active: toda alta importada nace activa (el estado se gestiona desde la UI).
  *
- * No ponemos help-text como filas porque el importer las leeria como datos â€”
+ * No ponemos help-text como filas porque el importer las leeria como datos —
  * los tips van en cell comments.
  */
 class PeopleImportTemplate implements FromArray, WithEvents

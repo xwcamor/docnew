@@ -76,7 +76,7 @@ class BrandController extends Controller
             'brands' => array_merge($brands->toArray(), [
                 'total_unfiltered' => $totalUnfiltered,
             ]),
-            // Limites de export por formato â€” el frontend deshabilita formatos
+            // Limites de export por formato — el frontend deshabilita formatos
             // que exceden su limite. CSV con 0 = sin limite (streaming).
             'exportLimits' => \App\Models\Setting::getExportLimits('brands'),
             'filters' => [
@@ -96,7 +96,7 @@ class BrandController extends Controller
                 'advanced_where' => $this->parseAdvancedWhere($request),
             ],
             'isSuper'        => $isSuper,
-            // Schema de campos filtrables â€” alimenta el drawer "Filtros
+            // Schema de campos filtrables — alimenta el drawer "Filtros
             // avanzados" del frontend (selects de field/op + control tipado
             // del valor). Cada modulo declara el suyo en su modelo.
             'filterSchema'   => Brand::filterSchema(),
@@ -158,7 +158,7 @@ class BrandController extends Controller
     public function store(StoreBrandRequest $request, BrandService $service): RedirectResponse
     {
         // Limite de registros por modulo segun el plan del tenant.
-        // super no tiene tenant â†’ no aplica. -1 = ilimitado.
+        // super no tiene tenant → no aplica. -1 = ilimitado.
         $tenant = $request->user()?->tenant;
         if ($tenant) {
             $max = $tenant->maxRecordsPerModule();
@@ -293,7 +293,7 @@ class BrandController extends Controller
     }
 
     /**
-     * Edit All â€” pagina con tabla editable in-line de name + is_active.
+     * Edit All — pagina con tabla editable in-line de name + is_active.
      * El submit hace batch update en transaccion (editAllUpdate).
      */
     public function editAll(Request $request)
@@ -430,7 +430,7 @@ class BrandController extends Controller
         return $base;
     }
 
-    // â”€â”€ EXPORTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── EXPORTS ─────────────────────────────────────────────────────────
     // Los 4 formatos van a queue como jobs async (mismo patron que Regions).
     // El job se encarga de la query con scope + render + Download record.
 
@@ -455,8 +455,8 @@ class BrandController extends Controller
     }
 
     /**
-     * Helper comun de los 4 export endpoints: parse options â†’ limit check â†’
-     * audit â†’ dispatch. Mismo patron que Region.
+     * Helper comun de los 4 export endpoints: parse options → limit check →
+     * audit → dispatch. Mismo patron que Region.
      */
     protected function dispatchExport(Request $request, string $format, string $jobClass): RedirectResponse
     {
@@ -508,7 +508,7 @@ class BrandController extends Controller
         return Brand::query()->filter($fakeReq)->count();
     }
 
-    // â”€â”€ IMPORTS (two-phase: dry_run preview + commit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── IMPORTS (two-phase: dry_run preview + commit) ────────────────────
     // El frontend sube 2 veces: primero dry_run=true (preview con summary),
     // despues dry_run=false (commit).
 
@@ -527,16 +527,16 @@ class BrandController extends Controller
         $dryRun  = filter_var($data['dry_run'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         // Guardrail multi-tenant: super NO puede importar sin tenant porque
-        // el lookup por nombre case-insensitive matchearÃ­a brands de cualquier
+        // el lookup por nombre case-insensitive matchearía brands de cualquier
         // workspace y los update cross-tenant. Si super necesita importar a un
-        // tenant especÃ­fico, debe loguearse impersonando el admin de ese tenant
+        // tenant específico, debe loguearse impersonando el admin de ese tenant
         // o usar la API directamente con `Auth::onceUsingId(...)`.
         $user = $request->user();
         if ($user && $user->hasRole('super') && empty($user->tenant_id)) {
             return response()->json([
                 'ok'      => false,
                 'dry_run' => $dryRun,
-                'message' => __('brands.import_super_blocked', [], 'Super sin workspace asignado no puede importar â€” el match por nombre puede actualizar registros de otro tenant.'),
+                'message' => __('brands.import_super_blocked', [], 'Super sin workspace asignado no puede importar — el match por nombre puede actualizar registros de otro tenant.'),
             ], 422);
         }
 
@@ -590,7 +590,7 @@ class BrandController extends Controller
         return __('imports.process_failed');
     }
 
-    // â”€â”€ BULK OPERATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BULK OPERATIONS ─────────────────────────────────────────────────
     public function bulkDelete(BulkDeleteBrandRequest $request, BrandService $service): RedirectResponse
     {
         $data = $request->validated();
@@ -676,7 +676,7 @@ class BrandController extends Controller
         return back()->with('success', $msg);
     }
 
-    // â”€â”€ Export helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Export helpers ──────────────────────────────────────────────────
 
     /**
      * Opciones normalizadas que reciben todos los jobs de export. Allowlist

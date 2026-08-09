@@ -88,7 +88,7 @@ class WorkPlanController extends Controller
             'work_plans' => array_merge($work_plans->toArray(), [
                 'total_unfiltered' => $totalUnfiltered,
             ]),
-            // Limites de export por formato â€” el frontend deshabilita formatos
+            // Limites de export por formato — el frontend deshabilita formatos
             // que exceden su limite. CSV con 0 = sin limite (streaming).
             'exportLimits' => \App\Models\Setting::getExportLimits('work_plans'),
             'filters' => [
@@ -117,7 +117,7 @@ class WorkPlanController extends Controller
             ],
             'isSuper'        => $isSuper,
             ...$this->catalogOptions(),
-            // Schema de campos filtrables â€” alimenta el drawer "Filtros
+            // Schema de campos filtrables — alimenta el drawer "Filtros
             // avanzados" del frontend (selects de field/op + control tipado
             // del valor). Cada modulo declara el suyo en su modelo.
             'filterSchema'   => WorkPlan::filterSchema($this->filterSchemaOptions()),
@@ -476,7 +476,7 @@ class WorkPlanController extends Controller
     public function store(StoreWorkPlanRequest $request, WorkPlanService $service): RedirectResponse
     {
         // Limite de registros por modulo segun el plan del tenant.
-        // super no tiene tenant â†’ no aplica. -1 = ilimitado.
+        // super no tiene tenant → no aplica. -1 = ilimitado.
         $tenant = $request->user()?->tenant;
         if ($tenant) {
             $max = $tenant->maxRecordsPerModule();
@@ -630,7 +630,7 @@ class WorkPlanController extends Controller
     }
 
     /**
-     * Edit All â€” pagina con tabla editable in-line. En planes lo que se corrige
+     * Edit All — pagina con tabla editable in-line. En planes lo que se corrige
      * en lote es la orden de servicio y el estado de avance; el código es
      * inmutable (identifica el plan) y por eso viaja solo como referencia.
      */
@@ -800,7 +800,7 @@ class WorkPlanController extends Controller
         return $base;
     }
 
-    // â”€â”€ EXPORTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── EXPORTS ─────────────────────────────────────────────────────────
     // Los 4 formatos van a queue como jobs async (mismo patron que Regions).
     // El job se encarga de la query con scope + render + Download record.
 
@@ -825,8 +825,8 @@ class WorkPlanController extends Controller
     }
 
     /**
-     * Helper comun de los 4 export endpoints: parse options â†’ limit check â†’
-     * audit â†’ dispatch. Mismo patron que Region.
+     * Helper comun de los 4 export endpoints: parse options → limit check →
+     * audit → dispatch. Mismo patron que Region.
      */
     protected function dispatchExport(Request $request, string $format, string $jobClass): RedirectResponse
     {
@@ -878,7 +878,7 @@ class WorkPlanController extends Controller
         return WorkPlan::query()->filter($fakeReq)->count();
     }
 
-    // â”€â”€ IMPORTS (two-phase: dry_run preview + commit) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── IMPORTS (two-phase: dry_run preview + commit) ────────────────────
     // El frontend sube 2 veces: primero dry_run=true (preview con summary),
     // despues dry_run=false (commit).
 
@@ -897,16 +897,16 @@ class WorkPlanController extends Controller
         $dryRun  = filter_var($data['dry_run'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
         // Guardrail multi-tenant: super NO puede importar sin tenant porque
-        // el lookup por nombre case-insensitive matchearÃ­a work_plans de cualquier
+        // el lookup por nombre case-insensitive matchearía work_plans de cualquier
         // workspace y los update cross-tenant. Si super necesita importar a un
-        // tenant especÃ­fico, debe loguearse impersonando el admin de ese tenant
+        // tenant específico, debe loguearse impersonando el admin de ese tenant
         // o usar la API directamente con `Auth::onceUsingId(...)`.
         $user = $request->user();
         if ($user && $user->hasRole('super') && empty($user->tenant_id)) {
             return response()->json([
                 'ok'      => false,
                 'dry_run' => $dryRun,
-                'message' => __('work_plans.import_super_blocked', [], 'Super sin workspace asignado no puede importar â€” el match por nombre puede actualizar registros de otro tenant.'),
+                'message' => __('work_plans.import_super_blocked', [], 'Super sin workspace asignado no puede importar — el match por nombre puede actualizar registros de otro tenant.'),
             ], 422);
         }
 
@@ -960,7 +960,7 @@ class WorkPlanController extends Controller
         return __('imports.process_failed');
     }
 
-    // â”€â”€ BULK OPERATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── BULK OPERATIONS ─────────────────────────────────────────────────
     public function bulkDelete(BulkDeleteWorkPlanRequest $request, WorkPlanService $service): RedirectResponse
     {
         $data = $request->validated();
@@ -1046,7 +1046,7 @@ class WorkPlanController extends Controller
         return back()->with('success', $msg);
     }
 
-    // â”€â”€ Export helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ── Export helpers ──────────────────────────────────────────────────
 
     /**
      * Opciones normalizadas que reciben todos los jobs de export. Allowlist

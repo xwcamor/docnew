@@ -21,8 +21,8 @@ class EditAllUpdateFormTemplateRequest extends FormRequest
             'changes.*.id'        => 'required|integer',
             // name aceptado como sometimes (cliente puede mandar solo is_active),
             // pero si viene, NO puede ser empty string ni null. Sin min:1 antes
-            // un cliente podÃ­a mandar name:"" y el formTemplate quedaba sin nombre
-            // (rompÃ­a unicidad y bÃºsqueda).
+            // un cliente podía mandar name:"" y el formTemplate quedaba sin nombre
+            // (rompía unicidad y búsqueda).
             'changes.*.name'      => 'sometimes|required|string|min:1|max:255',
             'changes.*.is_active' => 'sometimes|nullable|boolean',
         ];
