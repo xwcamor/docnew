@@ -43,8 +43,12 @@ class CompanyController extends Controller
 
     public function index(Request $request)
     {
-        $perPage = (int) $request->get('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100, 200]) ? $perPage : 10;
+        // De `config/companies.php`, que hasta ahora no leia nadie: estaban los
+        // dos valores escritos a mano aqui y cambiarlos en la config no hacia nada.
+        $opciones = config('companies.per_page_options', [10, 25, 50, 100, 200]);
+        $porDefecto = (int) config('companies.per_page_default', 10);
+        $perPage = (int) $request->get('per_page', $porDefecto);
+        $perPage = in_array($perPage, $opciones) ? $perPage : $porDefecto;
 
         if (!$request->filled('sort')) {
             $request->merge(['sort' => 'id', 'direction' => 'desc']);
@@ -298,7 +302,7 @@ class CompanyController extends Controller
     {
         session(['companies.recent_delete' => [
             'ids'        => array_values($ids),
-            'expires_at' => now()->addSeconds(60)->toIso8601String(),
+            'expires_at' => now()->addSeconds((int) config('companies.undo_window_seconds', 60))->toIso8601String(),
         ]]);
     }
 
@@ -316,8 +320,10 @@ class CompanyController extends Controller
         abort_unless($request->user()?->hasRole('super'), 403);
 
         $name    = $request->get('name', '');
-        $perPage = (int) $request->get('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
+        $opciones = config('companies.per_page_options', [10, 25, 50, 100, 200]);
+        $porDefecto = (int) config('companies.per_page_default', 10);
+        $perPage = (int) $request->get('per_page', $porDefecto);
+        $perPage = in_array($perPage, $opciones) ? $perPage : $porDefecto;
 
         // La papelera enseña nombre corto, razón social y RUC: el buscador mira
         // los tres, igual que el del listado. Antes solo miraba el nombre corto
@@ -375,8 +381,10 @@ class CompanyController extends Controller
      */
     public function editAll(Request $request)
     {
-        $perPage = (int) $request->get('per_page', 10);
-        $perPage = in_array($perPage, [10, 25, 50, 100]) ? $perPage : 10;
+        $opciones = config('companies.per_page_options', [10, 25, 50, 100, 200]);
+        $porDefecto = (int) config('companies.per_page_default', 10);
+        $perPage = (int) $request->get('per_page', $porDefecto);
+        $perPage = in_array($perPage, $opciones) ? $perPage : $porDefecto;
 
         if (!$request->filled('sort')) {
             $request->merge(['sort' => 'id', 'direction' => 'asc']);

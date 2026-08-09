@@ -342,7 +342,7 @@ const { currentViewState, applySavedState } = useModuleSavedViews({
     suspendReload,
 });
 
-// ─── Onboarding tour (pasos en config/tour.js) ──────────────────────────────
+// ─── Onboarding tour (pasos genericos en moduleTourSteps) ───────────────────
 const tour = useModuleTour({ module: 'companies', steps: () => moduleTourSteps(t, { moduleName: t('companies.plural') }) });
 
 // ─── Keyboard shortcuts ────────────────────────────────────────────────────

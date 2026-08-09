@@ -22,11 +22,6 @@ return [
     'undo_window_seconds' => env('COMPANIES_UNDO_WINDOW', 60),
 
     /**
-     * Recent items — cuantos registros vistos guardar por usuario.
-     */
-    'recent_views_keep' => env('COMPANIES_RECENTS_KEEP', 10),
-
-    /**
      * Per-page options — valores aceptados en el listado.
      */
     'per_page_options' => [10, 25, 50, 100, 200],
