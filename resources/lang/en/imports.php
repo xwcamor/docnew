@@ -80,4 +80,7 @@ return [
     'template_is_active_help'   => 'Accepted values: 1, 0, true, false, yes, no, active, inactive. Empty = active by default.',
     'template_sample_1'         => 'South America',
     'template_sample_2'         => 'Eastern Europe',
+    'file_required'             => 'Choose a file to import.',
+    'file_mimes'                => 'The file must be Excel (.xlsx, .xls) or CSV (.csv, .txt).',
+    'file_max'                  => 'The file cannot be larger than 10 MB.',
 ];

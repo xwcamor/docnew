@@ -56,7 +56,10 @@ class GenerateCompaniesCsvJob extends BaseCompanyExportJob
                         'country'       => $company->country?->name ?? '',
                         'people_count'  => $company->people_count ?? '',
                         'work_plans_count' => $company->work_plans_count ?? '',
-                        'is_active'  => $company->is_active ? '1' : '0',
+                        // `state_text`, no 1/0: la cabecera dice «Estado» y los otros
+                        // tres formatos escriben «Activo»/«Inactivo». El mismo dato
+                        // salia distinto segun el boton que pulsaras.
+                        'is_active'  => $company->state_text,
                         'slug'       => $company->slug,
                         'created_at' => $company->created_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT),
                         'updated_at' => $company->updated_at?->copy()->setTimezone($tz)->format(\App\Support\Tz::DATETIME_FORMAT),

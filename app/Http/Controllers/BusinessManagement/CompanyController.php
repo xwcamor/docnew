@@ -20,6 +20,7 @@ use App\Jobs\BusinessManagement\Companies\GenerateCompaniesWordJob;
 use App\Models\AuditLog;
 use App\Models\Company;
 use App\Services\BusinessManagement\CompanyService;
+use App\Support\LikeQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -303,12 +304,29 @@ class CompanyController extends Controller
         // La papelera enseña nombre corto, razón social y RUC: el buscador mira
         // los tres, igual que el del listado. Antes solo miraba el nombre corto
         // y escribir el RUC no devolvía nada.
+        // Y mira igual que el del listado: `unaccent(lower(...))`. Con el LIKE
+        // pelado que habia aqui, en Postgres «AUDIT» encontraba la empresa y
+        // «audit» no devolvia nada — la misma busqueda daba un resultado u otro
+        // segun como estuviera el bloqueo de mayusculas.
+        $isPgsql = Company::query()->getConnection()->getDriverName() === 'pgsql';
+        $needle  = LikeQuery::contains((string) $name);
+        $ruc     = LikeQuery::contains(preg_replace('/[\s-]/', '', (string) $name));
+
         $companies = Company::onlyTrashed()
             ->with('deleter:id,name,email')
-            ->when($name !== '', fn ($q) => $q->where(fn ($qq) => $qq
-                ->where('name', 'like', "%{$name}%")
-                ->orWhere('complete_name', 'like', "%{$name}%")
-                ->orWhere('num_doc', 'like', '%' . preg_replace('/[\s-]/', '', $name) . '%')))
+            ->when($name !== '', fn ($q) => $q->where(function ($qq) use ($isPgsql, $needle, $ruc) {
+                if ($isPgsql) {
+                    $qq->orWhereRaw('unaccent(lower(companies.name)) LIKE unaccent(lower(?))', [$needle]);
+                    $qq->orWhereRaw('unaccent(lower(companies.complete_name)) LIKE unaccent(lower(?))', [$needle]);
+                } else {
+                    $qq->orWhereRaw("companies.name LIKE ? ESCAPE '\\'", [$needle]);
+                    $qq->orWhereRaw("companies.complete_name LIKE ? ESCAPE '\\'", [$needle]);
+                }
+                $qq->orWhereRaw(
+                    $isPgsql ? 'companies.num_doc LIKE ?' : "companies.num_doc LIKE ? ESCAPE '\\'",
+                    [$ruc],
+                );
+            }))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();
@@ -589,7 +607,7 @@ class CompanyController extends Controller
             return response()->json([
                 'ok'      => false,
                 'dry_run' => $dryRun,
-                'message' => __('companies.import_super_blocked', [], 'Super sin workspace asignado no puede importar â€” el match por nombre puede actualizar registros de otro tenant.'),
+                'message' => __('companies.import_super_blocked'),
             ], 422);
         }
 

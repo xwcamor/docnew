@@ -438,4 +438,6 @@ return [
         'results_title' => 'Tus resultados',
         'results_body'  => 'Cada registro aparece aquí. Haz clic en el nombre para ver la ficha, o usa los íconos de cada fila (abrir, editar, duplicar, eliminar).',
     ],
+    'bulk_no_selection'         => 'No seleccionaste ningún registro.',
+    'delete_reason_required'    => 'Escribe el motivo del borrado.',
 ];

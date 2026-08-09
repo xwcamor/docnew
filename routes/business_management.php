@@ -222,7 +222,12 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     });
 
     // 3) Imports
-    Route::middleware(['permission:companies.create', 'plan_feature:bulk_operations'])->group(function () {
+    //
+    // Piden `.import`, no `.create`. Mismo olvido que arriba con `.export`: el
+    // permiso `companies.import` existe en la base y no lo comprobaba nadie, asi
+    // que quitarselo a un rol no le impedia importar. Importar no es crear de
+    // uno en uno — pisa registros existentes en modo «actualizar o crear».
+    Route::middleware(['permission:companies.import', 'plan_feature:bulk_operations'])->group(function () {
         Route::post('companies/import',          [CompanyController::class, 'import'])->name('companies.import');
         Route::get('companies/import_template',  [CompanyController::class, 'importTemplate'])->name('companies.import_template');
     });
@@ -248,11 +253,19 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('permission:companies.create')->group(function () {
         Route::get('companies/create', [CompanyController::class, 'create'])->name('companies.create');
         Route::post('companies',       [CompanyController::class, 'store'])->name('companies.store');
+        // Alta rápida JSON desde otros módulos. El método estaba escrito desde el
+        // principio y sin ruta: código muerto. Clientes y Marcas sí la tenían.
+        Route::post('companies/quick_store', [CompanyController::class, 'quickStore'])->name('companies.quick_store');
         Route::post('companies/{company}/duplicate', [CompanyController::class, 'duplicate'])->name('companies.duplicate');
     });
 
     Route::middleware('permission:companies.view')->group(function () {
         Route::get('companies',                [CompanyController::class, 'index'])->name('companies.index');
+    });
+    // La ficha pide `.show`, no `.view`. Igual que con `.export` e `.import`: el
+    // permiso existia y no lo miraba nadie, asi que no habia forma de dar el
+    // listado sin dar tambien el detalle.
+    Route::middleware('permission:companies.show')->group(function () {
         Route::get('companies/{company}',  [CompanyController::class, 'show'])->name('companies.show');
     });
     Route::middleware('permission:companies.edit')->group(function () {

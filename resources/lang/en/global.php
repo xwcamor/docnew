@@ -431,4 +431,6 @@ return [
         'results_title' => 'Your results',
         'results_body'  => 'Each record shows up here. Click the name to open its page, or use the row icons (open, edit, duplicate, delete).',
     ],
+    'bulk_no_selection'         => 'You did not select any records.',
+    'delete_reason_required'    => 'Enter the reason for deletion.',
 ];
