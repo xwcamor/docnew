@@ -346,6 +346,15 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::post('people/edit_all/update', [PersonController::class, 'editAllUpdate'])->name('people.edit_all.update');
     });
 
+    // Consulta a RENIEC para rellenar el nombre desde el DNI. Va ANTES de
+    // `people/{person}`, o el comodin se la come.
+    //
+    // Quien da de alta o edita, y nadie mas: cada llamada gasta credito de la
+    // API, asi que un usuario de solo lectura no la abre. El limite por minuto
+    // es por lo mismo — la pantalla consulta sola al teclear el octavo digito.
+    Route::middleware(['permission:people.create|people.edit', 'throttle:30,1'])
+        ->get('people/lookup_dni', [PersonController::class, 'lookupDni'])->name('people.lookup_dni');
+
     // 5) CRUD principal — paths estaticos PRIMERO.
     Route::middleware('permission:people.create')->group(function () {
         Route::get('people/create', [PersonController::class, 'create'])->name('people.create');

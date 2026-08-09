@@ -32,6 +32,18 @@ return [
     'num_doc'              => 'N° de documento',
     'num_doc_help'         => 'Identifica a la persona. No se repite dentro del mismo país.',
     'num_doc_placeholder'  => 'Ej: 45871236',
+    'num_doc_faltan'       => 'Faltan :n dígitos.',
+    'num_doc_falta_uno'    => 'Falta 1 dígito.',
+
+    // Consulta a RENIEC. Solo Perú y solo DNI: un carné de extranjería, un PTP
+    // o un pasaporte no están en RENIEC.
+    'dni_buscando'      => 'Consultando en RENIEC…',
+    'dni_encontrado'    => 'Datos de RENIEC: nombre y apellidos rellenados.',
+    'dni_no_encontrado' => 'RENIEC no devolvió datos para este DNI. Escribe el nombre a mano.',
+    'dni_error'         => 'No se pudo consultar RENIEC. Escribe el nombre a mano.',
+    'dni_verificado'    => 'Nombre verificado con RENIEC.',
+    'dni_editar_a_mano' => 'Editar a mano',
+
     'country'              => 'País',
     'country_help'         => 'País del documento. Junto con el número define la unicidad de la persona.',
     'nationality'          => 'Nacionalidad',

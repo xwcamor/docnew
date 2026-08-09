@@ -72,6 +72,18 @@ class PeopleImport implements ToCollection, WithHeadingRow
      */
     protected array $docTypes;
 
+    /**
+     * La longitud que admite cada tipo: `['DNI' => ['min' => 8, 'max' => 8]]`.
+     *
+     * El formulario ya no deja teclear un numero fuera de rango, pero el Excel
+     * si entraba: por esa puerta se colaba el celular en el campo del documento
+     * que hubo que limpiar a mano en la base maestra. Una regla que solo vale
+     * en una de las dos puertas no es una regla.
+     *
+     * @var array<string, array{min: int|null, max: int|null}>
+     */
+    protected array $largosPorTipo = [];
+
     public function __construct(
         protected string $mode = 'update_or_create',
         protected bool $dryRun = false,
@@ -93,10 +105,13 @@ class PeopleImport implements ToCollection, WithHeadingRow
         $delPais = DocumentType::query()
             ->where('country_id', $user?->country_id)
             ->where('is_active', true)
-            ->pluck('code')
-            ->all();
+            ->get(['code', 'min_length', 'max_length']);
 
-        $this->docTypes = $delPais ?: PersonController::docTypesPorDefecto();
+        $this->docTypes = $delPais->pluck('code')->all() ?: PersonController::docTypesPorDefecto();
+
+        $this->largosPorTipo = $delPais
+            ->mapWithKeys(fn ($t) => [$t->code => ['min' => $t->min_length, 'max' => $t->max_length]])
+            ->all();
     }
 
     public function collection(Collection $rows): void
@@ -129,6 +144,15 @@ class PeopleImport implements ToCollection, WithHeadingRow
                         'row'     => $absoluteRow,
                         'message' => __('people.doc_type_invalid', ['types' => implode(', ', $this->docTypes)]),
                         'value'   => $docType,
+                    ];
+                    continue;
+                }
+
+                if ($problema = $this->largoFueraDeRango($docType, $numDoc)) {
+                    $this->errors[] = [
+                        'row'     => $absoluteRow,
+                        'message' => $problema,
+                        'value'   => $numDoc,
                     ];
                     continue;
                 }
@@ -285,6 +309,33 @@ if ($existing->tenant_id === null && ! $this->actorEsSuper()) {
         $v = trim((string) $value);
         return $v === '' ? null : $v;
     }
+    /**
+     * El mensaje si el numero no tiene el largo de su tipo, o null si va bien.
+     *
+     * Un tipo sin longitudes declaradas no valida nada: el catalogo las deja en
+     * blanco a proposito para los paises donde no se sabe.
+     */
+    protected function largoFueraDeRango(string $docType, string $numDoc): ?string
+    {
+        $rango = $this->largosPorTipo[$docType] ?? null;
+
+        if ($rango === null) {
+            return null;
+        }
+
+        $largo = mb_strlen($numDoc);
+
+        if ($rango['min'] && $largo < $rango['min']) {
+            return __('people.num_doc_too_short', ['type' => $docType, 'min' => $rango['min']]);
+        }
+
+        if ($rango['max'] && $largo > $rango['max']) {
+            return __('people.num_doc_too_long', ['type' => $docType, 'max' => $rango['max']]);
+        }
+
+        return null;
+    }
+
     /** ¿Quien está importando es super? (los globales solo los toca él). */
     protected function actorEsSuper(): bool
     {

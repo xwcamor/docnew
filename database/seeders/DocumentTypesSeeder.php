@@ -14,10 +14,9 @@ use Illuminate\Support\Str;
  * el PTP —el permiso temporal de permanencia, que en Peru llevan miles de
  * venezolanos— no se podia usar sin tocar PHP. Aqui son filas.
  *
- * Las longitudes son **ayuda al dar de alta**, no la condicion para buscar. El
- * volcado de la v1 tiene dos peruanos con DNI de 7 caracteres, asi que el
- * minimo del DNI se deja en 7 y no en 8: una regla mas estricta que la realidad
- * deja gente fuera del sistema, y esa gente existe.
+ * Las longitudes se aplican **al dar de alta**, no al buscar: la cuadrilla se
+ * busca por coincidencia exacta del numero, asi que una persona ya migrada con
+ * un documento raro se sigue encontrando aunque hoy no se pudiera dar de alta.
  *
  * Solo se siembra Peru porque es donde se opera (el 100 % de los 3 722 planes).
  * Otro pais es otra fila, y ahora se hace desde la pantalla.
@@ -35,9 +34,12 @@ class DocumentTypesSeeder extends Seeder
         }
 
         $tipos = [
-            // El DNI tiene 8 dígitos desde hace años, pero en la base hay dos
-            // de 7 que son reales y siguen trabajando.
-            ['code' => 'DNI',       'name' => 'Documento Nacional de Identidad', 'min' => 7,  'max' => 8],
+            // 8 exactos. Se dejo en 7 por dos peruanos del volcado que tenian
+            // el DNI corto, pero al repasar la base maestra no quedaba ninguno:
+            // el unico documento peruano que no era de 8 digitos resulto ser un
+            // numero de celular tecleado en el campo del documento. Un minimo
+            // mas flojo que la realidad es justo lo que deja entrar esa basura.
+            ['code' => 'DNI',       'name' => 'Documento Nacional de Identidad', 'min' => 8,  'max' => 8],
             ['code' => 'CE',        'name' => 'Carné de Extranjería',            'min' => 9,  'max' => 12],
             ['code' => 'PTP',       'name' => 'Permiso Temporal de Permanencia', 'min' => 9,  'max' => 12],
             ['code' => 'PASAPORTE', 'name' => 'Pasaporte',                       'min' => 6,  'max' => 20],

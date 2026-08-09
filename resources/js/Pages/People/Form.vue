@@ -1,10 +1,10 @@
 <script setup>
-import { computed, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker, Tooltip,
+    Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker, Tooltip, Button,
 } from 'ant-design-vue';
-import { IdcardOutlined, LockOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined, LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -73,12 +73,106 @@ const docTypesForCountry = computed(() => {
 
 // Al cambiar de país, el tipo que ya no existe allí se descarta: elegir Chile y
 // dejar «DNI» —que es peruano— reventaba el alta sin forma de arreglarlo.
+//
+// El que se propone es el DNI y no el primero de la lista. El catálogo va por
+// código y «CE» va antes que «DNI» alfabéticamente, así que el formulario abría
+// proponiendo carné de extranjería: cuatro personas de 228 lo llevan. Con el
+// tipo equivocado delante el tope del número es otro y RENIEC ni se consulta.
 watch(docTypesForCountry, (opciones) => {
     if (docLocked.value) return;
     if (!opciones.some((o) => o.value === form.doc_type)) {
-        form.doc_type = opciones[0]?.value ?? null;
+        const porDefecto = opciones.find((o) => o.value === 'DNI') ?? opciones[0];
+        form.doc_type = porDefecto?.value ?? null;
     }
 }, { immediate: true });
+
+// El tipo elegido, con sus longitudes. El campo del número tenía un tope fijo
+// de 20 para todos, así que cabía un celular de nueve dígitos en un DNI y no se
+// notaba hasta darle a Guardar — y en la base maestra hay uno.
+const tipoElegido = computed(() =>
+    docTypesForCountry.value.find((o) => o.value === form.doc_type) ?? null);
+
+// Sin catálogo (país sin sembrar) se cae al tope de siempre: cortar en un largo
+// inventado sería peor que no cortar.
+const largoMaximo = computed(() => tipoElegido.value?.max ?? 20);
+
+// Cuántos faltan para llegar al mínimo, para avisar mientras se teclea.
+const faltanDigitos = computed(() => {
+    const min = tipoElegido.value?.min ?? 0;
+    const largo = (form.num_doc ?? '').trim().length;
+
+    return min && largo > 0 && largo < min ? min - largo : 0;
+});
+
+// ── RENIEC ───────────────────────────────────────────────────────────────────
+//
+// Solo Perú y solo DNI: un carné de extranjería, un PTP o un pasaporte no están
+// en RENIEC. La v1 sí lo tenía y al portar el módulo se perdió, así que el
+// nombre se teclea — y de ahí salieron el mismo DNI escrito de dos formas, un
+// celular en el campo del documento y un «11111111» inventado.
+const paisEsPeru = computed(() => {
+    const p = props.countryOptions.find((o) => o.value === form.country_id);
+    return /\(PE\)\s*$/.test(p?.label ?? '');
+});
+
+const dniEstado = ref(null);
+// Con el nombre traído de RENIEC los campos se bloquean: es el nombre oficial,
+// y es el que tiene que cuadrar con el documento que piden en la puerta. Queda
+// una salida a mano por si RENIEC devuelve algo raro.
+const nombreVerificado = ref(false);
+let temporizador = null;
+
+const consultarDni = async (dni) => {
+    dniEstado.value = 'buscando';
+    try {
+        const { data } = await window.axios.get(route('business_management.people.lookup_dni'), {
+            params: { dni },
+        });
+
+        // `sin_configurar` no se le enseña al usuario: no ha hecho nada mal y no
+        // puede arreglarlo. La pantalla se queda como estaba.
+        dniEstado.value = data.estado === 'sin_configurar' ? null : data.estado;
+
+        if (data.estado === 'encontrado') {
+            form.name = data.nombres;
+            form.lastname = data.apellidos;
+            nombreVerificado.value = true;
+
+            // El DNI solo lo lleva un peruano, así que la nacionalidad se
+            // deduce. Se rellena únicamente si está vacía: es de lo que depende
+            // que el tipo de documento salga bien, y en la base maestra hay
+            // gente sin ella.
+            if (!form.nationality_id) {
+                const peru = props.nationalityOptions.find((o) => /^per/i.test(o.label ?? ''));
+                if (peru) form.nationality_id = peru.value;
+            }
+        }
+    } catch {
+        dniEstado.value = 'error';
+    }
+};
+
+watch([() => form.num_doc, () => form.doc_type, () => form.country_id], () => {
+    clearTimeout(temporizador);
+
+    const dni = (form.num_doc ?? '').replace(/\D/g, '');
+    const consultable = paisEsPeru.value && form.doc_type === 'DNI' && dni.length === 8 && !docLocked.value;
+
+    if (!consultable) {
+        // Al romper la condición se suelta el nombre: si se cambia el documento
+        // el nombre de antes ya no está verificado y hay que poder corregirlo.
+        dniEstado.value = null;
+        nombreVerificado.value = false;
+        return;
+    }
+
+    temporizador = setTimeout(() => consultarDni(dni), 500);
+});
+
+/** Suelta los campos para escribir el nombre a mano. */
+const editarNombreAMano = () => {
+    nombreVerificado.value = false;
+};
 
 const filterOption = (input, option) =>
     String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase());
@@ -127,48 +221,9 @@ const submit = () => {
                     class="mb-4"
                 />
 
-                <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
-
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.name')"
-                            :tooltip="$t('people.name_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.name ? 'error' : ''"
-                            :help="form.errors.name"
-                        >
-                            <Input
-                                v-model:value="form.name"
-                                size="large"
-                                :maxlength="255"
-                                autofocus
-                                :placeholder="$t('people.name_placeholder')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.lastname')"
-                            :tooltip="$t('people.lastname_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.lastname ? 'error' : ''"
-                            :help="form.errors.lastname"
-                        >
-                            <Input
-                                v-model:value="form.lastname"
-                                size="large"
-                                :maxlength="255"
-                                :placeholder="$t('people.lastname_placeholder')"
-                            />
-                        </FormItem>
-                    </Col>
-                </Row>
-
+                <!-- La identidad va primero: se teclea el documento y RENIEC
+                     rellena el nombre. Al revés se escribiría un nombre que la
+                     consulta pisa acto seguido. -->
                 <h2 class="form-section-title">{{ $t('people.section_identity') }}</h2>
 
                 <Alert
@@ -208,14 +263,18 @@ const submit = () => {
                             :wrapper-col="{ xs: 24, sm: 16 }"
                             required
                             :validate-status="form.errors.num_doc ? 'error' : ''"
-                            :help="form.errors.num_doc"
+                            :help="form.errors.num_doc
+                                || (dniEstado ? $t(`people.dni_${dniEstado}`) : '')
+                                || (faltanDigitos === 1 ? $t('people.num_doc_falta_uno') : '')
+                                || (faltanDigitos ? $t('people.num_doc_faltan', { n: faltanDigitos }) : '')"
                         >
                             <Tooltip :title="docLocked ? $t('people.doc_masked_notice') : ''">
                                 <Input
                                     v-model:value="form.num_doc"
                                     size="large"
+                                    autofocus
                                     :disabled="docLocked"
-                                    :maxlength="20"
+                                    :maxlength="largoMaximo"
                                     :placeholder="$t('people.num_doc_placeholder')"
                                 />
                             </Tooltip>
@@ -275,6 +334,68 @@ const submit = () => {
                 >
                     <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
                 </FormItem>
+
+                <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
+
+                <!-- Con el nombre traído de RENIEC los dos campos se bloquean:
+                     es el nombre oficial, el que tiene que cuadrar con el
+                     documento que piden en la puerta. Queda la salida a mano
+                     por si la consulta devolviera algo raro. -->
+                <Alert
+                    v-if="nombreVerificado"
+                    type="success"
+                    show-icon
+                    class="mb-4"
+                    :message="$t('people.dni_verificado')"
+                >
+                    <template #icon><SafetyCertificateOutlined /></template>
+                    <template #action>
+                        <Button size="small" type="link" @click="editarNombreAMano">
+                            {{ $t('people.dni_editar_a_mano') }}
+                        </Button>
+                    </template>
+                </Alert>
+
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.name')"
+                            :tooltip="$t('people.name_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.name ? 'error' : ''"
+                            :help="form.errors.name"
+                        >
+                            <Input
+                                v-model:value="form.name"
+                                size="large"
+                                :maxlength="255"
+                                :disabled="nombreVerificado"
+                                :placeholder="$t('people.name_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.lastname')"
+                            :tooltip="$t('people.lastname_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            required
+                            :validate-status="form.errors.lastname ? 'error' : ''"
+                            :help="form.errors.lastname"
+                        >
+                            <Input
+                                v-model:value="form.lastname"
+                                size="large"
+                                :maxlength="255"
+                                :disabled="nombreVerificado"
+                                :placeholder="$t('people.lastname_placeholder')"
+                            />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <h2 class="form-section-title">{{ $t('people.section_work') }}</h2>
 

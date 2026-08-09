@@ -32,6 +32,18 @@ return [
     'num_doc'              => 'Document number',
     'num_doc_help'         => 'Identifies the person. It cannot repeat within the same country.',
     'num_doc_placeholder'  => 'E.g.: 45871236',
+    'num_doc_faltan'       => ':n digits to go.',
+    'num_doc_falta_uno'    => '1 digit to go.',
+
+    // RENIEC lookup. Peru and DNI only: a foreigner card, a PTP or a passport
+    // are not in RENIEC.
+    'dni_buscando'      => 'Checking with RENIEC…',
+    'dni_encontrado'    => 'RENIEC data: name and surnames filled in.',
+    'dni_no_encontrado' => 'RENIEC returned nothing for this DNI. Type the name by hand.',
+    'dni_error'         => 'RENIEC could not be reached. Type the name by hand.',
+    'dni_verificado'    => 'Name verified with RENIEC.',
+    'dni_editar_a_mano' => 'Edit by hand',
+
     'country'              => 'Country',
     'country_help'         => 'Country of the document. Together with the number it defines the person uniqueness.',
     'nationality'          => 'Nationality',

@@ -224,17 +224,27 @@ class PersonController extends Controller
      * tipos tiene que seguir al país elegido y no al del usuario. El catálogo
      * es de unas pocas filas por país: cabe entero en la página.
      *
-     * @return array<int, array<int, array{value: string, label: string}>>
+     * Van también `min` y `max`: el campo del número tenía un tope fijo de 20
+     * caracteres para todos los tipos, así que se podía teclear un celular de
+     * nueve dígitos en un DNI y no enterarse hasta darle a Guardar. Con la
+     * longitud del tipo delante, el campo corta al llegar al máximo.
+     *
+     * @return array<int, array<int, array{value: string, label: string, min: int|null, max: int|null}>>
      */
     protected function docTypesByCountry(): array
     {
         return \App\Models\DocumentType::query()
             ->active()
             ->orderBy('code')
-            ->get(['country_id', 'code', 'name'])
+            ->get(['country_id', 'code', 'name', 'min_length', 'max_length'])
             ->groupBy('country_id')
             ->map(fn ($tipos) => $tipos
-                ->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])
+                ->map(fn ($t) => [
+                    'value' => $t->code,
+                    'label' => $t->label,
+                    'min'   => $t->min_length,
+                    'max'   => $t->max_length,
+                ])
                 ->values()
                 ->all())
             ->all();
@@ -244,6 +254,26 @@ class PersonController extends Controller
     public static function docTypesPorDefecto(): array
     {
         return ['DNI', 'CE', 'PASAPORTE'];
+    }
+
+    /**
+     * Consulta un DNI en RENIEC para rellenar el nombre solo.
+     *
+     * La v1 la tenía y al portar el módulo se perdió, así que el nombre de cada
+     * trabajador se teclea. Ese tecleo es el origen de la basura que hubo que
+     * limpiar en la base maestra: el mismo DNI escrito de dos formas, un
+     * celular en el campo del documento, un «11111111» inventado.
+     *
+     * Nunca estorba: si no hay token, si la API no contesta o si el DNI no
+     * existe, devuelve el estado y la pantalla deja escribir a mano.
+     */
+    public function lookupDni(Request $request, \App\Services\Peru\ConsultaDni $reniec): \Illuminate\Http\JsonResponse
+    {
+        $validado = $request->validate([
+            'dni' => ['required', 'string', 'max:20'],
+        ]);
+
+        return response()->json($reniec->buscar($validado['dni']));
     }
 
     /** Roles en obra — el enum de `person_roles.role`. */
