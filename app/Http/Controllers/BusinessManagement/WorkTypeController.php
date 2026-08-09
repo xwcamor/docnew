@@ -34,6 +34,7 @@ use Illuminate\Http\Request;
 class WorkTypeController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
+    use \App\Http\Controllers\Concerns\HandlesGlobalRecords;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
 
     /**
@@ -139,7 +140,7 @@ class WorkTypeController extends Controller
 
     public function show(Request $request, WorkType $workType, WorkTypeService $service)
     {
-        $workType->load(['country:id,name,iso_code']);
+        $workType->load(['country:id,name,iso_code', 'locker:id,name']);
 
         $puedeEditar = $request->user()?->can('work_types.edit') ?? false;
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
@@ -366,7 +367,12 @@ class WorkTypeController extends Controller
     {
         abort_unless($request->user()?->hasRole('super'), 403);
         $tipo = WorkType::onlyTrashed()->where('slug', $slug)->firstOrFail();
-        $service->restore($tipo);
+        try {
+            $service->restore($tipo);
+        } catch (\DomainException $e) {
+            // El codigo se reutilizo mientras estaba en la papelera.
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('business_management.work_types.trash')
@@ -399,7 +405,12 @@ class WorkTypeController extends Controller
             return back()->withErrors(['name_confirmation' => __('global.force_delete_name_mismatch')]);
         }
 
-        $service->forceDelete($tipo, $data['reason']);
+        try {
+            $service->forceDelete($tipo, $data['reason']);
+        } catch (\DomainException $e) {
+            // Tiene planes: la clave ajena es RESTRICT y sin esto salia un 500.
+            return back()->with('error', $e->getMessage());
+        }
 
         return redirect()
             ->route('business_management.work_types.trash')
@@ -419,6 +430,14 @@ class WorkTypeController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
         }
 
+        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro
+        // de la transaccion y hacia rollback del lote entero, con 403 al
+        // dashboard y sin tocar ninguna de las que si se podian.
+        [$permitidos, $globalIds] = $this->splitGlobalIds(WorkType::class, $permitidos);
+        if (empty($permitidos)) {
+            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
+        }
+
         $resultado = $service->bulkDelete($permitidos, $data['deleted_description']);
 
         if (! empty($resultado['queued'])) {
@@ -430,6 +449,9 @@ class WorkTypeController extends Controller
         $msg = __('global.deleted_success') . ' (' . $resultado['count'] . ')';
         if (! empty($bloqueados)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()
@@ -466,6 +488,14 @@ class WorkTypeController extends Controller
             return back()->with('error', __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]));
         }
 
+        // Y los GLOBALES: el guard de BelongsToTenantOrGlobal salta dentro
+        // de la transaccion y hacia rollback del lote entero, con 403 al
+        // dashboard y sin tocar ninguna de las que si se podian.
+        [$permitidos, $globalIds] = $this->splitGlobalIds(WorkType::class, $permitidos);
+        if (empty($permitidos)) {
+            return back()->with('error', __('global.bulk_skipped_global', ['count' => count($globalIds)]));
+        }
+
         $resultado = $service->bulkSetActive($permitidos, (bool) $data['is_active']);
 
         if (! empty($resultado['queued'])) {
@@ -475,6 +505,9 @@ class WorkTypeController extends Controller
         $msg = __('global.updated_success') . " ({$resultado['changed']})";
         if (! empty($bloqueados)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($bloqueados)]);
+        }
+        if (!empty($globalIds)) {
+            $msg .= ' · ' . __('global.bulk_skipped_global', ['count' => count($globalIds)]);
         }
 
         return back()->with('success', $msg);

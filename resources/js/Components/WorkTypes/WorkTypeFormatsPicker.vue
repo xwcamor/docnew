@@ -246,6 +246,11 @@ const opcionesCaracter = (formato) => [
 /* A 768 todo se apila: los controles pasan debajo del nombre, a ancho completo. */
 @media (max-width: 767px) {
     .fmx__row { flex-direction: column; align-items: stretch; }
+    /* Al apilarse, el `flex-basis: 260px` de `.fmx__id` deja de ser ANCHO y pasa
+       a ser ALTO: cada documento se convertia en una tarjeta de 338px con 260 de
+       hueco en blanco entre el nombre y el interruptor. Con ocho documentos la
+       ficha media unos 2.700px casi todos vacios. */
+    .fmx__id { flex: 0 0 auto; }
     .fmx__controls { justify-content: space-between; }
     .fmx__seg { flex: 1 1 auto; }
 }

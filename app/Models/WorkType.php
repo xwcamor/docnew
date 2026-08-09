@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\Auditable;
+use App\Traits\BelongsToTenantOrGlobal;
 use App\Traits\Lockable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -35,6 +36,12 @@ class WorkType extends Model
     use Auditable;
     use SoftDeletes;
     use Lockable;
+    // Faltaba, y era el UNICO catalogo de negocio con columna `tenant_id` sin
+    // el: sin scope, sin autorrelleno protegido y sin guard de globales. O sea
+    // que cualquier admin veia, editaba y borraba los tipos de trabajo de otro
+    // workspace — incluida su matriz de documentos, que decide que papeles de
+    // seguridad se exigen en los planes que ese otro tiene hoy en obra.
+    use BelongsToTenantOrGlobal;
 
     protected $fillable = [
         'slug', 'country_id', 'code', 'is_active', 'legacy_id',

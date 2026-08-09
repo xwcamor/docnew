@@ -6,6 +6,7 @@ use App\Jobs\BusinessManagement\WorkTypes\BulkWorkTypesActionJob;
 use App\Models\AuditLog;
 use App\Models\Country;
 use App\Models\FormTemplate;
+use App\Models\WorkPlan;
 use App\Models\WorkType;
 use App\Support\LikeQuery;
 use Illuminate\Database\Eloquent\Builder;
@@ -342,6 +343,19 @@ class WorkTypeService
 
     public function restore(WorkType $tipo): WorkType
     {
+        // El indice unico solo mira los vivos, asi que el codigo de un tipo
+        // borrado se puede volver a usar — es una funcion, no un descuido, y hay
+        // un test que la fija. Pero al restaurar el original chocaban los dos y
+        // salia un 500 por violacion de unicidad, sin decir con quien choca.
+        $chocaCon = WorkType::where('country_id', $tipo->country_id)
+            ->whereRaw('LOWER(code) = LOWER(?)', [$tipo->code])
+            ->where('id', '!=', $tipo->id)
+            ->first();
+
+        if ($chocaCon) {
+            throw new \DomainException(__('work_types.restore_code_taken', ['code' => $tipo->code]));
+        }
+
         $tipo->deleted_description = null;
         $tipo->deleted_by          = null;
         $tipo->restore();
@@ -355,6 +369,15 @@ class WorkTypeService
             $bloqueado = WorkType::onlyTrashed()->where('id', $tipo->id)->lockForUpdate()->first();
             if (! $bloqueado) {
                 throw new \RuntimeException("WorkType {$tipo->id} ya no esta disponible para borrado definitivo");
+            }
+
+            // `work_plans.work_type_id` es RESTRICT. Sin esta comprobacion se
+            // escribia el audit de `force_deleted` y a continuacion la
+            // transaccion moria contra la clave ajena: el super recibia un 500
+            // pelado, sin ninguna pista de que el tipo tenia planes.
+            $planes = WorkPlan::withTrashed()->where('work_type_id', $bloqueado->id)->count();
+            if ($planes > 0) {
+                throw new \DomainException(__('work_types.in_use_cannot_force_delete', ['count' => $planes]));
             }
 
             AuditLog::create([

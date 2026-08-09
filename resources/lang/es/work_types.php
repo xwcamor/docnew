@@ -125,4 +125,6 @@ return [
         'step5_title' => '¿Necesitas un repaso?',
         'step5_body'  => 'Vuelve a abrir este tour cuando quieras desde el menú de herramientas.',
     ],
+    'in_use_cannot_force_delete' => 'No se puede borrar definitivamente: tiene :count plan(es) de trabajo. Los planes quedarían sin su tipo.',
+    'restore_code_taken'  => 'No se puede restaurar: el código «:code» ya lo está usando otro tipo de trabajo. Cámbialo en el otro y vuelve a intentarlo.',
 ];

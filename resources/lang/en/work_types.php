@@ -124,4 +124,6 @@ return [
         'step5_title' => 'Need a refresher?',
         'step5_body'  => 'Reopen this tour whenever you like from the tools menu.',
     ],
+    'in_use_cannot_force_delete' => 'Cannot permanently delete: it has :count work plan(s). Those plans would be left without a type.',
+    'restore_code_taken'  => 'Cannot restore: the code «:code» is already used by another work type. Change it there and try again.',
 ];
