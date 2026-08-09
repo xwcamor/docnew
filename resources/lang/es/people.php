@@ -43,6 +43,10 @@ return [
     'roles_placeholder'    => 'Trabajador, Supervisor, Supervisor HSE…',
     'companies'            => 'Empresas',
     'companies_count'      => 'N° de empresas',
+    // Etiquetas del aviso de borrado: «3 firmas dependen de este registro».
+    'signatures_count'     => 'firmas',
+    'approvals_count'      => 'aprobaciones de planes',
+    'plans_count'          => 'planes de trabajo',
     'biometric'            => 'Rostro',
     'signatures'           => 'Firmas',
     'is_active'            => 'Estado',

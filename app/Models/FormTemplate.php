@@ -32,7 +32,7 @@ use Illuminate\Support\Str;
  */
 class FormTemplate extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable;
+    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable, \App\Traits\HasDependents;
 
     protected string $auditModule = 'form_templates';
 
@@ -52,6 +52,48 @@ class FormTemplate extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * Lo que cuelga del documento, para decirlo ANTES de pedir el motivo.
+     *
+     * La pantalla de borrado ya traía el bloque del aviso escrito —viene del
+     * molde— pero el modelo no implementaba esto y el controlador no lo pasaba,
+     * así que borrar el AST con cinco años de entregas detrás avisaba
+     * exactamente igual que borrar un documento recién creado: nada.
+     *
+     * Las dos primeras BLOQUEAN, y no por gusto: sus claves ajenas son
+     * `restrictOnDelete`, o sea que el borrado definitivo ya reventaba con un
+     * 23503 de Postgres. Un botón que falla al pulsarlo es peor que uno que no
+     * está (docs/UI.md §6).
+     *
+     * La tercera no bloquea pero avisa, que es lo importante: el pivote con los
+     * tipos de trabajo es `cascadeOnDelete`, así que borrar el documento
+     * **deja de exigirlo en todos los tipos que lo pedían, en silencio**. Es el
+     * mismo agujero que apareció por el otro lado en Tipos de trabajo.
+     */
+    public function dependents(): array
+    {
+        return [
+            'submissions' => [
+                'model' => FormSubmission::class,
+                'fk'    => 'form_template_id',
+                'label' => __('form_templates.submissions_count'),
+                'block' => true,
+            ],
+            'plans' => [
+                'table' => 'work_plan_form_templates',
+                'fk'    => 'form_template_id',
+                'label' => __('form_templates.plans_count'),
+                'block' => true,
+            ],
+            'work_types' => [
+                'table' => 'work_type_form_templates',
+                'fk'    => 'form_template_id',
+                'label' => __('form_templates.work_types_count'),
+                'block' => false,
+            ],
+        ];
     }
 
     public function creator(): BelongsTo

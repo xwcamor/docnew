@@ -32,7 +32,13 @@ use Illuminate\Support\Str;
  */
 class Brand extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable;
+    // `HasDependents` con la lista vacía a propósito: no hay ni una clave ajena
+    // que apunte a `brands`, así que al borrar no hay nada que avisar. Va igual
+    // para que el contrato sea el mismo que en sus hermanos —la pantalla de
+    // borrado llama a `countDependents()`— y para que el día que alguien le
+    // cuelgue una tabla, el sitio donde declararla ya esté aquí. Es el molde
+    // del generador: lo que falte aquí, falta en el próximo módulo.
+    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable, \App\Traits\HasDependents;
 
     protected string $auditModule = 'brands';
 

@@ -58,6 +58,10 @@ return [
     'code_help' => 'The short code it is known by (e.g. JSA, PTF, PPE, IHM).',
     'version'      => 'Version',
     'version_help' => 'Bumped automatically when a new version of a published document is issued. Anything already signed keeps the version it was filled in with.',
+    // Labels for the delete warning: «3 submissions depend on this record».
+    'submissions_count' => 'filled-in documents',
+    'plans_count'       => 'plans requesting it',
+    'work_types_count'  => 'work types requiring it',
     'is_active' => 'Status',
     'is_active_help' => 'If inactive, the document will not appear in selectors of other modules.',
     'requires_signature' => 'Needs a signature',

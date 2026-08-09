@@ -12,6 +12,13 @@ use Illuminate\Support\Facades\DB;
  *       'model' => Country::class, 'fk' => 'region_id',
  *       'label' => 'countries', 'block' => false,
  *   ]];
+ *
+ * Un pivote sin clase de modelo se declara con `table` en vez de `model`:
+ *
+ *   return ['work_types' => [
+ *       'table' => 'work_type_form_templates', 'fk' => 'form_template_id',
+ *       'label' => __('...'), 'block' => false,
+ *   ]];
  */
 trait HasDependents
 {
@@ -35,10 +42,15 @@ trait HasDependents
         $bindings   = [];
 
         foreach ($deps as $key => $cfg) {
-            $modelClass = $cfg['model'];
+            // `table` para los pivotes, que no tienen clase de modelo. Sin esto
+            // habia que inventar una, o caer en el respaldo de mas abajo
+            // —nombre de clase en minusculas mas una «s»— que para
+            // `work_type_form_templates` da `worktypeformtemplates` y consulta
+            // una tabla que no existe.
+            $modelClass = $cfg['model'] ?? null;
             $fk         = $cfg['fk'];
-            $table      = $this->getDependentsTable($modelClass);
-            $softDelete = method_exists($modelClass, 'bootSoftDeletes');
+            $table      = $cfg['table'] ?? $this->getDependentsTable($modelClass);
+            $softDelete = $modelClass !== null && method_exists($modelClass, 'bootSoftDeletes');
 
             $sql = "SELECT ? AS dep_key, COUNT(*) AS cnt FROM {$table} WHERE {$fk} = ?";
             if ($softDelete) {

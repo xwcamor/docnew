@@ -43,6 +43,10 @@ return [
     'roles_placeholder'    => 'Worker, Supervisor, HSE Supervisor…',
     'companies'            => 'Companies',
     'companies_count'      => 'Company count',
+    // Labels for the delete warning: «3 signatures depend on this record».
+    'signatures_count'     => 'signatures',
+    'approvals_count'      => 'plan approvals',
+    'plans_count'          => 'work plans',
     'biometric'            => 'Face',
     'signatures'           => 'Signatures',
     'is_active'            => 'Status',

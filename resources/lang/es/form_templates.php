@@ -68,6 +68,10 @@ return [
     'code_help' => 'La sigla corta con la que se le conoce (ej: AST, PTF, EPP, IHM).',
     'version'      => 'Versión',
     'version_help' => 'Sube sola cuando se saca una versión nueva de un documento ya publicado. Lo ya firmado conserva la versión con la que se llenó.',
+    // Etiquetas del aviso de borrado: «3 entregas dependen de este registro».
+    'submissions_count' => 'documentos ya llenados',
+    'plans_count'       => 'planes que lo piden',
+    'work_types_count'  => 'tipos de trabajo que lo exigen',
     'is_active' => 'Estado',
     'is_active_help' => 'Si está inactivo, el documento no aparecerá en los selectores de otros módulos.',
     'requires_signature' => 'Necesita firma',

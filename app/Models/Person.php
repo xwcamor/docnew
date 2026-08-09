@@ -24,7 +24,7 @@ use Illuminate\Support\Str;
  */
 class Person extends Model
 {
-    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable;
+    use HasFactory, SoftDeletes, Auditable, BelongsToTenantOrGlobal, HasFavorites, \App\Traits\Lockable, \App\Traits\HasDependents;
 
     protected string $auditModule = 'people';
 
@@ -44,6 +44,47 @@ class Person extends Model
     public function getRouteKeyName(): string
     {
         return 'slug';
+    }
+
+    /**
+     * Lo que cuelga de la persona, dicho ANTES de pedir el motivo del borrado.
+     *
+     * La pantalla ya traía el bloque del aviso escrito —viene del molde— pero
+     * el modelo no lo implementaba y el controlador no lo pasaba: dar de baja a
+     * alguien con cinco años de firmas detrás avisaba exactamente igual que dar
+     * de baja a alguien que se registró ayer.
+     *
+     * Las firmas y los planes BLOQUEAN: sus claves ajenas son
+     * `restrictOnDelete` y el borrado definitivo ya reventaba con un 23503.
+     *
+     * Las aprobaciones bloquean por un motivo distinto y peor: su clave es
+     * `nullOnDelete`, así que **no revienta** — borra en silencio quién aprobó
+     * el plan y deja la aprobación sin dueño. Eso es justo lo que un documento
+     * de seguridad tiene que conservar, y por eso es lo único de esta lista que
+     * no se puede permitir aunque la base lo permita.
+     */
+    public function dependents(): array
+    {
+        return [
+            'signatures' => [
+                'model' => SignatureEvent::class,
+                'fk'    => 'person_id',
+                'label' => __('people.signatures_count'),
+                'block' => true,
+            ],
+            'approvals' => [
+                'model' => WorkPlanApproval::class,
+                'fk'    => 'person_id',
+                'label' => __('people.approvals_count'),
+                'block' => true,
+            ],
+            'plans' => [
+                'model' => WorkPlanPerson::class,
+                'fk'    => 'person_id',
+                'label' => __('people.plans_count'),
+                'block' => true,
+            ],
+        ];
     }
 
     public function creator(): BelongsTo

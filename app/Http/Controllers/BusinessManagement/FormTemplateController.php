@@ -282,6 +282,9 @@ class FormTemplateController extends Controller
 
         return inertia('FormTemplates/Delete', [
             'formTemplate' => $this->payload($formTemplate),
+            // Entregas, planes que lo piden y tipos que lo exigen. La pantalla
+            // ya traía el bloque escrito y nunca recibía nada.
+            'dependents'   => $formTemplate->countDependents(),
         ]);
     }
 

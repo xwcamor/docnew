@@ -409,6 +409,11 @@ class PersonController extends Controller
 
         return inertia('People/Delete', [
             'person' => $this->payload($person),
+            // Lo que cuelga de la persona, dicho ANTES de pedir el motivo. La
+            // pantalla ya traía el bloque escrito y nunca recibía nada: dar de
+            // baja a alguien con cinco años de firmas avisaba exactamente igual
+            // que dar de baja a alguien que se registró ayer.
+            'dependents' => $person->countDependents(),
         ]);
     }
 
