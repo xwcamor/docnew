@@ -564,9 +564,15 @@ const toggleOnlyFavorites = () => {
                         <span v-else class="muted">—</span>
                     </template>
 
+                    <!-- Todos los perfiles con píldora, no sólo `admin`. La
+                         celda tenía el `admin` escrito a mano y dejaba a los
+                         demás en texto plano, así que en la misma columna
+                         convivían `admin` con pastilla y `super`, `api` o
+                         «Supervisor de obra» sueltos, como si fueran otra cosa.
+                         El color ya lo decidía `roleTagColor()`, que estaba
+                         escrito justo aquí arriba y no lo llamaba nadie. -->
                     <template v-else-if="column.key === 'role'">
-                        <Tag v-if="record.role === 'admin'" color="purple" :bordered="false">{{ record.role }}</Tag>
-                        <span v-else-if="record.role">{{ record.role }}</span>
+                        <Tag v-if="record.role" :color="roleTagColor(record.role)" :bordered="false">{{ record.role }}</Tag>
                         <span v-else class="muted">—</span>
                     </template>
 
