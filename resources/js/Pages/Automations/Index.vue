@@ -702,11 +702,3 @@ const tour = useModuleTour({ module: 'automations', steps: () => moduleTourSteps
     .hide-on-mobile { display: none !important; }
 }
 </style>
-
-<style>
-@media (max-width: 767.98px) {
-    .below-shell .content {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px) !important;
-    }
-}
-</style>

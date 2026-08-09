@@ -43,7 +43,16 @@ defineEmits(['discard', 'save']);
     position: sticky;
     bottom: 0;
     z-index: 5;
-    margin: 16px -24px 0;
+    /* Los dos margenes que la mantienen abajo; hacen falta LOS DOS:
+         · `auto` arriba, porque `.sap-form` es flex en columna con alto minimo
+           de pantalla: con pocas filas la pagina no scrollea, `sticky` no
+           tiene de que engancharse y la barra se quedaba a media pantalla.
+         · Negativo abajo, porque cuando SI scrollea `sticky` no puede salirse
+           de su caja y al final aterrizaba por encima del borde, con una
+           franja gris debajo. Aqui hay dos paddings que salvar —los 24px de
+           `.sap-form` y los 24px del contenedor—, de ahi el -48.
+       Es el mismo par que ya llevaba `.form-footer--floating`. */
+    margin: auto -24px -48px;
     padding: 10px 24px 14px;
     background: var(--color-surface, #fff);
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
@@ -53,7 +62,8 @@ defineEmits(['discard', 'save']);
 .edit-all-footer__status { color: var(--color-text-muted, #6A6D70); font-size: 0.84rem; }
 .edit-all-footer__actions { display: inline-flex; gap: 12px; margin-left: auto; }
 @media (max-width: 768px) {
-    .edit-all-footer { margin: 16px -16px 0; padding: 10px 16px 14px; flex-wrap: wrap; }
+    /* Aqui los dos paddings son de 16. */
+    .edit-all-footer { margin: auto -16px -32px; padding: 10px 16px 14px; flex-wrap: wrap; }
     .edit-all-footer__status { flex: 1 1 100%; }
     .edit-all-footer__actions { width: 100%; }
     .edit-all-footer__actions :deep(.ant-btn) { flex: 1 1 auto; }

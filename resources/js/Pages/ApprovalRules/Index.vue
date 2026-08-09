@@ -775,12 +775,3 @@ const goDelete = (record) => router.visit(route('business_management.approval_ru
 }
 </style>
 
-<style>
-/* Espacio inferior para el bottom-bar fijo (mobile). No-scoped: aplica al
-   layout shell. Igual que Regions. */
-@media (max-width: 767.98px) {
-    .below-shell .content {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px) !important;
-    }
-}
-</style>

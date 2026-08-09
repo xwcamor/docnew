@@ -207,6 +207,40 @@ class UiStandardTest extends TestCase
             . implode("\n", array_unique($sinRejilla)));
     }
 
+    /**
+     * Ningún índice reserva sitio abajo para la barra fija de móvil.
+     *
+     * Esa barra ya no existe: hoy la de acciones masivas es la misma franja
+     * blanca pegajosa en todas las pantallas. Pero 19 índices seguían con un
+     * `<style>` sin scope que empujaba el contenedor de la página 150px hacia
+     * arriba en móvil, y como la barra vive DENTRO de ese contenedor, se
+     * quedaba flotando a 134px del borde con un pastizal gris debajo.
+     *
+     * Es la clase de resto que nadie va a ver leyendo el diff de su módulo:
+     * está al final del archivo, fuera del `scoped`, y toca el layout de
+     * todos. Si vuelve a hacer falta reservar sitio abajo, que se ponga en el
+     * layout una vez, no copiado en cada índice.
+     */
+    public function test_ningun_indice_reserva_sitio_para_una_barra_que_ya_no_existe(): void
+    {
+        $conReserva = [];
+
+        foreach ($this->archivosVue() as $archivo) {
+            if (! str_ends_with($archivo, '/Index.vue')) {
+                continue;
+            }
+
+            if (preg_match('/\.below-shell\s+\.content\s*\{[^}]*padding-bottom/', file_get_contents($archivo))) {
+                $conReserva[] = str_replace(base_path() . '/', '', $archivo);
+            }
+        }
+
+        $this->assertSame([], $conReserva,
+            "Índices que empujan el layout hacia arriba para una barra fija que ya no existe.\n"
+            . "La barra de acciones masivas se queda flotando lejos del borde en móvil:\n  "
+            . implode("\n  ", $conReserva));
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     /** Claves de un archivo de idioma, aplanadas: 'a.b.c'. */

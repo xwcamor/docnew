@@ -752,11 +752,4 @@ html[data-theme="dark"] .grid-card .ant-table-thead > tr > th {
 html[data-theme="dark"] .pending-banner { color: #ffcf8a; border-color: rgba(255, 176, 74, 0.42); background: rgba(255, 176, 74, 0.14); }
 html[data-theme="dark"] .pending-banner__icon { color: #ffb04a; }
 html[data-theme="dark"] .lead__sub--pending { color: #ffb04a; }
-
-/* Espacio inferior para el bottom-bar fijo (mobile). Igual que Regions. */
-@media (max-width: 767.98px) {
-    .below-shell .content {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px) !important;
-    }
-}
 </style>

@@ -659,11 +659,3 @@ const tour = useModuleTour({ module: 'system_modules', steps: () => moduleTourSt
 }
 </style>
 
-<style>
-/* Espacio inferior para el bottom-bar fijo (mobile). */
-@media (max-width: 767.98px) {
-    .below-shell .content {
-        padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 150px) !important;
-    }
-}
-</style>

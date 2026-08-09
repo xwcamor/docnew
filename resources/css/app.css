@@ -1357,7 +1357,21 @@ html[data-theme="dark"] .lift:hover {
     display: flex; align-items: center; justify-content: space-between;
     gap: 12px; flex-wrap: wrap;
     position: sticky; bottom: 0; z-index: 6;
-    margin: 16px -24px 0; padding: 10px 24px 14px;
+    /* Los dos margenes que la mantienen abajo. Hacen falta LOS DOS, y cada uno
+       arregla un caso distinto — con uno solo se ve mal en el otro:
+         · `auto` arriba. `.sap-index` es flex en columna con `min-height` de
+           pantalla completa, asi que cuando la tabla es corta y la pagina NO
+           scrollea sobra hueco: la barra se quedaba justo debajo del card, a
+           media pantalla, con un pastizal gris debajo. `sticky` ahi no hace
+           nada, porque no hay scroll del que engancharse. El `auto` se come
+           ese hueco y la baja.
+         · Negativo abajo. Cuando SI scrollea, `sticky` no puede salirse de su
+           caja: la barra es el ultimo hijo y `.sap-index` padea 24px, asi que
+           al llegar al final aterrizaba 24px por encima del borde y **se
+           despegaba**. Va pegada todo el scroll y se suelta justo al final,
+           que es cuando mas raro se ve.
+       Es el mismo par que ya llevaba `.form-footer--floating`. */
+    margin: auto -24px -24px; padding: 10px 24px 14px;
     background: var(--color-surface, #fff);
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
     border-top: 1px solid var(--color-border-soft, #eceff2);
@@ -1367,7 +1381,8 @@ html[data-theme="dark"] .lift:hover {
 .bulk-bar__label strong { color: var(--color-primary); font-weight: 600; }
 @media (max-width: 768px) {
     .bulk-bar {
-        margin: 16px -16px 0;
+        /* Aqui el contenedor padea 16, no 24. */
+        margin: auto -16px -16px;
         padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
         flex-wrap: nowrap;
     }
