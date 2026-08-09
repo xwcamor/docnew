@@ -538,8 +538,15 @@ const tour = useModuleTour({ module: 'countries', steps: () => moduleTourSteps(t
                         {{ record.region?.name ?? '—' }}
                     </template>
 
+                    <!-- La columna se llama «Idioma por defecto»: enseñar solo
+                         `es_PE` obligaba a saber leer códigos BCP-47. Va el nombre,
+                         con el código de apoyo. -->
                     <template v-else-if="column.key === 'default_locale'">
-                        {{ record.default_locale?.code ?? '—' }}
+                        <template v-if="record.default_locale">
+                            {{ record.default_locale.name }}
+                            <code class="loc-code">{{ record.default_locale.code }}</code>
+                        </template>
+                        <template v-else>—</template>
                     </template>
 
                     <CountriesActionsCell
@@ -626,6 +633,7 @@ const tour = useModuleTour({ module: 'countries', steps: () => moduleTourSteps(t
 }
 
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; }
+.loc-code { font-size: 0.72rem; color: var(--color-text-muted); white-space: nowrap; }
 
 /* ── Remaster del index (tabla tipo SaaS) ───────────────────────────── */
 .bidx-toolbar { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }

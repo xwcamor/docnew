@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import { Button, Card, Pagination, Alert } from 'ant-design-vue';
-import { SaveOutlined, UndoOutlined, EditOutlined, TranslationOutlined } from '@ant-design/icons-vue';
+import { TranslationOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';

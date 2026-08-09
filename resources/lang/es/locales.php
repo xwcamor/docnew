@@ -27,9 +27,14 @@ return [
     'code'            => 'Código',
     'code_help'       => 'Código BCP-47: 2 letras minúsculas y opcionalmente _ y 2 mayúsculas (es, es_PE, en_US).',
     'language'        => 'Idioma',
-    'language_help'   => 'Idioma maestro al que pertenece este dialecto regional. Solo se listan idiomas activos.',
+    'language_help'   => 'Idioma maestro al que pertenece esta variante regional. Solo se listan idiomas activos.',
     'is_active'       => 'Estado',
     'is_active_help'  => 'Si está inactivo, el locale no aparecerá en los selectores de país ni de usuario.',
+
+    // Visible bajo el campo, no en el tooltip: es el eslabón del medio de la
+    // cadena país → locale → idioma que decide el idioma del PDF de un formato
+    // firmado (App\Services\FieldWork\FormSubmissionPdfService).
+    'language_notice' => 'Es el idioma en que salen los PDF firmados de los países que usen este locale.',
 
     'code_placeholder'     => 'es_PE',
     'language_placeholder' => 'Seleccionar idioma',

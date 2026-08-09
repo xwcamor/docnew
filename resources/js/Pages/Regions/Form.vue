@@ -57,15 +57,18 @@ const submit = () => {
                     class="mb-4"
                 />
 
-                <!-- Layout grid: col-12 (24 en Ant) en mobile, distribuye en
-                     desktop. Patrón a clonar para módulos con más campos: cada
-                     FormItem en su <Col> con span responsive (xs=24 stack,
-                     md=12 dos columnas, lg=8 tres columnas, etc.). -->
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="16">
+                <!-- `form-grid` es obligatorio para que las columnas se respeten:
+                     app.css aplana con !important toda fila que no la lleve, y el
+                     formulario se pintaba apilado aunque el template dijera dos
+                     columnas. El corte es `lg` (992) a proposito — en tablet
+                     vertical se apila. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="16">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('regions.name')"
                             :tooltip="$t('regions.name_help')"
                             required
@@ -83,8 +86,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col v-if="isEdit" :xs="24" :md="8">
+                    <Col v-if="isEdit" :xs="24" :lg="8">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 10 }"
+                            :wrapper-col="{ xs: 24, sm: 14 }"
                             :label="$t('regions.is_active')"
                             :tooltip="$t('regions.is_active_help')"
                             :validate-status="form.errors.is_active ? 'error' : ''"

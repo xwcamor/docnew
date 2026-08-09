@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import {
     Card, Tag, Space, Alert,
 } from 'ant-design-vue';
-import { GlobalOutlined, ReadOutlined } from '@ant-design/icons-vue';
+import { ReadOutlined } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);

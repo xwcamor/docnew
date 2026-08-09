@@ -13,7 +13,14 @@ const props = defineProps({
     dependents: { type: Object, default: () => ({}) },
 });
 
-const hasDependents = computed(() => Object.keys(props.dependents).length > 0);
+// Los dependientes vienen partidos en dos: los que IMPIDEN el borrado y los que
+// solo avisan. Antes se pintaban todos igual y el boton quedaba activo, asi que
+// el usuario escribia el motivo, pulsaba «Eliminar» y recibia un error generico.
+// Un boton que falla al pulsarlo es peor que un boton deshabilitado que explica
+// por que (docs/UI.md §6).
+const blocking = computed(() => Object.entries(props.dependents).filter(([, d]) => d.block));
+const warning  = computed(() => Object.entries(props.dependents).filter(([, d]) => !d.block));
+const blocked  = computed(() => blocking.value.length > 0);
 
 const form = useForm({
     deleted_description: '',
@@ -36,15 +43,27 @@ const submit = () => {
         v-model="form.deleted_description"
         :error="form.errors.deleted_description"
         :processing="form.processing"
+        :disabled="blocked"
         @submit="submit"
     >
         <template #warning>
-            <Alert v-if="hasDependents" type="error" show-icon class="del-mb">
+            <Alert v-if="blocked" type="error" show-icon class="del-mb">
+                <template #message>{{ $t('global.cannot_delete_has_dependents') }}</template>
+                <template #description>
+                    <ul class="dependents-list">
+                        <li v-for="([key, d]) in blocking" :key="key">
+                            {{ $tc('global.has_dependents_detail', d.count, { count: d.count, label: d.label }) }}
+                        </li>
+                    </ul>
+                </template>
+            </Alert>
+
+            <Alert v-if="warning.length" type="warning" show-icon class="del-mb">
                 <template #message>{{ $t('global.has_dependents_warning') }}</template>
                 <template #description>
                     <ul class="dependents-list">
-                        <li v-for="(d, key) in dependents" :key="key">
-                            {{ $t('global.has_dependents_detail', { count: d.count, label: d.label }) }}
+                        <li v-for="([key, d]) in warning" :key="key">
+                            {{ $tc('global.has_dependents_detail', d.count, { count: d.count, label: d.label }) }}
                         </li>
                     </ul>
                     <p class="dependents-note">{{ $t('global.has_dependents_proceed') }}</p>

@@ -29,6 +29,8 @@ return [
     'is_active'       => 'Status',
     'is_active_help'  => 'If inactive, the locale will not appear in country or user selectors.',
 
+    'language_notice' => 'This is the language signed PDFs come out in for any country using this locale.',
+
     'code_placeholder'     => 'es_PE',
     'language_placeholder' => 'Select language',
 

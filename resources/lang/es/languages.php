@@ -28,7 +28,18 @@ return [
     'iso_code'        => 'Código ISO',
     'iso_code_help'   => 'ISO 639-1 (es) o BCP-47 short (es_AR)',
     'is_active'       => 'Estado',
-    'is_active_help'  => 'Si está inactivo, el idioma no se podrá asignar a nuevos locales ni usuarios.',
+    'is_active_help'  => 'Si está inactivo, el idioma no se podrá asignar a nuevos locales ni usuarios, y desaparece del selector de idioma de la aplicación.',
+
+    // Estos dos avisos van VISIBLES bajo el campo, no en el tooltip: en una
+    // tablet, con guantes, el tooltip no se abre.
+    //   - El código ISO no es decorativo: la aplicación solo tiene textos en
+    //     `es` y `en` (resources/lang). Un idioma con otro código se puede dar
+    //     de alta, pero los PDF de los países que lo usen saldrán en el idioma
+    //     de quien los descargue (ver FormSubmissionPdfService::idiomaDelPlan).
+    //   - El estado tampoco: HandleInertiaRequests::buildAvailableLocales cruza
+    //     los idiomas activos con los soportados para armar el selector.
+    'iso_code_notice'  => 'Solo hay textos para «es» e «inglés (en)». Con otro código el idioma se guarda, pero los documentos saldrán en el idioma de quien los descargue.',
+    'is_active_notice' => 'Al desactivarlo desaparece del selector de idioma de la aplicación.',
 
     // Table headers for live edit
     'table_headers' => [

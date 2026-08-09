@@ -27,32 +27,40 @@ return [
     'currency'        => 'Moneda',
     'timezone'        => 'Zona horaria',
     'region'          => 'Región',
-    'default_locale'  => 'Locale por defecto',
+    'default_locale'  => 'Idioma por defecto',
     'is_active'       => 'Estado',
 
     'iso_code_placeholder' => 'PE',
     'currency_placeholder' => 'PEN',
     'timezone_placeholder' => 'America/Lima',
     'region_placeholder'   => 'Seleccionar región',
-    'default_locale_placeholder' => 'Seleccionar locale',
+    'default_locale_placeholder' => 'Seleccionar idioma',
 
     // Form field helpers
     'name_help'           => 'Nombre del país tal como aparecerá en listados y reportes.',
     'iso_code_help'       => 'Código ISO 3166-1 alpha-2 de dos letras mayúsculas (PE, BR, US).',
     'currency_help'       => 'Moneda oficial en formato ISO 4217 alpha-3 (PEN, USD, EUR).',
     'region_help'         => 'Región geográfica a la que pertenece el país. Solo se listan regiones activas.',
-    'default_locale_help' => 'Locale que se usa por defecto para usuarios de este país (idioma y formato regional).',
-    'timezone_help'       => 'Zona horaria principal del país en formato IANA (ej. America/Lima).',
+    'default_locale_help' => 'Idioma y formato regional del país. Es el idioma en que se emiten los PDF de los formatos firmados en este país.',
+    'timezone_help'       => 'Zona horaria principal del país en formato IANA (ej. America/Lima). Con ella se muestran las fechas a quien no tiene zona propia.',
     'is_active_help'      => 'Si está inactivo, no se podrá asignar a nuevos usuarios ni workspaces.',
+
+    // El idioma del país no es una preferencia de pantalla: FormSubmissionPdfService
+    // cambia el locale de la petición al del país del plan antes de renderizar el
+    // PDF. Un AST hecho en Perú sale en español aunque quien lo descargue tenga la
+    // aplicación en inglés. Por eso el aviso va visible en la ficha y en el
+    // formulario, no escondido en un tooltip que en tablet no se puede abrir.
+    'default_locale_notice' => 'El PDF de un formato firmado sale en este idioma, no en el de quien lo descarga.',
+    'default_locale_missing'=> 'Sin idioma por defecto: los PDF de este país saldrán en el idioma de quien los descargue.',
 
     // Table headers for live edit
     'table_headers' => [
         'editable_name'           => 'Nombre (editable)',
         'editable_iso_code'       => 'ISO (editable)',
         'editable_currency'       => 'Moneda (editable)',
-        'editable_timezone'       => 'Timezone (editable)',
+        'editable_timezone'       => 'Zona horaria (editable)',
         'editable_region'         => 'Región (editable)',
-        'editable_default_locale' => 'Locale (editable)',
+        'editable_default_locale' => 'Idioma (editable)',
         'editable_status'         => 'Estado (editable)',
     ],
 
@@ -82,8 +90,8 @@ return [
     'region_required'         => 'La región es obligatoria.',
     'region_invalid'          => 'La región seleccionada no existe o está inactiva.',
 
-    'default_locale_required' => 'El locale por defecto es obligatorio.',
-    'default_locale_invalid'  => 'El locale seleccionado no existe o está inactivo.',
+    'default_locale_required' => 'El idioma por defecto es obligatorio.',
+    'default_locale_invalid'  => 'El idioma seleccionado no existe o está inactivo.',
 
     'is_active_required'      => 'El campo estado es obligatorio.',
 
@@ -101,7 +109,7 @@ return [
     // Onboarding tour
     'tour' => [
         'step1_title' => 'Bienvenido a Países',
-        'step1_body'  => 'Catálogo maestro de países con código ISO, moneda, zona horaria y región. Te mostramos los puntos clave en menos de 1 minuto.',
+        'step1_body'  => 'Catálogo maestro de países: código ISO, moneda, zona horaria, región e idioma por defecto — el idioma en que salen los PDF de los formatos firmados allí. Te mostramos los puntos clave en menos de 1 minuto.',
         'step2_title' => 'Filtros',
         'step2_body'  => 'Busca y filtra por nombre, código ISO, moneda, región, estado e ID. Los filtros activos aparecen como chips arriba.',
         'step3_title' => 'Vistas guardadas',

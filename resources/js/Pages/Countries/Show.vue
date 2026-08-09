@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/vue3';
 import {
     Card, Tag, Space, Alert,
 } from 'ant-design-vue';
-import { GlobalOutlined, FlagOutlined } from '@ant-design/icons-vue';
+import { FlagOutlined } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.extend(relativeTime);
@@ -128,14 +128,21 @@ const lastUpdatedRel = computed(() => props.country.updated_at ? dayjs(props.cou
                             <span class="spec-cell__label">{{ $t('countries.region') }}</span>
                             <span class="spec-cell__value">{{ country.region?.name ?? '—' }}</span>
                         </div>
-                        <div class="spec-cell">
+                        <!-- El idioma manda sobre el PDF del formato firmado: por
+                             eso lleva la coletilla debajo y no se queda en un
+                             código suelto («es_PE») que no dice nada de lo que
+                             hace. Ver FormSubmissionPdfService. -->
+                        <div class="spec-cell spec-cell--wide">
                             <span class="spec-cell__label">{{ $t('countries.default_locale') }}</span>
                             <span class="spec-cell__value">
                                 <template v-if="country.default_locale">
-                                    <code>{{ country.default_locale.code }}</code>
-                                    <span class="muted ml-1">— {{ country.default_locale.name }}</span>
+                                    {{ country.default_locale.name }}
+                                    <code class="ml-1">{{ country.default_locale.code }}</code>
+                                    <span class="pdf-note">{{ $t('countries.default_locale_notice') }}</span>
                                 </template>
-                                <template v-else>—</template>
+                                <template v-else>
+                                    <span class="pdf-note pdf-note--warn">{{ $t('countries.default_locale_missing') }}</span>
+                                </template>
                             </span>
                         </div>
                         <div class="spec-cell">
@@ -170,4 +177,13 @@ const lastUpdatedRel = computed(() => props.country.updated_at ? dayjs(props.cou
 .info-card { margin-bottom: 16px; border-radius: 6px; }
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; margin-left: 4px; }
 .ml-1 { margin-left: 4px; }
+/* Coletilla del idioma: en línea aparte, para que se lea sin pasar el ratón. */
+.pdf-note {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: var(--color-text-muted);
+}
+.pdf-note--warn { color: var(--color-danger, #bb0000); font-weight: 600; }
 </style>

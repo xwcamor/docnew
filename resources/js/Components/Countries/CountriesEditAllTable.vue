@@ -3,6 +3,8 @@
  * Tabla editable in-line del flujo Edit-All. Recibe `draft` por v-model y
  * predicados isDirty/isDuplicate del composable useEditAllDraft.
  */
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { Input, Switch, Select } from 'ant-design-vue';
 
 const props = defineProps({
@@ -13,6 +15,15 @@ const props = defineProps({
 });
 
 const draft = defineModel('draft', { type: Array, required: true });
+
+// La zona horaria era una caja de texto libre: cualquier dedazo se guardaba y
+// después reventaba en toda la aplicación (ver EditAllUpdateRequest). Aquí se
+// elige de la misma lista IANA que en el formulario, así el error no se puede
+// ni escribir; la validación del servidor queda como red de atrás.
+const page = usePage();
+const tzOptions = computed(() =>
+    (page.props.tz?.available ?? []).map(tz => ({ value: tz, label: tz })),
+);
 </script>
 
 <template>
@@ -63,7 +74,14 @@ const draft = defineModel('draft', { type: Array, required: true });
                     />
                 </td>
                 <td class="col-tz">
-                    <Input v-model:value="row.timezone" size="small" />
+                    <Select
+                        v-model:value="row.timezone"
+                        :options="tzOptions"
+                        size="small"
+                        show-search
+                        option-filter-prop="label"
+                        style="min-width: 170px;"
+                    />
                 </td>
                 <td class="col-region">
                     <Select

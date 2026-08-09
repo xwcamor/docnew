@@ -61,9 +61,16 @@ const submit = () => {
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
 
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="12">
+                <!-- `form-grid` es obligatorio para que las columnas se respeten:
+                     app.css aplana con !important toda fila que no la lleve, y el
+                     formulario se pintaba apilado aunque el template dijera dos
+                     columnas. El corte es `lg` (992) a proposito — en tablet
+                     vertical se apila. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('locales.name')"
                             :tooltip="$t('locales.name_help')"
                             required
@@ -81,8 +88,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="12" :md="6">
+                    <Col :xs="12" :lg="6">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 10 }"
+                            :wrapper-col="{ xs: 24, sm: 14 }"
                             :label="$t('locales.code')"
                             :tooltip="$t('locales.code_help')"
                             required
@@ -98,13 +107,15 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="12">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('locales.language')"
                             :tooltip="$t('locales.language_help')"
                             required
                             :validate-status="form.errors.language_id ? 'error' : ''"
-                            :help="form.errors.language_id"
+                            :help="form.errors.language_id || $t('locales.language_notice')"
                         >
                             <Select
                                 v-model:value="form.language_id"
@@ -117,8 +128,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col v-if="isEdit" :xs="24" :md="6">
+                    <Col v-if="isEdit" :xs="24" :lg="6">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 10 }"
+                            :wrapper-col="{ xs: 24, sm: 14 }"
                             :label="$t('locales.is_active')"
                             :tooltip="$t('locales.is_active_help')"
                             :validate-status="form.errors.is_active ? 'error' : ''"

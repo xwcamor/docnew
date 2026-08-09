@@ -41,18 +41,34 @@ class Country extends Model
 
     /**
      * Modelos con FK apuntando aquí. block=true bloquea el delete; false solo
-     * muestra warning. users.country_id bloquea porque users vive ahí; el resto
-     * son advertencias o cascades.
+     * muestra warning.
+     *
+     * Aquí solo figuraba `users`, y la pantalla de eliminar decía «sin datos
+     * relacionados» para un país del que cuelga toda la operación. Todas estas
+     * tablas llevan `country_id ... restrictOnDelete`, así que el borrado
+     * definitivo revienta con un 23503 de Postgres; y el soft-delete, aunque la
+     * base lo permita, deja los planes sin país: `WorkPlan::country()` es un
+     * belongsTo normal, con el país eliminado devuelve null y el PDF del formato
+     * firmado pierde su idioma (ver FormSubmissionPdfService). Por eso bloquean.
+     *
+     * Las etiquetas van traducidas: el listado las pinta tal cual y salían en
+     * inglés («3 users están vinculados a este registro»).
      */
     public function dependents(): array
     {
+        $dep = fn (string $model, string $label) => [
+            'model' => $model,
+            'fk'    => 'country_id',
+            'label' => $label,
+            'block' => true,
+        ];
+
         return [
-            'users' => [
-                'model' => \App\Models\User::class,
-                'fk'    => 'country_id',
-                'label' => 'users',
-                'block' => true,
-            ],
+            'users'          => $dep(\App\Models\User::class,         __('users.records')),
+            'work_plans'     => $dep(\App\Models\WorkPlan::class,     __('work_plans.records')),
+            'form_templates' => $dep(\App\Models\FormTemplate::class, __('form_templates.records')),
+            'people'         => $dep(\App\Models\Person::class,       __('people.records')),
+            'companies'      => $dep(\App\Models\Company::class,      __('companies.records')),
         ];
     }
 

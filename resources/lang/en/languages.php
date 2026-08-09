@@ -26,7 +26,10 @@ return [
     'iso_code'        => 'ISO code',
     'iso_code_help'   => 'ISO 639-1 (es) or BCP-47 short (es_AR)',
     'is_active'       => 'Status',
-    'is_active_help'  => 'If inactive, the language cannot be assigned to new locales or users.',
+    'is_active_help'  => 'If inactive, the language cannot be assigned to new locales or users, and it disappears from the application language picker.',
+
+    'iso_code_notice'  => 'Only "es" and "en" ship translated texts. Another code is still saved, but documents will come out in the downloader\'s language.',
+    'is_active_notice' => 'Turning it off removes it from the application language picker.',
 
     'table_headers' => [
         'editable_name'     => 'Name (editable)',

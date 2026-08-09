@@ -193,7 +193,7 @@ class LocaleController extends Controller
                     ->with('user:id,name,email')
                     ->orderByDesc('created_at')
                     ->limit(20)
-                    ->get(['id', 'user_id', 'event', 'old_values', 'new_values', 'created_at'])
+                    ->get(['id', 'user_id', 'event', 'auditable_type', 'old_values', 'new_values', 'created_at'])
             )->resolve()
             : [];
 
@@ -353,8 +353,9 @@ class LocaleController extends Controller
 
     public function deleteSave(DeleteRequest $request, Locale $locale, LocaleService $service)
     {
-        // Para Locale/countries block=false → no bloquea aquí. El patrón sirve
-        // para módulos donde sí cuente (ej. doctors con appointments futuros).
+        // Aquí SÍ bloquea: usuarios y países apuntan al locale (ver
+        // Locale::dependents). La pantalla de eliminar ya deshabilita el botón
+        // con el mismo criterio; esto es la red de atrás.
         if ($locale->hasBlockingDependents()) {
             return back()->with('error', __('global.cannot_delete_has_dependents'));
         }

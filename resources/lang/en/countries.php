@@ -27,23 +27,28 @@ return [
     'currency'        => 'Currency',
     'timezone'        => 'Timezone',
     'region'          => 'Region',
-    'default_locale'  => 'Default locale',
+    'default_locale'  => 'Default language',
     'is_active'       => 'Status',
 
     'iso_code_placeholder' => 'PE',
     'currency_placeholder' => 'PEN',
     'timezone_placeholder' => 'America/Lima',
     'region_placeholder'   => 'Select region',
-    'default_locale_placeholder' => 'Select locale',
+    'default_locale_placeholder' => 'Select language',
 
     // Form field helpers
     'name_help'           => 'Country name as it will appear in lists and reports.',
     'iso_code_help'       => 'ISO 3166-1 alpha-2 two-letter uppercase code (PE, BR, US).',
     'currency_help'       => 'Official currency in ISO 4217 alpha-3 format (PEN, USD, EUR).',
     'region_help'         => 'Geographic region the country belongs to. Only active regions are listed.',
-    'default_locale_help' => 'Locale used by default for users from this country (language and regional format).',
-    'timezone_help'       => 'Primary timezone of the country in IANA format (e.g. America/Lima).',
+    'default_locale_help' => 'Language and regional format of the country. Signed form PDFs for this country are issued in this language.',
+    'timezone_help'       => 'Primary timezone of the country in IANA format (e.g. America/Lima). Dates are shown in it to anyone without their own timezone.',
     'is_active_help'      => 'If inactive, it cannot be assigned to new users or workspaces.',
+
+    // A country's language is not a screen preference: FormSubmissionPdfService
+    // switches the request locale to the plan's country before rendering the PDF.
+    'default_locale_notice' => 'A signed form PDF comes out in this language, not in the language of whoever downloads it.',
+    'default_locale_missing'=> 'No default language: PDFs for this country will come out in the downloader\'s language.',
 
     'table_headers' => [
         'editable_name'           => 'Name (editable)',
@@ -51,7 +56,7 @@ return [
         'editable_currency'       => 'Currency (editable)',
         'editable_timezone'       => 'Timezone (editable)',
         'editable_region'         => 'Region (editable)',
-        'editable_default_locale' => 'Locale (editable)',
+        'editable_default_locale' => 'Language (editable)',
         'editable_status'         => 'Status (editable)',
     ],
 
@@ -79,8 +84,8 @@ return [
     'region_required'         => 'The region is required.',
     'region_invalid'          => 'The selected region does not exist or is inactive.',
 
-    'default_locale_required' => 'The default locale is required.',
-    'default_locale_invalid'  => 'The selected locale does not exist or is inactive.',
+    'default_locale_required' => 'The default language is required.',
+    'default_locale_invalid'  => 'The selected language does not exist or is inactive.',
 
     'is_active_required'      => 'The status field is required.',
 
@@ -96,7 +101,7 @@ return [
 
     'tour' => [
         'step1_title' => 'Welcome to Countries',
-        'step1_body'  => 'Master catalog of countries with ISO code, currency, timezone and region. We will show the key points in under a minute.',
+        'step1_body'  => 'Master catalog of countries: ISO code, currency, timezone, region and default language — the language signed form PDFs come out in. We will show the key points in under a minute.',
         'step2_title' => 'Filters',
         'step2_body'  => 'Search and filter by name, ISO code, currency, region, status and ID. Active filters appear as chips above.',
         'step3_title' => 'Saved views',
@@ -110,7 +115,7 @@ return [
         'step7_title' => 'Favorites ★',
         'step7_body'  => 'The star ★ marks a row as a favorite. Favorites always show at the top of the list; each user has their own.',
         'step8_title' => 'Bulk operations',
-        'step8_body'  => 'Select rows with the checkboxes — a bar appears to activate, deactivate, deactivate, delete or restore.',
+        'step8_body'  => 'Select rows with the checkboxes — a bar appears to activate, deactivate, delete or restore.',
         'step9_title' => 'Need a refresher?',
         'step9_body'  => 'Reopen this tour anytime with the ? button. You also have "Recent" in the avatar menu.',
         'step10_title' => 'Trash',

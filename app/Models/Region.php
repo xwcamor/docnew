@@ -45,7 +45,9 @@ class Region extends Model
             'countries' => [
                 'model' => \App\Models\Country::class,
                 'fk'    => 'region_id',
-                'label' => 'countries',
+                // Traducido: la pantalla de eliminar pinta la etiqueta tal cual y
+                // salía en inglés («2 countries están vinculados a este registro»).
+                'label' => __('countries.records'),
                 'block' => false,
             ],
         ];

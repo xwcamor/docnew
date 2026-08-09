@@ -1,10 +1,10 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import {
     Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
 } from 'ant-design-vue';
-import { GlobalOutlined, FlagOutlined } from '@ant-design/icons-vue';
+import { FlagOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -30,21 +30,15 @@ const form = useForm({
     is_active:         props.country?.is_active ?? true,
 });
 
-// Lista corta de timezones — el backend valida contra DateTimeZone::listIdentifiers() así
-// que cualquier valor IANA pega. Mostramos los más comunes en el dropdown y permitimos
-// custom para casos raros (mode="combobox").
-const COMMON_TIMEZONES = [
-    'UTC',
-    'America/Lima', 'America/Caracas', 'America/Bogota', 'America/Sao_Paulo',
-    'America/Santiago', 'America/Argentina/Buenos_Aires', 'America/Mexico_City',
-    'America/New_York', 'America/Los_Angeles',
-    'Europe/Madrid', 'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'Europe/Rome',
-    'Asia/Tokyo', 'Asia/Shanghai', 'Asia/Dubai', 'Asia/Kolkata',
-    'Australia/Sydney', 'Pacific/Auckland',
-];
+const page = usePage();
 
+// La lista completa de zonas IANA ya viaja como prop compartida (`tz.available`,
+// la misma que usan Perfil y Espacios de trabajo). Aquí había en su lugar una
+// lista escrita a mano de 21 entradas, y el desplegable NO era libre: para dar de
+// alta Ecuador (America/Guayaquil) o Bolivia (America/La_Paz) no había opción y
+// había que elegir una zona equivocada. El backend siempre aceptó cualquier IANA.
 const tzOptions = computed(() =>
-    COMMON_TIMEZONES.map(tz => ({ value: tz, label: tz }))
+    (page.props.tz?.available ?? []).map(tz => ({ value: tz, label: tz })),
 );
 
 const submit = () => {
@@ -81,10 +75,16 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="12">
+                <!-- `form-grid` es obligatorio para que las columnas se respeten:
+                     app.css aplana con !important toda fila que no la lleve, y este
+                     formulario se pintaba como una tira vertical de siete campos
+                     aunque el template dijera dos columnas. El corte es `lg` (992)
+                     a propósito — en tablet vertical se apila. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('countries.name')"
                             :tooltip="$t('countries.name_help')"
                             required
@@ -102,8 +102,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="12" :md="6">
+                    <Col :xs="12" :lg="6">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 10 }"
+                            :wrapper-col="{ xs: 24, sm: 14 }"
                             :label="$t('countries.iso_code')"
                             :tooltip="$t('countries.iso_code_help')"
                             required
@@ -120,8 +122,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="12" :md="6">
+                    <Col :xs="12" :lg="6">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 10 }"
+                            :wrapper-col="{ xs: 24, sm: 14 }"
                             :label="$t('countries.currency')"
                             :tooltip="$t('countries.currency_help')"
                             required
@@ -138,8 +142,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="12">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('countries.region')"
                             :tooltip="$t('countries.region_help')"
                             required
@@ -157,13 +163,20 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="12">
+                    <!-- El idioma NO es un adorno: el PDF de un formato firmado se
+                         emite en el idioma del pais del plan, no en el de quien lo
+                         descarga (App\Services\FieldWork\FormSubmissionPdfService).
+                         El aviso va debajo del campo, visible: un tooltip en una
+                         tablet con guantes no se abre. -->
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('countries.default_locale')"
                             :tooltip="$t('countries.default_locale_help')"
                             required
                             :validate-status="form.errors.default_locale_id ? 'error' : ''"
-                            :help="form.errors.default_locale_id"
+                            :help="form.errors.default_locale_id || $t('countries.default_locale_notice')"
                         >
                             <Select
                                 v-model:value="form.default_locale_id"
@@ -176,8 +189,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="isEdit ? 16 : 24">
+                    <Col :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('countries.timezone')"
                             :tooltip="$t('countries.timezone_help')"
                             required
@@ -195,8 +210,10 @@ const submit = () => {
                         </FormItem>
                     </Col>
 
-                    <Col v-if="isEdit" :xs="24" :md="8">
+                    <Col v-if="isEdit" :xs="24" :lg="12">
                         <FormItem
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
                             :label="$t('countries.is_active')"
                             :tooltip="$t('countries.is_active_help')"
                             :validate-status="form.errors.is_active ? 'error' : ''"
