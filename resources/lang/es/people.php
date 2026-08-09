@@ -143,4 +143,5 @@ return [
         'step9_title' => '¿Necesitas un repaso?',
         'step9_body'  => 'Reabre este tour cuando quieras con el botón ? aquí arriba. También tienes "Recientes" en el menú del avatar — los últimos registros que viste en cualquier módulo.',
     ],
+    'bulk_skipped_in_use'  => ':count no se pudo(ieron) dar de baja: tiene(n) planes, firmas o aprobaciones. Desactívala(s) en su lugar.',
 ];

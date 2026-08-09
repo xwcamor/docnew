@@ -420,6 +420,14 @@ class PersonController extends Controller
 
     public function deleteSave(DeletePersonRequest $request, Person $person, PersonService $service): RedirectResponse
     {
+        // `Person::dependents()` marca firmas, aprobaciones y planes con
+        // `block => true` desde el principio, y aqui no lo miraba nadie: se podia
+        // dar de baja a alguien con cinco anos de firmas sin un solo aviso. Y
+        // luego el borrado definitivo chocaba con la FK y salia un 500.
+        if ($person->hasBlockingDependents()) {
+            return back()->with('error', __('global.cannot_delete_has_dependents'));
+        }
+
         $service->delete($person, $request->validated()['deleted_description']);
 
         $this->storeUndoableDelete([$person->id]);
@@ -842,16 +850,19 @@ class PersonController extends Controller
             return response()->json([
                 'ok'      => false,
                 'dry_run' => $dryRun,
-                'message' => __('people.import_super_blocked', [], 'Super sin workspace asignado no puede importar — el match por nombre puede actualizar registros de otro tenant.'),
+                'message' => __('people.import_super_blocked'),
             ], 422);
         }
 
-        $importer = new \App\Imports\BusinessManagement\People\PeopleImport(
-            mode:   $mode,
-            dryRun: $dryRun,
-        );
-
+        // El importador se construye DENTRO del try: su constructor consulta la
+        // base (tipos de documento del pais) y si algo falla ahi, fuera del try
+        // subia sin capturar y el usuario veia un 500 en vez del 422 con motivo.
         try {
+            $importer = new \App\Imports\BusinessManagement\People\PeopleImport(
+                mode:   $mode,
+                dryRun: $dryRun,
+            );
+
             \Maatwebsite\Excel\Facades\Excel::import($importer, $data['file']);
         } catch (\Throwable $e) {
             \Log::error('PeopleImport failed', [
@@ -925,9 +936,19 @@ class PersonController extends Controller
         }
 
         $deletedIds = $result['deleted'];
+        $enUsoIds   = $result['in_use'] ?? [];
+
+        // Ninguna se pudo borrar: es un aviso, no un exito con cero.
+        if (empty($deletedIds)) {
+            return back()->with('error', __('people.bulk_skipped_in_use', ['count' => count($enUsoIds)]));
+        }
+
         $this->storeUndoableDelete($deletedIds);
 
         $msg = __('global.deleted_success') . ' (' . count($deletedIds) . ')';
+        if (!empty($enUsoIds)) {
+            $msg .= ' · ' . __('people.bulk_skipped_in_use', ['count' => count($enUsoIds)]);
+        }
         if (!empty($lockedIds)) {
             $msg .= ' · ' . __('locks.bulk_skipped_locked', ['count' => count($lockedIds)]);
         }

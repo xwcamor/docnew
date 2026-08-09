@@ -2,9 +2,9 @@
 
 namespace Tests\Feature\BusinessManagement;
 
-use App\Jobs\BusinessManagement\Companies\GenerateCompaniesCsvJob;
-use App\Models\Company;
+use App\Jobs\BusinessManagement\People\GeneratePeopleCsvJob;
 use App\Models\Download;
+use App\Models\Person;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
@@ -16,15 +16,20 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * La exportacion respeta el workspace.
+ * La exportacion de personas respeta el workspace.
  *
- * El listado en pantalla lo respeta solo: lo hace el scope global del modelo,
- * que necesita un usuario en sesion. El fichero lo genera un worker de cola, y
- * ahi no hay sesion — el scope no corre y hay que filtrar a mano. Si nadie lo
- * hace, el admin de un workspace se baja las contratistas de todos los demas y
- * no se entera: el fichero se ve perfectamente normal.
+ * Es el mismo agujero que ya se cerro en Empresas, y aqui pesaba mas porque lo
+ * que se escapaba eran personas con su documento de identidad.
+ *
+ * El listado en pantalla filtra solo: lo hace el scope global del modelo, que
+ * necesita un usuario en sesion. Pero el fichero lo genera un worker de cola
+ * (`QUEUE_CONNECTION=database`), y ahi no hay sesion: el scope se rinde en su
+ * primera linea (`if (! auth()->hasUser()) return;`) y hay que filtrar a mano.
+ * El job capturaba el `tenantId` al encolarse y no lo usaba, ademas de pedir
+ * quitar un scope con un nombre que no existe. Resultado: un admin se bajaba a
+ * la gente de TODOS los workspaces y el fichero se veia perfectamente normal.
  */
-class CompanyExportTenantTest extends TestCase
+class PersonExportTenantTest extends TestCase
 {
     use RefreshDatabase;
 
@@ -41,23 +46,21 @@ class CompanyExportTenantTest extends TestCase
         }
     }
 
-    private function empresa(?int $tenantId, string $nombre, string $ruc): Company
+    private function persona(?int $tenantId, string $nombre, string $numDoc): void
     {
-        return Company::withoutGlobalScopes()->create([
-            'slug'          => Str::random(22),
-            'country_id'    => 1,
-            'tenant_id'     => $tenantId,
-            'name'          => $nombre,
-            'complete_name' => $nombre . ' S.A.',
-            'num_doc'       => $ruc,
-            'is_active'     => true,
+        DB::table('people')->insert([
+            'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => $tenantId,
+            'doc_type' => 'DNI', 'num_doc' => $numDoc,
+            'name' => $nombre, 'lastname' => 'Apellido',
+            'is_active' => true, 'created_by' => 1,
+            'created_at' => now(), 'updated_at' => now(),
         ]);
     }
 
     private function adminDe(int $tenantId): User
     {
-        $rol = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['description' => 'Test admin']);
-        $rol->givePermissionTo(Permission::firstOrCreate(['name' => 'companies.export', 'guard_name' => 'web']));
+        $rol = Role::firstOrCreate(['name' => "admin{$tenantId}", 'guard_name' => 'web'], ['description' => 'admin']);
+        $rol->givePermissionTo(Permission::firstOrCreate(['name' => 'people.export', 'guard_name' => 'web']));
 
         $u = User::factory()->create(['tenant_id' => $tenantId, 'country_id' => 1, 'locale_id' => 1]);
         $u->assignRole($rol);
@@ -65,22 +68,18 @@ class CompanyExportTenantTest extends TestCase
         return $u;
     }
 
-    public function test_el_csv_solo_trae_las_empresas_del_workspace_de_quien_exporta(): void
+    public function test_el_csv_no_trae_gente_de_otro_workspace(): void
     {
         Storage::fake('local');
 
-        $this->empresa(1, 'HITACHI', '20100000001');
-        $this->empresa(2, 'AJENA', '20200000002');
-        // Sin workspace. Cuando Empresas era catalogo compartido esto era un
-        // registro legitimo que se veia desde todos lados; desde que es
-        // per-tenant es un huerfano y NO debe salir en el fichero de nadie.
-        $this->empresa(null, 'HUERFANA', '20300000003');
+        $this->persona(1, 'MIA', '10000001');
+        $this->persona(2, 'AJENA', '20000002');
 
         $admin = $this->adminDe(1);
 
         // El worker corre SIN sesion: es justo la condicion en la que el scope
-        // del modelo no se aplica.
-        $job = new GenerateCompaniesCsvJob($admin->id, ['scope' => 'all', 'columns' => ['name']]);
+        // del modelo no se aplica y solo queda el filtro que ponga el job.
+        $job = new GeneratePeopleCsvJob($admin->id, ['scope' => 'all', 'columns' => ['name']]);
         Auth::logout();
         $job->handle();
 
@@ -90,30 +89,31 @@ class CompanyExportTenantTest extends TestCase
 
         $csv = Storage::disk($descarga->disk)->get($descarga->path);
 
-        $this->assertStringContainsString('HITACHI', $csv);
-        $this->assertStringNotContainsString('AJENA', $csv, 'se colo una contratista de otro workspace en el fichero');
-        $this->assertStringNotContainsString('HUERFANA', $csv, 'se colo una empresa sin workspace en el fichero');
+        $this->assertStringContainsString('MIA', $csv);
+        $this->assertStringNotContainsString('AJENA', $csv, 'se colo gente de otro workspace en el fichero');
     }
 
+    /** El super sin workspace si se lo lleva todo: es lo que ve en pantalla. */
     public function test_el_super_sin_workspace_si_exporta_todo(): void
     {
         Storage::fake('local');
 
-        $this->empresa(1, 'HITACHI', '20100000001');
-        $this->empresa(2, 'AJENA', '20200000002');
+        $this->persona(1, 'MIA', '10000001');
+        $this->persona(2, 'AJENA', '20000002');
 
-        $rol   = Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Test super']);
+        $rol = Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'super']);
+        $rol->givePermissionTo(Permission::firstOrCreate(['name' => 'people.export', 'guard_name' => 'web']));
         $super = User::factory()->create(['tenant_id' => null, 'country_id' => 1, 'locale_id' => 1]);
         $super->assignRole($rol);
 
-        $job = new GenerateCompaniesCsvJob($super->id, ['scope' => 'all', 'columns' => ['name']]);
+        $job = new GeneratePeopleCsvJob($super->id, ['scope' => 'all', 'columns' => ['name']]);
         Auth::logout();
         $job->handle();
 
         $descarga = Download::withoutGlobalScopes()->where('user_id', $super->id)->latest('id')->first();
         $csv = Storage::disk($descarga->disk)->get($descarga->path);
 
-        $this->assertStringContainsString('HITACHI', $csv);
+        $this->assertStringContainsString('MIA', $csv);
         $this->assertStringContainsString('AJENA', $csv);
     }
 }

@@ -160,9 +160,20 @@ abstract class BaseApproverRoleExportJob implements ShouldQueue
         $scope = $this->options['scope'] ?? 'filtered';
         $columns = $this->options['columns'] ?? ['creator'];
 
-        $base = ApproverRole::query()->withoutGlobalScope('tenant');
+        $base = ApproverRole::query()->withoutGlobalScope('tenantOrGlobal');
 
-        // approver_roles es catálogo global (sin tenant), no filtramos por tenant_id.
+        // El job corre en cola, o sea en un worker SIN sesion: el global scope
+        // se rinde solo (`if (! auth()->hasUser()) return;`) y la consulta salia
+        // sin ningun filtro de workspace — el admin se descargaba las filas de
+        // TODOS. Se re-aplica a mano con el tenant que se capturo al encolar.
+        // tenant_id null = super sin workspace: exporta todo, igual que ve en
+        // pantalla. Con workspace: las suyas mas las globales del catalogo.
+        if ($this->tenantId !== null) {
+            $base->where(function ($q) {
+                $q->where('approver_roles.tenant_id', $this->tenantId)
+                  ->orWhereNull('approver_roles.tenant_id');
+            });
+        }
 
 
         if ($scope === 'selected' && !empty($this->options['selected_ids'])) {

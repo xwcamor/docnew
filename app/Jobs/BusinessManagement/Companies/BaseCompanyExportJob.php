@@ -167,16 +167,17 @@ abstract class BaseCompanyExportJob implements ShouldQueue
         $scope = $this->options['scope'] ?? 'filtered';
         $columns = $this->options['columns'] ?? ['creator'];
 
-        $base = Company::query()->withoutGlobalScope('tenantOrGlobal');
+        // Empresas paso a ser per-tenant, asi que su scope se llama `tenant` y no
+        // `tenantOrGlobal`: con el nombre viejo esta llamada no quitaba nada.
+        $base = Company::query()->withoutGlobalScope('tenant');
 
-        // tenant_id null = super (sin workspace): exporta todo, igual que ve en
-        // pantalla. Con workspace: las suyas mas las globales del catalogo,
-        // exactamente el mismo criterio que el scope del listado.
+        // El job corre en cola, o sea en un worker SIN sesion: el global scope se
+        // rinde solo y hay que re-aplicar el filtro a mano con el tenant que se
+        // capturo al encolar. tenant_id null = super sin workspace: exporta todo,
+        // igual que ve en pantalla. Ya NO se cuelan las de tenant_id nulo: cada
+        // workspace tiene sus propias contratistas.
         if ($this->tenantId !== null) {
-            $base->where(function ($q) {
-                $q->where('companies.tenant_id', $this->tenantId)
-                  ->orWhereNull('companies.tenant_id');
-            });
+            $base->where('companies.tenant_id', $this->tenantId);
         }
 
         if (in_array('creator', $columns)) {

@@ -160,11 +160,20 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
         $scope = $this->options['scope'] ?? 'filtered';
         $columns = $this->options['columns'] ?? ['creator'];
 
-        $base = ApprovalRule::query()->withoutGlobalScope('tenant');
+        $base = ApprovalRule::query()->withoutGlobalScope('tenantOrGlobal');
 
-        // approval_rules es catálogo global (sin tenant), no filtramos por tenant_id.
-
-        // País y tipo de trabajo salen por relación: la regla solo guarda ids.
+        // El job corre en cola, o sea en un worker SIN sesion: el global scope
+        // se rinde solo (`if (! auth()->hasUser()) return;`) y la consulta salia
+        // sin ningun filtro de workspace — el admin se descargaba las filas de
+        // TODOS. Se re-aplica a mano con el tenant que se capturo al encolar.
+        // tenant_id null = super sin workspace: exporta todo, igual que ve en
+        // pantalla. Con workspace: las suyas mas las globales del catalogo.
+        if ($this->tenantId !== null) {
+            $base->where(function ($q) {
+                $q->where('approval_rules.tenant_id', $this->tenantId)
+                  ->orWhereNull('approval_rules.tenant_id');
+            });
+        }
         $base->with(['country:id,name', 'workType:id,code']);
 
         if ($scope === 'selected' && !empty($this->options['selected_ids'])) {

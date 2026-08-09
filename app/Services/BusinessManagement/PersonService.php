@@ -269,11 +269,26 @@ class PersonService
         return DB::transaction(function () use ($ids, $reason) {
             $people  = Person::whereIn('id', $ids)->get();
             $deletedIds = [];
+            $enUsoIds   = [];
             foreach ($people as $person) {
+                // Firmas, aprobaciones y planes bloquean la baja: `dependents()`
+                // los marca con `block => true` y aqui no lo miraba nadie. Se
+                // apartan y se informan, igual que hace Empresas — borrarlos deja
+                // un plan firmado sin autor, y el borrado definitivo posterior
+                // chocaba con la clave ajena y salia un 500.
+                if ($person->hasBlockingDependents()) {
+                    $enUsoIds[] = $person->id;
+                    continue;
+                }
                 $this->delete($person, $reason);
                 $deletedIds[] = $person->id;
             }
-            return ['queued' => false, 'count' => $people->count(), 'deleted' => $deletedIds];
+            return [
+                'queued'  => false,
+                'count'   => $people->count(),
+                'deleted' => $deletedIds,
+                'in_use'  => $enUsoIds,
+            ];
         });
     }
 

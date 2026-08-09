@@ -143,4 +143,5 @@ return [
         'step9_title' => 'Need a refresher?',
         'step9_body'  => 'Reopen this tour anytime with the ? button. "Recent" in the avatar menu shows the last records you viewed.',
     ],
+    'bulk_skipped_in_use'  => ':count could not be removed: they have work plans, signatures or approvals. Deactivate them instead.',
 ];

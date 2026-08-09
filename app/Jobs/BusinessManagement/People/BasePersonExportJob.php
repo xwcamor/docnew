@@ -172,9 +172,20 @@ abstract class BasePersonExportJob implements ShouldQueue
         $scope = $this->options['scope'] ?? 'filtered';
         $columns = $this->options['columns'] ?? ['creator'];
 
-        $base = Person::query()->withoutGlobalScope('tenant');
+        $base = Person::query()->withoutGlobalScope('tenantOrGlobal');
 
-        // people es catálogo global (sin tenant), no filtramos por tenant_id.
+        // El job corre en cola, o sea en un worker SIN sesion: el global scope
+        // se rinde solo (`if (! auth()->hasUser()) return;`) y la consulta salia
+        // sin ningun filtro de workspace — el admin se descargaba las filas de
+        // TODOS. Se re-aplica a mano con el tenant que se capturo al encolar.
+        // tenant_id null = super sin workspace: exporta todo, igual que ve en
+        // pantalla. Con workspace: las suyas mas las globales del catalogo.
+        if ($this->tenantId !== null) {
+            $base->where(function ($q) {
+                $q->where('people.tenant_id', $this->tenantId)
+                  ->orWhereNull('people.tenant_id');
+            });
+        }
 
         if (in_array('creator', $columns)) {
             $base->with('creator:id,name');
