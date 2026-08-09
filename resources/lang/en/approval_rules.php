@@ -88,6 +88,7 @@ return [
     'duplicate_role_in_flow'  => 'That role already signs in this flow (same country and work type). A role does not approve the same plan twice.',
     'country_required'        => 'The country is required.',
     'priority_level_required' => 'The level is required.',
+    'priority_level_taken'    => 'Another signature in this flow already has that level.',
     'is_active_required'      => 'The status field is required.',
     'import_super_blocked'    => 'A super with no workspace cannot import rules: there is no way to tell which workspace they belong to.',
     'import_country_unknown'  => 'No country matches that ISO code.',

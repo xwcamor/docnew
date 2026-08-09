@@ -412,6 +412,7 @@ return [
 
     // ── Other ────────────────────────────────────────────────────
     'edit_all'             => 'Edit all',
+    'value_repeated_in_batch' => 'That value is already on row :row of this batch.',
     'placeholders' => [
         'complete_attribute' => 'Enter :attribute',
         'select_attribute'   => 'Select :attribute',

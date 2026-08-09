@@ -88,6 +88,7 @@ return [
     'duplicate_role_in_flow'  => 'Ese rol ya firma en este flujo (mismo país y mismo tipo de trabajo). Un rol no aprueba dos veces el mismo plan.',
     'country_required'        => 'El país es obligatorio.',
     'priority_level_required' => 'El nivel es obligatorio.',
+    'priority_level_taken'    => 'Ese nivel ya lo ocupa otra firma de este flujo.',
     'is_active_required'      => 'El campo estado es obligatorio.',
     'import_super_blocked'    => 'Un super sin workspace asignado no puede importar reglas: no hay forma de saber a qué workspace pertenecen.',
     'import_country_unknown'  => 'No existe ningún país con ese código ISO.',

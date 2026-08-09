@@ -417,6 +417,9 @@ return [
 
     // ── Otros ─────────────────────────────────────────────────────
     'edit_all'             => 'Editar todo',
+    // «Editar todo»: el mismo valor escrito dos veces en la tanda. Se dice en
+    // qué fila está el otro, que si no hay que buscarlo a ojo entre doscientas.
+    'value_repeated_in_batch' => 'Ese valor ya está en la fila :row de esta tanda.',
     'placeholders' => [
         'complete_attribute' => 'Ingresa :attribute',
         'select_attribute'   => 'Seleccione :attribute',

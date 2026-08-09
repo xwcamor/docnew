@@ -137,6 +137,7 @@ return [
 
     // Fields
     'name'        => 'Nombre',
+    'name_unique' => 'Ya hay otra automatización con ese nombre.',
     'description' => 'Descripción',
     'is_active'   => 'Activa',
     'is_active_hint' => 'Si está pausada, el sistema la salta en su horario hasta que la vuelvas a activar.',
