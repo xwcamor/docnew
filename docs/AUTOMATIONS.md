@@ -38,10 +38,11 @@ Una automatización tiene 3 piezas:
 | "Alerta de suscripciones por vencer" | Diario 09:00 | Suscripciones con `ends_at < hoy+7d` | Email + notificación en la app |
 | "Aviso de fin de mes" | Último día, 18:00 | sin data source (mensaje fijo) | Notificación a todo el workspace |
 
-> **Ojo con lo que se puede automatizar hoy.** Los casos que de verdad querría un
-> supervisor de HSE —"avísame de los planes del día que quedaron sin firmar",
-> "manda las firmas pendientes de revisión"— **no se pueden armar todavía**: no
-> hay data source de planes ni de firmas. Ver el paso 8 para añadirlos.
+> **Ojo con lo que se puede automatizar hoy.** Con la fuente **Planes de trabajo**
+> ya se arma el caso principal de HSE: "avísame de los planes que quedaron sin
+> terminar". Lo que sigue sin poderse es disparar **cuando** algo pasa (al
+> firmar, al confirmar un documento): el único trigger es por horario. Ver el
+> paso 8.
 
 ---
 
@@ -98,11 +99,12 @@ Sigue el formato cron estándar. Ejemplos útiles:
 
 Si tu acción necesita una lista de registros (ej. "todos los clientes nuevos"), elige una fuente:
 
-Hay **dos**, y se registran en
+Hay **tres**, y se registran en
 [`AutomationServiceProvider`](../app/Providers/AutomationServiceProvider.php):
 
 | Data source | De qué saca datos | Quién lo ve |
 |---|---|---|
+| **Planes de trabajo** | Tabla `work_plans` del workspace | admin y super |
 | **Clientes** | Tabla `customers` del workspace | admin y super |
 | **Suscripciones** | Tabla `subscriptions` | **solo super** — es dato de facturación cruzado entre workspaces, y `DataSourceRegistry::catalog()` lo filtra por rol |
 
@@ -254,17 +256,13 @@ Pasados los 60s:
 
 ## 6. Probar una automatización antes de programarla
 
-Hoy no hay un botón "Ejecutar ahora" en la UI (feature futura).
+En el detalle de la automatización y en cada fila del listado hay un botón
+**Ejecutar ahora** (`POST automations/{automation}/run-now`,
+`AutomationController::runNow`): dispara la regla en el momento, ignorando el
+`next_run_at`, y el resultado queda en el historial como cualquier otra corrida.
 
-**Workaround manual** (super only, desde la terminal del server):
-
-```bash
-php artisan tinker
->>> $automation = App\Models\Automation::find(123);
->>> app(App\Services\Automations\AutomationRunner::class)->run($automation);
-```
-
-Esto ejecuta la automatización inmediatamente, ignorando el `next_run_at`. Útil para probar nuevas reglas en dev.
+Corre dentro de la petición, así que para una regla con límite alto conviene
+bajar el límite antes de probarla.
 
 ---
 
@@ -273,10 +271,9 @@ Esto ejecuta la automatización inmediatamente, ignorando el `next_run_at`. Úti
 | Limitación | Workaround / Notas |
 |---|---|
 | Solo trigger `schedule` | No hay disparo por evento ("cuando se confirma un formato") ni webhook. Es la limitación que más pesa en obra: lo interesante pasa **cuando** algo ocurre, no a una hora fija. |
-| Solo 2 data sources | Clientes y Suscripciones. Nada del dominio de obra. Ver el paso 8. |
+| 3 data sources | Planes de trabajo, Clientes y Suscripciones. Ver el paso 8 para añadir más. |
 | Solo 2 actions | Email + notificación en la app. No hay webhook de salida ni exportación a archivo. |
 | Filtros AND solamente | No hay OR ni grupos. Si lo necesitas, crea 2 automatizaciones separadas. |
-| Sin "Ejecutar ahora" en UI | Workaround vía tinker (super only). |
 | Sin "Dry-run preview" en UI | No puedes ver qué registros matchearán antes de ejecutar. Probar con un email a ti mismo primero. |
 | Sin condicional "if records > 0 entonces enviar" | Si el filtro no retorna nada, igual se envía el email (con `{count}=0` y `{list}=—`). |
 

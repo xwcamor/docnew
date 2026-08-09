@@ -8,16 +8,19 @@ use App\Services\Automations\ActionRegistry;
 use App\Services\Automations\DataSourceRegistry;
 use App\Services\Automations\DataSources\CustomersDataSource;
 use App\Services\Automations\DataSources\SubscriptionsDataSource;
+use App\Services\Automations\DataSources\WorkPlansDataSource;
 use Illuminate\Support\ServiceProvider;
 
 /**
  * AutomationServiceProvider — registra los registries de data sources y
  * actions como singletons. Para agregar uno nuevo: créelo y agréguelo aquí.
+ * No hay descubrimiento automatico: lo que no esta en esta lista no existe.
  *
  * Data sources actuales:
- *   - customers       → disponible para admin y super (negocio del workspace)
- *   - transformers    → parque de equipos; alertas por indice de salud, estado,
- *                       tratamiento de aceite, etc. (negocio del workspace)
+ *   - work_plans      → los planes de trabajo del workspace. Es la unica
+ *                       fuente del dominio de obra; sin ella el modulo no
+ *                       podia automatizar nada de DOCUFIZ.
+ *   - customers       → tabla `customers`, heredada del sistema anterior.
  *   - subscriptions   → solo super (cross-tenant, billing). El DataSourceRegistry
  *                       lo filtra en catalog() segun el rol del user.
  *
@@ -34,6 +37,7 @@ class AutomationServiceProvider extends ServiceProvider
     {
         $this->app->singleton(DataSourceRegistry::class, function () {
             $registry = new DataSourceRegistry();
+            $registry->register(new WorkPlansDataSource());
             $registry->register(new CustomersDataSource());
             $registry->register(new SubscriptionsDataSource());
             return $registry;

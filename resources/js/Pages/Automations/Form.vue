@@ -335,10 +335,10 @@ const daysOfWeek = [
                         <InfoCircleOutlined class="section-help" />
                     </Tooltip>
                 </Divider>
-                <Row :gutter="[20, 0]">
+                <Row :gutter="[20, 0]" class="form-grid">
                     <!-- Selector de workspace: solo super lo ve. Admin tiene
                          tenant fijo y se autoasigna server-side. -->
-                    <Col v-if="isSuper" :xs="24" :md="10">
+                    <Col v-if="isSuper" :xs="24" :lg="10">
                         <FormItem :label="$t('automations.workspace')" :tooltip="$t('automations.workspace_help')" required
                                   :validate-status="form.errors.tenant_id ? 'error' : ''"
                                   :help="form.errors.tenant_id || $t('automations.workspace_hint')">
@@ -349,7 +349,7 @@ const daysOfWeek = [
                                     :filter-option="(input, option) => (option.label ?? '').toLowerCase().includes(input.toLowerCase())" />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="isSuper ? 8 : 14">
+                    <Col :xs="24" :lg="isSuper ? 8 : 14">
                         <FormItem :label="$t('automations.name')" :tooltip="$t('automations.name_help')" required
                                   :validate-status="form.errors.name ? 'error' : ''"
                                   :help="form.errors.name">
@@ -357,7 +357,7 @@ const daysOfWeek = [
                                    :placeholder="$t('automations.name_placeholder')" />
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="6">
+                    <Col :xs="24" :lg="6">
                         <FormItem :label="$t('automations.is_active')"
                                   :tooltip="$t('automations.is_active_help')"
                                   :help="$t('automations.is_active_hint')">
@@ -382,8 +382,8 @@ const daysOfWeek = [
                         <InfoCircleOutlined class="section-help" />
                     </Tooltip>
                 </Divider>
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="8">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="8">
                         <FormItem :label="$t('automations.trigger_kind')" :tooltip="$t('automations.trigger_kind_help')">
                             <Select :value="form.trigger_config.kind" size="large" @change="onKindChange" :placeholder="$t('automations.trigger_kind_placeholder')">
                                 <SelectOption value="daily">{{ $t('automations.trigger_kind_daily') }}</SelectOption>
@@ -394,13 +394,13 @@ const daysOfWeek = [
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8" v-if="form.trigger_config.kind !== 'cron'">
+                    <Col :xs="24" :lg="8" v-if="form.trigger_config.kind !== 'cron'">
                         <FormItem :label="$t('automations.trigger_time')" :tooltip="$t('automations.trigger_time_help')">
                             <TimePicker v-model:value="timeValue" format="HH:mm" size="large" style="width: 100%" :placeholder="$t('automations.trigger_time_placeholder')" />
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8" v-if="form.trigger_config.kind === 'weekly'">
+                    <Col :xs="24" :lg="8" v-if="form.trigger_config.kind === 'weekly'">
                         <FormItem :label="$t('automations.trigger_day_of_week')" :tooltip="$t('automations.trigger_day_of_week_help')">
                             <Select v-model:value="form.trigger_config.day" size="large" :placeholder="$t('automations.trigger_day_of_week_placeholder')">
                                 <SelectOption v-for="d in daysOfWeek" :key="d.value" :value="d.value">{{ d.label }}</SelectOption>
@@ -408,7 +408,7 @@ const daysOfWeek = [
                         </FormItem>
                     </Col>
 
-                    <Col :xs="24" :md="8" v-if="form.trigger_config.kind === 'monthly'">
+                    <Col :xs="24" :lg="8" v-if="form.trigger_config.kind === 'monthly'">
                         <FormItem :label="$t('automations.trigger_day_of_month')" :tooltip="$t('automations.trigger_day_of_month_help')">
                             <InputNumber v-model:value="form.trigger_config.day" :min="1" :max="31" size="large" style="width: 100%" :placeholder="$t('automations.trigger_day_of_month_placeholder')" />
                         </FormItem>
@@ -430,8 +430,8 @@ const daysOfWeek = [
                         <InfoCircleOutlined class="section-help" />
                     </Tooltip>
                 </Divider>
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="10">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="10">
                         <FormItem :label="$t('automations.data_source')" :tooltip="$t('automations.data_source_help')">
                             <Select v-model:value="form.data_source" size="large" allow-clear
                                     :placeholder="$t('automations.data_source_none')">
@@ -441,7 +441,7 @@ const daysOfWeek = [
                             </Select>
                         </FormItem>
                     </Col>
-                    <Col :xs="24" :md="6" v-if="form.data_source">
+                    <Col :xs="24" :lg="6" v-if="form.data_source">
                         <FormItem :label="$t('automations.data_filter_limit')" :tooltip="$t('automations.data_filter_limit_help')">
                             <InputNumber v-model:value="form.data_filter.limit" :min="1" :max="1000" size="large" style="width: 100%" :placeholder="$t('automations.data_filter_limit_placeholder')" />
                         </FormItem>
@@ -526,8 +526,8 @@ const daysOfWeek = [
                         <InfoCircleOutlined class="section-help" />
                     </Tooltip>
                 </Divider>
-                <Row :gutter="[20, 0]">
-                    <Col :xs="24" :md="10">
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="10">
                         <FormItem :label="$t('automations.action_type')" :tooltip="$t('automations.action_type_help')" required>
                             <Select v-model:value="form.action_type" size="large" :placeholder="$t('automations.action_type_placeholder')">
                                 <SelectOption v-for="a in catalog.actions" :key="a.key" :value="a.key">
@@ -540,8 +540,8 @@ const daysOfWeek = [
 
                 <!-- Email config -->
                 <template v-if="form.action_type === 'email'">
-                    <Row :gutter="[20, 0]">
-                        <Col :xs="24" :md="14">
+                    <Row :gutter="[20, 0]" class="form-grid">
+                        <Col :xs="24" :lg="14">
                             <FormItem :label="$t('automations.action_email_to')" :tooltip="$t('automations.action_email_to_help')" required
                                       :help="$t('automations.action_email_to_hint')">
                                 <div class="bulk-helpers">
@@ -566,7 +566,7 @@ const daysOfWeek = [
                                 />
                             </FormItem>
                         </Col>
-                        <Col :xs="24" :md="10">
+                        <Col :xs="24" :lg="10">
                             <FormItem :label="$t('automations.action_email_subject')" :tooltip="$t('automations.action_email_subject_help')" required>
                                 <Input ref="emailSubjectRef" v-model:value="form.action_config.subject"
                                        size="large" :maxlength="200"
@@ -597,8 +597,8 @@ const daysOfWeek = [
 
                 <!-- In-app notification config -->
                 <template v-if="form.action_type === 'in_app_notification'">
-                    <Row :gutter="[20, 0]">
-                        <Col :xs="24" :md="10">
+                    <Row :gutter="[20, 0]" class="form-grid">
+                        <Col :xs="24" :lg="10">
                             <FormItem :label="$t('automations.action_in_app_recipients')" :tooltip="$t('automations.action_in_app_recipients_help')" required>
                                 <Select v-model:value="form.action_config.recipients" size="large" :placeholder="$t('automations.action_in_app_recipients_placeholder')">
                                     <SelectOption v-for="r in recipientsOptions" :key="r.value" :value="r.value">
@@ -607,7 +607,7 @@ const daysOfWeek = [
                                 </Select>
                             </FormItem>
                         </Col>
-                        <Col :xs="24" :md="14">
+                        <Col :xs="24" :lg="14">
                             <FormItem :label="$t('automations.action_in_app_title')" :tooltip="$t('automations.action_in_app_title_help')" required>
                                 <Input ref="inAppTitleRef" v-model:value="form.action_config.title"
                                        size="large" :maxlength="200"

@@ -12,7 +12,7 @@ import { computed, ref } from 'vue';
 import { Card, Button, Tag, Tooltip, Modal, Space } from 'ant-design-vue';
 import {
     ClockCircleOutlined, MailOutlined, BellOutlined,
-    DollarOutlined, BulbOutlined, RightOutlined, ThunderboltOutlined,
+    DollarOutlined, BulbOutlined, RightOutlined, FileDoneOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -35,6 +35,33 @@ const availableSources = computed(() =>
 );
 
 const allTemplates = computed(() => [
+    {
+        // El caso que un supervisor de HSE pide de verdad: que cada mañana le
+        // digan que planes se quedaron sin cerrar.
+        key: 'open_work_plans',
+        requires: 'work_plans',
+        icon: FileDoneOutlined,
+        color: 'orange',
+        title: t('automations.tpl_open_plans_title'),
+        useCase: t('automations.tpl_open_plans_use'),
+        when:   t('automations.tpl_open_plans_when'),
+        where:  t('automations.tpl_open_plans_where'),
+        config: {
+            name:           t('automations.tpl_open_plans_title'),
+            description:    t('automations.tpl_open_plans_use'),
+            is_active:      true,
+            trigger_type:   'schedule',
+            trigger_config: { kind: 'daily', time: '07:00' },
+            data_source:    'work_plans',
+            data_filter:    { where: [{ field: 'is_done', op: '=', value: false }], limit: 100 },
+            action_type:    'email',
+            action_config:  {
+                to:      [],
+                subject: t('automations.tpl_open_plans_subject'),
+                body:    t('automations.tpl_open_plans_body'),
+            },
+        },
+    },
     {
         key: 'daily_customers_summary',
         requires: 'customers',
@@ -108,91 +135,6 @@ const allTemplates = computed(() => [
                 to:      [],
                 subject: t('automations.tpl_subs_subject'),
                 body:    t('automations.tpl_subs_body'),
-            },
-        },
-    },
-    {
-        key: 'transformers_by_customer',
-        requires: 'transformers',
-        icon: ThunderboltOutlined,
-        color: 'cyan',
-        title: t('automations.tpl_tr_cust_title'),
-        useCase: t('automations.tpl_tr_cust_use'),
-        when:   t('automations.tpl_tr_cust_when'),
-        where:  t('automations.tpl_tr_cust_where'),
-        config: {
-            name:           t('automations.tpl_tr_cust_title'),
-            description:    t('automations.tpl_tr_cust_use'),
-            is_active:      true,
-            trigger_type:   'schedule',
-            trigger_config: { kind: 'weekly', day: 1, time: '08:00' },
-            data_source:    'transformers',
-            data_filter:    { where: [{ field: 'customer_id', op: '=', value: '' }], limit: 100 },
-            action_type:    'in_app_notification',
-            action_config:  {
-                recipients: 'tenant_admins',
-                user_ids:   [],
-                title:      t('automations.tpl_tr_cust_subject'),
-                body:       t('automations.tpl_tr_cust_body'),
-            },
-        },
-    },
-    {
-        key: 'transformers_by_customer_state',
-        requires: 'transformers',
-        icon: ThunderboltOutlined,
-        color: 'green',
-        title: t('automations.tpl_tr_state_title'),
-        useCase: t('automations.tpl_tr_state_use'),
-        when:   t('automations.tpl_tr_state_when'),
-        where:  t('automations.tpl_tr_state_where'),
-        config: {
-            name:           t('automations.tpl_tr_state_title'),
-            description:    t('automations.tpl_tr_state_use'),
-            is_active:      true,
-            trigger_type:   'schedule',
-            trigger_config: { kind: 'weekly', day: 1, time: '08:00' },
-            data_source:    'transformers',
-            data_filter:    { where: [
-                { field: 'customer_id',   op: '=',  value: '' },
-                { field: 'health_rating', op: '<=', value: 1 },
-            ], limit: 100 },
-            action_type:    'in_app_notification',
-            action_config:  {
-                recipients: 'tenant_admins',
-                user_ids:   [],
-                title:      t('automations.tpl_tr_state_subject'),
-                body:       t('automations.tpl_tr_state_body'),
-            },
-        },
-    },
-    {
-        key: 'transformers_by_customer_state_index',
-        requires: 'transformers',
-        icon: ThunderboltOutlined,
-        color: 'orange',
-        title: t('automations.tpl_tr_idx_title'),
-        useCase: t('automations.tpl_tr_idx_use'),
-        when:   t('automations.tpl_tr_idx_when'),
-        where:  t('automations.tpl_tr_idx_where'),
-        config: {
-            name:           t('automations.tpl_tr_idx_title'),
-            description:    t('automations.tpl_tr_idx_use'),
-            is_active:      true,
-            trigger_type:   'schedule',
-            trigger_config: { kind: 'weekly', day: 1, time: '08:00' },
-            data_source:    'transformers',
-            data_filter:    { where: [
-                { field: 'customer_id',   op: '=',  value: '' },
-                { field: 'health_rating', op: '<=', value: 1 },
-                { field: 'health_index',  op: '<',  value: 50 },
-            ], limit: 100 },
-            action_type:    'in_app_notification',
-            action_config:  {
-                recipients: 'tenant_admins',
-                user_ids:   [],
-                title:      t('automations.tpl_tr_idx_subject'),
-                body:       t('automations.tpl_tr_idx_body'),
             },
         },
     },

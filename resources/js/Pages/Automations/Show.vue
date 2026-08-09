@@ -51,11 +51,52 @@ const triggerSummary = computed(() => {
     const c = props.automation.trigger_config ?? {};
     switch (c.kind) {
         case 'daily':   return `${t('automations.trigger_kind_daily')} · ${c.time}`;
-        case 'weekly':  return `${t('automations.trigger_kind_weekly')} · día ${c.day} · ${c.time}`;
-        case 'monthly': return `${t('automations.trigger_kind_monthly')} · día ${c.day} · ${c.time}`;
-        case 'cron':    return `cron: ${c.expression}`;
+        case 'weekly':  return t('automations.trigger_weekly_on',  { day: c.day, time: c.time });
+        case 'monthly': return t('automations.trigger_monthly_on', { day: c.day, time: c.time });
+        case 'cron':    return t('automations.trigger_cron_on',    { expr: c.expression });
         default:        return '—';
     }
+});
+
+/**
+ * Los filtros, escritos como se leen. Antes salia `<code>is_active = true</code>`
+ * con el nombre de la columna: el catalogo ya trae la etiqueta de cada campo y
+ * la lista de operadores, asi que se usa.
+ */
+const filterFields = computed(() =>
+    props.catalog.data_sources.find(s => s.key === props.automation.data_source)?.fields ?? [],
+);
+
+const fieldLabel = (key) => filterFields.value.find(f => f.key === key)?.label ?? key;
+
+const valueLabel = (v) => {
+    if (v === true)  return t('global.yes');
+    if (v === false) return t('global.no');
+    if (Array.isArray(v)) return v.join(', ');
+    return v === null || v === '' ? '—' : String(v);
+};
+
+const opLabel = (op) => (op === 'contains' ? t('automations.op_contains') : op);
+
+/**
+ * La configuracion de la accion, en filas legibles. La ficha volcaba el JSON
+ * crudo (`{"to":["a@b.com"],"subject":…}`): un supervisor no tiene por que leer
+ * JSON para saber a quien le llega su aviso.
+ */
+const actionRows = computed(() => {
+    const c = props.automation.action_config ?? {};
+    const rows = [];
+    if (c.to)         rows.push({ label: t('automations.cfg_to'), value: [].concat(c.to).join(', ') });
+    if (c.recipients) rows.push({
+        label: t('automations.cfg_recipients'),
+        value: c.recipients === 'tenant_admins'
+            ? t('automations.action_in_app_recipients_admins')
+            : t('automations.preview_specific_users_count', { n: (c.user_ids ?? []).length }),
+    });
+    if (c.subject) rows.push({ label: t('automations.cfg_subject'), value: c.subject });
+    if (c.title)   rows.push({ label: t('automations.cfg_title'),   value: c.title });
+    if (c.body)    rows.push({ label: t('automations.cfg_body'),    value: c.body, pre: true });
+    return rows;
 });
 
 const runStatusColor = (s) => ({ running: 'blue', success: 'success', failed: 'error' }[s] ?? 'default');
@@ -67,11 +108,11 @@ const runNow = () => {
 };
 
 const runColumns = computed(() => [
-    { title: t('global.created_at'), dataIndex: 'started_at',     key: 'started',  width: 180 },
-    { title: t('automations.col_status'), dataIndex: 'status',    key: 'status',   width: 110 },
-    { title: 'Records',              dataIndex: 'records_matched', key: 'records', width: 100, align: 'center' },
-    { title: 'Resultado',            dataIndex: 'output_summary', key: 'output',   ellipsis: true },
-    { title: 'Error',                dataIndex: 'error_message',  key: 'error',    ellipsis: true },
+    { title: t('global.created_at'),        dataIndex: 'started_at',      key: 'started', width: 180 },
+    { title: t('automations.col_status'),   dataIndex: 'status',          key: 'status',  width: 110 },
+    { title: t('automations.col_records'),  dataIndex: 'records_matched', key: 'records', width: 100, align: 'center' },
+    { title: t('automations.col_result'),   dataIndex: 'output_summary',  key: 'output',  ellipsis: true },
+    { title: t('automations.col_error'),    dataIndex: 'error_message',   key: 'error',   ellipsis: true },
 ]);
 </script>
 
@@ -150,11 +191,15 @@ const runColumns = computed(() => [
                                 <span v-if="automation.data_source">{{ sourceLabel(automation.data_source) }}</span>
                                 <span v-else class="muted">{{ $t('automations.data_source_none') }}</span>
                             </DescriptionsItem>
-                            <DescriptionsItem v-if="automation.data_source" label="Filtros">
-                                <div v-if="(automation.data_filter?.where ?? []).length === 0" class="muted">Sin filtros</div>
-                                <ul v-else>
+                            <DescriptionsItem v-if="automation.data_source" :label="$t('automations.filters')">
+                                <div v-if="(automation.data_filter?.where ?? []).length === 0" class="muted">
+                                    {{ $t('automations.filters_none') }}
+                                </div>
+                                <ul v-else class="filter-list">
                                     <li v-for="(c, i) in automation.data_filter.where" :key="i">
-                                        <code>{{ c.field }} {{ c.op }} {{ JSON.stringify(c.value) }}</code>
+                                        <strong>{{ fieldLabel(c.field) }}</strong>
+                                        {{ opLabel(c.op) }}
+                                        <strong>{{ valueLabel(c.value) }}</strong>
                                     </li>
                                 </ul>
                             </DescriptionsItem>
@@ -166,8 +211,13 @@ const runColumns = computed(() => [
                             <DescriptionsItem :label="$t('automations.action_type')">
                                 <Tag :bordered="false">{{ actionLabel(automation.action_type) }}</Tag>
                             </DescriptionsItem>
-                            <DescriptionsItem label="Config">
-                                <pre class="config-pre">{{ JSON.stringify(automation.action_config, null, 2) }}</pre>
+                            <DescriptionsItem
+                                v-for="row in actionRows"
+                                :key="row.label"
+                                :label="row.label"
+                            >
+                                <pre v-if="row.pre" class="config-pre">{{ row.value }}</pre>
+                                <span v-else>{{ row.value }}</span>
                             </DescriptionsItem>
                         </Descriptions>
                     </Card>
@@ -230,6 +280,8 @@ const runColumns = computed(() => [
     overflow-x: auto;
 }
 .error-cell { color: var(--color-danger); font-size: 0.8125rem; }
+.filter-list { margin: 0; padding-left: 18px; }
+.filter-list li { line-height: 1.7; }
 .deleted-alert { margin-bottom: 16px; }
 
 @media (max-width: 767px) {

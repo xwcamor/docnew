@@ -3,85 +3,236 @@
 namespace App\Http\Controllers\DashboardManagement;
 
 use App\Http\Controllers\Controller;
-use App\Models\Automation;
 use App\Models\AutomationRun;
-use App\Models\AuditLog;
-use App\Models\Country;
-use App\Models\Customer;
+use App\Models\FormSubmission;
+use App\Models\SignatureEvent;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
+use App\Models\WorkPlan;
+use App\Models\WorkPlanApproval;
+use App\Models\WorkPlanPerson;
+use App\Services\BusinessManagement\WorkPlanCompletionService;
+use App\Support\Tz;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 /**
- * DashboardController — landing post-login con widgets reales.
+ * DashboardController — la primera pantalla despues de entrar.
  *
- * Los widgets que devuelve dependen del rol:
- *   - super: vista del sistema completo (tenants, suscripciones, automatizaciones globales).
- *   - admin del tenant: vista del workspace (sus users, su sub, sus automatizaciones).
- *   - user: vista personal (tareas, automatizaciones que le notificaron).
+ * Lo que se enseña aqui es **el panel del dia**: cuantos planes hay hoy, que
+ * falta por firmar y que formatos quedan sin confirmar. Es lo que un supervisor
+ * de obra necesita saber sin abrir nada mas.
  *
- * Cada widget es un objeto plano para que el frontend lo renderice sin
- * lógica: { label, value, hint, color, icon, href? }.
+ * Dos reglas que ya se incumplieron una vez y por eso estan escritas:
+ *
+ *  1. **Todo conteo se acota al workspace.** `work_plans` lo hace solo con su
+ *     scope global; `work_plan_people`, `work_plan_approvals` y
+ *     `form_submissions` NO tienen scope propio, asi que se cuentan siempre
+ *     colgando de una subconsulta de planes visibles. Contarlas sueltas
+ *     enseñaba las firmas pendientes de todos los workspaces a la vez.
+ *  2. **«Hoy» es hoy en la obra.** `date_start` guarda la hora de pared del
+ *     trabajo y la app corre en UTC: con `today()` a secas, en Lima el panel
+ *     cambiaba de dia a las 19:00.
+ *
+ * Al super se le añade encima el estado de la plataforma (workspaces,
+ * suscripciones, ejecuciones de automatizaciones), que es su trabajo. Su panel
+ * del dia es cross-tenant porque su scope hace bypass, y el frontend lo dice.
  */
 class DashboardController extends Controller
 {
+    /**
+     * Cuantos planes de hoy se listan bajo los indicadores.
+     *
+     * El tope existe por el coste: de cada plan listado se dice **que le
+     * falta**, y eso lo calcula `WorkPlanCompletionService` con unas seis
+     * consultas por plan. Es caro y se paga a proposito —repetir aqui la regla
+     * de cierre seria tener dos verdades—, pero queda acotado: el numero no
+     * crece con el tamaño del workspace. El resto se ve en «ver todos los de
+     * hoy», que es el listado paginado de siempre.
+     */
+    protected const PLANES_LISTADOS = 8;
+
     public function index(Request $request)
     {
-        $user = $request->user();
+        $user    = $request->user();
         $isSuper = $user?->hasRole('super') ?? false;
 
-        // Dashboard de flota para el tenant (admin/operativo). Sin "actividad
-        // reciente": para eso está el módulo de Logs del sistema.
-        if (!$isSuper) {
-            return inertia('Dashboard/Index', array_merge([
-                'isSuper'           => false,
-                'widgets'           => $this->tenantWidgets($user),
-                'recentAutomations' => [],
-                'expiringSoon'      => [],
-            ], $this->tenantFleetDashboard($user, $request)));
-        }
-
-        // Super: flota CROSS-TENANT (el scope hace bypass) + desglose por
-        // workspace + sus widgets de sistema (suscripciones, automatizaciones).
-        return inertia('Dashboard/Index', array_merge([
-            'isSuper'           => true,
-            'widgets'           => $this->superAdminWidgets(),
-            'recentAutomations' => $this->recentAutomations($user),
-            'expiringSoon'      => $this->expiringSubscriptions($user),
-        ], $this->tenantFleetDashboard($user, $request)));
+        return inertia('Dashboard/Index', [
+            'isSuper'           => $isSuper,
+            // El panel del dia. `null` cuando el usuario no puede ver planes:
+            // mejor una bienvenida honesta que una rejilla de ceros ajenos.
+            'today'             => $this->panelDelDia($user),
+            'workspaceWidgets'  => $isSuper ? [] : $this->tenantWidgets($user),
+            'widgets'           => $isSuper ? $this->superAdminWidgets() : [],
+            'recentAutomations' => $isSuper ? $this->recentAutomations($user) : [],
+            'expiringSoon'      => $isSuper ? $this->expiringSubscriptions($user) : [],
+        ]);
     }
 
     /**
-     * Últimas 10 acciones del propio user (su audit_log). Para la vista
-     * simple del dashboard non-super — "lo que hiciste recientemente".
+     * El panel del dia: indicadores de obra + los planes con fecha de hoy y lo
+     * que le falta a cada uno.
      *
-     * Shape minimal: event, módulo, fecha. No exponemos old/new values aquí
-     * (eso vive en el Show de cada registro para el detalle completo).
+     * Devuelve `null` si el usuario no puede ver planes de trabajo — no se le
+     * enseñan conteos de algo que no tiene permiso para abrir.
      */
-    protected function recentUserActivity(?User $user): array
+    protected function panelDelDia(?User $user): ?array
     {
-        if (!$user) return [];
+        if (! $user || ! $user->can('work_plans.view')) {
+            return null;
+        }
 
-        return AuditLog::query()
-            ->where('user_id', $user->id)
-            ->whereIn('event', ['created', 'updated', 'deleted', 'restored', 'exported', 'force_deleted'])
-            ->orderByDesc('created_at')
-            ->limit(10)
-            ->get(['id', 'event', 'module', 'auditable_type', 'auditable_id', 'created_at'])
-            ->map(fn ($log) => [
-                'id'             => $log->id,
-                'event'          => $log->event,
-                'module'         => $log->module,
-                'auditable_id'   => $log->auditable_id,
-                'auditable_type' => class_basename($log->auditable_type ?? ''),
-                'created_at'     => $log->created_at?->toIso8601String(),
+        $hoy = Carbon::now(Tz::for($user))->toDateString();
+
+        // Subconsultas de planes VISIBLES para este usuario. El scope global de
+        // WorkPlan las acota al workspace (y las deja abiertas para el super),
+        // asi que todo lo que cuelga de aqui hereda el aislamiento.
+        $abiertos = WorkPlan::query()->where('is_done', false)->select('id');
+
+        $planesHoy      = WorkPlan::query()->whereDate('date_start', $hoy)->count();
+        $planesHoySinTerminar = WorkPlan::query()->whereDate('date_start', $hoy)
+            ->where('is_done', false)->count();
+        $planesAbiertos = WorkPlan::query()->where('is_done', false)->count();
+
+        // «Falta por firmar» son dos cosas distintas y las dos cuentan: el
+        // trabajador que aun no ha firmado su asistencia y la aprobacion
+        // obligatoria que nadie ha dado. No es lo mismo que la bandeja de
+        // revision, que son firmas YA hechas y dudosas.
+        $firmasTrabajadores = WorkPlanPerson::query()
+            ->whereIn('work_plan_id', (clone $abiertos))
+            ->where('is_approved', false)
+            ->count();
+
+        $firmasAprobacion = WorkPlanApproval::query()
+            ->whereIn('work_plan_id', (clone $abiertos))
+            ->where('is_required', true)
+            ->where('is_approved', false)
+            ->count();
+
+        $formatosSinConfirmar = FormSubmission::query()
+            ->whereIn('work_plan_id', (clone $abiertos))
+            ->where('status', '!=', 'confirmed')
+            ->count();
+
+        $firmasPendientes = $firmasTrabajadores + $firmasAprobacion;
+
+        $indicadores = [
+            [
+                'key'   => 'plans_today',
+                'value' => $planesHoy,
+                'hint'  => trans_choice('dashboard.hint_plans_today', $planesHoySinTerminar, ['count' => $planesHoySinTerminar]),
+                'color' => 'blue',
+                'icon'  => 'FileDoneOutlined',
+                'href'  => route('business_management.work_plans.index', ['date_from' => $hoy, 'date_to' => $hoy]),
+            ],
+            [
+                'key'   => 'signatures_pending',
+                'value' => $firmasPendientes,
+                'hint'  => __('dashboard.hint_signatures_pending', [
+                    'workers'   => $firmasTrabajadores,
+                    'approvals' => $firmasAprobacion,
+                ]),
+                'color' => $firmasPendientes > 0 ? 'orange' : 'green',
+                'icon'  => 'EditOutlined',
+                'href'  => null,
+            ],
+            [
+                'key'   => 'forms_pending',
+                'value' => $formatosSinConfirmar,
+                'hint'  => __('dashboard.hint_forms_pending'),
+                'color' => $formatosSinConfirmar > 0 ? 'orange' : 'green',
+                'icon'  => 'FormOutlined',
+                'href'  => null,
+            ],
+            [
+                'key'   => 'plans_open',
+                'value' => $planesAbiertos,
+                'hint'  => __('dashboard.hint_plans_open'),
+                'color' => 'default',
+                'icon'  => 'FolderOpenOutlined',
+                'href'  => route('business_management.work_plans.index', ['is_done' => 'false']),
+            ],
+        ];
+
+        // Bandeja de firmas dudosas: solo a quien la puede resolver, y con el
+        // enlace a la propia bandeja. Sin el permiso no aparece el numero.
+        if ($user->can('signature_events.review')) {
+            // `signable` es polimorfico (trabajador, aprobacion o formato), asi
+            // que el filtro por workspace tiene que entrar por cada tabla: un
+            // `whereIn('signable_id', ...)` compararia ids de tablas distintas.
+            $porRevisar = SignatureEvent::query()
+                ->pendingReview()
+                ->whereHasMorph(
+                    'signable',
+                    [WorkPlanPerson::class, WorkPlanApproval::class, FormSubmission::class],
+                    fn ($q) => $q->whereIn('work_plan_id', WorkPlan::query()->select('id')),
+                )
+                ->count();
+
+            $indicadores[] = [
+                'key'   => 'signatures_review',
+                'value' => $porRevisar,
+                'hint'  => __('dashboard.hint_signatures_review'),
+                'color' => $porRevisar > 0 ? 'red' : 'default',
+                'icon'  => 'SafetyCertificateOutlined',
+                'href'  => route('field_work.signatures.review'),
+            ];
+        }
+
+        return [
+            'date'       => $hoy,
+            'widgets'    => $indicadores,
+            'plans'      => $this->planesDeHoy($hoy),
+            'plansTotal' => $planesHoy,
+            'canCreate'  => $user->can('work_plans.create'),
+            'createUrl'  => $user->can('work_plans.create')
+                ? route('business_management.work_plans.create')
+                : null,
+            'allUrl'     => route('business_management.work_plans.index', ['date_from' => $hoy, 'date_to' => $hoy]),
+        ];
+    }
+
+    /**
+     * Los planes con fecha de hoy y **que le falta a cada uno** para poder
+     * cerrarse, en las mismas palabras que usa la ficha del plan.
+     *
+     * Lo que falta lo dice `WorkPlanCompletionService::loQueFalta()`, que es la
+     * regla real de cierre. Repetirla aqui a mano seria tener dos verdades.
+     */
+    protected function planesDeHoy(string $hoy): array
+    {
+        $servicio = app(WorkPlanCompletionService::class);
+
+        return WorkPlan::query()
+            ->whereDate('date_start', $hoy)
+            ->with([
+                'company:id,name',
+                'workLocation:id,name',
+                'workType:id,code,name_es,name_en',
+                'formTemplateOverrides',
+            ])
+            // Sin terminar primero: lo que hay que atender va arriba.
+            ->orderBy('is_done')
+            ->orderBy('date_start')
+            ->limit(self::PLANES_LISTADOS)
+            ->get()
+            ->map(fn (WorkPlan $plan) => [
+                'slug'        => $plan->slug,
+                'code'        => $plan->code,
+                'company'     => $plan->company?->name,
+                'location'    => $plan->workLocation?->name,
+                'description' => $plan->description,
+                'time'        => $plan->date_start?->format('H:i'),
+                'is_done'     => (bool) $plan->is_done,
+                'is_closed'   => (bool) $plan->is_closed,
+                'missing'     => $plan->is_done ? [] : $servicio->loQueFalta($plan),
+                'href'        => route('business_management.work_plans.show', $plan->slug),
             ])
             ->all();
     }
 
-    /** Widgets de super: estado del sistema completo. */
+    /** Widgets de super: estado de la plataforma, no de la obra. */
     protected function superAdminWidgets(): array
     {
         $activeTenants  = Tenant::where('is_active', true)->count();
@@ -97,79 +248,64 @@ class DashboardController extends Controller
             ->where('status', 'failed')->count();
 
         return [
-            ['key' => 'tenants_active',   'label' => 'tenants_active',   'value' => $activeTenants, 'hint' => "{$totalTenants} totales", 'color' => 'blue',   'icon' => 'BankOutlined',     'href' => route('system_management.tenants.index')],
-            ['key' => 'subs_active',      'label' => 'subs_active',      'value' => $activeSubs,    'hint' => 'En curso',               'color' => 'green',  'icon' => 'CrownOutlined',    'href' => null],
-            ['key' => 'subs_expiring',    'label' => 'subs_expiring',    'value' => $expiringIn7,   'hint' => 'En 7 días',              'color' => $expiringIn7 > 0 ? 'orange' : 'default', 'icon' => 'ClockCircleOutlined', 'href' => null],
-            ['key' => 'autos_runs_24h',   'label' => 'autos_runs_24h',   'value' => $autoLast24h,   'hint' => "{$autoFailed24h} fallaron", 'color' => $autoFailed24h > 0 ? 'red' : 'cyan', 'icon' => 'ThunderboltOutlined', 'href' => null],
+            ['key' => 'tenants_active', 'value' => $activeTenants, 'hint' => __('dashboard.hint_tenants_total', ['count' => $totalTenants]), 'color' => 'blue',  'icon' => 'BankOutlined', 'href' => route('system_management.tenants.index')],
+            ['key' => 'subs_active',    'value' => $activeSubs,    'hint' => __('dashboard.hint_subs_active'), 'color' => 'green', 'icon' => 'CrownOutlined', 'href' => null],
+            ['key' => 'subs_expiring',  'value' => $expiringIn7,   'hint' => __('dashboard.hint_subs_expiring'), 'color' => $expiringIn7 > 0 ? 'orange' : 'default', 'icon' => 'ClockCircleOutlined', 'href' => null],
+            ['key' => 'autos_runs_24h', 'value' => $autoLast24h,   'hint' => trans_choice('dashboard.hint_autos_failed', $autoFailed24h, ['count' => $autoFailed24h]), 'color' => $autoFailed24h > 0 ? 'red' : 'cyan', 'icon' => 'ThunderboltOutlined', 'href' => null],
         ];
     }
 
-    /** Widgets para admin/user del tenant: vista del workspace. */
+    /**
+     * Widgets del workspace para el admin del tenant: su equipo, sus reglas y
+     * los dias que le quedan de plan. No es la obra, y en el frontend va
+     * debajo y en su propio bloque para que no se confunda con ella.
+     */
     protected function tenantWidgets(?User $user): array
     {
-        if (!$user || !$user->tenant_id) return [];
+        if (! $user || ! $user->tenant_id || ! $user->hasRole('admin')) {
+            return [];
+        }
 
         $tenantId = $user->tenant_id;
-        $usersCount    = User::withoutGlobalScopes()->where('tenant_id', $tenantId)->count();
-        $autoActive    = Automation::where('tenant_id', $tenantId)->where('is_active', true)->count();
-        $autoFailed7d  = AutomationRun::where('tenant_id', $tenantId)
+
+        $usersCount   = User::withoutGlobalScopes()->where('tenant_id', $tenantId)->count();
+        $autoActive   = \App\Models\Automation::where('tenant_id', $tenantId)->where('is_active', true)->count();
+        $autoFailed7d = AutomationRun::where('tenant_id', $tenantId)
             ->where('started_at', '>=', now()->subDays(7))
             ->where('status', 'failed')
             ->count();
+
         $sub = Subscription::where('tenant_id', $tenantId)
             ->whereIn('status', ['trial', 'active'])
             ->orderByDesc('ends_at')
             ->first();
         $daysLeft = $sub?->daysRemaining() ?? 0;
 
-        return [
-            ['key' => 'users_count',     'label' => 'users_count',     'value' => $usersCount,    'hint' => 'En tu workspace',        'color' => 'blue',   'icon' => 'UserOutlined',     'href' => route('user_management.users.index')],
-            ['key' => 'automations',     'label' => 'automations',     'value' => $autoActive,    'hint' => 'Activas',                'color' => 'cyan',   'icon' => 'ThunderboltOutlined', 'href' => null],
-            ['key' => 'auto_failures',   'label' => 'auto_failures',   'value' => $autoFailed7d,  'hint' => 'En los últimos 7 días',  'color' => $autoFailed7d > 0 ? 'red' : 'default', 'icon' => 'WarningOutlined', 'href' => null],
-            ['key' => 'plan_days_left',  'label' => 'plan_days_left',  'value' => $daysLeft,      'hint' => $sub ? $sub->plan : '—',  'color' => $daysLeft <= 7 ? 'orange' : 'green', 'icon' => 'CrownOutlined', 'href' => null],
-        ];
-    }
-
-    /**
-     * Panel del dia para el tenant: como va el trabajo en obra.
-     *
-     * Sustituye al panel de flota de transformadores que traia la base
-     * heredada. Todos los conteos usan Eloquent normal, asi que respetan el
-     * aislamiento por workspace.
-     */
-    protected function tenantFleetDashboard(?User $user, Request $request): array
-    {
-        $vacio = ['fieldWork' => null];
-
-        if (! $user) {
-            return $vacio;
-        }
-
-        $hoy = today();
+        // Automatizaciones no se protege con un permiso sino con la feature del
+        // plan (asi lo hacen la ruta y el menu lateral). Preguntar por
+        // `can('automations.view')` daba siempre `false` —ese permiso no
+        // existe— y el numero se quedaba sin enlace.
+        $verAutomatizaciones = $user->tenant?->canUseFeature('automations') ?? false;
 
         return [
-            'fieldWork' => [
-                'planesHoy'        => \App\Models\WorkPlan::whereDate('date_start', $hoy)->count(),
-                'planesAbiertos'   => \App\Models\WorkPlan::where('is_done', false)->count(),
-                'firmasPendientes' => \App\Models\SignatureEvent::pendingReview()->count(),
-                'formatosSinCerrar' => \App\Models\FormSubmission::where('status', '!=', 'confirmed')->count(),
-                'personasActivas'  => \App\Models\Person::where('is_active', true)->count(),
-                'empresas'         => \App\Models\Company::where('is_active', true)->count(),
-            ],
+            ['key' => 'users_count',    'value' => $usersCount,   'hint' => __('dashboard.hint_users_count'), 'color' => 'blue', 'icon' => 'UserOutlined', 'href' => $user->can('users.view') ? route('user_management.users.index') : null],
+            ['key' => 'automations',    'value' => $autoActive,   'hint' => __('dashboard.hint_automations'), 'color' => 'cyan', 'icon' => 'ThunderboltOutlined', 'href' => $verAutomatizaciones ? route('automation_management.automations.index') : null],
+            ['key' => 'auto_failures',  'value' => $autoFailed7d, 'hint' => __('dashboard.hint_auto_failures'), 'color' => $autoFailed7d > 0 ? 'red' : 'default', 'icon' => 'WarningOutlined', 'href' => null],
+            ['key' => 'plan_days_left', 'value' => $daysLeft,     'hint' => $sub?->plan ? strtoupper($sub->plan) : '—', 'color' => $daysLeft <= 7 ? 'orange' : 'green', 'icon' => 'CrownOutlined', 'href' => null],
         ];
     }
 
     protected function recentAutomations(?User $user): array
     {
-        if (!$user) return [];
+        if (! $user) return [];
 
         $q = AutomationRun::query()
             ->with('automation:id,name,tenant_id')
             ->orderByDesc('started_at')
             ->limit(5);
 
-        if (!$user->hasRole('super')) {
-            if (!$user->tenant_id) return [];
+        if (! $user->hasRole('super')) {
+            if (! $user->tenant_id) return [];
             $q->where('tenant_id', $user->tenant_id);
         }
 
@@ -192,7 +328,7 @@ class DashboardController extends Controller
      */
     protected function expiringSubscriptions(?User $user): array
     {
-        if (!$user) return [];
+        if (! $user) return [];
 
         $q = Subscription::query()
             ->with('tenant:id,name')
@@ -200,8 +336,8 @@ class DashboardController extends Controller
             ->whereBetween('ends_at', [now(), now()->addDays(7)])
             ->orderBy('ends_at');
 
-        if (!$user->hasRole('super')) {
-            if (!$user->tenant_id) return [];
+        if (! $user->hasRole('super')) {
+            if (! $user->tenant_id) return [];
             $q->where('tenant_id', $user->tenant_id);
         }
 

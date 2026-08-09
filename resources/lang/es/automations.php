@@ -102,6 +102,15 @@ return [
     'tpl_preview_message' => 'Mensaje que recibirá el destinatario',
     'tpl_preview_after_apply_hint' => 'Al aplicar la plantilla todos los campos quedarán pre-llenos. Asegúrate de completar los destinatarios y revisar el contenido antes de guardar.',
 
+    // Plantilla: los planes que quedaron sin terminar. Es el unico caso de obra
+    // que se puede armar hoy, y el motivo de que exista la fuente work_plans.
+    'tpl_open_plans_title'   => 'Aviso diario de planes sin terminar',
+    'tpl_open_plans_use'     => 'Cada mañana recibes por correo la lista de planes de trabajo que siguen sin terminar: los que les falta una firma o un formato por confirmar.',
+    'tpl_open_plans_when'    => 'Todos los días a las 07:00',
+    'tpl_open_plans_where'   => 'Correo al destinatario que elijas',
+    'tpl_open_plans_subject' => 'Planes sin terminar al {date}: {count}',
+    'tpl_open_plans_body'    => "Buenos días,\n\nAl {date} quedan {count} plan(es) de trabajo sin terminar:\n{list}\n\nA un plan le falta terminar cuando queda una firma sin dar o un formato sin confirmar.\n\nGenerado por: {automation}",
+
     // Plantilla 1: Resumen diario de clientes
     'tpl_daily_customers_title'   => 'Resumen diario de clientes',
     'tpl_daily_customers_use'     => 'Recibe cada mañana por email la lista completa de clientes activos de tu workspace.',
@@ -118,14 +127,6 @@ return [
     'tpl_inactive_subject' => 'Hay {count} clientes inactivos para revisar',
     'tpl_inactive_body'    => 'Recordatorio: hay {count} clientes inactivos en tu workspace. Revísalos para reactivar o eliminar definitivamente.',
 
-    // Plantilla 3: Reporte semanal del equipo
-    'tpl_team_title'   => 'Reporte semanal del equipo',
-    'tpl_team_use'     => 'Cada lunes recibes por email un resumen de los usuarios activos en tu workspace y quiénes son.',
-    'tpl_team_when'    => 'Cada lunes a las 09:00',
-    'tpl_team_where'   => 'Email al destinatario configurado',
-    'tpl_team_subject' => 'Reporte semanal: {count} usuarios activos en tu equipo',
-    'tpl_team_body'    => "Hola,\n\nEste es el estado del equipo al {date}.\n\nUsuarios activos ({count}):\n{list}\n\nGenerado por: {automation}",
-
     // Plantilla 4: Suscripciones activas (super)
     'tpl_subs_title'   => 'Estado mensual de suscripciones',
     'tpl_subs_use'     => 'El primer día de cada mes recibes por email la lista de workspaces con suscripción activa, útil para super-admins.',
@@ -133,30 +134,6 @@ return [
     'tpl_subs_where'   => 'Email al destinatario configurado',
     'tpl_subs_subject' => 'Suscripciones activas este mes: {count}',
     'tpl_subs_body'    => "Hola,\n\nAl {date} hay {count} workspaces con suscripción activa:\n{list}\n\nGenerado por: {automation}",
-
-    // Plantilla 5: Transformadores por cliente
-    'tpl_tr_cust_title'   => 'Por transformador y cliente',
-    'tpl_tr_cust_use'     => 'Cada lunes recibes un aviso con los transformadores de un cliente. Elige el cliente al guardar.',
-    'tpl_tr_cust_when'    => 'Cada lunes a las 08:00',
-    'tpl_tr_cust_where'   => 'Aviso para los administradores del workspace',
-    'tpl_tr_cust_subject' => 'Transformadores del cliente: {count}',
-    'tpl_tr_cust_body'    => "Al {date}, el cliente seleccionado tiene {count} transformadores registrados.\n\nGenerado por: {automation}",
-
-    // Plantilla 6: Transformadores por cliente y estado
-    'tpl_tr_state_title'   => 'Por transformador, cliente y estado',
-    'tpl_tr_state_use'     => 'Como la anterior, pero solo los transformadores del cliente en mal estado de salud (Malo o Crítico). Ajusta el cliente y el estado al guardar.',
-    'tpl_tr_state_when'    => 'Cada lunes a las 08:00',
-    'tpl_tr_state_where'   => 'Aviso para los administradores del workspace',
-    'tpl_tr_state_subject' => 'Transformadores del cliente en mal estado: {count}',
-    'tpl_tr_state_body'    => "Al {date}, el cliente seleccionado tiene {count} transformadores en mal estado de salud (Malo o Crítico).\n\nGenerado por: {automation}",
-
-    // Plantilla 7: Transformadores por cliente, estado e índice
-    'tpl_tr_idx_title'   => 'Por transformador, cliente, estado e índice',
-    'tpl_tr_idx_use'     => 'Transformadores del cliente en mal estado de salud y con índice bajo (menor a 50): los que requieren atención. Ajusta cliente, estado e índice al guardar.',
-    'tpl_tr_idx_when'    => 'Cada lunes a las 08:00',
-    'tpl_tr_idx_where'   => 'Aviso para los administradores del workspace',
-    'tpl_tr_idx_subject' => 'Transformadores del cliente que requieren atención: {count}',
-    'tpl_tr_idx_body'    => "Al {date}, el cliente seleccionado tiene {count} transformadores en mal estado de salud e índice menor a 50. Revísalos cuanto antes.\n\nGenerado por: {automation}",
 
     // Fields
     'name'        => 'Nombre',
@@ -197,12 +174,8 @@ return [
 
     // Source labels (usados por DataSourceContract::label())
     'source_customers'     => 'Clientes',
-    'source_transformers'  => 'Transformadores',
-    'source_users'         => 'Usuarios',
+    'source_work_plans'    => 'Planes de trabajo',
     'source_subscriptions' => 'Suscripciones',
-
-    // Campos propios de algún data source
-    'field_health_rating'  => 'Estado de salud (0 crítico … 4 excelente)',
 
     // Action
     'action_type'                => 'Tipo de acción',
@@ -261,6 +234,24 @@ return [
     'toggle_active'   => 'Pausar / Reanudar',
     'edit_hint'       => 'Modificar trigger, datos o acción',
     'delete_hint'     => 'Eliminar (queda en papelera)',
+
+    // Ficha: cabeceras del historial de ejecuciones y del bloque de datos.
+    // Estaban escritas a mano en la pantalla («Records», «Resultado», «Error»,
+    // «Filtros», «Config»), asi que en ingles salian en castellano.
+    'col_records'      => 'Registros',
+    'col_result'       => 'Resultado',
+    'col_error'        => 'Error',
+    'filters'          => 'Filtros',
+    'filters_none'     => 'Sin filtros',
+    'action_summary'   => 'Cómo se envía',
+    'cfg_to'           => 'Para',
+    'cfg_subject'      => 'Asunto',
+    'cfg_body'         => 'Mensaje',
+    'cfg_title'        => 'Título',
+    'cfg_recipients'   => 'Destinatarios',
+    'trigger_weekly_on'  => 'Cada semana · día :day · :time',
+    'trigger_monthly_on' => 'Cada mes · día :day · :time',
+    'trigger_cron_on'    => 'Programación avanzada · :expr',
 
     // Tabs en Show
     'tab_general'  => 'Configuración',

@@ -53,7 +53,7 @@ const submit = () => {
                 <template #description>
                     <ul class="dependents-list">
                         <li v-for="(d, key) in dependents" :key="key">
-                            {{ $t('global.has_dependents_detail', { count: d.count, label: d.label }) }}
+                            {{ $tc('global.has_dependents_detail', d.count, { count: d.count, label: d.label }) }}
                         </li>
                     </ul>
                     <p class="dependents-note">

@@ -1,13 +1,26 @@
 <script setup>
+/**
+ * El panel: la primera pantalla despues de entrar.
+ *
+ * Lo primero que se ve es **el dia en la obra** — cuantos planes hay hoy, que
+ * falta por firmar, que formatos quedan sin confirmar y, debajo, plan por plan,
+ * que le falta a cada uno. Todo lo demas (el workspace del admin, la plataforma
+ * del super) va despues y en su propio bloque, para que nadie confunda el
+ * estado de la cuenta con el estado del trabajo.
+ *
+ * Antes de esto la rama del usuario que no es super estaba literalmente vacia:
+ * un supervisor entraba y solo veia el saludo.
+ */
 import { computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { Card, Tag, Empty, Tooltip } from 'ant-design-vue';
+import { Card, Tag, Empty, Tooltip, Button } from 'ant-design-vue';
 import {
     DashboardOutlined, BankOutlined, CrownOutlined, ClockCircleOutlined,
     ThunderboltOutlined, UserOutlined, WarningOutlined,
+    FileDoneOutlined, EditOutlined, FormOutlined, FolderOpenOutlined,
+    SafetyCertificateOutlined,
     CheckCircleFilled, CloseCircleFilled, LoadingOutlined,
-    PlusCircleFilled, EditFilled, DeleteFilled, ExportOutlined,
-    UndoOutlined, HistoryOutlined,
+    PlusOutlined, RightOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -24,37 +37,37 @@ const page = usePage();
 const { formatDateTimeFull } = useDateFormat();
 
 const props = defineProps({
-    isSuper:      { type: Boolean, default: false },
+    isSuper:           { type: Boolean, default: false },
+    // El panel del dia. null = el perfil no puede ver planes de trabajo.
+    today:             { type: Object, default: null },
+    // Estado de la cuenta — solo para el admin del workspace.
+    workspaceWidgets:  { type: Array, default: () => [] },
+    // Estado de la plataforma — solo super.
     widgets:           { type: Array, default: () => [] },
     recentAutomations: { type: Array, default: () => [] },
     expiringSoon:      { type: Array, default: () => [] },
-    // Para la vista simple del non-super: últimas acciones del propio user.
-    recentActivity:    { type: Array, default: () => [] },
-    // Dashboard de flota del tenant (non-super).
-    fleet:         { type: Object, default: null },
-    fleetFilters:  { type: Object, default: () => ({ customers: [], types: [] }) },
-    fleetActive:   { type: Object, default: () => ({ customer: [], type: [], rating: [] }) },
 });
 
 const userName = computed(() => page.props.auth?.user?.name ?? '');
 const roles    = computed(() => page.props.auth?.user?.roles ?? []);
 const greeting = computed(() => {
     if (roles.value.includes('super')) return t('dashboard.role_super');
-    if (roles.value.includes('admin'))       return t('dashboard.role_admin');
+    if (roles.value.includes('admin')) return t('dashboard.role_admin');
     return t('dashboard.role_user');
 });
 
 const iconMap = {
     BankOutlined, CrownOutlined, ClockCircleOutlined, ThunderboltOutlined,
-    UserOutlined, WarningOutlined,
+    UserOutlined, WarningOutlined, FileDoneOutlined, EditOutlined,
+    FormOutlined, FolderOpenOutlined, SafetyCertificateOutlined,
 };
 const resolveIcon = (key) => iconMap[key] ?? DashboardOutlined;
 
 const widgetColor = (color) => ({
-    blue: '#1677ff', green: '#52c41a', cyan: '#13c2c2',
-    orange: '#fa8c16', red: '#f5222d', gold: '#faad14',
-    default: '#8c8c8c',
-}[color] ?? '#1677ff');
+    blue: '#0A6ED1', green: '#1D7044', cyan: '#13c2c2',
+    orange: '#E76500', red: '#C8281D', gold: '#faad14',
+    default: '#6A6D70',
+}[color] ?? '#0A6ED1');
 
 const runStatusIcon = (status) => ({
     success: CheckCircleFilled,
@@ -63,32 +76,31 @@ const runStatusIcon = (status) => ({
 }[status] ?? CheckCircleFilled);
 
 const runStatusColor = (status) => ({
-    success: '#52c41a', failed: '#f5222d', running: '#1677ff',
-}[status] ?? '#8c8c8c');
+    success: '#1D7044', failed: '#C8281D', running: '#0A6ED1',
+}[status] ?? '#6A6D70');
 
-// Meta por tipo de evento de audit (icono + color + label i18n).
-const eventMeta = (event) => {
-    switch (event) {
-        case 'created':       return { icon: PlusCircleFilled, color: '#1D7044', label: t('global.event_created') };
-        case 'updated':       return { icon: EditFilled,        color: '#0A6ED1', label: t('global.event_updated') };
-        case 'deleted':       return { icon: DeleteFilled,      color: '#C8281D', label: t('global.event_deleted') };
-        case 'force_deleted': return { icon: DeleteFilled,      color: '#7E1810', label: t('global.event_force_deleted') };
-        case 'restored':      return { icon: UndoOutlined,      color: '#1D7044', label: t('global.event_restored') };
-        case 'exported':      return { icon: ExportOutlined,    color: '#6A6D70', label: t('global.event_exported') };
-        case 'export_queued': return { icon: ExportOutlined,    color: '#6A6D70', label: t('global.event_export_queued') };
-        default:              return { icon: HistoryOutlined,   color: '#6A6D70', label: event };
-    }
+/**
+ * El estado del plan, siempre color Y palabra: al sol el matiz se pierde y hay
+ * quien no distingue el rojo del verde (docs/UI.md §5).
+ */
+const planState = (plan) => {
+    if (plan.is_done)   return { color: 'green',  label: t('dashboard.plan_state_done') };
+    if (plan.is_closed) return { color: 'default', label: t('dashboard.plan_state_closed') };
+    return { color: 'orange', label: t('dashboard.plan_state_pending') };
 };
 
+const plans      = computed(() => props.today?.plans ?? []);
+const plansExtra = computed(() => Math.max(0, (props.today?.plansTotal ?? 0) - plans.value.length));
+
 const fmt    = (d) => formatDateTimeFull(d);
-const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
+const fmtRel = (d) => (d ? dayjs(d).fromNow() : '—');
 </script>
 
 <template>
     <Head :title="$t('dashboard.title')" />
 
     <div class="sap-index dashboard">
-        <!-- Header común a ambos roles: saludo + descripción del rol -->
+        <!-- Cabecera: quien eres y que panel estas mirando -->
         <div class="mi-title" data-tour="module">
             <div class="page-header__title">
                 <div class="page-header__icon">
@@ -99,11 +111,147 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
                     <p>{{ $t('dashboard.hello', { name: userName || $t('dashboard.user') }) }}</p>
                 </div>
             </div>
+            <div v-if="today?.canCreate" class="mi-title__actions">
+                <Link :href="today.createUrl">
+                    <Button type="primary" size="large">
+                        <template #icon><PlusOutlined /></template>
+                        {{ $t('dashboard.plans_new') }}
+                    </Button>
+                </Link>
+            </div>
         </div>
 
-        <!-- ─── VISTA SUPER: dashboard completo ─────────────────────────── -->
+        <!-- ─── EL PANEL DEL DÍA ─────────────────────────────────────────── -->
+        <template v-if="today">
+            <div class="block-head">
+                <h2>{{ $t('dashboard.today_title') }}</h2>
+                <p>
+                    {{ $t('dashboard.today_subtitle') }}
+                    <span v-if="isSuper" class="muted">{{ $t('dashboard.today_all_scope') }}</span>
+                </p>
+            </div>
+
+            <div class="widgets-grid">
+                <component
+                    v-for="w in today.widgets"
+                    :key="w.key"
+                    :is="w.href ? Link : 'div'"
+                    :href="w.href"
+                    class="widget-card"
+                    :class="{ 'widget-card--link': !!w.href }"
+                >
+                    <div class="widget-card__icon" :style="{ background: widgetColor(w.color) }">
+                        <component :is="resolveIcon(w.icon)" />
+                    </div>
+                    <div class="widget-card__body">
+                        <div class="widget-card__value">{{ w.value }}</div>
+                        <div class="widget-card__label">{{ $t('dashboard.widget_' + w.key) }}</div>
+                        <div v-if="w.hint" class="widget-card__hint">{{ w.hint }}</div>
+                    </div>
+                </component>
+            </div>
+
+            <!-- Los planes de hoy, y qué le falta a cada uno -->
+            <Card class="block-card" :bodyStyle="{ padding: 0 }">
+                <template #title>
+                    <FileDoneOutlined /> {{ $t('dashboard.plans_title') }}
+                    <Tag v-if="today.plansTotal > 0" color="blue" :bordered="false">{{ today.plansTotal }}</Tag>
+                </template>
+                <template #extra>
+                    <Link v-if="today.plansTotal > 0" :href="today.allUrl" class="block-card__link">
+                        {{ $t('dashboard.plans_see_all') }} <RightOutlined />
+                    </Link>
+                </template>
+
+                <Empty
+                    v-if="plans.length === 0"
+                    :description="$t('dashboard.plans_none')"
+                    style="padding: 32px 16px"
+                >
+                    <p class="muted">{{ $t('dashboard.plans_none_hint') }}</p>
+                    <Link v-if="today.canCreate" :href="today.createUrl">
+                        <Button type="primary">
+                            <template #icon><PlusOutlined /></template>
+                            {{ $t('dashboard.plans_new') }}
+                        </Button>
+                    </Link>
+                </Empty>
+
+                <ul v-else class="row-list">
+                    <li v-for="p in plans" :key="p.slug" class="row-item plan-row">
+                        <!-- marca │ título + subtítulo │ estado + acción (docs/UI.md §4-bis) -->
+                        <span class="plan-row__mark" :class="`plan-row__mark--${planState(p).color}`" aria-hidden="true"></span>
+
+                        <div class="row-item__main">
+                            <div class="plan-row__title">
+                                <strong>{{ p.code }}</strong>
+                                <span v-if="p.time" class="plan-row__time"><ClockCircleOutlined /> {{ p.time }}</span>
+                            </div>
+                            <div class="plan-row__sub muted">
+                                {{ p.company || $t('dashboard.plan_no_company') }}
+                                · {{ p.location || $t('dashboard.plan_no_location') }}
+                            </div>
+                            <div v-if="p.missing.length" class="plan-row__missing">
+                                <ExclamationCircleOutlined />
+                                <span>{{ $t('dashboard.plan_missing') }}: {{ p.missing.join(' · ') }}</span>
+                            </div>
+                        </div>
+
+                        <div class="row-item__meta">
+                            <Tag :color="planState(p).color" :bordered="false">{{ planState(p).label }}</Tag>
+                            <Link :href="p.href" class="plan-row__open" :aria-label="p.code">
+                                <RightOutlined />
+                            </Link>
+                        </div>
+                    </li>
+                </ul>
+
+                <div v-if="plansExtra > 0" class="row-more">
+                    <Link :href="today.allUrl">{{ $t('dashboard.plans_more', { count: plansExtra }) }}</Link>
+                </div>
+            </Card>
+        </template>
+
+        <!-- Sin permiso para ver planes: se dice, no se enseña una rejilla de ceros -->
+        <Card v-else class="block-card">
+            <h2 class="welcome-title">{{ $t('dashboard.welcome_title') }}</h2>
+            <p class="welcome-text">{{ $t('dashboard.welcome_body') }}</p>
+        </Card>
+
+        <!-- ─── TU WORKSPACE (admin del tenant) ──────────────────────────── -->
+        <template v-if="workspaceWidgets.length > 0">
+            <div class="block-head">
+                <h2>{{ $t('dashboard.workspace_title') }}</h2>
+                <p>{{ $t('dashboard.workspace_subtitle') }}</p>
+            </div>
+            <div class="widgets-grid">
+                <component
+                    v-for="w in workspaceWidgets"
+                    :key="w.key"
+                    :is="w.href ? Link : 'div'"
+                    :href="w.href"
+                    class="widget-card"
+                    :class="{ 'widget-card--link': !!w.href }"
+                >
+                    <div class="widget-card__icon" :style="{ background: widgetColor(w.color) }">
+                        <component :is="resolveIcon(w.icon)" />
+                    </div>
+                    <div class="widget-card__body">
+                        <div class="widget-card__value">{{ w.value }}</div>
+                        <div class="widget-card__label">{{ $t('dashboard.widget_' + w.key) }}</div>
+                        <div v-if="w.hint" class="widget-card__hint">{{ w.hint }}</div>
+                    </div>
+                </component>
+            </div>
+        </template>
+
+        <!-- ─── PLATAFORMA (super) ───────────────────────────────────────── -->
         <template v-if="isSuper">
-            <!-- Widgets / KPIs -->
+            <div class="block-head">
+                <h2>{{ $t('dashboard.platform_title') }}</h2>
+                <p>{{ $t('dashboard.platform_subtitle') }}</p>
+            </div>
+
             <div class="widgets-grid">
                 <component
                     v-for="w in widgets"
@@ -118,15 +266,12 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
                     </div>
                     <div class="widget-card__body">
                         <div class="widget-card__value">{{ w.value }}</div>
-                        <div class="widget-card__label">{{ $t('dashboard.widget_' + w.label) }}</div>
+                        <div class="widget-card__label">{{ $t('dashboard.widget_' + w.key) }}</div>
                         <div v-if="w.hint" class="widget-card__hint">{{ w.hint }}</div>
                     </div>
                 </component>
             </div>
 
-            <!-- Flota cross-tenant (todos los workspaces) + desglose por workspace -->
-
-            <!-- Suscripciones por vencer -->
             <Card v-if="expiringSoon.length > 0" class="block-card" :bodyStyle="{ padding: 0 }">
                 <template #title>
                     <ClockCircleOutlined /> {{ $t('dashboard.expiring_soon') }}
@@ -150,7 +295,6 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
                 </ul>
             </Card>
 
-            <!-- Automatizaciones recientes -->
             <Card class="block-card" :bodyStyle="{ padding: 0 }">
                 <template #title>
                     <ThunderboltOutlined /> {{ $t('dashboard.recent_automations') }}
@@ -165,7 +309,7 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
                         </div>
                         <div class="row-item__meta">
                             <Tooltip v-if="r.records_matched !== null" :title="$t('dashboard.records_processed')">
-                                <Tag :bordered="false">{{ r.records_matched }} rec.</Tag>
+                                <Tag :bordered="false">{{ r.records_matched }}</Tag>
                             </Tooltip>
                             <Tooltip :title="fmt(r.started_at)">
                                 <span class="muted">{{ fmtRel(r.started_at) }}</span>
@@ -175,24 +319,26 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
                 </ul>
             </Card>
         </template>
-
-        <!-- ─── VISTA NON-SUPER: dashboard de flota + actividad reciente ──────── -->
-        <template v-else>
-        </template>
     </div>
 </template>
 
 <style scoped>
-/* Full-width: ocupa todo el ancho del shell (no max-width restrictiva). */
-
-/* Welcome card — non-super */
-.welcome-card { border-radius: 6px; margin-bottom: 16px; }
-.welcome-text {
-    margin: 0; font-size: 0.9375rem; line-height: 1.6;
-    color: var(--color-text);
+/* Cabecera de bloque: separa «la obra» de «la cuenta» de «la plataforma». */
+.block-head { margin: 22px 0 10px; }
+.block-head:first-of-type { margin-top: 4px; }
+.block-head h2 {
+    margin: 0; font-size: 1.05rem; font-weight: 600;
+    color: var(--color-text-strong);
+}
+.block-head p {
+    margin: 2px 0 0; font-size: 0.8125rem; color: var(--color-text-muted);
 }
 
-/* Widgets grid */
+/* Welcome card — sin permiso de planes */
+.welcome-title { margin: 0 0 6px; font-size: 1.05rem; font-weight: 600; }
+.welcome-text { margin: 0; font-size: 0.9375rem; line-height: 1.6; color: var(--color-text); }
+
+/* Rejilla de indicadores */
 .widgets-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -204,6 +350,8 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
     align-items: center;
     gap: 14px;
     padding: 16px;
+    /* 44px de alto minimo de toque: con guantes menos no se acierta. */
+    min-height: 76px;
     background: white;
     border: 1px solid var(--color-border-soft);
     border-radius: 6px;
@@ -222,12 +370,14 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
     display: flex; align-items: center; justify-content: center;
     font-size: 1.2rem; flex-shrink: 0;
 }
+.widget-card__body { min-width: 0; }
 .widget-card__value {
-    font-size: 1.5rem; font-weight: 700; color: var(--color-text-strong);
+    font-size: 1.75rem; font-weight: 700; color: var(--color-text-strong);
     line-height: 1.1;
 }
 .widget-card__label {
-    font-size: 0.8125rem; color: var(--color-text); margin-top: 2px;
+    font-size: 0.875rem; color: var(--color-text); margin-top: 2px;
+    font-weight: 600;
 }
 .widget-card__hint {
     font-size: 0.75rem; color: var(--color-text-muted); margin-top: 2px;
@@ -235,10 +385,9 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
 
 /* Bloques de listado */
 .block-card { border-radius: 6px; margin-bottom: 16px; }
+.block-card__link { font-size: 0.8125rem; }
 
-.row-list {
-    list-style: none; margin: 0; padding: 0;
-}
+.row-list { list-style: none; margin: 0; padding: 0; }
 .row-item {
     display: flex; align-items: center; gap: 12px;
     padding: 12px 16px;
@@ -252,17 +401,51 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '—';
 }
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; }
 
-/* Icono pequeño coloreado para cada evento del audit */
-.event-icon {
-    width: 32px; height: 32px; border-radius: 50%;
-    color: white;
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 0.95rem; flex-shrink: 0;
+.row-more {
+    padding: 10px 16px; font-size: 0.8125rem;
+    border-top: 1px solid var(--color-border-soft);
 }
 
-@media (max-width: 640px) {
+/* Fila de plan: marca de estado, titulo, subtitulo y lo que le falta. */
+.plan-row { align-items: flex-start; min-height: 56px; }
+.plan-row__mark {
+    width: 4px; align-self: stretch; border-radius: 2px; flex-shrink: 0;
+    min-height: 34px;
+}
+.plan-row__mark--green   { background: #1D7044; }
+.plan-row__mark--orange  { background: #E76500; }
+.plan-row__mark--red     { background: #C8281D; }
+.plan-row__mark--default { background: #A9B4BE; }
+
+.plan-row__title {
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.plan-row__title strong { font-size: 0.9375rem; }
+.plan-row__time { font-size: 0.8125rem; color: var(--color-text-muted); }
+.plan-row__sub {
+    margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.plan-row__missing {
+    display: flex; align-items: flex-start; gap: 6px;
+    margin-top: 6px;
+    font-size: 0.8125rem;
+    color: #8a4b00;
+    line-height: 1.4;
+}
+.plan-row__open {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px;
+    border-radius: 6px;
+    color: var(--color-text-muted);
+}
+.plan-row__open:hover { background: var(--color-surface-alt); color: var(--color-primary); }
+
+@media (max-width: 768px) {
+    .widgets-grid { grid-template-columns: 1fr; }
     .row-item { flex-wrap: wrap; }
     .row-item__meta { width: 100%; justify-content: flex-end; margin-top: 4px; }
+    .plan-row__sub { white-space: normal; }
 }
 </style>
 
@@ -271,4 +454,5 @@ html[data-theme="dark"] .widget-card {
     background: var(--color-surface-alt);
     border-color: var(--color-border-strong);
 }
+html[data-theme="dark"] .plan-row__missing { color: #f0a868; }
 </style>

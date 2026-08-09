@@ -23,7 +23,15 @@ trait RendersTemplate
         ];
     }
 
-    /** Lista "- etiqueta" de hasta 50 registros (best-effort por campo). */
+    /**
+     * Lista "- etiqueta" de hasta 50 registros (best-effort por campo).
+     *
+     * `code` entra en la cadena, y antes que `slug`, por un motivo concreto: un
+     * plan de trabajo NO tiene nombre —se identifica por su codigo,
+     * PE24-0412-0458— y su slug son 22 caracteres al azar. Sin esto, el correo
+     * de «los planes que quedaron sin terminar» llegaba con una lista de
+     * cadenas ilegibles.
+     */
     protected function buildList(?Collection $data): string
     {
         if (!$data || $data->isEmpty()) {
@@ -31,7 +39,8 @@ trait RendersTemplate
         }
 
         return $data->take(50)->map(function ($item) {
-            $label = $item->name ?? $item->email ?? $item->serial ?? $item->tag ?? $item->slug ?? "#{$item->id}";
+            $label = $item->name ?? $item->email ?? $item->code ?? $item->serial
+                ?? $item->tag ?? $item->slug ?? "#{$item->id}";
             return "- {$label}";
         })->implode("\n");
     }
