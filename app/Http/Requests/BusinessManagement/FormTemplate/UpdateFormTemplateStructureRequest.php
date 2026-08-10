@@ -37,20 +37,23 @@ class UpdateFormTemplateStructureRequest extends FormRequest
             // array vacío.
             'sections'                     => ['present', 'array', 'max:50'],
             'sections.*.id'                => ['nullable', 'integer'],
-            // El título del bloque, en los dos idiomas. Opcional a propósito:
-            // en el papel no todos los bloques llevan título —el EPP y el IHM
-            // son una sola tabla sin cabecera— y `FormSection::getLabel()`
-            // devuelve cadena vacía en ese caso en vez de inventarse un
-            // «Sección 2».
-            'sections.*.name_es'           => ['nullable', 'string', 'max:120'],
-            'sections.*.name_en'           => ['nullable', 'string', 'max:120'],
+            // El título del bloque. UNO, no uno por idioma: se guarda en la
+            // columna del idioma en el que se está trabajando (ver
+            // `FormTemplateStructureService::columnaDelIdioma()`). Pedirle al
+            // cliente que escriba cada título dos veces es pedirle que traduzca
+            // su propio trabajo.
+            //
+            // Opcional a propósito: en el papel no todos los bloques llevan
+            // título —el EPP y el IHM son una sola tabla sin cabecera— y
+            // `FormSection::getLabel()` devuelve cadena vacía en ese caso en vez
+            // de inventarse un «Sección 2».
+            'sections.*.name'              => ['nullable', 'string', 'max:120'],
             'sections.*.fields'            => ['present', 'array', 'max:100'],
             'sections.*.fields.*.id'       => ['nullable', 'integer'],
             // Igual con la etiqueta del campo: si falta, el accesor cae al
             // código humanizado, que es como se leía antes de que existieran
             // estas columnas.
-            'sections.*.fields.*.label_es' => ['nullable', 'string', 'max:180'],
-            'sections.*.fields.*.label_en' => ['nullable', 'string', 'max:180'],
+            'sections.*.fields.*.label'    => ['nullable', 'string', 'max:180'],
             // El código es la clave con la que la entrega guarda la respuesta
             // (`FormSubmissionService` busca por `code`), así que no admite
             // espacios ni acentos: minúsculas, números y guion bajo.

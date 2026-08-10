@@ -299,20 +299,23 @@ class FormTemplateController extends Controller
             // `resources/lang`: un formato lo define el cliente desde aqui, y
             // lo que el escriba no puede vivir en el repositorio. Es el mismo
             // criterio de `approver_roles`.
+            //
+            // Al editor va UN nombre, el del idioma en el que se esta mirando, y
+            // ahi mismo se guarda. Las dos columnas estan para que los cuatro
+            // formatos que trae el producto vengan en los dos idiomas —eso lo
+            // escribimos nosotros en el seeder—, no para que el cliente teclee
+            // cada titulo dos veces.
             'sections' => $formTemplate->sections->map(fn ($s) => [
                 'id'       => $s->id,
                 'position' => $s->position,
-                'name_es'  => $s->name_es,
-                'name_en'  => $s->name_en,
+                'name'     => $s->label,
                 'fields'   => $s->fields->map(fn ($c) => [
                     'id'          => $c->id,
                     'code'        => $c->code,
                     // Los campos anteriores a la columna llevan su etiqueta en
-                    // `config.label`. Se sube aqui para que el editor la
-                    // enseñe y la guarde ya en su sitio: si no, abrir y
-                    // guardar un formato viejo lo dejaria sin etiqueta.
-                    'label_es'    => $c->label_es ?? ($c->config['label'] ?? null),
-                    'label_en'    => $c->label_en,
+                    // `config.label`, y el accesor ya cae ahi: abrir y guardar
+                    // un formato viejo la deja en su sitio en vez de perderla.
+                    'label'       => $c->label,
                     'field_type'  => $c->field_type,
                     'is_required' => (bool) $c->is_required,
                     'position'    => $c->position,

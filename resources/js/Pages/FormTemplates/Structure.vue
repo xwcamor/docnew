@@ -30,7 +30,7 @@
  *    mitad deja dos campos en la misma posición.
  */
 import { computed, ref, watch } from 'vue';
-import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { Head, router, useForm } from '@inertiajs/vue3';
 import {
     Alert, Button, Card, Input, Popconfirm, Select, Space, Switch, Tag, Tooltip,
 } from 'ant-design-vue';
@@ -68,14 +68,12 @@ const uid = () => `nuevo-${siguienteUid++}`;
 const clonar = (secciones) => secciones.map((s) => ({
     id: s.id ?? null,
     uid: uid(),
-    name_es: s.name_es ?? '',
-    name_en: s.name_en ?? '',
+    name: s.name ?? '',
     fields: (s.fields ?? []).map((f) => ({
         id: f.id ?? null,
         uid: uid(),
         code: f.code ?? '',
-        label_es: f.label_es ?? '',
-        label_en: f.label_en ?? '',
+        label: f.label ?? '',
         field_type: f.field_type ?? 'text',
         is_required: !!f.is_required,
         config: { ...(f.config ?? {}) },
@@ -109,8 +107,8 @@ const tipoOptions = computed(() => props.fieldTypes.map((tp) => ({ value: tp.val
 const specDe = (tipo) => props.fieldTypes.find((tp) => tp.value === tipo)?.config ?? [];
 
 /**
- * La etiqueta ya no viaja aquí: vive en `label_es`/`label_en`, que son columnas
- * y se editan arriba, junto al código. Esto es sólo lo que el tipo configura.
+ * La etiqueta ya no viaja aquí: vive en su columna y se edita arriba, junto al
+ * código. Esto es sólo lo que el tipo configura.
  */
 const specConfig = (tipo) => specDe(tipo);
 
@@ -137,13 +135,13 @@ function inventario(secciones) {
 
     secciones.forEach((s, i) => {
         mapa.set(`s:${s.id ?? s.uid}`, JSON.stringify({
-            pos: i, es: s.name_es, en: s.name_en,
+            pos: i, nombre: s.name,
         }));
 
         s.fields.forEach((f, j) => {
             mapa.set(`f:${f.id ?? f.uid}`, JSON.stringify({
                 sec: i, pos: j, code: f.code, tipo: f.field_type,
-                es: f.label_es, en: f.label_en,
+                etiqueta: f.label,
                 req: f.is_required, config: f.config,
             }));
         });
@@ -165,20 +163,10 @@ const cambios = computed(() => {
 
 // ── Secciones ────────────────────────────────────────────────────────────
 
-/**
- * El título de la cabecera, en el idioma en el que se está mirando.
- *
- * Mismo criterio que el accesor `label` del modelo: el que corresponde al
- * idioma y, si está en blanco, el otro — más vale enseñar el título en el
- * idioma equivocado que una tarjeta sin nombre. Se ponía siempre el castellano,
- * así que con la pantalla en inglés la cabecera decía «Permisos» mientras el
- * campo de al lado decía «Permits».
- */
-const tituloDeSeccion = (seccion) => (usePage().props.locale === 'en'
-    ? (seccion.name_en || seccion.name_es)
-    : (seccion.name_es || seccion.name_en));
-
-const anadirSeccion = () => arbol.value.push({ id: null, uid: uid(), name_es: '', name_en: '', fields: [] });
+// El nombre llega ya resuelto en el idioma en curso: lo elige el accesor
+// `label` del modelo en el servidor, que es el único sitio donde vive esa
+// regla. Aquí no hay que volver a decidirlo.
+const anadirSeccion = () => arbol.value.push({ id: null, uid: uid(), name: '', fields: [] });
 
 const quitarSeccion = (i) => arbol.value.splice(i, 1);
 
@@ -212,8 +200,7 @@ function anadirCampo(seccion) {
         id: null,
         uid: nuevo,
         code: codigoLibre(seccion),
-        label_es: '',
-        label_en: '',
+        label: '',
         field_type: props.fieldTypes[0]?.value ?? 'text',
         is_required: false,
         config: {},
@@ -295,13 +282,11 @@ function guardar() {
         .transform(() => ({
             sections: arbol.value.map((s) => ({
                 id: s.id,
-                name_es: s.name_es,
-                name_en: s.name_en,
+                name: s.name,
                 fields: s.fields.map((f) => ({
                     id: f.id,
                     code: f.code,
-                    label_es: f.label_es,
-                    label_en: f.label_en,
+                    label: f.label,
                     field_type: f.field_type,
                     is_required: f.is_required,
                     config: f.config,
@@ -408,8 +393,8 @@ const colorEstado = computed(() => ({
                          lo que se lee en obra. Los dos, porque para mover una
                          sección hace falta saber cuál es la tercera. -->
                     <span class="fs-section__ord">{{ $t('form_templates.section', { n: i + 1 }) }}</span>
-                    <span v-if="seccion.name_es || seccion.name_en" class="fs-section__name">
-                        {{ tituloDeSeccion(seccion) }}
+                    <span v-if="seccion.name" class="fs-section__name">
+                        {{ seccion.name }}
                     </span>
                     <span v-else class="fs-section__name fs-section__name--empty">
                         {{ $t('form_templates.section_unnamed') }}
@@ -448,43 +433,31 @@ const colorEstado = computed(() => ({
                     </span>
                 </template>
 
-                <!-- El título del bloque, en los dos idiomas. Va en columnas
-                     (`name_es`/`name_en`) y no en `resources/lang`, porque el
-                     formato lo define el cliente: «Permisos», «Objetivos»,
-                     «Trabajos a realizar» son suyos, no del repositorio. -->
-                <div class="fs-pair fs-pair--section">
-                    <div class="fs-cell">
-                        <label class="fs-cell__label" :for="`sname-es-${seccion.uid}`">
-                            {{ $t('form_templates.section_name_es') }}
-                        </label>
-                        <Input
-                            :id="`sname-es-${seccion.uid}`"
-                            v-model:value="seccion.name_es"
-                            size="large"
-                            :maxlength="120"
-                            :disabled="soloLectura"
-                            :status="form.errors[`sections.${i}.name_es`] ? 'error' : ''"
-                            :placeholder="$t('form_templates.section_name_es_placeholder')"
-                        />
-                    </div>
-                    <div class="fs-cell">
-                        <label class="fs-cell__label" :for="`sname-en-${seccion.uid}`">
-                            {{ $t('form_templates.section_name_en') }}
-                        </label>
-                        <Input
-                            :id="`sname-en-${seccion.uid}`"
-                            v-model:value="seccion.name_en"
-                            size="large"
-                            :maxlength="120"
-                            :disabled="soloLectura"
-                            :placeholder="$t('form_templates.section_name_en_placeholder')"
-                        />
-                    </div>
+                <!-- El título del bloque. UNO, no uno por idioma: se escribe en
+                     el idioma en el que se está trabajando y se guarda en la
+                     columna de ese idioma. Va en columnas y no en
+                     `resources/lang` porque el formato lo define el cliente:
+                     «Permisos», «Objetivos», «Trabajos a realizar» son suyos, no
+                     del repositorio. Y por eso mismo no se le piden dos veces —
+                     traducir su propio trabajo no es tarea suya. -->
+                <div class="fs-cell fs-cell--wide">
+                    <label class="fs-cell__label" :for="`sname-${seccion.uid}`">
+                        {{ $t('form_templates.section_name') }}
+                    </label>
+                    <Input
+                        :id="`sname-${seccion.uid}`"
+                        v-model:value="seccion.name"
+                        size="large"
+                        :maxlength="120"
+                        :disabled="soloLectura"
+                        :status="form.errors[`sections.${i}.name`] ? 'error' : ''"
+                        :placeholder="$t('form_templates.section_name_placeholder')"
+                    />
                 </div>
                 <!-- La ayuda sólo donde hace falta. Repetida bajo cada
                      sección, el AST la enseñaba tres veces y el ojo deja de
                      leerla; en la que todavía no tiene título sí se lee. -->
-                <p v-if="!seccion.name_es && !seccion.name_en" class="fs-help">
+                <p v-if="!seccion.name" class="fs-help">
                     {{ $t('form_templates.section_name_help') }}
                 </p>
 
@@ -569,39 +542,25 @@ const colorEstado = computed(() => ({
                         </span>
                     </div>
 
-                    <!-- Lo que lee el trabajador al lado del campo, en los dos
-                         idiomas. Estuvo dentro de `config.label` mientras el
-                         motor no tenía columna: un texto de pantalla metido en
-                         un JSON de configuración no se puede ni traducir ni
-                         buscar. Ahora son `label_es` y `label_en`. -->
-                    <div class="fs-pair">
-                        <div class="fs-cell">
-                            <label class="fs-cell__label" :for="`label-es-${campo.uid}`">
-                                {{ $t('form_templates.field_label_es') }}
-                            </label>
-                            <Input
-                                :id="`label-es-${campo.uid}`"
-                                v-model:value="campo.label_es"
-                                size="large"
-                                :maxlength="180"
-                                :disabled="soloLectura"
-                                :status="errorDe(i, j, 'label_es') ? 'error' : ''"
-                                :placeholder="$t('form_templates.field_label_es_placeholder')"
-                            />
-                        </div>
-                        <div class="fs-cell">
-                            <label class="fs-cell__label" :for="`label-en-${campo.uid}`">
-                                {{ $t('form_templates.field_label_en') }}
-                            </label>
-                            <Input
-                                :id="`label-en-${campo.uid}`"
-                                v-model:value="campo.label_en"
-                                size="large"
-                                :maxlength="180"
-                                :disabled="soloLectura"
-                                :placeholder="$t('form_templates.field_label_en_placeholder')"
-                            />
-                        </div>
+                    <!-- Lo que lee el trabajador al lado del campo. Estuvo
+                         dentro de `config.label` mientras el motor no tenía
+                         columna: un texto de pantalla metido en un JSON de
+                         configuración no se puede ni traducir ni buscar. Ahora
+                         es `label_es`/`label_en`, y aquí se pide UNA vez, en el
+                         idioma en el que se está trabajando. -->
+                    <div class="fs-cell fs-cell--wide">
+                        <label class="fs-cell__label" :for="`label-${campo.uid}`">
+                            {{ $t('form_templates.field_label') }}
+                        </label>
+                        <Input
+                            :id="`label-${campo.uid}`"
+                            v-model:value="campo.label"
+                            size="large"
+                            :maxlength="180"
+                            :disabled="soloLectura"
+                            :status="errorDe(i, j, 'label') ? 'error' : ''"
+                            :placeholder="$t('form_templates.field_label_placeholder')"
+                        />
                     </div>
 
                     <!-- Lo que necesita ESTE tipo, y nada más. El servidor dice

@@ -57,7 +57,7 @@ class FormTemplateStructureTest extends CatalogTestCase
     {
         return array_merge([
             'id' => null, 'code' => 'campo_uno', 'field_type' => 'text',
-            'label_es' => null, 'label_en' => null,
+            'label' => null,
             'is_required' => false, 'config' => [],
         ], $datos);
     }
@@ -200,7 +200,7 @@ class FormTemplateStructureTest extends CatalogTestCase
                 ['id' => null, 'fields' => [
                     $this->campo([
                         'code' => 'condicion', 'field_type' => 'select',
-                        'label_es' => 'Condición del equipo',
+                        'label' => 'Condición del equipo',
                         'config' => ['options' => ['Bueno', 'Regular', 'Malo']],
                     ]),
                 ]],
@@ -299,18 +299,17 @@ class FormTemplateStructureTest extends CatalogTestCase
     {
         $plantilla = $this->plantilla();
 
+        // Explicito a proposito: la columna que se escribe depende del idioma en
+        // curso, y en las pruebas el de partida es el ingles.
+        app()->setLocale('es');
+
         $this->actingAs($this->admin())
             ->put(route('business_management.form_templates.structure_update', $plantilla->slug), $this->arbol([
                 [
                     'id' => null,
-                    'name_es' => 'Trabajos a realizar',
-                    'name_en' => 'Work to be done',
+                    'name' => 'Trabajos a realizar',
                     'fields' => [
-                        $this->campo([
-                            'code' => 'actividad',
-                            'label_es' => 'Actividad realizada',
-                            'label_en' => 'Task performed',
-                        ]),
+                        $this->campo(['code' => 'actividad', 'label' => 'Actividad realizada']),
                     ],
                 ],
             ]))
@@ -318,35 +317,101 @@ class FormTemplateStructureTest extends CatalogTestCase
 
         $seccion = $plantilla->fresh()->sections()->first();
         $this->assertSame('Trabajos a realizar', $seccion->name_es);
-        $this->assertSame('Work to be done', $seccion->name_en);
 
         $campo = $seccion->fields()->first();
         $this->assertSame('Actividad realizada', $campo->label_es);
-        $this->assertSame('Task performed', $campo->label_en);
+    }
 
-        // Y el accesor los lee segun el idioma en curso, que es lo que pinta la
-        // pantalla de llenado.
+    /**
+     * Se escribe la columna del idioma en curso, y solo esa.
+     *
+     * Al cliente se le pide el nombre UNA vez: hacerle teclear cada titulo y
+     * cada etiqueta en dos idiomas es pedirle que traduzca su propio trabajo, y
+     * lo que el cliente escribe se guarda tal cual, como el nombre de una
+     * empresa o de un cargo. Las dos columnas existen para que los cuatro
+     * formatos que trae el producto vengan en los dos idiomas, y eso lo escribe
+     * el seeder.
+     *
+     * De ahi que editar en castellano NO pueda tocar el ingles: mandando las dos
+     * columnas desde una pantalla que solo enseña una, abrir el AST y guardar le
+     * borraba los nombres en ingles que trae sembrados.
+     */
+    public function test_editar_en_un_idioma_no_borra_el_del_otro(): void
+    {
+        $plantilla = $this->plantilla();
+
+        // Como llega del seeder: nombre en los dos idiomas.
+        $seccion = $plantilla->sections()->create([
+            'position' => 1, 'name_es' => 'Permisos', 'name_en' => 'Permits',
+        ]);
+        $campo = $seccion->fields()->create([
+            'code' => 'permisos', 'field_type' => 'text', 'position' => 1,
+            'label_es' => 'Permisos de trabajo', 'label_en' => 'Work permits',
+        ]);
+
         app()->setLocale('es');
-        $this->assertSame('Actividad realizada', $campo->fresh()->label);
+
+        $this->actingAs($this->admin())
+            ->put(route('business_management.form_templates.structure_update', $plantilla->slug), $this->arbol([
+                [
+                    'id' => $seccion->id,
+                    'name' => 'Permisos y accesos',
+                    'fields' => [
+                        $this->campo([
+                            'id' => $campo->id, 'code' => 'permisos',
+                            'label' => 'Permisos de trabajo y accesos',
+                        ]),
+                    ],
+                ],
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $seccion->refresh();
+        $campo->refresh();
+
+        $this->assertSame('Permisos y accesos', $seccion->name_es);
+        $this->assertSame('Permits', $seccion->name_en, 'Editar en castellano se llevó por delante el inglés.');
+        $this->assertSame('Permisos de trabajo y accesos', $campo->label_es);
+        $this->assertSame('Work permits', $campo->label_en, 'Editar en castellano se llevó por delante el inglés.');
+    }
+
+    /** Y en ingles se escribe la columna inglesa, sin tocar la castellana. */
+    public function test_en_ingles_se_escribe_la_columna_inglesa(): void
+    {
+        $plantilla = $this->plantilla();
+        $seccion = $plantilla->sections()->create([
+            'position' => 1, 'name_es' => 'Permisos', 'name_en' => 'Permits',
+        ]);
+
         app()->setLocale('en');
-        $this->assertSame('Task performed', $campo->fresh()->label);
+
+        $this->actingAs($this->admin())
+            ->put(route('business_management.form_templates.structure_update', $plantilla->slug), $this->arbol([
+                ['id' => $seccion->id, 'name' => 'Permits and access', 'fields' => [$this->campo()]],
+            ]))
+            ->assertSessionHasNoErrors();
+
         app()->setLocale('es');
+
+        $seccion->refresh();
+        $this->assertSame('Permits and access', $seccion->name_en);
+        $this->assertSame('Permisos', $seccion->name_es);
     }
 
     /** Un titulo en blanco es NULL, no una cadena vacia: «sin titulo» es valido. */
     public function test_una_seccion_sin_titulo_se_guarda_como_nula(): void
     {
         $plantilla = $this->plantilla();
+        app()->setLocale('es');
 
         $this->actingAs($this->admin())
             ->put(route('business_management.form_templates.structure_update', $plantilla->slug), $this->arbol([
-                ['id' => null, 'name_es' => '   ', 'name_en' => '', 'fields' => [$this->campo()]],
+                ['id' => null, 'name' => '   ', 'fields' => [$this->campo()]],
             ]))
             ->assertSessionHasNoErrors();
 
         $seccion = $plantilla->fresh()->sections()->first();
         $this->assertNull($seccion->name_es);
-        $this->assertNull($seccion->name_en);
         $this->assertSame('', $seccion->label);
     }
 
@@ -367,17 +432,19 @@ class FormTemplateStructureTest extends CatalogTestCase
             'config' => ['label' => 'Actividad realizada'],
         ]);
 
+        app()->setLocale('es');
+
         // La pantalla recibe la etiqueta ya rellena aunque la columna este vacia.
         $this->actingAs($this->admin())
             ->get(route('business_management.form_templates.structure', $plantilla->slug))
             ->assertInertia(fn ($page) => $page->where(
-                'sections.0.fields.0.label_es', 'Actividad realizada',
+                'sections.0.fields.0.label', 'Actividad realizada',
             ));
 
         $this->actingAs($this->admin())
             ->put(route('business_management.form_templates.structure_update', $plantilla->slug), $this->arbol([
                 ['id' => $seccion->id, 'fields' => [
-                    $this->campo(['id' => $viejo->id, 'code' => 'actividad', 'label_es' => 'Actividad realizada']),
+                    $this->campo(['id' => $viejo->id, 'code' => 'actividad', 'label' => 'Actividad realizada']),
                 ]],
             ]))
             ->assertSessionHasNoErrors();

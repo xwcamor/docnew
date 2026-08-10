@@ -408,17 +408,31 @@ de llenado.
    `config` y se siguen leyendo (`FormFillNombresTest`).
 
 4. **Que el editor sepa rellenar los nombres — hecho para secciones y campos.**
-   `FormTemplates/Structure.vue` pide título en los dos idiomas por sección y
-   etiqueta en los dos idiomas por campo, y `FormTemplateStructureService` los
-   escribe en sus columnas. Un campo que traía la etiqueta en `config.label` la
-   muda a `label_es` la primera vez que se guarda desde la pantalla, y el JSON
-   se limpia: dos copias del mismo texto acaban divergiendo.
+   `FormTemplates/Structure.vue` pide **un** título por sección y **una**
+   etiqueta por campo, y `FormTemplateStructureService` la escribe en la columna
+   del idioma en curso, sin tocar la del otro. Un campo que traía la etiqueta en
+   `config.label` la muda a su columna la primera vez que se guarda desde la
+   pantalla, y el JSON se limpia: dos copias del mismo texto acaban divergiendo.
 
-   **Queda la cabecera del propio formato**: `FormTemplates/Form.vue` sigue
-   pidiendo un solo `name`, y `name_es` / `name_en` sólo se rellenan al sembrar.
-   `FormTemplate::getLabelAttribute()` cae a `name`, así que nada se ve mal;
-   simplemente un formato creado desde la pantalla se lee igual en los dos
-   idiomas.
+   **Un cuadro y no dos, a propósito.** Las dos columnas existen para que los
+   cuatro formatos que trae el producto vengan en los dos idiomas — y eso lo
+   escribimos nosotros en el seeder, una vez. Lo que el cliente escribe se
+   guarda tal cual, en su idioma, igual que el nombre de una empresa, de un
+   cargo o de una sede: pedirle cada título dos veces es pedirle que traduzca su
+   propio trabajo, y en un formato de treinta campos eso son sesenta cuadros que
+   nadie va a rellenar. Quien de verdad quiera el suyo en los dos idiomas cambia
+   el idioma de la interfaz y lo escribe allí.
+
+   Por eso el servicio escribe **solo** la columna del idioma en curso: mandando
+   las dos desde una pantalla que enseña una, abrir el AST en castellano y darle
+   a guardar le borraba los nombres en inglés que trae sembrados
+   (`test_editar_en_un_idioma_no_borra_el_del_otro`).
+
+   **Queda la cabecera del propio formato**: `FormTemplates/Form.vue` pide un
+   solo `name` y no escribe `name_es` / `name_en`, que sólo se rellenan al
+   sembrar. `FormTemplate::getLabelAttribute()` cae a `name`, así que nada se ve
+   mal; lo coherente sería que ese campo escribiera también la columna del
+   idioma en curso, como hacen las secciones y los campos.
 
 5. **`work_type_form_templates` sin sembrar** (§3), a la espera de que existan
    tipos de trabajo.

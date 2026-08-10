@@ -91,8 +91,9 @@ class FormTemplateStructureService
             foreach (array_values($secciones) as $iSeccion => $datosSeccion) {
                 $seccion = $this->seccion($plantilla, $seccionesVivas, $datosSeccion['id'] ?? null);
                 $seccion->position = $iSeccion + 1;
-                $seccion->name_es  = $this->texto($datosSeccion['name_es'] ?? null);
-                $seccion->name_en  = $this->texto($datosSeccion['name_en'] ?? null);
+                // Se escribe la columna del idioma en el que se está trabajando
+                // y NO SE TOCA la otra. Ver `columnaDelIdioma()`.
+                $seccion->{'name_' . $this->columnaDelIdioma()} = $this->texto($datosSeccion['name'] ?? null);
                 $seccion->save();
 
                 $seccionesQueSiguen[] = $seccion->id;
@@ -104,13 +105,14 @@ class FormTemplateStructureService
                     $campo->field_type      = $datosCampo['field_type'];
                     $campo->is_required     = (bool) ($datosCampo['is_required'] ?? false);
                     $campo->position        = $iCampo + 1;
-                    // La etiqueta va a su columna. Un campo de antes de que
-                    // existieran la traía en `config.label`, y el editor la
-                    // sube ya rellena desde ahí (ver el payload de
+                    // La etiqueta va a la columna del idioma en curso, y la del
+                    // otro idioma se queda como estaba. Un campo de antes de que
+                    // existieran las columnas la traía en `config.label`, y el
+                    // editor la sube ya rellena desde ahí (ver el payload de
                     // `structure()`), así que se rescata en vez de perderse.
-                    $campo->label_es        = $this->texto($datosCampo['label_es'] ?? null)
-                                              ?? ($datosCampo['config']['label'] ?? null);
-                    $campo->label_en        = $this->texto($datosCampo['label_en'] ?? null);
+                    $campo->{'label_' . $this->columnaDelIdioma()} =
+                        $this->texto($datosCampo['label'] ?? null)
+                        ?? ($datosCampo['config']['label'] ?? null);
                     $campo->config          = $this->limpiarConfig($datosCampo['config'] ?? []);
 
                     // Un campo nuevo necesita `code` ya, que la columna es NOT
@@ -239,6 +241,30 @@ class FormTemplateStructureService
         }
 
         return $limpia === [] ? null : $limpia;
+    }
+
+    /**
+     * En qué idioma se está escribiendo: `es` o `en`.
+     *
+     * El editor enseña UN campo de nombre, no dos. Pedirle a un cliente que
+     * escriba cada título y cada etiqueta dos veces es pedirle que traduzca su
+     * propio trabajo, y eso no se hace: lo que el cliente escribe se guarda tal
+     * cual, en su idioma, como el nombre de una empresa o de un cargo. Las dos
+     * columnas existen porque los cuatro formatos que trae el producto —AST,
+     * PTF, EPP e IHM— sí vienen en los dos idiomas, y eso lo escribimos
+     * nosotros en el seeder, no el cliente en una pantalla.
+     *
+     * De ahí que se escriba solo la columna del idioma en curso y la otra ni se
+     * mire. Quien de verdad quiera su formato en los dos idiomas cambia el
+     * idioma de la interfaz y lo escribe allí; quien no, tiene un nombre que se
+     * lee igual en los dos, porque el accesor `label` cae al que haya.
+     *
+     * Además evita un destrozo: mandando las dos columnas desde una pantalla
+     * que solo enseña una, editar el AST en castellano le borraba el inglés.
+     */
+    private function columnaDelIdioma(): string
+    {
+        return app()->getLocale() === 'en' ? 'en' : 'es';
     }
 
     /** Un texto vacío es «sin nombre», y eso en la base es NULL, no `''`. */
