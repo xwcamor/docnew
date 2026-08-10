@@ -102,6 +102,23 @@ class FormSubmissionController extends Controller
             'answers'          => ['required', 'array'],
             'answers.*.code'   => ['required', 'string'],
             'answers.*.row'    => ['nullable', 'integer', 'min:0'],
+            // `value` TIENE que estar declarada, aunque no se le exija nada.
+            //
+            // `validate()` no devuelve la peticion: devuelve SOLO las claves que
+            // aparecen en las reglas. Sin esta linea, cada respuesta llegaba al
+            // servicio con su codigo y su fila y **sin el valor**, el servicio lo
+            // leia como null, lo tomaba por un hueco y lo descartaba. O sea: no
+            // se podia guardar nada, en ningun formato, y el guardado contestaba
+            // «Respuestas guardadas» tan tranquilo.
+            //
+            // No saltaba en las pruebas porque todas llamaban al servicio a pelo,
+            // saltandose el controlador. La de abajo entra por HTTP.
+            //
+            // Sin reglas de forma a proposito: el valor es texto, numero,
+            // booleano, lista o el objeto de una fila de matriz segun el tipo de
+            // campo, y quien sabe cual toca es `validarValor()` en el servicio,
+            // que lee la configuracion del campo.
+            'answers.*.value'  => ['nullable'],
         ]);
 
         $this->formatos->responder($form_submission, $datos['answers']);

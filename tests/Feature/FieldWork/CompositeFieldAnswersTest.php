@@ -498,4 +498,75 @@ class CompositeFieldAnswersTest extends TestCase
 
         $this->assertSame('confirmed', FormSubmission::find($entrega->id)->status);
     }
+
+    /**
+     * Guardar POR HTTP, que es por donde entra de verdad.
+     *
+     * Aqui estaba el agujero: todas las pruebas de arriba llaman al servicio a
+     * pelo y el servicio siempre funciono. Lo que fallaba era el paso previo.
+     *
+     * `$request->validate()` no devuelve la peticion, devuelve SOLO las claves
+     * que aparecen en las reglas — y `answers.*.value` no estaba declarada. Cada
+     * respuesta llegaba al servicio con su codigo y su fila y sin el valor; el
+     * servicio lo leia como null, lo tomaba por un hueco y lo descartaba. No se
+     * podia guardar nada, en ningun formato, y la pantalla contestaba
+     * «Respuestas guardadas».
+     */
+    public function test_guardar_por_http_guarda_el_valor_y_no_solo_el_codigo(): void
+    {
+        [$entrega] = $this->entregaAst();
+
+        $this->actingAs($this->usuarioDeObra())
+            ->from(route('field_work.forms.open', [$entrega->workPlan->slug, $entrega->formTemplate->slug]))
+            ->post(route('field_work.forms.answer', $entrega->slug), [
+                'answers' => [
+                    ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $guardada = $entrega->answers()->first();
+
+        $this->assertNotNull($guardada, 'La respuesta no llegó a la base: el valor se perdió por el camino.');
+        $this->assertSame('c2', $guardada->value_json['severidad']);
+        $this->assertSame('p3', $guardada->value_json['probabilidad']);
+    }
+
+    /** Y con eso, rellenar y confirmar por HTTP cierra el formato de verdad. */
+    public function test_llenar_y_confirmar_por_http_cierra_el_formato(): void
+    {
+        [$entrega] = $this->entregaAst();
+        $usuario = $this->usuarioDeObra();
+
+        $this->actingAs($usuario)
+            ->post(route('field_work.forms.answer', $entrega->slug), [
+                'answers' => [
+                    ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c1', 'p1', 1, 'alto')],
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($usuario)
+            ->post(route('field_work.forms.confirm', $entrega->slug))
+            ->assertSessionHasNoErrors()
+            ->assertSessionMissing('error');
+
+        $this->assertSame('confirmed', $entrega->fresh()->status);
+    }
+
+    /** Un texto suelto tambien: no es solo cosa de los tipos compuestos. */
+    public function test_un_campo_de_texto_tambien_se_guarda_por_http(): void
+    {
+        [$entrega, $plantilla] = $this->entrega('OBS', [
+            'code' => 'observaciones', 'field_type' => 'textarea', 'is_required' => false, 'config' => [],
+        ]);
+
+        $this->actingAs($this->usuarioDeObra())
+            ->post(route('field_work.forms.answer', $entrega->slug), [
+                'answers' => [['code' => 'observaciones', 'value' => 'Sin novedad en la faena']],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('Sin novedad en la faena', $entrega->answers()->first()?->value_text);
+    }
 }
