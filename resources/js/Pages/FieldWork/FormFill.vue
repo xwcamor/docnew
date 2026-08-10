@@ -8,6 +8,7 @@ import PersonChecklistField from '@/Components/FormFields/PersonChecklistField.v
 import ToolChecklistField from '@/Components/FormFields/ToolChecklistField.vue';
 import QuestionBankField from '@/Components/FormFields/QuestionBankField.vue';
 import { humanizar } from '@/Components/FormFields/respuestas';
+import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
     submission: Object,
@@ -18,6 +19,8 @@ const props = defineProps({
 });
 
 defineOptions({ layout: AppLayout });
+
+const { t } = useI18n();
 
 /**
  * Los compuestos que guardan UNA respuesta POR FILA, usando `row_index`: la
@@ -84,6 +87,23 @@ const guardando = ref(false);
  * humaniza el codigo, que es como se leia hasta ahora.
  */
 const etiqueta = (campo) => campo.label || humanizar(campo.code);
+
+/**
+ * Como se lee un campo suelto cuando el formato ya esta confirmado.
+ *
+ * Hace falta porque una entrega cerrada se pinta con `{{ valor }}` a secas, y
+ * Vue serializa lo que no es una cadena: un `multiselect` con dos objetivos
+ * marcados salia como `[ "Retirar bloqueos", "Orden y limpieza" ]` —con sus
+ * corchetes y sus comillas— en el AST firmado que ve el supervisor, y una
+ * casilla marcada salia como «true». Lo guardado estaba bien; lo que estaba
+ * mal era como se leia.
+ */
+const enLimpio = (valor) => {
+    if (Array.isArray(valor)) return valor.length ? valor.join(', ') : '—';
+    if (typeof valor === 'boolean') return valor ? t('global.yes') : t('global.no');
+
+    return valor === null || valor === undefined || valor === '' ? '—' : valor;
+};
 
 /** Lo tecleado, en el formato que espera el servidor. */
 function respuestasDeLaPantalla() {
@@ -204,7 +224,7 @@ function confirmar() {
                 />
 
                 <template v-else-if="soloLectura">
-                    <span class="ff-readonly">{{ valores[c.id] ?? '—' }}</span>
+                    <span class="ff-readonly">{{ enLimpio(valores[c.id]) }}</span>
                 </template>
 
                 <a-textarea v-else-if="c.field_type === 'textarea'" v-model:value="valores[c.id]" :rows="3" />

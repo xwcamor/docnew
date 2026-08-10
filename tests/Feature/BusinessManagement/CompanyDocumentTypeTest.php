@@ -129,7 +129,7 @@ class CompanyDocumentTypeTest extends CatalogTestCase
     {
         $this->actingAs($this->admin())->post(route('business_management.companies.store'), [
             'country_id' => 1, 'num_doc' => '20487654322',
-            'name' => 'SERCE', 'complete_name' => 'Serce Perú S.A.C.',
+            'name' => 'ACME', 'complete_name' => 'ACME Servicios Generales S.A.C.',
         ])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('companies', ['num_doc' => '20487654322', 'doc_type' => 'RUC']);

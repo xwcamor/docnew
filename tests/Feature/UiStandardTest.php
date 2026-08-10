@@ -354,7 +354,20 @@ class UiStandardTest extends TestCase
         $donde = array_merge(
             glob(resource_path('lang/*/*.php')),
             glob(base_path('app/Exports/*/*/*ImportTemplate.php')),
+            // Los seeders tambien. Los datos de ejemplo que trae el producto se
+            // siembran en CADA instalacion: el `DocufizDemoSeeder` traia una
+            // contratista de verdad con su RUC, y debajo dos personas con nombre
+            // y DNI que tambien lo parecian. Un documento de identidad ajeno
+            // viajando en el repositorio no es un dato de ejemplo.
+            glob(base_path('database/seeders/*.php')),
         );
+
+        // Salvo el volcado del sistema anterior, que es real por definicion: son
+        // los datos de ESE cliente, en SU instalacion, traidos por su migracion.
+        $donde = array_values(array_filter(
+            $donde,
+            fn ($f) => ! str_contains($f, 'DocufizLegacyDataSeeder'),
+        ));
 
         $encontrados = [];
 
@@ -366,7 +379,10 @@ class UiStandardTest extends TestCase
             $fuente = preg_replace('#(/\*.*?\*/|//[^\n]*)#s', '', $fuente);
 
             foreach ($reales as $nombre) {
-                if (stripos($fuente, $nombre) !== false) {
+                // Palabra entera, no trozo. Buscando `ransa` a secas saltaba
+                // `DB::transaction`, que lleva el nombre dentro sin nombrar a
+                // nadie — y una prueba que grita por eso se acaba desactivando.
+                if (preg_match('/\b' . preg_quote($nombre, '/') . '\b/i', $fuente) === 1) {
                     $encontrados[] = str_replace(base_path() . '/', '', $archivo) . " → {$nombre}";
                 }
             }

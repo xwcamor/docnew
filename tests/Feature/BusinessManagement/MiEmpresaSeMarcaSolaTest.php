@@ -44,7 +44,7 @@ class MiEmpresaSeMarcaSolaTest extends CatalogTestCase
     public function test_la_empresa_del_env_queda_marcada(): void
     {
         $mia = $this->empresa('20321000022', 'La que contrata');
-        $this->empresa('20521314649', 'Contratista');
+        $this->empresa('20600000017', 'Contratista');
 
         config(['companies.own_doc' => '20321000022']);
 
@@ -81,7 +81,7 @@ class MiEmpresaSeMarcaSolaTest extends CatalogTestCase
     /** Un documento que no está entre las empresas no inventa ninguna. */
     public function test_un_documento_que_no_existe_no_marca_a_otra(): void
     {
-        $this->empresa('20521314649', 'Contratista');
+        $this->empresa('20600000017', 'Contratista');
         config(['companies.own_doc' => '20999999999']);
 
         Tenant::find(1)->marcarSuEmpresaSiLaInstalacionLaDice();
@@ -98,7 +98,7 @@ class MiEmpresaSeMarcaSolaTest extends CatalogTestCase
     public function test_no_pisa_lo_que_ya_estaba_elegido(): void
     {
         $this->empresa('20321000022', 'La que contrata');
-        $otra = $this->empresa('20521314649', 'Contratista');
+        $otra = $this->empresa('20600000017', 'Contratista');
 
         Tenant::find(1)->forceFill(['company_id' => $otra->id])->save();
         config(['companies.own_doc' => '20321000022']);
@@ -116,7 +116,7 @@ class MiEmpresaSeMarcaSolaTest extends CatalogTestCase
     public function test_marcada_la_empresa_la_contratista_deja_de_repartir_roles(): void
     {
         $mia = $this->empresa('20321000022', 'La que contrata');
-        $contratista = $this->empresa('20521314649', 'Contratista');
+        $contratista = $this->empresa('20600000017', 'Contratista');
 
         config(['companies.own_doc' => '20321000022']);
         Tenant::find(1)->marcarSuEmpresaSiLaInstalacionLaDice();

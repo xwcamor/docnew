@@ -137,6 +137,44 @@ class FormFillNombresTest extends TestCase
                 ->where('template.sections.0.fields.1.label', 'Hora de inicio'));
     }
 
+    /**
+     * Una entrega confirmada se lee, y lo que se lee tiene que estar escrito en
+     * castellano —o en ingles—, no en JSON.
+     *
+     * El AST firmado enseñaba sus objetivos como `[ "Retirar bloqueos" ]`, con
+     * corchetes y comillas, porque la rama de solo lectura pintaba el valor a
+     * pelo y Vue serializa lo que no es una cadena; una casilla marcada salia
+     * como «true». Lo guardado siempre estuvo bien: lo que estaba mal era como
+     * se leia, y es lo que el supervisor tiene delante en el documento cerrado.
+     *
+     * Se mira el fuente de la pantalla y no una respuesta HTTP porque esto pasa
+     * al pintar, en el navegador, y no hay nada en lo que manda el servidor que
+     * lo delate. La comprobacion en un navegador de verdad va aparte
+     * (`docs/UI.md §9`).
+     */
+    public function test_lo_confirmado_no_se_lee_en_json(): void
+    {
+        $pantalla = file_get_contents(resource_path('js/Pages/FieldWork/FormFill.vue'));
+
+        $this->assertStringNotContainsString(
+            '<span class="ff-readonly">{{ valores[c.id] ?? \'—\' }}</span>',
+            $pantalla,
+            'La rama de solo lectura vuelve a pintar el valor a pelo: una lista sale con corchetes y una casilla como «true».',
+        );
+
+        $this->assertStringContainsString('const enLimpio =', $pantalla);
+        $this->assertStringContainsString('{{ enLimpio(valores[c.id]) }}', $pantalla);
+
+        // Y los dos textos que necesita existen en los dos idiomas: sin ellos,
+        // una casilla marcada saldria como «global.yes».
+        foreach (['es', 'en'] as $idioma) {
+            $global = require resource_path("lang/{$idioma}/global.php");
+
+            $this->assertArrayHasKey('yes', $global);
+            $this->assertArrayHasKey('no', $global);
+        }
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     private function actor(): User

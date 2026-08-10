@@ -75,19 +75,29 @@ class DocufizDemoSeeder extends Seeder
         ]);
 
         // ── Empresa contratista ──────────────────────────────────────────
+        //
+        // Inventada, y a proposito. Aqui habia una contratista de verdad, con su
+        // RUC de verdad, y debajo dos personas con nombre y DNI que tambien lo
+        // parecian. Esto se siembra en cada instalacion y viaja en el
+        // repositorio: los datos de un cliente no son datos de ejemplo, y un
+        // documento de identidad ajeno menos todavia.
+        //
+        // Lo que SI es real esta en `DocufizLegacyDataSeeder`, que es el volcado
+        // del sistema anterior de este cliente. Eso es otra cosa: son sus datos,
+        // en su instalacion, traidos por su migracion.
         $empresa = Company::create($base + [
             'slug' => Str::random(22), 'country_id' => $country->id,
             // Del catalogo del pais, no escrito aqui: ver
             // `DocumentType::deLaEmpresaDe()`.
             'doc_type' => \App\Models\DocumentType::deLaEmpresaDe($country->id),
-            'num_doc' => '20521314649', 'name' => 'SERCE',
-            'complete_name' => 'SERVICIOS DE CONSTRUCCIONES ELECTRICAS PERU SAC',
+            'num_doc' => '20600000017', 'name' => 'ACME',
+            'complete_name' => 'ACME Servicios Generales S.A.C.',
             'is_active' => true,
         ]);
 
         // ── Personas: una identidad, sus roles y su vinculo con la empresa ─
-        $trabajador = $this->crearPersona($base, $country, $nacionalidad, '10199705', 'Ezequiel Luis', 'Duenas Patricio');
-        $supervisor = $this->crearPersona($base, $country, $nacionalidad, '10748163', 'Willy Edgar', 'Lara Aguilar');
+        $trabajador = $this->crearPersona($base, $country, $nacionalidad, '10000017', 'Juan Carlos', 'Pérez Gómez');
+        $supervisor = $this->crearPersona($base, $country, $nacionalidad, '10000023', 'María Elena', 'Torres Ríos');
 
         PersonRole::create(['person_id' => $trabajador->id, 'role' => PersonRole::WORKER]);
         PersonRole::create(['person_id' => $supervisor->id, 'role' => PersonRole::SUPERVISOR]);
