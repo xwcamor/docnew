@@ -69,6 +69,6 @@ return [
         // para apuntar a un doble en las pruebas.
         'url'      => env('PERU_LOOKUP_URL', env('APIS_NET_PE_URL')),
         'token'    => env('PERU_LOOKUP_TOKEN', env('APIS_NET_PE_TOKEN')),
-        'timeout'  => env('PERU_LOOKUP_TIMEOUT', env('APIS_NET_PE_TIMEOUT', 6)),
+        'timeout'  => env('PERU_LOOKUP_TIMEOUT', env('APIS_NET_PE_TIMEOUT', 12)),
     ],
 ];

@@ -69,6 +69,14 @@ class ConsultaRuc
         $razon = $this->proveedor->campo($datos, ['razon_social', 'razonSocial', 'nombre_o_razon_social']);
 
         if ($razon === '') {
+            // Contesto bien pero no se reconoce lo que manda. Se apuntan los
+            // NOMBRES de sus campos —no los valores, que son datos de una
+            // empresa— porque es lo unico que hace falta para ajustarlo, y sin
+            // esto hay que adivinarlos uno a uno.
+            Log::warning('Consulta RUC: respuesta con campos desconocidos', [
+                'ruc' => $ruc, 'campos' => array_keys(is_array($datos) ? $datos : []),
+            ]);
+
             return ['estado' => 'no_encontrado'];
         }
 

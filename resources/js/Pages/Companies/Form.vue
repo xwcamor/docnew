@@ -4,7 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     Form, FormItem, Input, Switch, Space, Alert, Select,
 } from 'ant-design-vue';
-import { BankOutlined } from '@ant-design/icons-vue';
+import { BankOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -161,7 +161,14 @@ const submit = () => {
                         size="large"
                         :maxlength="20"
                         :placeholder="$t('companies.num_doc_placeholder')"
-                    />
+                    >
+                        <!-- SUNAT puede tardar varios segundos. Sin algo que se
+                             mueva, el campo parece muerto y se teclea la razon
+                             social encima de lo que iba a llegar. -->
+                        <template v-if="rucEstado === 'buscando'" #suffix>
+                            <LoadingOutlined />
+                        </template>
+                    </Input>
                 </FormItem>
 
                 <FormItem

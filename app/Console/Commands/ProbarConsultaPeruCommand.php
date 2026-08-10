@@ -60,13 +60,26 @@ class ProbarConsultaPeruCommand extends Command
         $this->line('  Espera:    ' . config('services.peru_lookup.timeout', 6) . ' s');
         $this->line('');
 
-        // Se apunta la peticion de verdad para poder enseñar la URL exacta: la
-        // mitad de los problemas son que se esta llamando a donde no es.
+        // Se apunta la peticion Y la respuesta de verdad. La URL, porque la
+        // mitad de los problemas son que se llama a donde no es. El cuerpo,
+        // porque cuando el proveedor contesta 200 pero no se entiende lo que
+        // manda, lo unico que hace falta para arreglarlo es VER como se llaman
+        // sus campos — y sin esto hay que adivinarlos.
         $url = null;
+        $estado = null;
+        $cuerpo = null;
+
         Http::globalRequestMiddleware(function ($peticion) use (&$url) {
             $url = (string) $peticion->getUri();
 
             return $peticion;
+        });
+
+        Http::globalResponseMiddleware(function ($respuesta) use (&$estado, &$cuerpo) {
+            $estado = $respuesta->getStatusCode();
+            $cuerpo = (string) $respuesta->getBody();
+
+            return $respuesta;
         });
 
         $arranque = microtime(true);
@@ -74,10 +87,22 @@ class ProbarConsultaPeruCommand extends Command
         $tardo = microtime(true) - $arranque;
 
         $this->line('  URL:       ' . ($url ?? '<fg=yellow>no se llego a llamar</>'));
+        $this->line('  Respondio: ' . ($estado === null ? '<fg=yellow>nada</>' : 'HTTP ' . $estado));
         $this->line(sprintf('  Tardo:     %.2f s', $tardo));
         $this->line('');
 
         $this->explicar($resultado, $tardo);
+
+        // El cuerpo crudo solo cuando hizo falta: si contesto bien y no se
+        // entendio, aqui esta la respuesta a por que.
+        if ($cuerpo !== null && $resultado['estado'] !== 'encontrado' && $estado !== null && $estado < 400) {
+            $this->line('  <options=bold>Contesto bien pero no se entendio lo que mando.</> Esto es lo que llego:');
+            $this->line('');
+            $this->line('  ' . \Illuminate\Support\Str::limit($cuerpo, 800));
+            $this->line('');
+            $this->line('  Mandame estas lineas: con los nombres de sus campos se ajusta en un minuto.');
+            $this->line('');
+        }
 
         return $resultado['estado'] === 'encontrado' ? self::SUCCESS : self::FAILURE;
     }

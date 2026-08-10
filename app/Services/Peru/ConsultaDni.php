@@ -128,6 +128,13 @@ class ConsultaDni
         }
 
         if ($nombres === '' || $apellidos === '') {
+            // Igual que en el RUC: se apuntan los NOMBRES de los campos que
+            // llegaron —nunca los valores, que son datos de una persona— para
+            // poder ajustarlo sin adivinar.
+            Log::warning('Consulta DNI: respuesta con campos desconocidos', [
+                'campos' => array_keys($datos),
+            ]);
+
             return ['estado' => 'no_encontrado'];
         }
 

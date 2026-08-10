@@ -4,7 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3';
 import {
     Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker, Tooltip, Button,
 } from 'ant-design-vue';
-import { IdcardOutlined, LockOutlined, SafetyCertificateOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined, LockOutlined, SafetyCertificateOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -303,7 +303,14 @@ const submit = () => {
                                     autofocus
                                     :disabled="docLocked"
                                     :placeholder="$t('people.num_doc_placeholder')"
-                                />
+                                >
+                                    <!-- RENIEC puede tardar varios segundos. Sin
+                                         algo que se mueva, el campo parece
+                                         muerto y se teclea el nombre encima. -->
+                                    <template v-if="dniEstado === 'buscando'" #suffix>
+                                        <LoadingOutlined />
+                                    </template>
+                                </Input>
                             </Tooltip>
                         </FormItem>
                     </Col>
