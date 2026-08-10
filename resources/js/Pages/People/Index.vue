@@ -73,6 +73,15 @@ const avaStyle = (name) => {
     return { background: `hsl(${h} 58% 52%)` };
 };
 
+// Empresas y cargos de una persona, sin repetidos y en orden alfabético: es el
+// mismo criterio con el que ordena el servidor (`min(companies.name)`), así que
+// lo que la celda enseña primero es justo por lo que se ordena.
+const deLosVinculos = (record, saca) => [...new Set(
+    (record?.company_links ?? []).map(saca).filter(Boolean),
+)].sort((a, b) => a.localeCompare(b));
+const empresasDe = (record) => deLosVinculos(record, (l) => l.company?.name);
+const cargosDe   = (record) => deLosVinculos(record, (l) => l.position?.code);
+
 const props = defineProps({
     people:      { type: Object, required: true },
     filters:        { type: Object, default: () => ({}) },
@@ -191,10 +200,27 @@ const tablePagination = computed(() => ({
     pageSizeOptions: ['10', '25', '50', '100'],
 }));
 
+// La clave de orden de una columna. Documento, país, empresa y cargo no tienen
+// `dataIndex` —no son una columna de `people`— y ordenan por su `key`; el
+// workspace sí lo tiene pero es un camino (`['tenant','name']`), y AntD lo pasa
+// tal cual en `sorter.field`: al mandarlo sin aplanar salía `sort[]=tenant&
+// sort[]=name`, el servidor no reconocía el array y la cabecera del workspace
+// no ordenaba nada.
+const normField = (di) => Array.isArray(di) ? di[0] : (typeof di === 'string' && di.includes('.') ? di.split('.')[0] : di);
+const sortKeyOf = (c) => normField(c.dataIndex) ?? c.key;
+
 const onTableChange = (pag, _f, sorter) => {
-    // Documento y país no tienen dataIndex: su clave de orden es la `key`.
-    const sort = sorter?.field || sorter?.columnKey || props.filters.sort;
-    const direction = sorter?.order === 'ascend' ? 'asc'
+    const pedida = normField(sorter?.field) || sorter?.columnKey;
+    // AntD cicla ascendente → descendente → sin orden, y el tercer clic llega
+    // con la columna puesta y `order` vacío. Eso es «quítame el orden», así que
+    // se vuelve al de siempre —lo último dado de alta arriba— en vez de dejar la
+    // lista ordenada con la flecha apagada. Ojo: la paginación de las vistas de
+    // lista y tarjetas emite un `sorter` vacío del todo, y eso NO es un clic en
+    // una cabecera; por eso se mira que venga la columna.
+    const quitaOrden = !!pedida && !sorter?.order;
+    const sort = quitaOrden ? 'id' : (pedida || props.filters.sort);
+    const direction = quitaOrden ? 'desc'
+                    : sorter?.order === 'ascend' ? 'asc'
                     : sorter?.order === 'descend' ? 'desc'
                     : props.filters.direction;
     reload({ page: pag.current, per_page: pag.pageSize, sort, direction });
@@ -261,11 +287,13 @@ const currentView = computed(() => viewOptions.value.find((o) => o.value === vie
 const setView = ({ key }) => { viewMode.value = key; };
 
 // ─── Orden global (dropdown — funciona en tabla, lista y tarjetas) ─────────
-const normField = (di) => Array.isArray(di) ? di[0] : (typeof di === 'string' && di.includes('.') ? di.split('.')[0] : di);
+// La etiqueta sale del `title` de la columna, que ya viene traducido; si alguna
+// vez llegara un título que no es texto (un render con icono) se cae a la clave
+// antes que dejar el menú vacío.
 const sortOptions = computed(() =>
     allColumns.value
         .filter((c) => c.sorter)
-        .map((c) => ({ value: normField(c.dataIndex) ?? c.key, label: typeof c.title === 'string' ? c.title : c.key }))
+        .map((c) => ({ value: sortKeyOf(c), label: typeof c.title === 'string' ? c.title : c.key }))
         .filter((o) => o.value),
 );
 const currentSort = computed(() => props.filters?.sort ?? 'id');
@@ -273,6 +301,14 @@ const currentDir  = computed(() => props.filters?.direction ?? 'desc');
 const currentSortLabel = computed(() =>
     sortOptions.value.find((o) => o.value === currentSort.value)?.label ?? t('global.created_at'),
 );
+// La flecha de la cabecera la manda el servidor, no el estado interno de AntD.
+// Sin esto, entrar por una vista guardada o por un enlace con `?sort=` mostraba
+// la lista ya ordenada y ninguna cabecera marcada, y el desplegable de orden y
+// las cabeceras podían decir cosas distintas a la vez.
+const tableColumns = computed(() => columns.value.map((c) => (c.sorter
+    ? { ...c, sortOrder: sortKeyOf(c) === currentSort.value ? (currentDir.value === 'asc' ? 'ascend' : 'descend') : null }
+    : c)));
+
 const setSort = ({ key }) => {
     const dir = key === currentSort.value && currentDir.value === 'asc' ? 'desc' : 'asc';
     reload({ sort: key, direction: dir, page: 1 });
@@ -516,7 +552,7 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
             <ResponsiveTable
                 :loading="isFetching"
                 :dataSource="people.data"
-                :columns="columns"
+                :columns="tableColumns"
                 :pagination="tablePagination"
                 :row-selection="(can('people.delete') || can('people.edit')) ? rowSelection : null"
                 :scroll="{ x: 'max-content' }"
@@ -563,6 +599,31 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
 
                     <template v-else-if="column.key === 'country'">
                         <span v-if="record.country">{{ record.country.name }}</span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <!-- Empresa y cargo cuelgan del vínculo y una persona puede
+                         tener varios: se enseña el primero por orden alfabético
+                         —el mismo por el que ordena el servidor, para que lo que
+                         se lee y lo que se ordena coincidan— y el resto se
+                         cuenta en un «+N» con la lista entera en el tooltip. -->
+                    <template v-else-if="column.key === 'company'">
+                        <span v-if="empresasDe(record).length" class="multi">
+                            <span class="multi__first">{{ empresasDe(record)[0] }}</span>
+                            <Tooltip v-if="empresasDe(record).length > 1" :title="empresasDe(record).join(' · ')">
+                                <Tag :bordered="false" class="multi__more">+{{ empresasDe(record).length - 1 }}</Tag>
+                            </Tooltip>
+                        </span>
+                        <span v-else class="muted">—</span>
+                    </template>
+
+                    <template v-else-if="column.key === 'position'">
+                        <span v-if="cargosDe(record).length" class="multi">
+                            <span class="multi__first">{{ cargosDe(record)[0] }}</span>
+                            <Tooltip v-if="cargosDe(record).length > 1" :title="cargosDe(record).join(' · ')">
+                                <Tag :bordered="false" class="multi__more">+{{ cargosDe(record).length - 1 }}</Tag>
+                            </Tooltip>
+                        </span>
                         <span v-else class="muted">—</span>
                     </template>
 
@@ -719,6 +780,12 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
 .pill--none { color: #a8261c; background: rgba(200,40,29,0.08); border-color: rgba(200,40,29,0.20); }
 .pill--none .pill__dot { background: #c8281d; }
 .doc__type { font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.04em; }
+
+/* Empresa / cargo: el primero completo y el resto contado, sin que la celda
+   crezca hasta romper el ancho de la tabla en la tablet. */
+.multi { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.multi__first { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.multi__more { flex-shrink: 0; background: var(--color-surface-alt); color: var(--color-text-muted); font-size: 0.7rem; }
 
 /* Cabecera minimal + filas aireadas + hover suave. */
 .grid-card :deep(.ant-table-thead > tr > th) {

@@ -52,6 +52,15 @@ class PersonController extends Controller
             $request->merge(['sort' => 'id', 'direction' => 'desc']);
         }
 
+        // El orden que de verdad se aplico, no el que pidieron. Es lo que baja
+        // a la pantalla para marcar la cabecera activa: devolviendo el crudo,
+        // una vista guardada que cita una columna retirada dejaba la flecha
+        // puesta en una cabecera que ya no ordenaba nada.
+        $sortAplicado = Person::ordenValidoDelListado($request->get('sort'));
+        $dirAplicada  = in_array($request->get('direction'), ['asc', 'desc'], true)
+            ? $request->get('direction')
+            : 'desc';
+
         $userId  = $request->user()?->id;
         $isSuper = $request->user()?->hasRole('super') ?? false;
 
@@ -116,8 +125,8 @@ class PersonController extends Controller
                 'created_from' => $request->get('created_from', ''),
                 'created_to'   => $request->get('created_to', ''),
                 'only_favorites' => $request->boolean('only_favorites'),
-                'sort'         => $request->get('sort', 'id'),
-                'direction'    => $request->get('direction', 'desc'),
+                'sort'         => $sortAplicado,
+                'direction'    => $dirAplicada,
                 'per_page'     => $perPage,
                 // Filtros avanzados: array de clausulas {field, op, value}
                 // que el drawer construye. Lo persisto para que al recargar

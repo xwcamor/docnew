@@ -204,7 +204,7 @@ class Person extends Model
             }
         }
 
-        $sort = $request->get('sort', 'id');
+        $sort = static::ordenValidoDelListado($request->get('sort', 'id'));
         $direction = $request->get('direction', 'desc');
         if (! in_array($direction, ['asc', 'desc'], true)) {
             $direction = 'desc';
@@ -222,16 +222,120 @@ class Person extends Model
             // (o elegirla en el desplegable de orden) no hacia absolutamente
             // nada: la peticion salia con `sort=document`, no encajaba en
             // ningun caso y la lista volvia igual.
+            //
+            // El tipo va primero y el numero despues porque es asi como se lee
+            // la celda —«DNI 12345678»— y porque comparar un DNI con un
+            // pasaporte por el numero no significa nada: son numeraciones de
+            // dos sitios distintos. Agrupando por tipo, dentro de cada grupo el
+            // numero si ordena, que es lo que se busca al repasar una lista de
+            // documentos.
             $query->orderBy("{$tbl}.doc_type", $direction)
                   ->orderBy("{$tbl}.num_doc", $direction);
-        } elseif (in_array($sort, ['companies_count', 'company_links_count', 'signatures_count'], true)) {
-            // Alias del withCount del controller — sin prefijo de tabla.
-            $query->orderBy($sort === 'companies_count' ? 'company_links_count' : $sort, $direction);
-        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'doc_type', 'is_active', 'lastname', 'created_at', 'updated_at'], true)) {
+        } elseif ($sort === 'person' || $sort === 'lastname') {
+            // La celda pone «APELLIDO, Nombre», asi que el orden tiene que leer
+            // igual. Ordenando solo por apellido, los treinta Quispe que salen
+            // seguidos quedaban en el orden en que se dieron de alta y parecia
+            // que la cabecera no habia hecho nada.
+            $query->orderBy("{$tbl}.lastname", $direction)
+                  ->orderBy("{$tbl}.name", $direction);
+        } elseif ($sort === 'company') {
+            // La empresa cuelga del vinculo, no de la persona, y una persona
+            // puede estar en varias: un left join duplicaria la fila y el
+            // paginador contaria de mas. Por eso subconsulta escalar. Y ordena
+            // por NOMBRE, no por `company_id`, porque con el id la lista sale
+            // en el orden en que se dieron de alta las empresas, que para quien
+            // mira es orden aleatorio.
+            //
+            // Se coge el nombre mas bajo alfabeticamente porque es justamente
+            // el que la celda enseña primero: lo que se ordena es lo que se ve.
+            $query->orderBy(
+                \DB::table('person_company_links')
+                    ->join('companies', 'companies.id', '=', 'person_company_links.company_id')
+                    ->whereColumn('person_company_links.person_id', "{$tbl}.id")
+                    ->whereNull('companies.deleted_at')
+                    ->selectRaw('min(companies.name)'),
+                $direction,
+            );
+        } elseif ($sort === 'position') {
+            // Mismo caso que la empresa: el cargo vive en el vinculo. El
+            // catalogo de cargos no tiene nombre aparte, el texto ES `code`
+            // («Técnico», «Supervisor»), y es lo que se pinta.
+            $query->orderBy(
+                \DB::table('person_company_links')
+                    ->join('positions', 'positions.id', '=', 'person_company_links.position_id')
+                    ->whereColumn('person_company_links.person_id', "{$tbl}.id")
+                    ->whereNull('positions.deleted_at')
+                    ->selectRaw('min(positions.code)'),
+                $direction,
+            );
+        } elseif (in_array($sort, ['companies_count', 'company_links_count'], true)) {
+            $query->orderBy(static::subconsultaDeConteo('person_company_links', $tbl), $direction);
+        } elseif (in_array($sort, ['biometric', 'active_biometrics_count'], true)) {
+            // «Rostro» es una pastilla de si/no, pero por debajo es un conteo:
+            // ordenarlo agrupa a quien no puede firmar en obra, que es
+            // exactamente para lo que se pulsa esa cabecera.
+            $query->orderBy(
+                static::subconsultaDeConteo('person_biometrics', $tbl)->where('is_active', true),
+                $direction,
+            );
+        } elseif ($sort === 'signatures_count') {
+            $query->orderBy(static::subconsultaDeConteo('person_signatures', $tbl), $direction);
+        } else {
+            // Aqui solo llegan columnas reales de `people`: la lista blanca ya
+            // descarto todo lo demas.
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 
         return $query;
+    }
+
+    /**
+     * Las claves de orden que el listado acepta, y ninguna mas.
+     *
+     * `sort` llega crudo de la barra de direcciones y acababa concatenado
+     * dentro del ORDER BY, asi que la lista blanca no es una comodidad: es lo
+     * que impide que alguien escriba SQL en la URL. Lo que no esta aqui cae al
+     * orden por defecto —la fila mas nueva arriba— en vez de reventar la
+     * pantalla, porque una vista guardada de hace meses puede citar una columna
+     * que ya no existe y eso no puede dejar sin listado a nadie.
+     *
+     * @return array<int, string>
+     */
+    public static function ordenesDelListado(): array
+    {
+        return [
+            // Columnas de `people`.
+            'id', 'name', 'lastname', 'num_doc', 'doc_type', 'is_active', 'created_at', 'updated_at',
+            // Columnas compuestas o de relacion, resueltas en `scopeFilter`.
+            'person', 'document', 'country', 'tenant', 'company', 'position',
+            // Conteos: la cabecera manda la clave de la columna y el
+            // desplegable de orden manda el alias del withCount. Valen las dos.
+            'companies_count', 'company_links_count',
+            'biometric', 'active_biometrics_count',
+            'signatures_count',
+        ];
+    }
+
+    /** Normaliza el `sort` del request; lo que no este en la lista blanca cae a `id`. */
+    public static function ordenValidoDelListado(mixed $sort): string
+    {
+        return (is_string($sort) && in_array($sort, static::ordenesDelListado(), true)) ? $sort : 'id';
+    }
+
+    /**
+     * Conteo de filas hijas como subconsulta escalar, para ordenar por el.
+     *
+     * Se cuenta aqui en vez de reusar el alias del `withCount` del controlador
+     * porque `scopeFilter` no lo pone el: lo pone quien lo llama. El listado si
+     * lo trae, pero «Editar todo» y el contador del exportador llaman al mismo
+     * scope con un SELECT recortado, y ahi un `order by signatures_count` se
+     * referia a una columna que no existia en esa consulta.
+     */
+    protected static function subconsultaDeConteo(string $tablaHija, string $tbl): \Illuminate\Database\Query\Builder
+    {
+        return \DB::table($tablaHija)
+            ->whereColumn("{$tablaHija}.person_id", "{$tbl}.id")
+            ->selectRaw('count(*)');
     }
 
     /**
