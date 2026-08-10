@@ -3,6 +3,12 @@
 return [
     'approval_out_of_order' => 'Todavía no puedes aprobar: falta la firma de :roles, que va antes en el flujo.',
 
+    // La regla de siempre: el que ejecuta declara primero lo que va a hacer y
+    // el supervisor autoriza sobre esa declaración. Autorizar antes es firmar
+    // en blanco. La dice el servidor al intentar firmar y la repite la ficha en
+    // la fila bloqueada: una regla, una frase.
+    'approval_needs_representative' => 'Todavía no puedes aprobar: falta designar al representante de los trabajadores. Nadie autoriza el trabajo hasta que alguien responda por el equipo que lo va a hacer.',
+
     // Pantalla de firma. Se lee con casco, a pleno sol y con la cámara abierta:
     // frases cortas, y cada una dice qué hacer, no qué pasa por dentro.
     'sign' => [

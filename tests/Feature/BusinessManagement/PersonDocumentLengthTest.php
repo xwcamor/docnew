@@ -71,13 +71,13 @@ class PersonDocumentLengthTest extends CatalogTestCase
         );
         $cargo = \App\Models\Position::firstOrCreate(
             ['code' => 'Técnico'],
-            $this->base() + ['is_signature_approver' => false],
+            $this->base(),
         );
 
         return $this->actingAs($this->admin())
             ->post(route('business_management.people.store'), $extra + [
                 'name' => 'Edison Yosimar', 'lastname' => 'Rosales Capcha',
-                'country_id' => 1, 'is_active' => true, 'roles' => ['worker'],
+                'country_id' => 1, 'is_active' => true,
                 'company_id' => $empresa->id, 'position_id' => $cargo->id,
             ]);
     }
@@ -185,7 +185,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
             ['num_doc' => '20100000001'],
             $this->base() + ['name' => 'Contratista', 'complete_name' => 'Contratista SAC'],
         );
-        \App\Models\Position::firstOrCreate(['code' => 'Técnico'], $this->base() + ['is_signature_approver' => false]);
+        \App\Models\Position::firstOrCreate(['code' => 'Técnico'], $this->base());
 
         $dondeTrabaja = ['company' => '20100000001', 'position' => 'Técnico'];
 

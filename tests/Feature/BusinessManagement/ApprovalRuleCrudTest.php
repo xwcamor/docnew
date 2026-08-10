@@ -180,7 +180,15 @@ class ApprovalRuleCrudTest extends TestCase
     {
         $this->actingAs($this->admin());
 
-        $this->regla(ApproverRole::WORKER, 1);
+        // El primer eslabon lo firmaba el rol «trabajador» —el ejecutante— y
+        // ese rol ya no aprueba nada: quien responde por la gente de la obra es
+        // una columna del plan, no una firma del flujo. Aqui se pone un jefe de
+        // obra en su sitio, que es justo lo que la pantalla defiende: quien
+        // firma es una fila del catalogo, no una constante del programa.
+        ApproverRole::create(['slug' => Str::random(22), 'code' => 'site_chief',
+            'name_es' => 'Jefe de obra', 'name_en' => 'Site chief', 'sort_order' => 4, 'tenant_id' => 1]);
+
+        $this->regla('site_chief', 1);
         $this->regla(ApproverRole::SUPERVISOR, 2);
         $this->regla(ApproverRole::HSE_SUPERVISOR, 3, false);
 
@@ -190,7 +198,7 @@ class ApprovalRuleCrudTest extends TestCase
         ApproverRole::create(['slug' => Str::random(22), 'code' => 'rigging_chief',
             'name_es' => 'Jefe de izaje', 'name_en' => 'Rigging chief', 'sort_order' => 5, 'tenant_id' => 1]);
 
-        foreach ([[ApproverRole::WORKER, 1], [ApproverRole::SUPERVISOR, 2],
+        foreach ([['site_chief', 1], [ApproverRole::SUPERVISOR, 2],
                   [ApproverRole::HSE_SUPERVISOR, 3], ['rigging_chief', 4]] as [$rol, $nivel]) {
             $this->regla($rol, $nivel, true, $izaje->id);
         }
@@ -253,7 +261,7 @@ class ApprovalRuleCrudTest extends TestCase
     public function test_al_borrar_una_regla_el_flujo_se_queda_con_una_firma_menos(): void
     {
         $this->actingAs($this->admin());
-        $this->regla(ApproverRole::WORKER, 1);
+        $this->regla(ApproverRole::SUPERVISOR, 1);
         $hse = $this->regla(ApproverRole::HSE_SUPERVISOR, 3, false);
 
         $this->delete(route('business_management.approval_rules.deleteSave', $hse->slug), [
@@ -265,7 +273,7 @@ class ApprovalRuleCrudTest extends TestCase
             ->assertInertia(function ($page) {
                 $general = $page->toArray()['props']['flows'][0];
                 $this->assertCount(1, $general['signatures']);
-                $this->assertSame(ApproverRole::WORKER, $general['signatures'][0]['role']);
+                $this->assertSame(ApproverRole::SUPERVISOR, $general['signatures'][0]['role']);
 
                 return $page;
             });
@@ -279,7 +287,7 @@ class ApprovalRuleCrudTest extends TestCase
 
         $this->assertProhibido($this->get(route('business_management.approval_rules.create')));
         $this->assertProhibido($this->post(route('business_management.approval_rules.store'), [
-            'country_id' => 1, 'approver_role' => ApproverRole::WORKER, 'priority_level' => 1,
+            'country_id' => 1, 'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 1,
         ]));
 
         $this->assertSame(0, ApprovalRule::count());
@@ -365,7 +373,7 @@ class ApprovalRuleCrudTest extends TestCase
     public function test_la_edicion_en_masa_no_toca_una_regla_bloqueada(): void
     {
         $bloqueada = $this->regla(ApproverRole::SUPERVISOR, 2);
-        $libre     = $this->regla(ApproverRole::WORKER, 1);
+        $libre     = $this->regla(ApproverRole::HSE_SUPERVISOR, 1);
         $bloqueada->lock($this->super());
 
         $this->actingAs($this->admin());
@@ -422,7 +430,7 @@ class ApprovalRuleCrudTest extends TestCase
 
         $this->post(route('business_management.approval_rules.store'), [
             'name' => '   ',
-            'country_id' => 1, 'approver_role' => ApproverRole::WORKER, 'priority_level' => 1,
+            'country_id' => 1, 'approver_role' => ApproverRole::SUPERVISOR, 'priority_level' => 1,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertNull(ApprovalRule::first()->name);
@@ -436,7 +444,7 @@ class ApprovalRuleCrudTest extends TestCase
     {
         $this->actingAs($this->admin());
         $this->regla(ApproverRole::SUPERVISOR, 2, true, null, 'Supervisor Autorizante - HITACHI');
-        $this->regla(ApproverRole::WORKER, 1, true, null, 'Supervisor Ejecutante');
+        $this->regla(ApproverRole::HSE_SUPERVISOR, 1, true, null, 'Supervisor Ejecutante');
 
         $this->get(route('business_management.approval_rules.index', ['name' => 'HITACHI']))
             ->assertOk()
@@ -456,7 +464,7 @@ class ApprovalRuleCrudTest extends TestCase
     public function test_ordenar_por_rol_ordena_de_verdad(): void
     {
         $this->actingAs($this->admin());
-        $this->regla(ApproverRole::WORKER, 3);
+        $this->regla(ApproverRole::SUPERVISOR, 3);
         $this->regla(ApproverRole::HSE_SUPERVISOR, 1);
 
         $this->get(route('business_management.approval_rules.index', ['sort' => 'approver_role', 'direction' => 'asc']))
@@ -464,7 +472,7 @@ class ApprovalRuleCrudTest extends TestCase
             ->assertInertia(function ($page) {
                 $filas = $page->toArray()['props']['approval_rules']['data'];
                 $this->assertSame(
-                    [ApproverRole::HSE_SUPERVISOR, ApproverRole::WORKER],
+                    [ApproverRole::HSE_SUPERVISOR, ApproverRole::SUPERVISOR],
                     array_column($filas, 'approver_role'),
                 );
 
@@ -484,7 +492,7 @@ class ApprovalRuleCrudTest extends TestCase
         DB::table('tenants')->insertOrIgnore([['id' => 2, 'slug' => Str::random(22), 'name' => 'Empresa 2', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('subscriptions')->insertOrIgnore([['id' => 2, 'tenant_id' => 2, 'plan' => 'enterprise', 'status' => 'active', 'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(), 'currency' => 'USD', 'payment_method' => 'manual', 'created_at' => now(), 'updated_at' => now()]]);
 
-        $ajena = $this->regla(ApproverRole::WORKER, 1, true, null, 'Regla de la Empresa 2');
+        $ajena = $this->regla(ApproverRole::SUPERVISOR, 1, true, null, 'Regla de la Empresa 2');
         $ajena->forceFill(['tenant_id' => 2])->saveQuietly();
 
         $global = $this->regla(ApproverRole::SUPERVISOR, 2, true, null, 'Regla de la Plataforma');
@@ -579,7 +587,7 @@ class ApprovalRuleCrudTest extends TestCase
                 ->component('ApprovalRules/Index')
                 ->has('options.countries', 1)
                 ->has('options.work_types', 1)
-                ->has('options.approver_roles', 3)
+                ->has('options.approver_roles', 2)
                 ->where('sequential', false));
     }
 }

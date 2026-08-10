@@ -26,7 +26,7 @@ use Illuminate\Support\Facades\DB;
  *    firma de un rol fantasma. Se avisa y se ofrece desactivarlo, que es lo
  *    que el usuario casi siempre queria: que deje de ofrecerse, sin romper lo
  *    que ya estaba configurado;
- *  - los tres que trae el sistema (`worker`, `supervisor`, `hse_supervisor`)
+ *  - los dos que trae el sistema (`supervisor`, `hse_supervisor`)
  *    tampoco. El motor de migracion y las reglas sembradas los nombran por su
  *    codigo: si desaparecen, lo que se rompe no es esta pantalla.
  */
@@ -34,7 +34,6 @@ class ApproverRoleService
 {
     /** Los que trae el sistema: viven en el modelo como constantes por lo mismo. */
     public const DEL_SISTEMA = [
-        ApproverRole::WORKER,
         ApproverRole::SUPERVISOR,
         ApproverRole::HSE_SUPERVISOR,
     ];

@@ -17,6 +17,7 @@ import EntityShowActions from '@/Components/Common/EntityShowActions.vue';
 import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import RecordHistory from '@/Components/Common/RecordHistory.vue';
 import WorkPlanCrewCard from '@/Components/WorkPlans/WorkPlanCrewCard.vue';
+import WorkPlanRepresentativeCard from '@/Components/WorkPlans/WorkPlanRepresentativeCard.vue';
 import WorkPlanFormsCard from '@/Components/WorkPlans/WorkPlanFormsCard.vue';
 import WorkPlanApprovalsCard from '@/Components/WorkPlans/WorkPlanApprovalsCard.vue';
 import { useAuth } from '@/Composables/useAuth';
@@ -35,6 +36,12 @@ const props = defineProps({
     crew:      { type: Array,  default: () => [] },
     forms:     { type: Array,  default: () => [] },
     approvals: { type: Array,  default: () => [] },
+    /**
+     * Quién responde por los trabajadores: `{ person, can_designate,
+     * signed_crew }`. No es una aprobación —es una columna del plan— y por eso
+     * llega aparte de `approvals`.
+     */
+    representative: { type: Object, default: () => ({ person: null, can_designate: false, signed_crew: 0 }) },
     setupOptions: { type: Object, default: () => ({ formTemplates: [], approvalRules: [] }) },
     setup:     { type: Object, default: () => ({ can: false, reason: null }) },
     fieldWork: { type: Object, default: () => ({ canOpenForms: false, canSign: false, canExport: false }) },
@@ -183,6 +190,15 @@ const pendientes = computed(() => {
         lista.push(t('work_plans.missing_crew'));
     } else if (firmasCrew.value < props.crew.length) {
         lista.push(tc('work_plans.missing_signatures', props.crew.length - firmasCrew.value));
+    }
+
+    // Y alguien que responda por ellos. Antes esto se colaba por la vía de las
+    // aprobaciones —había una regla obligatoria de rol trabajador— así que al
+    // sacarlo del flujo habría dejado de contarse aquí sin que nadie lo notara:
+    // el supervisor leería «no falta nada» y el plan seguiría sin cerrarse. Es
+    // la misma condición que mira WorkPlanCompletionService.
+    if (props.crew.length && !props.representative?.person) {
+        lista.push(t('work_plans.close_needs_representative'));
     }
 
     const sinConfirmar = formatosDelPlan.value.length - formatosLlenos.value;
@@ -481,12 +497,26 @@ const pendientes = computed(() => {
                      vez, y se ve cuál va retrasada sin bajar la pantalla.
                      A 1200px pasan a dos columnas y a 900 se apilan. -->
                 <div class="wp-board">
-                    <WorkPlanCrewCard
-                        :plan-slug="workPlan.slug"
-                        :crew="crew"
-                        :can-edit="canSetup"
-                        :can-sign="fieldWork.canSign"
-                    />
+                    <!-- Quién sale a obra y quién responde por ellos van en la
+                         misma columna, uno debajo del otro: el representante
+                         se elige entre los de la lista de arriba, y tenerlo
+                         tres columnas más a la derecha —donde estaba, en el
+                         flujo de aprobaciones— obligaba a cruzar la pantalla
+                         para comprobar quién había firmado ya. -->
+                    <div class="wp-board__col">
+                        <WorkPlanCrewCard
+                            :plan-slug="workPlan.slug"
+                            :crew="crew"
+                            :can-edit="canSetup"
+                            :can-sign="fieldWork.canSign"
+                        />
+
+                        <WorkPlanRepresentativeCard
+                            :plan-slug="workPlan.slug"
+                            :representative="representative"
+                            :can-edit="canSetup"
+                        />
+                    </div>
 
                     <WorkPlanFormsCard
                         :plan-slug="workPlan.slug"
@@ -497,13 +527,14 @@ const pendientes = computed(() => {
                         :work-type-code="workPlan.work_type?.code || ''"
                     />
 
-                    <!-- Lo que bloquea el flujo es la aprobación del ejecutante,
-                         no las firmas de la cuadrilla: la propia tarjeta lo sabe
-                         mirando sus filas de rol trabajador. -->
+                    <!-- Lo que bloquea el flujo es que nadie responda todavía
+                         por los trabajadores. No son sus firmas —esas son de
+                         asistencia a la charla— ni una fila de esta lista: es
+                         la columna del plan, y por eso la tarjeta la recibe. -->
                     <WorkPlanApprovalsCard
                         :plan-slug="workPlan.slug"
                         :approvals="approvals"
-                        :crew="crew"
+                        :representative="representative"
                         :can-edit="canSetup"
                         :can-sign="fieldWork.canSign"
                     />
@@ -588,6 +619,11 @@ const pendientes = computed(() => {
 /* Las tarjetas traen su propio margen inferior para cuando van apiladas; en
    el tablero lo pone la rejilla, y sumar los dos deja un hueco raro abajo. */
 .wp-board :deep(.info-card) { margin-bottom: 0; }
+
+/* Una columna con dos tarjetas dentro —trabajadores y su representante—. El
+   hueco entre ellas es el mismo de la rejilla: si se pusiera con el margen de
+   la tarjeta, esta columna quedaría separada distinto que las otras dos. */
+.wp-board__col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* En una tablet apaisada tres columnas dejan las listas en un canal
    demasiado estrecho: dos, y el flujo de firmas debajo a todo el ancho. */

@@ -50,12 +50,14 @@ class DocumentType extends Model
     public const EMPRESA = 'company';
 
     protected $fillable = [
-        'slug', 'country_id', 'scope', 'code', 'name', 'min_length', 'max_length', 'allowed_chars', 'is_active',
+        'slug', 'country_id', 'scope', 'code', 'name', 'min_length', 'max_length', 'allowed_chars',
+        'for_foreigners', 'is_active',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
     protected $casts = [
-        'is_active'  => 'boolean',
+        'is_active'      => 'boolean',
+        'for_foreigners' => 'boolean',
         'min_length' => 'integer',
         'max_length' => 'integer',
     ];

@@ -33,8 +33,16 @@ class PersonService
             $person->save();
 
             $this->guardarVinculo($person, $vinculo);
-            // Sin rol, la persona no es nadie en obra: nace trabajadora.
-            $this->guardarRoles($person, $roles ?? [PersonRole::WORKER]);
+
+            // Sin roles, y esta bien asi. Los roles dicen QUE APRUEBA la
+            // persona en el flujo, y la inmensa mayoria no aprueba nada: son
+            // trabajadores de una contratista. Antes nacian con «trabajador»,
+            // que lo tenia el 100 % y por tanto no separaba nada — y lo que ese
+            // rol pretendia nombrar, quien responde por la cuadrilla, resulto
+            // ser del plan y no de la persona.
+            if ($roles !== null) {
+                $this->guardarRoles($person, $roles);
+            }
 
             return $person;
         });
@@ -212,7 +220,7 @@ class PersonService
 
             $clone = new Person($person->only([
                 'is_active', 'name', 'lastname', 'doc_type', 'country_id',
-                'nationality_id', 'birthdate',
+                'birthdate',
             ]));
             $clone->num_doc    = $candidato;
             $clone->created_by = auth()->id();
@@ -443,12 +451,10 @@ class PersonService
                 ['position_id' => $positionId, 'is_active' => true, 'started_on' => now()],
             );
 
-            if (! $persona->hasRole(PersonRole::WORKER)) {
-                PersonRole::updateOrCreate(
-                    ['person_id' => $persona->id, 'role' => PersonRole::WORKER],
-                    ['is_active' => true],
-                );
-            }
+            // Aqui se le ponia el rol «trabajador» al meterla en la cuadrilla.
+            // Ya no hace falta: estar en la cuadrilla ES ser trabajadora de ese
+            // plan, y decirlo dos veces solo daba pie a que las dos se
+            // contradijeran.
 
             return ['persona' => $persona->fresh(), 'creada' => $creada];
         });

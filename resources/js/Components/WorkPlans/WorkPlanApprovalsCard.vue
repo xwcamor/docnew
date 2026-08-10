@@ -31,8 +31,15 @@ const props = defineProps({
     approvals: { type: Array,  default: () => [] },
     canEdit:   { type: Boolean, default: false },
     canSign:   { type: Boolean, default: false },
-    /** Los trabajadores del plan: de ahí sale el ejecutante, y sólo de ahí. */
-    crew:      { type: Array,  default: () => [] },
+    /**
+     * Quién responde por los trabajadores, tal como lo manda el servidor.
+     *
+     * No es una aprobación y por eso no sale en esta lista, pero sí la bloquea:
+     * hasta que alguien responda por el equipo, nadie autoriza. Se lee de aquí
+     * en vez de deducirlo de las filas, que es lo que se hacía antes y dejó de
+     * ser cierto en cuanto el representante salió del flujo.
+     */
+    representative: { type: Object, default: () => ({ person: null }) },
 });
 
 const { t } = useI18n();
@@ -67,44 +74,39 @@ const cuando = (v) => {
 };
 
 /**
- * Las aprobaciones se firman en orden, y aquí se dice por qué una todavía no.
+ * Nadie autoriza hasta que alguien responda por los trabajadores, y aquí se
+ * dice por qué una aprobación todavía no se puede firmar.
  *
- * El sistema anterior escondía las que no tocaban (`next if approver_type !=
- * "worker" && !all_required_workers_signed`). Esconder deja al supervisor sin
- * saber cuántos pasos le quedan; enseñarlas en gris con el motivo enseña el
+ * El sistema anterior escondía las que no tocaban. Esconder deja al supervisor
+ * sin saber cuántos pasos le quedan; enseñarlas en gris con el motivo enseña el
  * camino entero sin permitir saltárselo.
- */
-/**
- * Las **aprobaciones de rol trabajador** que siguen sin firmar.
  *
- * Ésta es la condición del sistema anterior, literal:
+ * La condición es la del sistema anterior, literal:
  *
  *     required_workers_pending = @list_plan_approvals.select { |p|
  *       p.approver_type == "Worker" && p.approval_rule.is_required && !p.is_approved }
  *     next if approver_type != "worker" && !all_required_workers_signed
  *
- * Lo que bloquea al supervisor es que **el ejecutante haya firmado su
- * aprobación** — no que haya firmado toda la cuadrilla. Yo lo había puesto
- * contra `work_plan_people`, que es otra cosa: son las firmas de asistencia a
- * la charla, y no gobiernan el flujo de autorización.
+ * Allí el que respondía por el trabajo era una fila más de esta lista —la del
+ * «ejecutante»— y aquí se miraba igual, buscando las de rol `worker` sin
+ * firmar. Ese rol ya no existe: quien responde es una columna del plan y tiene
+ * su propia tarjeta, al lado de la lista de la que sale. La regla no cambia,
+ * cambia dónde vive el dato, así que se lee de la prop en vez de deducirse de
+ * unas filas que ya no están.
+ *
+ * Ojo con la tentación de mirarlo contra las firmas de los trabajadores: esas
+ * son firmas de asistencia a la charla y no gobiernan la autorización. Es el
+ * error que ya se cometió una vez.
+ *
+ * El mismo texto que devuelve el servidor cuando se intenta firmar de todas
+ * formas (SignatureController): una regla, una frase.
  */
-const ejecutantesPendientes = computed(() =>
-    props.approvals.filter((a) => a.role === 'worker' && a.required && !a.signed));
+const faltaRepresentante = computed(() => !props.representative?.person);
 
 const bloqueo = (a) => {
     if (a.signed) return null;
 
-    // El rol «trabajador» es el primer eslabón: lo firma el ejecutante y no
-    // espera a nadie.
-    if (a.role === 'worker') return null;
-
-    if (ejecutantesPendientes.value.length) {
-        return t('work_plans.approval_waits_worker', {
-            role: rotulo(ejecutantesPendientes.value[0].role),
-        });
-    }
-
-    return null;
+    return faltaRepresentante.value ? t('field_work.approval_needs_representative') : null;
 };
 
 /** El estado del paso, con el mismo vocabulario que las otras dos columnas. */
@@ -176,47 +178,13 @@ const sinResultados = computed(() => {
 });
 
 /**
- * El ejecutante se elige **entre los trabajadores del plan**, no se busca.
+ * Por qué la lista está vacía.
  *
- * Es quien está en la obra y responde por lo que se va a hacer, así que no
- * puede ser alguien que no salió a trabajar ese día. Ni el sistema anterior ni
- * mi primera versión lo comprobaban: los dos buscaban por documento en las 231
- * personas del padrón.
- *
- * Además es una lista de dos o cinco nombres: se elige con un clic en vez de
- * teclear ocho dígitos con guantes. El buscador por documento se queda para
- * supervisor y HSE, que no salen a obra con el plan.
- *
- * Se llama `esEjecutante` y no por el nombre de la lista: lo que decide de dónde
- * salen los candidatos es **el rol que firma**, no de dónde se sacan.
+ * Aquí ya sólo se buscan aprobadores por documento: supervisor y HSE, que no
+ * salen a obra con el plan. El que sí sale —quien responde por los
+ * trabajadores— se designa en su propia tarjeta y no pasa por este selector.
  */
-const esEjecutante = (a) => a?.role === 'worker';
-
-/**
- * Los del plan que **ya firmaron**, que son los únicos que pueden ser ejecutante.
- *
- * Su firma de trabajador es la que da la aprobación, así que designar a quien
- * no ha firmado no tiene sentido: el servidor lo rechaza. Antes se ofrecía la
- * cuadrilla entera y el error salía después de elegir — mejor no poder
- * equivocarse que explicar el error.
- */
-const ejecutantesPosibles = computed(() => props.crew
-    .filter((f) => f.signed)
-    .map((f) => ({ slug: f.person, name: f.name })));
-
-const opciones = computed(() => (esEjecutante(props.approvals.find((a) => a.slug === abierta.value))
-    ? ejecutantesPosibles.value
-    : candidatos.value));
-
-/** Por qué la lista está vacía, que no es lo mismo en cada caso. */
-const sinOpciones = (a) => {
-    if (! esEjecutante(a)) return buscando.value ? undefined : sinResultados.value;
-    if (! props.crew.length) return t('work_plans.crew_empty');
-
-    // Hay gente en el plan pero nadie ha firmado todavía: eso es lo que falta,
-    // y decirlo evita buscar un nombre que no va a aparecer.
-    return ejecutantesPosibles.value.length ? undefined : t('work_plans.approval_nobody_signed_yet');
-};
+const sinOpciones = () => (buscando.value ? undefined : sinResultados.value);
 
 const abrir = (a) => {
     abierta.value = abierta.value === a.slug ? null : a.slug;
@@ -277,9 +245,7 @@ const firmar = (a) => router.get(
                             v-if="canEdit"
                             :title="a.person
                                 ? $t('work_plans.approval_change_hint', { role: nombre(a) })
-                                : (esEjecutante(a)
-                                    ? $t('work_plans.approval_pick_from_crew')
-                                    : $t('work_plans.approval_assign_hint'))"
+                                : $t('work_plans.approval_assign_hint')"
                         >
                             <Button size="small" :loading="guardando === a.slug" @click="abrir(a)">
                                 <template #icon><EditOutlined /></template>
@@ -287,14 +253,13 @@ const firmar = (a) => router.get(
                             </Button>
                         </Tooltip>
 
-                        <!-- El ejecutante NO lleva botón de firmar: la
-                             aprobación se da con la firma que ya dio como
-                             trabajador de este mismo plan. Pedírsela otra vez
-                             sería la misma persona, el mismo día, el mismo
-                             plan y la misma cámara, y la segunda no prueba
-                             nada que no probara la primera. -->
+                        <!-- Todas las filas de aquí recogen una firma propia.
+                             La que no la recogía era la del ejecutante, que
+                             valía la firma que esa misma persona ya había dado
+                             como trabajador: por eso llevaba un botón que no
+                             había que pulsar y por eso dejó de ser una fila. -->
                         <Tooltip
-                            v-if="canSign && a.person && !a.signs_as_worker"
+                            v-if="canSign && a.person"
                             :title="bloqueo(a) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
                         >
                             <Button size="small" type="primary" :disabled="!!bloqueo(a)" @click="firmar(a)">
@@ -309,23 +274,21 @@ const firmar = (a) => router.get(
                      el título hasta partirlo letra a letra. -->
                 <template v-if="canEdit && !a.signed && abierta === a.slug" #wide>
                     <div class="wp-assign">
-                        <!-- Ejecutante: lista corta de los que están en la obra.
-                             Supervisor y HSE: buscador por documento. -->
+                        <!-- Supervisor y HSE: buscador por documento, que es lo
+                             único que se asigna desde aquí. -->
                         <Select
-                            :show-search="!esEjecutante(a)"
+                            show-search
                             allow-clear
                             autofocus
                             :filter-option="false"
                             :loading="buscando"
-                            :placeholder="esEjecutante(a)
-                                ? $t('work_plans.approval_pick_from_crew')
-                                : $t('work_plans.approval_assign_hint')"
-                            :not-found-content="sinOpciones(a)"
+                            :placeholder="$t('work_plans.approval_assign_hint')"
+                            :not-found-content="sinOpciones()"
                             style="width: 100%"
-                            @search="esEjecutante(a) ? undefined : buscar($event)"
+                            @search="buscar($event)"
                             @change="(v) => asignar(a, v)"
                         >
-                            <SelectOption v-for="p in opciones" :key="p.slug" :value="p.slug">
+                            <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
                                 {{ p.name }}
                             </SelectOption>
                         </Select>

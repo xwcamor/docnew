@@ -61,7 +61,7 @@ class WorkPlanCompletionService
      *
      *   1. Hora de fin del trabajo.
      *   2. Al menos un trabajador y un formato.
-     *   3. **Todos** los trabajadores han firmado.
+     *   3. **Todos** los trabajadores han firmado, y hay un representante.
      *   4. **Todos** los formatos exigidos están confirmados.
      *   5. Ninguna aprobación obligatoria sin firmar.
      *
@@ -106,6 +106,14 @@ class WorkPlanCompletionService
             if ($sinFirmar > 0) {
                 $falta[] = trans_choice('work_plans.close_needs_signatures', $sinFirmar, ['count' => $sinFirmar]);
             }
+        }
+
+        // Y alguien que responda por la cuadrilla. Antes esto se colaba por la
+        // via de las aprobaciones —habia una regla de rol `worker` obligatoria—
+        // asi que al sacarlo del flujo habria dejado de exigirse sin que nadie
+        // lo notara: el plan cerraria con cuadrilla y sin responsable.
+        if ($trabajadores > 0 && $plan->crew_representative_person_id === null) {
+            $falta[] = __('work_plans.close_needs_representative');
         }
 
         // Formatos: tiene que haber, y todos los que el plan exige tienen que

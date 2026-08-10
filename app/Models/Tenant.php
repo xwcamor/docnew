@@ -25,6 +25,7 @@ class Tenant extends Model
 
     protected $fillable = [
         'name',
+        'company_id',
         'logo',
         'address',
         'report_disclaimer',
@@ -90,6 +91,19 @@ class Tenant extends Model
     }
 
     // ─── Subscriptions ────────────────────────────────────────────────────
+
+    /**
+     * Cual de las empresas del catalogo es este workspace.
+     *
+     * Lo que separa a «mi gente» de «la gente de la contratista», que es la
+     * distincion que la v1 tenia en el esquema —sus supervisores no llevaban
+     * `company_id`— y que se perdio al unificar las tres tablas de personas.
+     * Sin esto el selector de aprobadores ofrece el padron entero.
+     */
+    public function company(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Company::class);
+    }
 
     public function subscriptions(): HasMany
     {

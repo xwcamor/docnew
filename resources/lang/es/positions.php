@@ -9,7 +9,7 @@ return [
     'id'                           => 'N°',
 
     'index_title'                  => 'Cargos',
-    'index_subtitle'               => 'Qué hace cada persona en obra, y cuáles de esos cargos pueden firmar una aprobación.',
+    'index_subtitle'               => 'Qué hace cada persona en obra: técnico, capataz, electricista.',
     'create_title'                 => 'Crear cargo',
     'create_subtitle'              => 'Un cargo nuevo se puede asignar a una persona en cuanto se guarda.',
     'edit_title'                   => 'Editar cargo',
@@ -23,10 +23,6 @@ return [
     'code_help'                    => 'El cargo tal y como se dice en obra: Técnico, Supervisor, Mecánico, Eléctrico.',
     'country'                      => 'País',
     'country_help'                 => 'El país al que pertenece. Los catálogos se llevan por país porque la normativa de seguridad no es la misma en todos.',
-    'is_signature_approver'        => 'Puede firmar aprobaciones',
-    'is_signature_approver_help'   => 'Marca este cargo si quien lo tiene puede firmar la aprobación de un plan de trabajo. Sin la marca, la persona sale en el plan como trabajador pero no se le pide firma de aprobador.',
-    'signature_approver_yes'       => 'Firma aprobaciones',
-    'signature_approver_no'        => 'No firma',
     'is_active'                    => 'Estado',
     'is_active_help'               => 'Un cargo inactivo deja de ofrecerse al vincular a una persona. Quien ya lo tiene lo conserva.',
     'filter_name'                  => 'Buscar',
@@ -57,7 +53,7 @@ return [
     // Tour de bienvenida
     'tour' => [
         'step1_title' => 'Cargos',
-        'step1_body'  => 'El catálogo de cargos. Además de nombrar lo que hace cada persona, marca cuáles pueden firmar como aprobadores.',
+        'step1_body'  => 'El catálogo de cargos: cómo se llama en obra lo que hace cada persona. Quién aprueba un plan no se decide aquí, sino en los roles de la persona.',
         'step2_title' => 'Buscar',
         'step2_body'  => 'Escribe en la barra y la lista se filtra sola. No hace falta pulsar nada.',
         'step3_title' => 'Columnas',

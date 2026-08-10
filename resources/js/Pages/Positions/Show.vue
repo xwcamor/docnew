@@ -43,9 +43,6 @@ const fmt = (d) => formatDateTimeFull(d);
             <template #icon><SolutionOutlined /></template>
             <template #subtitle>
                 <Space :size="6" wrap>
-                    <Tag v-if="position.is_signature_approver" color="green" :bordered="false">
-                        {{ $t('positions.signature_approver_yes') }}
-                    </Tag>
                     <Tag v-if="isDeleted" color="red" :bordered="false">{{ $t('global.deleted') }}</Tag>
                     <Tag v-else :color="position.is_active ? 'success' : 'default'" :bordered="false">
                         {{ position.is_active ? $t('global.active') : $t('global.inactive') }}
@@ -108,16 +105,6 @@ const fmt = (d) => formatDateTimeFull(d);
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('positions.country') }}</span>
                             <span class="spec-cell__value">{{ position.country ?? '—' }}</span>
-                        </div>
-                        <div class="spec-cell">
-                            <span class="spec-cell__label">{{ $t('positions.is_signature_approver') }}</span>
-                            <span class="spec-cell__value">
-                                <Tag :color="position.is_signature_approver ? 'green' : 'default'" :bordered="false">
-                                    {{ position.is_signature_approver
-                                        ? $t('positions.signature_approver_yes')
-                                        : $t('positions.signature_approver_no') }}
-                                </Tag>
-                            </span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('positions.is_active') }}</span>

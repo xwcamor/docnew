@@ -4,7 +4,6 @@ namespace App\Imports\BusinessManagement\People;
 
 use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Models\Company;
-use App\Models\Country;
 use App\Models\DocumentType;
 use App\Models\Person;
 use App\Models\PersonRole;
@@ -26,8 +25,7 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  *   - lastname    (obligatorio en el alta)
  *   - company     (obligatorio en el alta — RUC o nombre de la empresa)
  *   - position    (obligatorio en el alta — el cargo, tal como esta en el catalogo)
- *   - roles       (opcional — trabajador / supervisor / supervisor hse; por defecto trabajador)
- *   - nationality (opcional — nombre o ISO de un pais)
+ *   - roles       (opcional — que aprueba en el flujo; en blanco, ninguno)
  *   - birthdate   (opcional — AAAA-MM-DD o una fecha de Excel)
  *
  * La empresa y el cargo no estaban, y la persona que entraba por aqui nacia
@@ -38,9 +36,6 @@ use Maatwebsite\Excel\Concerns\WithHeadingRow;
  * una de las dos puertas no es una regla. En la actualizacion son opcionales:
  * la columna en blanco deja el vinculo como estaba.
  *
- * Tampoco creaba roles, y sin rol la persona no entra en un plan
- * (WorkPlanSetupService lo comprueba). Ahora nace trabajadora, igual que por
- * pantalla.
  *
  * La identidad es el DOCUMENTO, no el nombre: en el sistema v1 el match por
  * nombre fusionaba homónimos y partía en dos a la misma persona escrita de dos
@@ -121,7 +116,6 @@ class PeopleImport implements ToCollection, WithHeadingRow
      */
     protected array $empresas = [];
     protected array $cargos = [];
-    protected array $paises = [];
 
     protected PersonService $personas;
 
@@ -159,7 +153,7 @@ class PeopleImport implements ToCollection, WithHeadingRow
     }
 
     /**
-     * Los tres catalogos que el fichero nombra en texto, indexados por como se
+     * Los catalogos que el fichero nombra en texto, indexados por como se
      * escriben una vez normalizados (sin tildes, sin mayusculas, sin dobles
      * espacios): asi «S.A.C. HITACHI» y «hitachi» no son dos empresas.
      */
@@ -181,14 +175,6 @@ class PeopleImport implements ToCollection, WithHeadingRow
             }
         }
 
-        foreach (Country::query()->select('id', 'name', 'iso_code')->get() as $pais) {
-            foreach ([$pais->name, $pais->iso_code] as $comoSeLlama) {
-                $clave = $this->normalizar((string) $comoSeLlama);
-                if ($clave !== '' && ! isset($this->paises[$clave])) {
-                    $this->paises[$clave] = $pais->id;
-                }
-            }
-        }
     }
 
     public function collection(Collection $rows): void
@@ -277,7 +263,6 @@ class PeopleImport implements ToCollection, WithHeadingRow
 
                 $companyId  = $this->buscarEnCatalogo($row['company'] ?? null, $this->empresas, 'people.company', $problemas);
                 $positionId = $this->buscarEnCatalogo($row['position'] ?? null, $this->cargos, 'people.position', $problemas);
-                $nacionalidadId = $this->buscarEnCatalogo($row['nationality'] ?? null, $this->paises, 'people.nationality', $problemas);
                 $roles      = $this->leerRoles($row['roles'] ?? null, $problemas);
                 $nacimiento = $this->leerFecha($row['birthdate'] ?? null, $problemas);
 
@@ -340,9 +325,6 @@ class PeopleImport implements ToCollection, WithHeadingRow
                     $patch = [];
                     if ($name !== null && $existing->name !== $name)         $patch['name'] = $name;
                     if ($lastname !== null && $existing->lastname !== $lastname) $patch['lastname'] = $lastname;
-                    if ($nacionalidadId !== null && $existing->nationality_id !== $nacionalidadId) {
-                        $patch['nationality_id'] = $nacionalidadId;
-                    }
                     if ($nacimiento !== null && $existing->birthdate?->toDateString() !== $nacimiento) {
                         $patch['birthdate'] = $nacimiento;
                     }
@@ -420,12 +402,14 @@ class PeopleImport implements ToCollection, WithHeadingRow
                     'doc_type'       => $docType,
                     'num_doc'        => $numDoc,
                     'country_id'     => $this->countryId,
-                    'nationality_id' => $nacionalidadId,
                     'birthdate'      => $nacimiento,
                     'is_active'      => true,
                     'company_id'     => $companyId,
                     'position_id'    => $positionId,
-                    'roles'          => $roles ?? [PersonRole::WORKER],
+                    // Sin roles si el fichero no los trae: los roles dicen que
+                    // aprueba la persona, y quien entra por aqui suele ser
+                    // trabajador de una contratista, que no aprueba nada.
+                    'roles'          => $roles ?? [],
                     // tenant_id lo autorellena BelongsToTenant (tenant del actor);
                     // el slug lo auto-genera el modelo en `creating`.
                 ]);
@@ -582,10 +566,8 @@ class PeopleImport implements ToCollection, WithHeadingRow
         }
 
         $comoSeEscriben = [
-            'worker' => PersonRole::WORKER,
-            'trabajador' => PersonRole::WORKER,
-            'trabajadora' => PersonRole::WORKER,
-            'obrero' => PersonRole::WORKER,
+            // «Trabajador» ya no es un rol: estar en la cuadrilla de un plan es
+            // lo que lo dice. Aqui solo van los papeles del flujo de firmas.
             'supervisor' => PersonRole::SUPERVISOR,
             'supervisora' => PersonRole::SUPERVISOR,
             'hse_supervisor' => PersonRole::HSE_SUPERVISOR,

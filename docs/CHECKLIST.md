@@ -68,6 +68,7 @@
 | [x] | **Los tres listados principales muestran los datos reales** | comprobado en un Chromium real con los datos migrados: plan por código, empresa, tipo y fecha; persona por apellidos, documento, empresas y si tiene la cara enrolada; empresa por RUC, personas y planes |
 | [x] | Documentación heredada puesta al día | 21 documentos reescritos contra el código; 11 afirmaciones falsas corregidas |
 | [x] | **Alertas de seguridad de dependencias** | de 44 avisos en 14 paquetes (1 crítico) a **0**, sin cambiar ninguna versión mayor |
+| [x] | **`positions.is_signature_approver` borrada** | venía de la v1 y no la leía nadie: ni selector, ni validación, ni informe. Además mentía sobre el modelo — quién aprueba lo dicen los roles de la persona, no su cargo. Fuera de la base, del modelo, de los FormRequest, del listado, la ficha y el formulario, del importador de la v1, de los seeders y de las claves de los dos idiomas |
 
 ## Documentación
 

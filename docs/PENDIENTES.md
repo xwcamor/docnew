@@ -14,7 +14,6 @@ lo dice explícitamente.
 | **`Brand` y la familia `Customer`** | ¿Se borran o se dejan desactivados? Ninguna columna del dominio de DOCUFIZ apunta a `brands`, no existe equivalente en la v1, y `Customer` + sus ubicaciones/áreas/subestaciones es una isla del producto de diagnóstico de transformadores del que se clonó esto | Siguen registrados como módulos activos y aparecen en el menú |
 | **Planes cerrados** | Un plan cerrado ¿congela su lista de documentos, o se corrigen los cuatro mensajes de la pantalla que hoy dicen cosas distintas? | Reservado para la sesión de Planes, que dijiste que haríamos juntos |
 | **Personas por workspace** | Empresas quedó estricto por workspace («cada workspace tiene sus propias empresas»). ¿Personas igual, o una persona puede trabajar para contratistas de workspaces distintos? | Hoy es por workspace, heredado; sin confirmar |
-| **`positions.is_signature_approver`** | ¿Debe filtrar quién puede ser aprobador de un plan? La columna existe y nadie la lee | No filtra nada |
 | **150 416 observaciones del histórico de EPP** | ¿Se migran, se resumen o se quedan en la v1? | No se migran |
 | **Herramientas y Comentarios** | Los dos módulos están muertos: `CommentController::TYPES` está vacío y los permisos no gatean nada | Siguen en el menú sin hacer nada |
 | **Estado `archived` de los formatos** | No se llega a él desde ninguna pantalla, y `nuevaVersion()` es código que nadie llama | Código muerto |

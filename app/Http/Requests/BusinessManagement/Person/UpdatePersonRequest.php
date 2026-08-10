@@ -16,7 +16,6 @@ class UpdatePersonRequest extends FormRequest
 
     protected $attributeOverrides = [
         'country_id'     => 'people.country',
-        'nationality_id' => 'people.nationality',
         'company_id'     => 'people.company',
         'position_id'    => 'people.position',
         'roles'          => 'people.roles',
@@ -59,11 +58,10 @@ class UpdatePersonRequest extends FormRequest
             'company_id'  => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
             'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')],
             'roles'       => ['sometimes', 'array'],
-            'roles.*'     => ['string', Rule::in([
-                PersonRole::WORKER, PersonRole::SUPERVISOR, PersonRole::HSE_SUPERVISOR,
-            ])],
+            // Del catalogo, no de una lista escrita aqui: ver StorePersonRequest.
+            'roles.*'     => ['string', Rule::exists('approver_roles', 'code')
+                ->where('is_active', true)->whereNull('deleted_at')],
             'country_id'     => ['required', 'integer', Rule::exists('countries', 'id')],
-            'nationality_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'birthdate'      => ['nullable', 'date', 'before:today'],
             'is_active'      => ['sometimes', 'boolean'],
         ];

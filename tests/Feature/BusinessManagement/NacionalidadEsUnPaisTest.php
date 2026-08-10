@@ -2,25 +2,27 @@
 
 namespace Tests\Feature\BusinessManagement;
 
-use App\Models\Country;
+use App\Models\DocumentType;
 use App\Models\Person;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 /**
- * Una nacionalidad ES un pais, y ya no hay un catalogo aparte para eso.
+ * La nacionalidad ya no existe, y no hace falta.
  *
  * Habia dos tablas para lo mismo: `countries` con 26 filas —nombre, ISO,
- * moneda, huso— y `nationalities` con cuatro (Peru, Venezuela, Chile,
- * Argentina), un modulo CRUD completo detras y 35 archivos del proyecto
- * mencionandola.
+ * moneda, huso— y `nationalities` con cuatro, con un modulo CRUD completo
+ * detras. Se borro la tabla y la nacionalidad paso a apuntar a `countries`.
  *
- * Y casi cuesta caro: el tipo de documento se deducia comparando el TEXTO del
- * nombre de la nacionalidad con el del pais. Bastaba con que la fila se hubiera
- * sembrado como «Peruana» en vez de «Perú» para que los 224 peruanos salieran
- * con carne de extranjeria en vez de DNI. Se salvo por casualidad.
+ * Y despues se vio que sobraba tambien la columna. Ya estaba el pais —el del
+ * documento, que ademas forma parte de la clave unica— y ya estaba el tipo de
+ * documento, que en Peru dice quien es extranjero sin margen: un peruano lleva
+ * DNI y quien viene de fuera lleva carne de extranjeria, PTP o pasaporte.
  *
- * Ahora se comparan NUMEROS, que es lo que se comprueba aqui.
+ * Existia en la v1 porque alli NO habia tipo de documento: `workers.num_doc`
+ * era texto pelado y la nacionalidad era la unica forma de saber quien llevaba
+ * carne. De hecho el tipo se DEDUJO de ella al migrar los 391. Cumplio su
+ * funcion y el que sobraba paso a ser ella.
  */
 class NacionalidadEsUnPaisTest extends CatalogTestCase
 {
@@ -29,20 +31,30 @@ class NacionalidadEsUnPaisTest extends CatalogTestCase
         return 'people';
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        foreach ([
+            ['DNI', 8, 8, false],
+            ['CE', 9, 12, true],
+            ['PASAPORTE', 6, 20, true],
+        ] as [$code, $min, $max, $deFuera]) {
+            DocumentType::firstOrCreate(
+                ['country_id' => 1, 'scope' => DocumentType::PERSONA, 'code' => $code],
+                ['slug' => Str::random(22), 'name' => $code,
+                 'min_length' => $min, 'max_length' => $max,
+                 'allowed_chars' => $code === 'PASAPORTE' ? DocumentType::CIFRAS_Y_LETRAS : DocumentType::SOLO_CIFRAS,
+                 'for_foreigners' => $deFuera, 'is_active' => true, 'created_by' => 1],
+            );
+        }
+    }
+
     protected function unaFila(): \Illuminate\Database\Eloquent\Model
     {
         return Person::create($this->base() + [
             'name' => 'Ana', 'lastname' => 'Quispe', 'doc_type' => 'DNI', 'num_doc' => '45871236',
         ]);
-    }
-
-    private function venezuela(): Country
-    {
-        return Country::firstOrCreate(
-            ['iso_code' => 'VE'],
-            ['slug' => Str::random(22), 'region_id' => 999, 'name' => 'Venezuela',
-             'currency' => 'VES', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true],
-        );
     }
 
     public function test_la_tabla_de_nacionalidades_ya_no_existe(): void
@@ -53,78 +65,80 @@ class NacionalidadEsUnPaisTest extends CatalogTestCase
         );
     }
 
-    /** La nacionalidad apunta a un pais de verdad, con su nombre y su ISO. */
-    public function test_la_nacionalidad_de_una_persona_es_un_pais(): void
+    /** Ni la columna: era la misma pregunta que el tipo de documento. */
+    public function test_la_columna_de_nacionalidad_tampoco(): void
     {
-        $persona = Person::create($this->base() + [
-            'name' => 'Luis', 'lastname' => 'Pérez', 'doc_type' => 'CE', 'num_doc' => '001234567',
-            'nationality_id' => $this->venezuela()->id,
-        ]);
-
-        $this->assertInstanceOf(Country::class, $persona->fresh()->nationality);
-        $this->assertSame('Venezuela', $persona->fresh()->nationality->name);
+        $this->assertFalse(
+            Schema::hasColumn('people', 'nationality_id'),
+            'La persona sigue guardando una nacionalidad que el documento ya dice.',
+        );
     }
 
     /**
      * Lo que importa en la puerta: quien viene de fuera.
      *
-     * La nacionalidad solo se enseña cuando NO es la del pais donde se trabaja.
-     * Con el 97 % peruanos, marcarlos a todos es la misma bandera repetida y el
-     * ojo deja de verla; lo que hay que ver es el que lleva carne y no DNI.
+     * Y lo dice el documento. Con el 97 % peruanos, marcarlos a todos es la
+     * misma bandera repetida y el ojo deja de verla; lo que hay que ver es el
+     * que lleva carne y no DNI.
      */
-    public function test_solo_se_marca_al_que_viene_de_fuera(): void
+    public function test_el_documento_dice_quien_viene_de_fuera(): void
     {
         $deAqui = Person::create($this->base() + [
             'name' => 'Ana', 'lastname' => 'Quispe', 'doc_type' => 'DNI', 'num_doc' => '45871237',
-            'nationality_id' => 1,
         ]);
 
         $deFuera = Person::create($this->base() + [
             'name' => 'Luis', 'lastname' => 'Pérez', 'doc_type' => 'CE', 'num_doc' => '001234568',
-            'nationality_id' => $this->venezuela()->id,
         ]);
 
-        $this->assertNull($deAqui->foreign_nationality);
         $this->assertFalse($deAqui->is_foreigner);
-
-        $this->assertSame('Venezuela', $deFuera->foreign_nationality);
         $this->assertTrue($deFuera->is_foreigner);
     }
 
-    /** Sin nacionalidad no se marca nada: es un campo opcional. */
-    public function test_sin_nacionalidad_no_se_marca_nada(): void
+    /** El pasaporte tambien: un peruano en obra se identifica con su DNI. */
+    public function test_el_pasaporte_cuenta_como_de_fuera(): void
     {
-        $persona = $this->unaFila();
+        $persona = Person::create($this->base() + [
+            'name' => 'John', 'lastname' => 'Smith', 'doc_type' => 'PASAPORTE', 'num_doc' => 'AB123456',
+        ]);
 
-        $this->assertNull($persona->foreign_nationality);
+        $this->assertTrue($persona->is_foreigner);
+    }
+
+    /**
+     * Un tipo que no esta en el catalogo no convierte a nadie en extranjero.
+     *
+     * Pasa con lo migrado de la v1: alli el tipo se dedujo, y si alguien quedo
+     * con una sigla que el catalogo de su pais no tiene, lo prudente es no
+     * marcarlo — es lo que vale para el 97 % — en vez de inventarse la
+     * respuesta.
+     */
+    public function test_un_tipo_fuera_del_catalogo_no_marca_a_nadie(): void
+    {
+        $persona = Person::create($this->base() + [
+            'name' => 'Rara', 'lastname' => 'Migrada', 'doc_type' => 'PTP', 'num_doc' => '001234569',
+        ]);
+
         $this->assertFalse($persona->is_foreigner);
     }
 
-    /** El alta admite un pais como nacionalidad, y rechaza un id inventado. */
-    public function test_el_alta_valida_la_nacionalidad_contra_los_paises(): void
+    /** El alta ya no pide nacionalidad, y mandarla no rompe nada. */
+    public function test_el_alta_no_pide_nacionalidad(): void
     {
         $empresa = \App\Models\Company::firstOrCreate(
             ['num_doc' => '20100000001'],
             $this->base() + ['name' => 'Contratista', 'complete_name' => 'Contratista SAC'],
         );
-        $cargo = \App\Models\Position::firstOrCreate(
-            ['code' => 'Técnico'],
-            $this->base() + ['is_signature_approver' => false],
-        );
-
-        $datos = [
-            'name' => 'Luis', 'lastname' => 'Pérez', 'doc_type' => 'DNI', 'num_doc' => '45871238',
-            'country_id' => 1, 'is_active' => true, 'roles' => ['worker'],
-            'company_id' => $empresa->id, 'position_id' => $cargo->id,
-        ];
+        $cargo = \App\Models\Position::firstOrCreate(['code' => 'Técnico'], $this->base());
 
         $this->actingAs($this->admin())
-            ->post(route('business_management.people.store'), $datos + ['nationality_id' => $this->venezuela()->id])
+            ->post(route('business_management.people.store'), [
+                'name' => 'Luis', 'lastname' => 'Pérez', 'doc_type' => 'DNI', 'num_doc' => '45871238',
+                'country_id' => 1, 'is_active' => true,
+                'company_id' => $empresa->id, 'position_id' => $cargo->id,
+            ])
             ->assertSessionHasNoErrors();
 
-        $this->actingAs($this->admin())
-            ->post(route('business_management.people.store'),
-                ['num_doc' => '45871239', 'nationality_id' => 99999] + $datos)
-            ->assertSessionHasErrors('nationality_id');
+        $this->assertDatabaseHas('people', ['num_doc' => '45871238']);
     }
 }

@@ -233,4 +233,13 @@ return [
     'acting_banner' => 'Estás administrando el workspace',
     'leave'    => 'Salir del workspace',
     'enter_first' => 'Entra primero en un workspace: este dato tiene que pertenecer a uno, y desde la consola quedaría sin dueño.',
+    // Cuál de las empresas del catálogo es este workspace. Es lo que separa
+    // «mi gente» de «la gente de la contratista»: la v1 lo tenía en el esquema
+    // —sus supervisores no llevaban empresa— y se perdió al unificar las tres
+    // tablas de personas en una.
+    'own_company'             => 'Mi empresa',
+    'own_company_help'        => 'Cuál de las empresas del catálogo eres tú. Decide a quién se ofrece como aprobador de un plan: solo tu gente puede autorizar, no la de las contratistas.',
+    'own_company_placeholder' => 'Elige tu empresa del catálogo',
+    'own_company_sugerida'    => 'Propuesta por parecido con el nombre del workspace. Compruébala antes de guardar.',
+    'own_company_sin_marcar'  => 'Sin esto, el selector de aprobadores del plan ofrece a todas las personas, incluidas las de las contratistas.',
 ];

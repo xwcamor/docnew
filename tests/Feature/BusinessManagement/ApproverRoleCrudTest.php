@@ -177,14 +177,19 @@ class ApproverRoleCrudTest extends TestCase
     }
 
     /**
-     * Los tres del sistema no se borran ni aunque nadie los use: el motor de
+     * Los del sistema no se borran ni aunque nadie los use: el motor de
      * migracion y las reglas sembradas los nombran por su codigo.
+     *
+     * Eran tres. `worker` ya no esta: no era un rol de aprobacion sino quien
+     * responde por la cuadrilla, y eso resulto ser del plan y no de la persona
+     * —vive en `work_plans.crew_representative_person_id`—. Lo tendria ademas
+     * el 100 % de la gente, asi que no separaba nada.
      */
-    public function test_los_tres_del_sistema_no_se_borran(): void
+    public function test_los_del_sistema_no_se_borran(): void
     {
         $this->actingAs($this->admin());
 
-        foreach ([ApproverRole::WORKER, ApproverRole::SUPERVISOR, ApproverRole::HSE_SUPERVISOR] as $codigo) {
+        foreach ([ApproverRole::SUPERVISOR, ApproverRole::HSE_SUPERVISOR] as $codigo) {
             $rol = ApproverRole::where('code', $codigo)->sole();
 
             $this->assertSame(0, ApprovalRule::where('approver_role', $codigo)->count(),
@@ -226,7 +231,7 @@ class ApproverRoleCrudTest extends TestCase
 
         $libre = ApproverRole::create(['slug' => Str::random(22), 'code' => 'invitado',
             'name_es' => 'Invitado', 'name_en' => 'Guest', 'sort_order' => 9, 'tenant_id' => 1]);
-        $sistema = ApproverRole::where('code', ApproverRole::WORKER)->sole();
+        $sistema = ApproverRole::where('code', ApproverRole::SUPERVISOR)->sole();
 
         $this->post(route('business_management.approver_roles.bulk_delete'), [
             'ids' => [$libre->id, $sistema->id],
@@ -311,7 +316,7 @@ class ApproverRoleCrudTest extends TestCase
     public function test_la_ficha_del_rol_lista_las_reglas_por_su_nombre(): void
     {
         $regla = $this->regla(ApproverRole::SUPERVISOR, 2);
-        $regla->update(['name' => 'Supervisor Autorizante - HITACHI']);
+        $regla->update(['name' => 'Supervisor Autorizante - ACME']);
         $rol = ApproverRole::firstWhere('code', ApproverRole::SUPERVISOR);
 
         $this->actingAs($this->admin())
@@ -319,7 +324,7 @@ class ApproverRoleCrudTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->component('ApproverRoles/Show')
-                ->where('rules.0.name', 'Supervisor Autorizante - HITACHI'));
+                ->where('rules.0.name', 'Supervisor Autorizante - ACME'));
     }
 
     public function test_el_listado_dice_cuantas_reglas_usan_cada_rol(): void
@@ -327,12 +332,19 @@ class ApproverRoleCrudTest extends TestCase
         $this->actingAs($this->admin());
         $this->regla(ApproverRole::SUPERVISOR, 2);
 
+        // Por codigo y no por posicion: el orden de la lista cambia en cuanto se
+        // añade o se quita un rol del catalogo, y entonces el test falla por algo
+        // que no tiene nada que ver con lo que dice comprobar. Paso justo al
+        // sacar `worker`.
         $this->get(route('business_management.approver_roles.index'))
             ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->component('ApproverRoles/Index')
-                ->where('approver_roles.data.1.code', ApproverRole::SUPERVISOR)
-                ->where('approver_roles.data.1.rules_count', 1)
-                ->where('approver_roles.data.0.rules_count', 0));
+            ->assertInertia(function ($page) {
+                $filas = collect($page->toArray()['props']['approver_roles']['data'])->keyBy('code');
+
+                $this->assertSame(1, $filas[ApproverRole::SUPERVISOR]['rules_count']);
+                $this->assertSame(0, $filas[ApproverRole::HSE_SUPERVISOR]['rules_count']);
+
+                return $page->component('ApproverRoles/Index');
+            });
     }
 }

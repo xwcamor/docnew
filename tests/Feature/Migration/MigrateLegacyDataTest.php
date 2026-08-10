@@ -194,7 +194,13 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(1, DB::table('work_types')->whereNotNull('legacy_id')->count());
         $this->assertSame(1, DB::table('work_locations')->whereNotNull('legacy_id')->count());
         $this->assertSame(1, DB::table('workstations')->whereNotNull('legacy_id')->count());
-        $this->assertSame(3, DB::table('approval_rules')->whereNotNull('legacy_id')->count());
+
+        // Dos, no las tres de la v1: la regla del «Ejecutante» no se trae. Ese
+        // rol dejo de firmar aprobaciones —quien responde por la gente de la
+        // obra es una columna del plan, no una fila del flujo— y traerla
+        // recrearia el rol que la migracion de esquema acaba de borrar.
+        $this->assertSame(2, DB::table('approval_rules')->whereNotNull('legacy_id')->count());
+        $this->assertSame(0, DB::table('approval_rules')->where('approver_role', 'worker')->count());
 
         // Los formatos que exige cada tipo de trabajo tambien vienen de la v1.
         $this->assertSame(2, DB::table('work_type_form_templates')->count());
@@ -287,57 +293,76 @@ class MigrateLegacyDataTest extends TestCase
     }
 
     /**
-     * La nacionalidad llega, y con ella el tipo de documento correcto.
+     * La nacionalidad de la v1 decide el tipo de documento, y no se guarda.
      *
-     * Se habia quedado sin migrar entera: `workers.nationality_id` es NOT NULL
-     * en la v1 —los 391 trabajadores traen una— y aqui la tabla estaba vacia y
-     * la columna de la persona en nulo. El reparto real es 380 Peru, 9
-     * Venezuela, 1 Chile y 1 Argentina.
+     * La v1 no tiene tipo de documento: `workers.num_doc` es texto pelado y
+     * aqui se escribia «DNI» para los 391. Para 380 es cierto; para los 11
+     * extranjeros no, porque un extranjero no puede tener DNI. `nationality_id`
+     * es NOT NULL alli —el reparto real es 380 Peru, 9 Venezuela, 1 Chile y 1
+     * Argentina— y de ahi sale el tipo.
      *
-     * Y arrastra algo mas: la v1 no tiene tipo de documento, asi que aqui se
-     * escribia «DNI» para los 391. Para 380 es cierto; para los 11 extranjeros
-     * no, porque un extranjero no puede tener DNI. El tipo se deduce de la
-     * nacionalidad.
+     * Lo que NO pasa es guardarla: `people.nationality_id` se borro por
+     * redundante. Ya estan el pais del documento y el tipo, que dicen lo mismo.
+     * Se lee del origen, se usa para deducir, y se tira.
      */
-    public function test_la_nacionalidad_llega_y_decide_el_tipo_de_documento(): void
+    public function test_la_nacionalidad_de_la_v1_decide_el_tipo_de_documento(): void
     {
         $this->migrarTodo();
 
         $peruano = DB::table('people')->where('num_doc', '10000001')->first();
         $extranjero = DB::table('people')->where('num_doc', '10000002')->first();
 
-        // La nacionalidad apunta a `countries`: es un pais, no un catalogo
-        // aparte. Las de la v1 se emparejan por nombre sin tildes.
-        $nombre = fn ($id) => DB::table('countries')->where('id', $id)->value('name');
-
-        $this->assertSame('Peru', $nombre($peruano->nationality_id));
-        $this->assertSame('Venezuela', $nombre($extranjero->nationality_id));
-
-        // Y de ahi el documento: DNI el de aqui, carne el de fuera.
         $this->assertSame('DNI', $peruano->doc_type);
         $this->assertSame('CE', $extranjero->doc_type);
+
+        $this->assertFalse(
+            \Illuminate\Support\Facades\Schema::hasColumn('people', 'nationality_id'),
+            'La persona vuelve a guardar una nacionalidad que el documento ya dice.',
+        );
     }
 
     /**
-     * A quien ya se migro sin nacionalidad se le pone al repetir la migracion.
+     * A quien se migro con el tipo mal se le corrige al repetir la migracion.
      *
-     * Los 391 ya estan en la base sin ella, de la pasada anterior. Si solo se
-     * rellenara al crear la persona, se quedarian todos sin nacionalidad para
-     * siempre y habria que borrarlos y volver a empezar.
+     * Los 391 ya estaban en la base como «DNI», de la pasada anterior, cuando
+     * el tipo todavia no se deducia. Si solo se decidiera al CREAR la persona,
+     * los once extranjeros se quedarian con un DNI que no pueden tener y habria
+     * que borrarlos y empezar de nuevo.
      */
-    public function test_al_repetir_la_migracion_se_completa_la_nacionalidad_que_faltaba(): void
+    public function test_al_repetir_la_migracion_se_corrige_el_tipo_que_estaba_mal(): void
     {
         $this->migrarTodo();
 
         // Se simula el estado en que quedo la base con la migracion vieja.
-        DB::table('people')->update(['nationality_id' => null, 'doc_type' => 'DNI']);
+        DB::table('people')->update(['doc_type' => 'DNI']);
 
         $this->migrarTodo();
 
-        $extranjero = DB::table('people')->where('num_doc', '10000002')->first();
+        $this->assertSame('CE', DB::table('people')->where('num_doc', '10000002')->value('doc_type'));
+    }
 
-        $this->assertNotNull($extranjero->nationality_id);
-        $this->assertSame('CE', $extranjero->doc_type);
+    /**
+     * El representante de la cuadrilla llega del volcado.
+     *
+     * En la v1 era una fila de `plan_approvals` con `approver_type = 'Worker'`,
+     * y aqui es una columna del plan: esa fila nunca recogia una firma propia,
+     * apuntaba a alguien que ya habia firmado como trabajador. Si el migrador
+     * se limitara a NO importarla, los planes migrados se quedarian sin
+     * representante y sin poder cerrarse, porque el cierre lo exige.
+     */
+    public function test_el_representante_del_plan_llega_del_volcado(): void
+    {
+        $this->migrarTodo();
+
+        $conRepresentante = DB::table('work_plans')
+            ->whereNotNull('crew_representative_person_id')
+            ->count();
+
+        $this->assertGreaterThan(0, $conRepresentante,
+            'Ningun plan migrado tiene representante: no se podran cerrar.');
+
+        // Y no queda ninguna aprobacion de las que eran del ejecutante.
+        $this->assertSame(0, DB::table('approval_rules')->where('approver_role', 'worker')->count());
     }
 
     /**
@@ -358,9 +383,6 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(2, DB::table('positions')->count());
         $this->assertSame(0, DB::table('positions')->where('code', 'Mecanico')->count());
 
-        // `is_signature_approver` viene con ellos: marca quien puede aprobar.
-        $this->assertTrue((bool) DB::table('positions')->where('code', 'Supervisor')->value('is_signature_approver'));
-
         $persona = DB::table('people')->where('num_doc', '10000001')->first();
         $vinculo = DB::table('person_company_links')->where('person_id', $persona->id)->first();
 
@@ -372,7 +394,10 @@ class MigrateLegacyDataTest extends TestCase
     {
         $this->migrarTodo();
 
-        $this->assertSame(3, DB::table('work_plan_approvals')->count());
+        // Dos de las tres de la v1: la del «Ejecutante» se queda fuera con su
+        // regla, porque el representante ya no es una aprobacion.
+        $this->assertSame(2, DB::table('work_plan_approvals')->count());
+        $this->assertSame(0, DB::table('work_plan_approvals')->where('legacy_id', 1)->count());
 
         // La aprobacion 3 apuntaba al supervisor 99, que no existe en la v1.
         $this->assertNull(DB::table('work_plan_approvals')->where('legacy_id', 3)->value('person_id'));
@@ -493,15 +518,21 @@ class MigrateLegacyDataTest extends TestCase
         $eventos = DB::table('signature_events')->whereNotNull('legacy_source')->get();
 
         // 2 eventos de trabajador validos (el tercero apunta a un plan_worker
-        // que no existe), 1 firma sin evento y 1 aprobacion con aprobador.
-        $this->assertSame(4, $eventos->count());
+        // que no existe) y 1 firma sin evento.
+        //
+        // Eran 4: el que falta es el de la aprobacion del «Ejecutante», que ya
+        // no se migra porque ese rol dejo de firmar aprobaciones. Su firma no
+        // se pierde —es la que dio como trabajador del plan, y esa si esta—:
+        // lo que desaparece es la copia de la misma firma en el flujo, que era
+        // justo el motivo de sacarlo de ahi.
+        $this->assertSame(3, $eventos->count());
         $this->assertSame(['migrated'], $eventos->pluck('method')->unique()->values()->all());
 
-        // Solo el trabajador 1 y la aprobacion 1 traian nombres de fichero.
-        $this->assertCount(2, $eventos->where('evidence_missing', false));
+        // Solo el trabajador 1 traia nombres de fichero.
+        $this->assertCount(1, $eventos->where('evidence_missing', false));
 
         $archivos = DB::table('evidence_files')->orderBy('kind')->get();
-        $this->assertSame(['face', 'signature', 'signature'], $archivos->pluck('kind')->all());
+        $this->assertSame(['face', 'signature'], $archivos->pluck('kind')->all());
         $this->assertSame('legacy/images_uploads/foto-1.webp', $archivos->firstWhere('kind', 'face')->file_path);
 
         // Lo migrado no entra en la cola de revision: se marca, no se revisa.
@@ -513,8 +544,10 @@ class MigrateLegacyDataTest extends TestCase
         $this->artisan('docufiz:migrate-formats')->assertSuccessful();
         $this->artisan('docufiz:migrate-data', ['paso' => 'todo'])->assertSuccessful();
 
-        // 3 referencias reales (foto-1, firma-1, firma-apro-1) y 5 marcadores.
-        $this->assertSame(3, DB::table('evidence_files')->count());
+        // 2 referencias reales (foto-1 y firma-1) y 5 marcadores. La tercera
+        // era firma-apro-1, la de la aprobacion del «Ejecutante», que ya no se
+        // migra: el representante no es una aprobacion.
+        $this->assertSame(2, DB::table('evidence_files')->count());
 
         $this->artisan('docufiz:migrate-data', ['paso' => 'evidencias'])
             ->expectsOutputToContain('marcador de IA')
@@ -560,11 +593,22 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame($copiada->signature_event_id, $suFirma->signature_event_id);
         $this->assertFalse((bool) DB::table('signature_events')->where('id', $suFirma->signature_event_id)->value('evidence_missing'));
 
-        // La firma de la aprobacion es el unico archivo de su evento y no
-        // aparecio: ese si queda marcado como evidencia perdida.
-        $perdida = DB::table('evidence_files')->where('file_path', 'legacy/images_uploads/firma-apro-1.webp')->first();
-        $this->assertSame(0, (int) $perdida->byte_size);
-        $this->assertTrue((bool) DB::table('signature_events')->where('id', $perdida->signature_event_id)->value('evidence_missing'));
+        // Y los eventos que llegaron sin ningun archivo detras —los marcadores
+        // «signed_by_IA» de la v1— siguen marcados como evidencia perdida: el
+        // paso de archivos no rescata lo que nunca fue un fichero.
+        //
+        // Aqui se miraba la firma de la aprobacion del «Ejecutante», que era el
+        // unico evento con un solo archivo. Ya no se migra —el representante no
+        // es una aprobacion— y en estos datos de la v1 no queda ningun otro
+        // caso igual; la marca del evento se sigue comprobando, que es lo que
+        // decide si la evidencia esta completa.
+        $sinArchivos = DB::table('signature_events')
+            ->whereNotNull('legacy_source')
+            ->whereNotIn('id', DB::table('evidence_files')->select('signature_event_id'))
+            ->get();
+
+        $this->assertNotEmpty($sinArchivos);
+        $this->assertTrue($sinArchivos->every(fn ($e) => (bool) $e->evidence_missing));
 
         array_map('unlink', glob($carpeta . '/*'));
         rmdir($carpeta);

@@ -144,6 +144,10 @@ class PersonController extends Controller
             'docTypeOptions' => $this->docTypeOptions(),
             'roleOptions'    => $this->roleOptions(),
             'companyOptions' => $this->companyOptions(),
+            // Cual es la empresa del propio workspace. De eso depende que se le
+            // pregunte a esta persona que aprueba: a un electricista de una
+            // contratista no, porque quien autoriza un plan es del que contrata.
+            'ownCompanyId'   => auth()->user()?->tenant?->company_id,
         ];
     }
 
@@ -164,9 +168,9 @@ class PersonController extends Controller
             'docTypesByCountry' => $this->docTypesByCountry(),
             'roleOptions'       => $this->roleOptions(),
             'companyOptions'    => $this->companyOptions(),
-            // La nacionalidad ES un pais: misma lista que el de arriba. Habia
-            // un catalogo aparte con cuatro filas y un modulo CRUD detras.
-            'nationalityOptions' => $this->countryOptions(),
+            // Cual es la empresa del propio workspace: decide si a esta persona
+            // se le pregunta que aprueba (ver `formOptions` de arriba).
+            'ownCompanyId'      => auth()->user()?->tenant?->company_id,
             // El cargo: Técnico, Supervisor, Mecánico, Eléctrico. En el sistema
             // anterior `workers.position_id` es NOT NULL —los 372 trabajadores
             // traen cargo— y aquí el campo no existía ni en el formulario.
@@ -298,14 +302,35 @@ class PersonController extends Controller
         return back()->with('success', __($kind === 'photo' ? 'people.photo_saved' : 'people.signature_saved'));
     }
 
-    /** Roles en obra — el enum de `person_roles.role`. */
+    /**
+     * Que puede firmar esta persona en el flujo de aprobaciones.
+     *
+     * Sale del catalogo `approver_roles`, no de una lista escrita aqui. Eran
+     * dos listas para lo mismo y podian separarse: el catalogo es una pantalla
+     * y admite filas nuevas —la plantilla de reglas que se descarga ya trae un
+     * «Jefe de Izaje»— pero el alta de una persona solo aceptaba tres codigos
+     * clavados en PHP. Se podia crear la regla y **ninguna persona podia tener
+     * nunca ese rol**: el plan quedaba con una firma que nadie iba a firmar y no
+     * se cerraba jamas.
+     *
+     * Ya no esta «trabajador». Lo tendria el 100 % de las personas, asi que no
+     * separaba nada, y lo que de verdad nombraba —quien responde por la
+     * cuadrilla— resulto ser del plan y no de la persona: un electricista que va
+     * solo a la obra es el representante ese dia y uno mas al siguiente. Vive en
+     * `work_plans.crew_representative_person_id`.
+     *
+     * @return array<int, array{value: string, label: string}>
+     */
     protected function roleOptions(): array
     {
-        return [
-            ['value' => 'worker',         'label' => __('people.role_worker')],
-            ['value' => 'supervisor',     'label' => __('people.role_supervisor')],
-            ['value' => 'hse_supervisor', 'label' => __('people.role_hse_supervisor')],
-        ];
+        return \App\Models\ApproverRole::query()
+            ->where('is_active', true)
+            ->orderBy('sort_order')
+            ->orderBy('code')
+            ->get(['code', 'name_es', 'name_en'])
+            // `label` ya elige el idioma (ver ApproverRole::getLabelAttribute).
+            ->map(fn ($rol) => ['value' => $rol->code, 'label' => $rol->label])
+            ->all();
     }
 
     /**
@@ -330,7 +355,7 @@ class PersonController extends Controller
     {
         $person->load([
             'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
-            'country:id,name,iso_code', 'nationality:id,name,iso_code',
+            'country:id,name,iso_code',
             'roles', 'companyLinks.company:id,name', 'companyLinks.position:id,code',
             'currentPhoto', 'currentSignature',
         ])->loadCount([
@@ -422,7 +447,7 @@ class PersonController extends Controller
 
         // El vinculo con su empresa y su cargo: el formulario los edita, asi
         // que tienen que llegar cargados o saldrian siempre en blanco.
-        $person->load(['country:id,name,iso_code', 'nationality:id,name,iso_code', 'roles', 'companyLinks.position:id,code']);
+        $person->load(['country:id,name,iso_code', 'roles', 'companyLinks.position:id,code']);
 
         return inertia('People/Form', [
             'person'           => $this->payload($person),
@@ -746,15 +771,8 @@ class PersonController extends Controller
             'country'    => $m->relationLoaded('country') && $m->country
                 ? ['id' => $m->country->id, 'name' => $m->country->name, 'iso_code' => $m->country->iso_code]
                 : null,
-            'nationality_id' => $m->nationality_id,
-            'nationality'    => $m->relationLoaded('nationality') && $m->nationality
-                ? ['id' => $m->nationality->id, 'code' => $m->nationality->name]
-                : null,
             // Solo si es distinta del pais donde trabaja: es lo que hay que
             // mirar en la puerta, porque lleva carne de extranjeria y no DNI.
-            'foreign_nationality' => $m->relationLoaded('nationality') && $m->relationLoaded('country')
-                ? $m->foreign_nationality
-                : null,
             'roles'      => $m->relationLoaded('roles')
                 ? $m->roles->where('is_active', true)->pluck('role')->values()->all()
                 : null,

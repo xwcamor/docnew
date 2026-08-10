@@ -254,17 +254,33 @@ return [
     'approval_change'    => 'Cambiar',
     'approval_sign'      => 'Firmar',
     'approval_no_one_with_role' => 'Ningún :role con ese documento. Comprueba que la persona tenga ese rol en su ficha.',
-    'approval_pick_from_crew' => 'Elige a uno de los trabajadores del plan',
-    'approval_nobody_signed_yet' => 'Todavía no ha firmado nadie del plan. El ejecutante se elige entre los que ya firmaron: su firma es la que da esta aprobación.',
-    'approval_worker_must_sign_first' => ':name todavía no ha firmado como trabajador. El ejecutante se elige entre los que ya firmaron: esa firma es la que da la aprobación.',
-    'approval_signed_as_worker' => 'Con su firma de trabajador',
-    'approval_not_in_crew' => ':name no está en este plan. El ejecutante tiene que ser uno de los trabajadores que salen a la obra.',
     'approval_wrong_role' => ':name no es :role. Sólo puede firmar esa aprobación quien tenga ese rol en su ficha de trabajador.',
     'approval_person_taken' => ':name ya firma otro rol de este plan. Una misma persona no cubre dos firmas.',
     'approval_signed_cannot_reassign' => 'Esta aprobación ya está firmada: no se cambia el firmante. La firma es la prueba de quién se hizo responsable.',
-    // Por qué una aprobación todavía no se puede firmar. El sistema anterior
-    // directamente las escondía; aquí se enseñan en gris con el motivo, que es
-    // mejor: se ve el camino completo sin poder saltárselo.
+
+    // ── Quién responde por los trabajadores ──────────────────────────────────
+    //
+    // Antes era una fila más del flujo de aprobaciones, la del «ejecutante», y
+    // de ahí salían los textos de arriba. Dejó de serlo: no recogía ninguna
+    // firma propia —apuntaba a alguien que ya había firmado como trabajador— y
+    // viviendo en el flujo se podía borrar o volver opcional desde las reglas
+    // del país, dejando un plan con gente en la obra y sin nadie que
+    // respondiera por ella.
+    //
+    // Se dice «trabajadores», no la palabra que me inventé yo (docs/UI.md §2).
+    'representative'        => 'Representante de los trabajadores',
+    'representative_help'   => 'Es quien responde por los trabajadores de este plan. Sale de los que ya firmaron y puede ser cualquiera del equipo: no hace falta que sea jefe ni que tenga un cargo especial.',
+    'representative_none'   => 'Todavía no hay nadie. Elige quién responde por los que salen a la obra.',
+    'representative_designate' => 'Designar',
+    'representative_change' => 'Cambiar',
+    // No es lo mismo que falte designarlo que que no haya a quien: con el
+    // equipo entero sin firmar no hay candidatos, y por eso no sale el botón.
+    'representative_needs_signature' => 'Todavía no ha firmado nadie. El representante sale de los que ya firmaron: en cuanto haya una firma se puede designar.',
+    'representative_no_results' => 'Nadie con ese documento entre los que ya firmaron. El representante sale de los trabajadores de este plan que ya han firmado.',
+    'representative_assigned' => ':name queda como representante de los trabajadores.',
+    'representative_not_in_crew' => ':name no está en este plan. El representante tiene que ser uno de los trabajadores que salen a la obra.',
+    'representative_must_sign_first' => ':name todavía no ha firmado en este plan. El representante sale de los que ya firmaron: esa firma, con su foto y su hora, es la que vale.',
+
     // Lo que le falta al plan para cerrarse solo. Las dos condiciones del
     // sistema anterior, ni una más.
     'close_needs_date_end'  => 'Falta la hora de fin del trabajo.',
@@ -276,15 +292,13 @@ return [
     'close_needs_signatures'  => '{1} Falta la firma de 1 trabajador.|[2,*] Faltan las firmas de :count trabajadores.',
     'close_needs_forms_done'  => '{1} Falta confirmar 1 formato.|[2,*] Faltan :count formatos por confirmar.',
     'close_needs_approvals' => '{1} Falta 1 aprobación obligatoria.|[2,*] Faltan :count aprobaciones obligatorias.',
+    'close_needs_representative' => 'Falta designar al representante de los trabajadores.',
 
-    // La regla de la v1: hasta que el ejecutante no firma su aprobación, las
-    // demás ni se enseñaban. No es «que firme la cuadrilla» — eso son firmas de
-    // asistencia y no gobiernan la autorización.
-    'approval_waits_worker' => 'Primero tiene que firmar :role.',
     'approval_waits_prior' => 'Espera la firma de :role.',
 
+    // Sin «trabajador»: ese rol dejó de firmar aprobaciones el día que el
+    // representante salió del flujo, y la migración borró sus reglas.
     'approver_role' => [
-        'worker'         => 'Trabajador',
         'supervisor'     => 'Supervisor',
         'hse_supervisor' => 'Supervisor HSE',
     ],

@@ -60,7 +60,7 @@ class PeopleImportTest extends CatalogTestCase
 
     private function cargo(string $code = 'Técnico'): Position
     {
-        return Position::firstOrCreate(['code' => $code], $this->base() + ['is_signature_approver' => false]);
+        return Position::firstOrCreate(['code' => $code], $this->base());
     }
 
     private function venezuela(): Country
@@ -116,8 +116,15 @@ class PeopleImportTest extends CatalogTestCase
         ]);
     }
 
-    /** Y con rol en obra: sin el, WorkPlanSetupService la rechaza en el plan. */
-    public function test_el_alta_por_excel_nace_trabajadora(): void
+    /**
+     * Y SIN roles, que es lo correcto.
+     *
+     * Los roles dicen que APRUEBA la persona en el flujo, y quien entra por
+     * Excel suele ser trabajador de una contratista, que no aprueba nada. Antes
+     * nacian con «trabajador», un rol que tenia el 100 % de la gente y por
+     * tanto no separaba nada.
+     */
+    public function test_el_alta_por_excel_no_inventa_roles(): void
     {
         $this->actingAs($this->admin());
         $this->empresa();
@@ -127,7 +134,7 @@ class PeopleImportTest extends CatalogTestCase
 
         $persona = Person::where('num_doc', '45871236')->firstOrFail();
 
-        $this->assertTrue($persona->hasRole(PersonRole::WORKER));
+        $this->assertSame(0, $persona->roles()->count());
     }
 
     /** Los roles del fichero se leen como los ve el usuario en pantalla. */
@@ -260,22 +267,6 @@ class PeopleImportTest extends CatalogTestCase
         $this->assertSame(2, Person::where('num_doc', '45871236')->count());
     }
 
-    /** La nacionalidad se busca por nombre o por ISO en el catalogo de paises. */
-    public function test_la_nacionalidad_se_lee_del_catalogo_de_paises(): void
-    {
-        $this->actingAs($this->admin());
-        $this->empresa();
-        $this->cargo();
-        $venezuela = $this->venezuela();
-
-        $this->importar([$this->fila(['nationality' => 'venezuela'])]);
-
-        $this->assertSame(
-            $venezuela->id,
-            Person::where('num_doc', '45871236')->firstOrFail()->nationality_id,
-        );
-    }
-
     /** La fecha de nacimiento admite el formato de la plantilla y el de Excel. */
     public function test_la_fecha_de_nacimiento_admite_texto_y_numero_de_excel(): void
     {
@@ -346,8 +337,8 @@ class PeopleImportTest extends CatalogTestCase
 
         $hoja = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
         $hoja->getActiveSheet()->fromArray([
-            ['doc_type', 'num_doc', 'name', 'lastname', 'company', 'position', 'roles', 'nationality', 'birthdate'],
-            ['DNI', '45871236', 'Juan Carlos', 'Pérez Gómez', '20100000001', 'Técnico', 'Trabajador', 'Perú', '1990-05-14'],
+            ['doc_type', 'num_doc', 'name', 'lastname', 'company', 'position', 'roles', 'birthdate'],
+            ['DNI', '45871236', 'Juan Carlos', 'Pérez Gómez', '20100000001', 'Técnico', '', '1990-05-14'],
         ]);
 
         $ruta = tempnam(sys_get_temp_dir(), 'personas') . '.xlsx';
@@ -373,7 +364,6 @@ class PeopleImportTest extends CatalogTestCase
         $persona = Person::where('num_doc', '45871236')->firstOrFail();
 
         $this->assertSame('1990-05-14', $persona->birthdate->toDateString());
-        $this->assertTrue($persona->hasRole(PersonRole::WORKER));
         $this->assertDatabaseHas('person_company_links', ['person_id' => $persona->id]);
 
         @unlink($ruta);

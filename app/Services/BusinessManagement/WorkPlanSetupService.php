@@ -215,40 +215,10 @@ class WorkPlanSetupService
 
         $rol = $aprobacion->approvalRule?->approver_role;
 
-        // El ejecutante sale **de los trabajadores de este plan**.
-        //
-        // Es quien está en la obra y responde por lo que se va a hacer, así que
-        // no puede ser alguien que no salió a trabajar ese día. Ni el sistema
-        // anterior ni la primera versión de esto lo comprobaban: los dos
-        // buscaban por documento en las 231 personas del padrón, y se podía
-        // poner como responsable de la obra a quien no estuvo en ella.
-        $comoTrabajador = null;
-
-        if ($rol === ApproverRole::WORKER) {
-            $comoTrabajador = $plan->people()->where('person_id', $persona->id)->first();
-
-            if (! $comoTrabajador) {
-                throw new \DomainException(__('work_plans.approval_not_in_crew', [
-                    'name' => $persona->list_name,
-                ]));
-            }
-
-            // Y tiene que haber firmado ya, como trabajador.
-            //
-            // Designar ejecutante a quien todavía no ha firmado deja la
-            // aprobación esperando una firma que esa persona va a dar igual en
-            // la otra columna: acabaría firmando dos veces el mismo día, el
-            // mismo plan, delante de la misma cámara, y la segunda no prueba
-            // nada que no probara la primera.
-            //
-            // El ejecutante se elige ENTRE LOS QUE YA FIRMARON, y esa firma es
-            // la que vale — la aprobación se da por hecha abajo.
-            if (! $this->firmoComoTrabajador($comoTrabajador)) {
-                throw new \DomainException(__('work_plans.approval_worker_must_sign_first', [
-                    'name' => $persona->list_name,
-                ]));
-            }
-        } elseif ($rol && ! $persona->roles()->where('role', $rol)->where('is_active', true)->exists()) {
+        // El representante de la cuadrilla ya no pasa por aqui: es una columna
+        // del plan, no una aprobacion. Ver `designarRepresentante()` y la
+        // migracion `el_representante_no_es_una_aprobacion`.
+        if ($rol && ! $persona->roles()->where('role', $rol)->where('is_active', true)->exists()) {
             // Supervisor y HSE no están en la cuadrilla, así que lo que se
             // exige es el rol. En el sistema anterior el selector iba contra
             // tres endpoints distintos según el tipo, así que la lista ya venía
@@ -275,20 +245,54 @@ class WorkPlanSetupService
 
         $aprobacion->update(['person_id' => $persona->id]);
 
-        // El ejecutante ya firmó: la aprobación queda dada con esa firma.
-        //
-        // No se crea un evento nuevo. La evidencia es la que ya existe —su foto
-        // y su firma de trabajador de este mismo plan—, y duplicarla haría
-        // parecer que hubo dos comprobaciones donde hubo una. La ficha lee la
-        // hora de la firma del trabajador (`approvalsPayload`).
-        if ($comoTrabajador) {
-            $aprobacion->update(['is_approved' => true]);
+        return $aprobacion->refresh();
+    }
 
-            // Designar al ejecutante puede ser lo último que faltaba.
-            app(WorkPlanCompletionService::class)->evaluar($plan);
+    /**
+     * Quien responde por la cuadrilla de este plan.
+     *
+     * No es una aprobacion y por eso no vive en el flujo: no recoge ninguna
+     * firma nueva. Es un puntero a alguien que YA firmo como trabajador de este
+     * mismo plan, y esa firma —con su foto y su hora— es la que vale. Pedirle
+     * una segunda haria parecer que hubo dos comprobaciones donde hubo una: la
+     * misma persona, el mismo dia, el mismo plan, delante de la misma camara.
+     *
+     * Tampoco es un cargo ni un rol de la ficha. Un electricista que va solo a
+     * la obra es el representante ese dia y uno mas al siguiente: depende del
+     * plan, no de la persona.
+     */
+    public function designarRepresentante(WorkPlan $plan, Person $persona): WorkPlan
+    {
+        $this->assertOpen($plan);
+
+        // Sale de los trabajadores de ESTE plan. Es quien esta en la obra y
+        // responde por lo que se va a hacer, asi que no puede ser alguien que
+        // no salio a trabajar ese dia. Ni la v1 ni la primera version de esto
+        // lo comprobaban: las dos buscaban por documento en las 231 personas del
+        // padron, y se podia poner como responsable de la obra a quien no estuvo
+        // en ella.
+        $comoTrabajador = $plan->people()->where('person_id', $persona->id)->first();
+
+        if (! $comoTrabajador) {
+            throw new \DomainException(__('work_plans.representative_not_in_crew', [
+                'name' => $persona->list_name,
+            ]));
         }
 
-        return $aprobacion->refresh();
+        // Y tiene que haber firmado ya. Designar a quien todavia no ha firmado
+        // deja al plan esperando una responsabilidad que nadie ha asumido.
+        if (! $this->firmoComoTrabajador($comoTrabajador)) {
+            throw new \DomainException(__('work_plans.representative_must_sign_first', [
+                'name' => $persona->list_name,
+            ]));
+        }
+
+        $plan->update(['crew_representative_person_id' => $persona->id]);
+
+        // Designarlo puede ser lo ultimo que faltaba para cerrar el plan.
+        app(WorkPlanCompletionService::class)->evaluar($plan);
+
+        return $plan->refresh();
     }
 
     /** ¿Este trabajador ya firmó en este plan? */

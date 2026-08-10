@@ -9,7 +9,7 @@ return [
     'id'                           => 'No.',
 
     'index_title'                  => 'Positions',
-    'index_subtitle'               => 'What each person does on site, and which of those positions may sign an approval.',
+    'index_subtitle'               => 'What each person does on site: technician, foreman, electrician.',
     'create_title'                 => 'Create position',
     'create_subtitle'              => 'A new position can be assigned to a person as soon as it is saved.',
     'edit_title'                   => 'Edit position',
@@ -23,10 +23,6 @@ return [
     'code_help'                    => 'The position as it is said on site: Technician, Supervisor, Mechanic, Electrician.',
     'country'                      => 'Country',
     'country_help'                 => 'The country it belongs to. Catalogues are kept per country because safety regulations differ.',
-    'is_signature_approver'        => 'May sign approvals',
-    'is_signature_approver_help'   => 'Tick this if whoever holds the position may sign the approval of a work plan. Without it, the person appears on the plan as a worker but is never asked for an approver signature.',
-    'signature_approver_yes'       => 'Signs approvals',
-    'signature_approver_no'        => 'Does not sign',
     'is_active'                    => 'Status',
     'is_active_help'               => 'An inactive position is no longer offered when linking a person. Whoever already holds it keeps it.',
     'filter_name'                  => 'Search',
@@ -57,7 +53,7 @@ return [
     // Welcome tour
     'tour' => [
         'step1_title' => 'Positions',
-        'step1_body'  => 'The position catalogue. Besides naming what each person does, it marks which ones may sign as approvers.',
+        'step1_body'  => 'The position catalogue: what each person does on site is called here. Who approves a work plan is not decided here, but by the person\'s roles.',
         'step2_title' => 'Search',
         'step2_body'  => 'Type in the bar and the list filters itself. Nothing to press.',
         'step3_title' => 'Columns',

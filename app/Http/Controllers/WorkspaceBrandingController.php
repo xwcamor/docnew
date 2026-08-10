@@ -30,7 +30,12 @@ class WorkspaceBrandingController extends Controller
                 'logo_url'          => $tenant->logo_url,
                 'address'           => $tenant->address,
                 'report_disclaimer' => $tenant->report_disclaimer,
+                'company_id'        => $tenant->company_id,
             ],
+            // Las empresas del catalogo, para decir cual de ellas es este
+            // workspace. Ver `companySugerida()`.
+            'companyOptions'   => $this->companyOptions(),
+            'companySugerida'  => $tenant->company_id ? null : $this->companySugerida($tenant),
             // Flujo de firmas del workspace (N slots con cargo). Cada fila trae
             // el estado de la firma para que el admin VEA si saldrá estampada.
             'signers' => $tenant->reportSigners->map(fn ($s) => [
@@ -53,6 +58,59 @@ class WorkspaceBrandingController extends Controller
         ]);
     }
 
+    /** Las empresas del workspace, para el selector de «cual soy yo». */
+    protected function companyOptions(): array
+    {
+        return \App\Models\Company::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'complete_name'])
+            ->map(fn ($c) => [
+                'value' => $c->id,
+                'label' => $c->complete_name && $c->complete_name !== $c->name
+                    ? "{$c->name} — {$c->complete_name}"
+                    : $c->name,
+            ])
+            ->all();
+    }
+
+    /**
+     * Cual de las empresas se parece mas al nombre del workspace.
+     *
+     * Es una propuesta, no una decision: la pantalla la deja preseleccionada y
+     * el admin confirma. Adivinarlo y guardarlo sin preguntar seria peor que no
+     * hacer nada — si se falla, el selector de aprobadores empieza a ofrecer a
+     * la gente equivocada y nadie se entera hasta que alguien firma un plan que
+     * no le tocaba.
+     *
+     * `similar_text` y no una coincidencia exacta porque el workspace se llama
+     * como la organizacion y la empresa lleva ademas su forma societaria:
+     * «Acme» contra «Acme Servicios Generales S.A.C.» no son iguales pero se
+     * parecen bastante. Por debajo del 55 % no se propone nada.
+     */
+    protected function companySugerida(\App\Models\Tenant $tenant): ?int
+    {
+        $mejor = null;
+        $mejorParecido = 0.0;
+
+        foreach (\App\Models\Company::where('is_active', true)->get(['id', 'name', 'complete_name']) as $empresa) {
+            foreach ([$empresa->name, $empresa->complete_name] as $comoSeLlama) {
+                similar_text(
+                    mb_strtolower((string) $tenant->name),
+                    mb_strtolower((string) $comoSeLlama),
+                    $parecido,
+                );
+
+                if ($parecido > $mejorParecido) {
+                    $mejorParecido = $parecido;
+                    $mejor = $empresa->id;
+                }
+            }
+        }
+
+        return $mejorParecido >= 55 ? $mejor : null;
+    }
+
     public function update(Request $request)
     {
         $tenant = $request->user()->tenant;
@@ -62,6 +120,10 @@ class WorkspaceBrandingController extends Controller
         // cross-tenant). Cada slot lleva cargo; sin usuario requiere nombre.
         $data = $request->validate([
             'address'           => ['nullable', 'string', 'max:255'],
+            // La empresa propia sale del catalogo de ESTE workspace: el scope
+            // global de `Company` ya lo garantiza, pero la regla lo deja
+            // escrito para quien lea solo esto.
+            'company_id'        => ['nullable', 'integer', \Illuminate\Validation\Rule::exists('companies', 'id')->whereNull('deleted_at')],
             'report_disclaimer' => ['nullable', 'string', 'max:2000'],
             'signers'           => ['nullable', 'array', 'max:8'],
             'signers.*.user_id' => [
@@ -81,7 +143,7 @@ class WorkspaceBrandingController extends Controller
             ],
         ]);
 
-        $tenant->update(\Illuminate\Support\Arr::only($data, ['address', 'report_disclaimer']));
+        $tenant->update(\Illuminate\Support\Arr::only($data, ['address', 'report_disclaimer', 'company_id']));
 
         // Sync de slots: se reemplaza la lista completa (orden = posición).
         $tenant->reportSigners()->delete();

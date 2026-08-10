@@ -17,9 +17,16 @@ const props = defineProps({
     workspace: { type: Object, required: true },
     signers:   { type: Array, default: () => [] },
     users:     { type: Array, default: () => [] },
+    companyOptions:  { type: Array, default: () => [] },
+    // Propuesta del servidor por parecido de nombre. Solo llega cuando el
+    // workspace todavía no ha dicho cuál es su empresa.
+    companySugerida: { type: Number, default: null },
 });
 
 const form = useForm({
+    // Cuál de las empresas del catálogo es este workspace. Si no está dicha, se
+    // arranca con la propuesta del servidor: es un clic en vez de buscarla.
+    company_id:        props.workspace.company_id ?? props.companySugerida ?? null,
     address:           props.workspace.address ?? '',
     report_disclaimer: props.workspace.report_disclaimer ?? '',
     // Flujo de firmas: N slots con cargo (Supervisor, Auditor, …), en orden.
@@ -108,6 +115,41 @@ const onLogoPicked = (e) => {
                     </div>
                 </FormItem>
 
+                <!-- Cuál de las empresas del catálogo es este workspace.
+                     Es lo que separa «mi gente» de «la gente de la
+                     contratista»: sin esto el selector de aprobadores del plan
+                     ofrece el padrón entero y se puede designar al ayudante de
+                     una contratista como supervisor autorizante. -->
+                <FormItem
+                    :label="t('tenants.own_company')"
+                    :tooltip="t('tenants.own_company_help')"
+                    :validate-status="form.errors.company_id ? 'error' : ''"
+                    :help="form.errors.company_id"
+                >
+                    <Select
+                        v-model:value="form.company_id"
+                        show-search
+                        allow-clear
+                        :options="companyOptions"
+                        :filter-option="(input, option) => String(option.label ?? '').toLowerCase().includes(String(input).toLowerCase())"
+                        :placeholder="t('tenants.own_company_placeholder')"
+                    />
+                    <Alert
+                        v-if="!workspace.company_id && companySugerida && form.company_id === companySugerida"
+                        type="info"
+                        show-icon
+                        class="ws-sugerida"
+                        :message="t('tenants.own_company_sugerida')"
+                    />
+                    <Alert
+                        v-else-if="!form.company_id"
+                        type="warning"
+                        show-icon
+                        class="ws-sugerida"
+                        :message="t('tenants.own_company_sin_marcar')"
+                    />
+                </FormItem>
+
                 <FormItem
                     :label="t('tenants.form_address_label')"
                     :tooltip="t('tenants.form_address_help')"
@@ -192,6 +234,7 @@ const onLogoPicked = (e) => {
 <style scoped>
 .form-card { border-radius: 6px; }
 .ws-saved { margin-bottom: 16px; }
+.ws-sugerida { margin-top: 8px; }
 .ws-hint { color: var(--color-text-muted, #6A6D70); font-size: 0.8rem; margin: 0 0 10px; }
 .ws-toggle { display: flex; align-items: flex-start; gap: 12px; }
 .ws-toggle .ws-hint { margin: 0; flex: 1; }

@@ -56,7 +56,7 @@ class MigracionAdoptaCatalogosTest extends TestCase
     {
         $cargo = Position::create([
             'slug' => Str::random(22), 'tenant_id' => 1, 'country_id' => 1, 'created_by' => 1,
-            'code' => 'Electricista', 'is_signature_approver' => false, 'is_active' => true,
+            'code' => 'Electricista', 'is_active' => true,
         ]);
 
         $this->assertNull($cargo->legacy_id, 'punto de partida: sin marca de origen');
@@ -72,21 +72,11 @@ class MigracionAdoptaCatalogosTest extends TestCase
         $this->assertSame('super', $cargo->lock_scope, 'bloquea el sistema, no una persona');
     }
 
-    /** Y trae los datos del origen, no sólo la marca. */
-    public function test_el_cargo_adoptado_se_queda_con_los_datos_de_la_v1(): void
-    {
-        Position::create([
-            'slug' => Str::random(22), 'tenant_id' => 1, 'country_id' => 1, 'created_by' => 1,
-            'code' => 'Electricista', 'is_signature_approver' => false, 'is_active' => true,
-        ]);
-
-        $this->correrCatalogoDeCargos();
-
-        $this->assertTrue(
-            (bool) Position::first()->is_signature_approver,
-            'en la v1 este cargo firma; la adopción tiene que traérselo',
-        );
-    }
+    // Aqui habia un test de que la adopcion se traia `is_signature_approver`
+    // del cargo de la v1. La columna ya no existe —un cargo dice que hace
+    // alguien, no si aprueba un plan— asi que no queda nada que comprobar y el
+    // test se fue con ella. Lo que si sigue comprobandose es que la fila se
+    // adopta en vez de duplicarse, que era el fallo de verdad.
 
     /**
      * Volver a migrar NO le devuelve el candado a quien se lo quitó a propósito.

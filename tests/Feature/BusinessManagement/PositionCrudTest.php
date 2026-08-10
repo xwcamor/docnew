@@ -10,10 +10,17 @@ use App\Models\Position;
 /**
  * Los cargos: que hace cada persona en obra.
  *
- * El campo que de verdad importa no es el nombre sino `is_signature_approver`:
- * es lo que decide si a quien tiene ese cargo se le pide la firma de aprobacion
- * de un plan. Si se pierde al guardar, el plan se queda sin quien lo apruebe y
- * el fallo no se ve hasta que alguien intenta cerrarlo en obra.
+ * Este catalogo tuvo una marca de «puede firmar aprobaciones» y aqui se
+ * comprobaba con detalle: que naciera marcada, que se pudiera quitar desde la
+ * edicion, que el listado ordenara por ella. Nada de eso decidia nada —ninguna
+ * parte del sistema leia la columna— y encima estaba en el sitio equivocado:
+ * quien aprueba lo dicen los roles de la persona, no su cargo. La columna se
+ * borro y con ella esos tests, porque ya no habia nada que comprobar.
+ *
+ * Lo que queda es lo que un catalogo si tiene que garantizar: que el nombre no
+ * se repita dentro de lo que quien lo escribe puede ver, que un cargo que
+ * alguien tiene no se pueda borrar, y que el candado de la v1 llegue al
+ * listado.
  */
 class PositionCrudTest extends CatalogTestCase
 {
@@ -22,11 +29,9 @@ class PositionCrudTest extends CatalogTestCase
         return 'positions';
     }
 
-    private function cargo(string $nombre = 'Técnico', bool $firma = false): Position
+    private function cargo(string $nombre = 'Técnico'): Position
     {
-        return Position::create($this->base() + [
-            'code' => $nombre, 'is_signature_approver' => $firma,
-        ]);
+        return Position::create($this->base() + ['code' => $nombre]);
     }
 
     /** Una persona vinculada a una empresa con ese cargo: impide borrarlo. */
@@ -62,50 +67,15 @@ class PositionCrudTest extends CatalogTestCase
             'country_id' => 1, 'code' => 'Mecánico',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('positions', ['code' => 'Mecánico', 'is_signature_approver' => false]);
+        $this->assertDatabaseHas('positions', ['code' => 'Mecánico']);
     }
 
     /**
-     * La marca de firma se guarda tal cual se dejo en el formulario. Es la que
-     * decide si a esa persona se le pide firmar la aprobacion del plan.
-     */
-    public function test_un_cargo_puede_nacer_marcado_como_firmante_de_aprobaciones(): void
-    {
-        $this->actingAs($this->admin());
-
-        $this->post(route('business_management.positions.store'), [
-            'country_id' => 1, 'code' => 'Supervisor', 'is_signature_approver' => true,
-        ])->assertRedirect()->assertSessionHasNoErrors();
-
-        $this->assertDatabaseHas('positions', ['code' => 'Supervisor', 'is_signature_approver' => true]);
-    }
-
-    /** Y se puede quitar despues sin tocar nada mas del cargo. */
-    public function test_la_marca_de_firmante_se_quita_y_se_pone_desde_la_edicion(): void
-    {
-        $this->actingAs($this->admin());
-        $cargo = $this->cargo('Supervisor', firma: true);
-
-        $this->put(route('business_management.positions.update', $cargo->slug), [
-            'country_id' => 1, 'code' => 'Supervisor', 'is_active' => true,
-            // Sin `is_signature_approver`: el interruptor apagado no viaja como
-            // false, viaja ausente, y el cargo tiene que dejar de firmar.
-        ])->assertRedirect()->assertSessionHasNoErrors();
-
-        $this->assertDatabaseHas('positions', ['id' => $cargo->id, 'is_signature_approver' => false]);
-
-        $this->put(route('business_management.positions.update', $cargo->slug), [
-            'country_id' => 1, 'code' => 'Supervisor', 'is_active' => true,
-            'is_signature_approver' => true,
-        ])->assertRedirect()->assertSessionHasNoErrors();
-
-        $this->assertDatabaseHas('positions', ['id' => $cargo->id, 'is_signature_approver' => true]);
-    }
-
-    /**
-     * El interruptor de estado tiene el mismo problema que el de la firma, y se
-     * comprueba igual: un cargo que se desactiva desde el formulario tiene que
-     * quedar desactivado.
+     * Un interruptor apagado no viaja como `false`, viaja ausente, y con
+     * `sometimes` eso conserva el valor anterior: lo que se acaba de desmarcar
+     * sigue encendido despues de guardar. Aqui solo queda el de estado, asi que
+     * es el que lo comprueba: un cargo que se desactiva desde el formulario
+     * tiene que quedar desactivado.
      */
     public function test_un_cargo_se_desactiva_desde_la_edicion(): void
     {
@@ -168,7 +138,7 @@ class PositionCrudTest extends CatalogTestCase
         ]]);
         \Illuminate\Support\Facades\DB::table('positions')->insert([
             'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 1, 'code' => 'Soldador',
-            'is_signature_approver' => false, 'is_active' => true, 'tenant_id' => 2,
+            'is_active' => true, 'tenant_id' => 2,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -186,7 +156,7 @@ class PositionCrudTest extends CatalogTestCase
     {
         \Illuminate\Support\Facades\DB::table('positions')->insert([
             'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 1, 'code' => 'Supervisor',
-            'is_signature_approver' => true, 'is_active' => true, 'tenant_id' => null,
+            'is_active' => true, 'tenant_id' => null,
             'created_at' => now(), 'updated_at' => now(),
         ]);
 
@@ -251,10 +221,10 @@ class PositionCrudTest extends CatalogTestCase
 
     // ── Listado ──────────────────────────────────────────────────────────────
 
-    public function test_el_listado_dice_quien_firma_y_cuanta_gente_tiene_cada_cargo(): void
+    public function test_el_listado_dice_cuanta_gente_tiene_cada_cargo(): void
     {
         $this->actingAs($this->admin());
-        $cargo = $this->cargo('Supervisor', firma: true);
+        $cargo = $this->cargo('Supervisor');
         $this->personaCon($cargo);
 
         $this->get(route('business_management.positions.index'))
@@ -262,28 +232,32 @@ class PositionCrudTest extends CatalogTestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Positions/Index')
                 ->where('positions.data.0.code', 'Supervisor')
-                ->where('positions.data.0.is_signature_approver', true)
                 ->where('positions.data.0.usage_count', 1));
     }
 
     /**
-     * «¿Quienes firman?» es la pregunta de este catalogo, y se responde
-     * ordenando por esa columna. La cabecera se pintaba ordenable pero el
-     * backend descartaba ese orden: la flecha se movia y la tabla no.
+     * Un orden que ya no existe no puede tumbar el listado.
+     *
+     * Aqui se comprobaba que se pudiera ordenar por «quien firma». Esa columna
+     * se borro, pero las vistas guardadas de quien ya usaba el catalogo siguen
+     * pidiendola en la URL: si el orden llegara crudo a la consulta, el listado
+     * reventaria con un error de columna inexistente. La lista blanca de
+     * `PositionService` lo descarta y la tabla sale en su orden de siempre, que
+     * es alfabetico.
      */
-    public function test_el_listado_se_puede_ordenar_por_quien_firma(): void
+    public function test_pedir_un_orden_por_una_columna_que_ya_no_existe_no_rompe_el_listado(): void
     {
         $this->actingAs($this->admin());
-        $this->cargo('Ayudante', firma: false);
-        $this->cargo('Supervisor', firma: true);
+        $this->cargo('Ayudante');
+        $this->cargo('Supervisor');
 
         $this->get(route('business_management.positions.index', [
             'sort' => 'is_signature_approver', 'direction' => 'desc',
         ]))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
-                ->where('positions.data.0.code', 'Supervisor')
-                ->where('positions.data.1.code', 'Ayudante'));
+                ->where('positions.data.0.code', 'Ayudante')
+                ->where('positions.data.1.code', 'Supervisor'));
     }
 
     /**

@@ -21,7 +21,6 @@ const isEdit = computed(() => !!props.position);
 const form = useForm({
     country_id: props.position?.country_id ?? props.defaultCountryId ?? null,
     code: props.position?.code ?? '',
-    is_signature_approver: props.position?.is_signature_approver ?? false,
     is_active: props.position?.is_active ?? true,
 });
 
@@ -98,25 +97,11 @@ const submit = () => {
                     <Input v-model:value="form.code" size="large" :maxlength="60" show-count />
                 </FormItem>
 
-                <!-- Lo que decide si a quien tiene este cargo se le pide la
-                     firma de aprobación de un plan. Sin la marca sale en el
-                     plan como trabajador y nadie le pide que apruebe nada. -->
-                <FormItem
-                    :label="$t('positions.is_signature_approver')"
-                    :tooltip="$t('positions.is_signature_approver_help')"
-                    :validate-status="form.errors.is_signature_approver ? 'error' : ''"
-                    :help="form.errors.is_signature_approver"
-                >
-                    <Space>
-                        <Switch v-model:checked="form.is_signature_approver" />
-                        <span class="state-label">
-                            {{ form.is_signature_approver
-                                ? $t('positions.signature_approver_yes')
-                                : $t('positions.signature_approver_no') }}
-                        </span>
-                    </Space>
-                </FormItem>
-
+                <!-- Aquí estuvo «puede firmar aprobaciones», y se quitó: un
+                     cargo dice qué hace alguien en obra, no si puede aprobar un
+                     plan. Eso lo dicen los roles de la persona, en otra tabla.
+                     El interruptor no lo leía nadie, así que prometía una regla
+                     que el servidor nunca aplicó. -->
                 <FormItem
                     v-if="isEdit"
                     :label="$t('positions.is_active')"

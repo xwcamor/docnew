@@ -96,6 +96,11 @@ class LegacyDatabaseFixture
 
         // Cargos: Tecnico, Supervisor... En la v1 `workers.position_id` es NOT
         // NULL, asi que todo trabajador trae el suyo.
+        //
+        // `is_signature_approver` sigue aqui aunque en DOCUFIZ ya no exista:
+        // esto reproduce el volcado de la v1, no nuestro esquema. Quitarla haria
+        // que el fixture mintiera sobre el origen y taparia el dia que la
+        // migracion vuelva a leer una columna que creiamos muerta.
         $esquema->create('positions', function ($t) {
             $t->id(); $t->unsignedBigInteger('country_id');
             $t->string('name_es'); $t->string('name_en')->nullable(); $t->string('name_pt')->nullable();

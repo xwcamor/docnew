@@ -236,12 +236,21 @@ class MigrateLegacyDataCommand extends Command
         // que los 372 tienen cargo.
         $cargos = $this->catalogoCargos($viejo);
 
-        // Y las nacionalidades, por lo mismo: `nationality_id` tambien es NOT
+        // Y las nacionalidades. Ya no se guardan —`people.nationality_id` se
+        // borro por redundante: el pais del documento y el tipo dicen lo mismo—
+        // pero aqui siguen haciendo falta, porque son de donde se DEDUCE ese
+        // tipo: la v1 no lo tiene. Por lo mismo: `nationality_id` tambien es NOT
         // NULL en la v1 y tampoco se traia.
         $nacionalidades = $this->catalogoNacionalidades($viejo);
 
+        // De que tabla de la v1 sale cada persona y que rol de firma le toca.
+        //
+        // Los de `workers` no llevan ninguno: los roles dicen QUE APRUEBA la
+        // persona, y un trabajador de una contratista no aprueba nada. Que este
+        // en la cuadrilla de un plan es lo que dice que trabajo ese dia, y eso
+        // ya lo cuenta `work_plan_people`.
         $fuentes = [
-            'workers'         => PersonRole::WORKER,
+            'workers'         => null,
             'supervisors'     => PersonRole::SUPERVISOR,
             'hse_supervisors' => PersonRole::HSE_SUPERVISOR,
         ];
@@ -265,7 +274,11 @@ class MigrateLegacyDataCommand extends Command
                 ];
 
                 $p = &$porDocumento[$doc];
-                $p['roles'][$rol] = true;
+
+                // `workers` no aporta rol: ver el comentario de `$fuentes`.
+                if ($rol !== null) {
+                    $p['roles'][$rol] = true;
+                }
                 $p['legacy'][] = "{$tabla}#{$f->id}";
                 $p['nombres_vistos'][mb_strtolower(trim("{$f->name} {$f->lastname}"))] = true;
 
@@ -320,18 +333,14 @@ class MigrateLegacyDataCommand extends Command
                     'slug' => Str::random(22), 'country_id' => $this->countryId,
                     'doc_type' => $this->tipoDeDocumento($nacionalidadId), 'num_doc' => $doc,
                     'name' => $d['name'], 'lastname' => $d['lastname'],
-                    'nationality_id' => $nacionalidadId,
                     'tenant_id' => $this->tenantId, 'created_by' => 1,
                     'legacy_table' => implode(', ', $d['legacy']),
                 ]);
                 $creadas++;
-            } elseif ($nacionalidadId && $persona->nationality_id === null) {
-                // Ya existia de una pasada anterior, cuando la nacionalidad no
-                // se traia: se le pone ahora, junto con su tipo de documento.
-                $persona->update([
-                    'nationality_id' => $nacionalidadId,
-                    'doc_type'       => $this->tipoDeDocumento($nacionalidadId),
-                ]);
+            } elseif ($nacionalidadId && $persona->doc_type !== $this->tipoDeDocumento($nacionalidadId)) {
+                // Ya existia de una pasada anterior, de cuando el tipo no se
+                // deducia y todos entraban como DNI. Se le corrige.
+                $persona->update(['doc_type' => $this->tipoDeDocumento($nacionalidadId)]);
             }
 
             foreach (array_keys($d['roles']) as $rol) {
@@ -902,19 +911,40 @@ class MigrateLegacyDataCommand extends Command
 
         $origen = $viejo->table('plan_approvals')->count();
         $migrados = 0;
+        $representantes = 0;
         $descartados = ['plan' => 0, 'regla' => 0, 'aprobador' => 0, 'repetido' => 0];
         $vistos = [];
 
         $viejo->table('plan_approvals')->orderBy('id')->chunkById($this->lote, function ($filas) use (
-            $planes, $personas, $reglas, &$migrados, &$descartados, &$vistos
+            $planes, $personas, $reglas, &$migrados, &$representantes, &$descartados, &$vistos
         ) {
             $nuevos = [];
 
             foreach ($filas as $f) {
                 $planId = $planes[$f->plan_id] ?? null;
-                $reglaId = $reglas[$f->approval_rule_id] ?? null;
 
                 if (! $planId)  { $descartados['plan']++;  continue; }
+
+                // La aprobacion de tipo «Worker» de la v1 no era una
+                // aprobacion: era quien responde por la cuadrilla, y aqui eso
+                // es una columna del plan. Sin esto, un volcado nuevo dejaria
+                // los planes migrados sin representante y sin poder cerrarse
+                // —lo exige `WorkPlanCompletionService`— porque su regla ya no
+                // se importa.
+                if ($f->approver_type === 'Worker') {
+                    $quien = $this->personaAprobadora($personas, $f->approver_type, $f->approver_id);
+
+                    if ($quien) {
+                        DB::table('work_plans')->where('id', $planId)
+                            ->update(['crew_representative_person_id' => $quien]);
+                        $representantes++;
+                    }
+
+                    continue;
+                }
+
+                $reglaId = $reglas[$f->approval_rule_id] ?? null;
+
                 if (! $reglaId) { $descartados['regla']++; continue; }
 
                 $personaId = $this->personaAprobadora($personas, $f->approver_type, $f->approver_id);
@@ -959,7 +989,8 @@ class MigrateLegacyDataCommand extends Command
         $pendientes = DB::table('work_plan_approvals')
             ->where('is_required', true)->where('is_approved', false)->count();
 
-        $this->linea('aprobac.', $origen, $destino, "{$migrados} aprobaciones · {$pendientes} obligatorias sin firmar");
+        $this->linea('aprobac.', $origen, $destino,
+            "{$migrados} aprobaciones · {$representantes} representantes · {$pendientes} obligatorias sin firmar");
 
         $this->avisarDescartes($descartados, [
             'plan'      => 'el plan no esta migrado',
@@ -1063,8 +1094,11 @@ class MigrateLegacyDataCommand extends Command
      * lo enseñaba debajo del nombre de cada uno. Aqui llegaban los 372 sin
      * cargo, y el campo ni existia en la pantalla de personas.
      *
-     * `is_signature_approver` viene con ellos: marca los cargos que pueden
-     * firmar como aprobadores del plan (en la v1 solo Supervisor).
+     * De la v1 se trae el nombre y si estaba activo, y ya. Tambien se copiaba
+     * `is_signature_approver` —alli marcaba a Supervisor— pero esa columna ya no
+     * existe aqui: quien aprueba lo dicen los roles de la persona, no su cargo,
+     * y arrastrar el dato solo servia para que la tabla nueva heredara la
+     * confusion de la vieja.
      *
      * @return array<int, int> legacy_id => positions.id
      */
@@ -1077,7 +1111,6 @@ class MigrateLegacyDataCommand extends Command
             fn ($f) => [
                 'country_id'            => $this->countryId,
                 'code'                  => $f->name_es,
-                'is_signature_approver' => (bool) $f->is_signature_approver,
                 'is_active'             => (bool) $f->is_active,
             ]);
     }
@@ -1184,7 +1217,7 @@ class MigrateLegacyDataCommand extends Command
                 ->where('approver_role', $this->rolAprobador($f->approver_type))
                 ->where('priority_level', $f->priority_level)
                 ->first();
-        }, fn ($f) => [
+        }, fn ($f) => $f->approver_type === 'Worker' ? null : [
             'country_id'     => $this->countryId,
             // El nombre de verdad: «Supervisor Autorizante - HITACHI». El rol
             // dice que clase de persona firma; el nombre dice por parte de
@@ -1198,10 +1231,18 @@ class MigrateLegacyDataCommand extends Command
         ]);
     }
 
+    /**
+     * El rol de aprobador de la v1, en el de aqui.
+     *
+     * «Worker» no tiene equivalente y no debe tenerlo: esa fila de la v1 no era
+     * una aprobacion sino quien responde por la cuadrilla, y aqui vive en
+     * `work_plans.crew_representative_person_id`. Las reglas con ese tipo no se
+     * traen —`catalogoReglas()` las descarta— y las aprobaciones que las usaban
+     * pasan a la columna del plan.
+     */
     protected function rolAprobador(string $tipo): string
     {
         return match ($tipo) {
-            'Worker'        => PersonRole::WORKER,
             'Supervisor'    => PersonRole::SUPERVISOR,
             'HseSupervisor' => PersonRole::HSE_SUPERVISOR,
             default         => Str::snake($tipo),

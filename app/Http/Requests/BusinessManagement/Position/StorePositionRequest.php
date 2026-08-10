@@ -38,7 +38,6 @@ class StorePositionRequest extends FormRequest
             // (o global, si lo crea un super): ahi es donde se busca el repetido.
             'code' => ['required', 'string', 'max:60',
                 $this->cargoRepetido(null, $this->user()?->tenant_id)],
-            'is_signature_approver' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
         ];
     }

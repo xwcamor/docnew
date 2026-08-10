@@ -230,4 +230,13 @@ return [
     'acting_banner' => 'You are administering the workspace',
     'leave'    => 'Leave workspace',
     'enter_first' => 'Enter a workspace first: this record must belong to one, and from the console it would be left with no owner.',
+    // Which of the catalogue companies this workspace is. It is what separates
+    // "my people" from "the contractor's people": v1 had it in the schema — its
+    // supervisors carried no company — and it was lost when the three people
+    // tables were merged into one.
+    'own_company'             => 'My company',
+    'own_company_help'        => 'Which of the catalogue companies you are. It decides who is offered as a plan approver: only your own people can authorise, not the contractors\' staff.',
+    'own_company_placeholder' => 'Pick your company from the catalogue',
+    'own_company_sugerida'    => 'Suggested by name similarity with the workspace. Check it before saving.',
+    'own_company_sin_marcar'  => 'Without this, the plan approver picker offers every person, contractors\' staff included.',
 ];

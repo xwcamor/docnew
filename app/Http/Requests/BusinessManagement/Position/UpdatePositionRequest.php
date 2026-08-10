@@ -35,10 +35,12 @@ class UpdatePositionRequest extends StorePositionRequest
 
         // Un interruptor apagado no viaja como `false`: viaja ausente. Si se
         // deja pasar, la regla `sometimes` conserva el valor anterior y lo que
-        // alguien acaba de desmarcar sigue encendido despues de guardar. Paso
-        // de verdad con «puede firmar aprobaciones»: al cargo se le quitaba la
-        // marca, se guardaba, y seguia firmando.
-        foreach (['is_signature_approver', 'is_active'] as $interruptor) {
+        // alguien acaba de desmarcar sigue encendido despues de guardar. Aqui
+        // solo queda el de estado, pero el problema no era suyo sino de
+        // cualquier casilla del formulario, asi que el bucle se queda: en
+        // cuanto entre otro interruptor se le añade el nombre y ya esta
+        // cubierto.
+        foreach (['is_active'] as $interruptor) {
             $this->merge([$interruptor => $this->boolean($interruptor)]);
         }
     }
@@ -55,7 +57,6 @@ class UpdatePositionRequest extends StorePositionRequest
                 // una empresa comprueba contra esa empresa, no contra los
                 // globales.
                 $this->cargoRepetido($position?->id, $position?->tenant_id)],
-            'is_signature_approver' => 'sometimes|boolean',
             'is_active' => 'sometimes|boolean',
         ];
     }

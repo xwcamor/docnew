@@ -3,7 +3,6 @@
 namespace App\Exports\BusinessManagement\People;
 
 use App\Models\Company;
-use App\Models\Country;
 use App\Models\DocumentType;
 use App\Models\Position;
 use Illuminate\Support\Facades\Auth;
@@ -25,8 +24,7 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
  *   - lastname    (obligatorio en el alta)
  *   - company     (obligatorio en el alta — RUC o nombre de la empresa)
  *   - position    (obligatorio en el alta — el cargo del catalogo)
- *   - roles       (opcional — por defecto Trabajador)
- *   - nationality (opcional — pais)
+ *   - roles       (opcional — que aprueba en el flujo; en blanco, ninguno)
  *   - birthdate   (opcional)
  *
  * La empresa y el cargo se añadieron porque sin ellos la persona importada
@@ -52,7 +50,7 @@ class PeopleImportTemplate implements FromArray, WithEvents
     /** Las columnas, en orden. La primera fila del fichero es esta. */
     private const COLUMNAS = [
         'doc_type', 'num_doc', 'name', 'lastname',
-        'company', 'position', 'roles', 'nationality', 'birthdate',
+        'company', 'position', 'roles', 'birthdate',
     ];
 
     public function array(): array
@@ -66,7 +64,6 @@ class PeopleImportTemplate implements FromArray, WithEvents
 
         $empresa = Company::query()->orderBy('id')->first();
         $cargos  = Position::query()->orderBy('id')->pluck('code')->all();
-        $aqui    = Country::find($pais);
 
         // El RUC identifica sin ambigüedad; el nombre solo si la empresa lo
         // tiene. Sin empresas dadas de alta se deja en blanco a proposito: es
@@ -75,16 +72,18 @@ class PeopleImportTemplate implements FromArray, WithEvents
 
         return [
             self::COLUMNAS,
+            // La primera fila, sin roles: es el caso normal —un trabajador de
+            // una contratista no aprueba nada— y ademas ensena que la columna se
+            // puede dejar en blanco.
             [
-                $tipos[0], '45871236', 'Juan Carlos', 'Pérez Gómez',
-                $comoSeLlama, $cargos[0] ?? null, __('people.role_worker'),
-                $aqui?->name, '1990-05-14',
+                $tipos[0], '12345678', 'Juan Carlos', 'Pérez Gómez',
+                $comoSeLlama, $cargos[0] ?? null, '', '1990-05-14',
             ],
             [
-                $tipos[1] ?? $tipos[0], '45871237', 'María', 'Salazar Ríos',
+                $tipos[1] ?? $tipos[0], '12345679', 'María', 'Salazar Ríos',
                 $comoSeLlama, $cargos[1] ?? ($cargos[0] ?? null),
                 __('people.role_supervisor') . ', ' . __('people.role_hse_supervisor'),
-                $aqui?->name, '',
+                '',
             ],
         ];
     }
@@ -132,7 +131,6 @@ class PeopleImportTemplate implements FromArray, WithEvents
                     'E1' => __('people.company_help'),
                     'F1' => __('people.position_help'),
                     'G1' => __('people.roles_help'),
-                    'H1' => __('people.nationality_help'),
                 ];
 
                 foreach ($tips as $celda => $texto) {

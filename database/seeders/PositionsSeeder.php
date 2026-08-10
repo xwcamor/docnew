@@ -21,9 +21,11 @@ use Illuminate\Support\Str;
  * pantalla y se edita. Lo que aporta es que nadie tenga que teclear catorce
  * filas antes de dar de alta al primer trabajador.
  *
- * `is_signature_approver` marca a los que pueden aprobar un plan. Hoy no
- * filtra nada —esta pendiente de decidir— pero se siembra ya con el criterio
- * correcto para que el dia que se use no haya que repasar la tabla entera.
+ * Aqui se sembraba tambien `is_signature_approver`, marcando de antemano a los
+ * cargos que «podian aprobar un plan». No filtraba nada y nunca llego a
+ * filtrar: quien aprueba lo dicen los roles de la persona, no su cargo. La
+ * columna se borro y la lista se quedo en lo unico que dice de verdad un cargo,
+ * que es como se llama.
  */
 class PositionsSeeder extends Seeder
 {
@@ -40,42 +42,41 @@ class PositionsSeeder extends Seeder
         $cargos = [
             // Los dos que ya venian de la v1, para que la migracion los reuse
             // en vez de duplicarlos.
-            ['Técnico', false],
-            ['Supervisor', true],
+            'Técnico',
+            'Supervisor',
 
             // Oficio.
-            ['Técnico electricista', false],
-            ['Electricista', false],
-            ['Mecánico', false],
-            ['Soldador', false],
-            ['Operario', false],
-            ['Ayudante', false],
-            ['Operador de equipo', false],
-            ['Conductor', false],
+            'Técnico electricista',
+            'Electricista',
+            'Mecánico',
+            'Soldador',
+            'Operario',
+            'Ayudante',
+            'Operador de equipo',
+            'Conductor',
 
             // Mando y control en obra.
-            ['Capataz', false],
-            ['Supervisor de obra', true],
-            ['Supervisor HSE', true],
-            ['Prevencionista', true],
-            ['Ingeniero de campo', true],
-            ['Ingeniero residente', true],
-            ['Jefe de mantenimiento', true],
+            'Capataz',
+            'Supervisor de obra',
+            'Supervisor HSE',
+            'Prevencionista',
+            'Ingeniero de campo',
+            'Ingeniero residente',
+            'Jefe de mantenimiento',
 
             // Apoyo.
-            ['Almacenero', false],
-            ['Vigía', false],
-            ['Topógrafo', false],
+            'Almacenero',
+            'Vigía',
+            'Topógrafo',
         ];
 
         $nuevos = 0;
 
-        foreach ($cargos as [$code, $apruebaFirmas]) {
+        foreach ($cargos as $code) {
             $fila = Position::firstOrCreate(
                 ['country_id' => $peru->id, 'code' => $code],
                 [
                     'slug' => Str::random(22),
-                    'is_signature_approver' => $apruebaFirmas,
                     'is_active' => true,
                     'created_by' => 1,
                 ],

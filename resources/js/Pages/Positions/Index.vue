@@ -461,15 +461,6 @@ const goDelete = (record) => router.visit(route('business_management.positions.d
                         {{ record.country?.name ?? '—' }}
                     </template>
 
-                    <!-- Firma o no firma: color Y palabra, nunca un booleano crudo. -->
-                    <template v-else-if="column.key === 'is_signature_approver'">
-                        <Tag :color="record.is_signature_approver ? 'green' : 'default'" :bordered="false">
-                            {{ record.is_signature_approver
-                                ? $t('positions.signature_approver_yes')
-                                : $t('positions.signature_approver_no') }}
-                        </Tag>
-                    </template>
-
                     <!-- De cuántos registros depende la fila: es lo que decide si se
                          puede borrar, así que se ve aquí y no al intentarlo. -->
                     <template v-else-if="column.key === 'usage_count'">

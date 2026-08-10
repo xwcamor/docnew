@@ -27,13 +27,12 @@ class Position extends Model
     // venian, que es lo unico que distingue lo que trajo la v1 de lo que se dio
     // de alta a mano.
     protected $fillable = [
-        'slug', 'country_id', 'code', 'is_signature_approver', 'is_active', 'legacy_id',
+        'slug', 'country_id', 'code', 'is_active', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'is_signature_approver' => 'boolean',
     ];
 
     public function getRouteKeyName(): string

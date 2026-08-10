@@ -3,6 +3,13 @@
 return [
     'approval_out_of_order' => 'Not yet: :roles still has to sign, and comes first in the flow.',
 
+    // The rule that always held: whoever does the work declares first what they
+    // are going to do, and the supervisor authorises on top of that
+    // declaration. Authorising earlier is signing a blank page. The server says
+    // it when the signature is attempted and the plan repeats it on the blocked
+    // row: one rule, one sentence.
+    'approval_needs_representative' => 'Not yet: the workers’ representative still has to be designated. Nobody authorises the work until somebody answers for the team doing it.',
+
     // Signing screen. Read wearing a hard hat, in full sun, with the camera
     // open: short lines, each saying what to do rather than what is happening.
     'sign' => [

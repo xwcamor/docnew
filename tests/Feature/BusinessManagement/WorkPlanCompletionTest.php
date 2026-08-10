@@ -11,6 +11,7 @@ use App\Models\WorkPlan;
 use App\Models\WorkType;
 use App\Services\BusinessManagement\WorkPlanCompletionService;
 use App\Services\BusinessManagement\WorkPlanService;
+use App\Services\BusinessManagement\WorkPlanSetupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,8 +31,13 @@ use Tests\TestCase;
  *   1. Hora de fin.
  *   2. Al menos un trabajador y un formato.
  *   3. Todos los trabajadores han firmado.
- *   4. Todos los formatos exigidos estan confirmados.
- *   5. Ninguna aprobacion obligatoria sin firmar.
+ *   4. Hay alguien que responde por ellos: el representante.
+ *   5. Todos los formatos exigidos estan confirmados.
+ *   6. Ninguna aprobacion obligatoria sin firmar.
+ *
+ * La cuarta no estaba escrita aparte: se colaba por la via de las aprobaciones,
+ * porque habia una regla obligatoria de rol trabajador. Al sacar al
+ * representante del flujo habria dejado de exigirse sin que nadie lo notara.
  *
  * Es mas estricto a proposito: un documento que va a acabar delante de un
  * inspector no se cierra a medias. Los planes migrados conservan el estado con
@@ -227,12 +233,17 @@ class WorkPlanCompletionTest extends TestCase
 
         $falta = $this->cierre->loQueFalta($plan);
 
-        // Las cuatro cosas que le faltan a este plan, en orden y sin repetir. Se
+        // Las cinco cosas que le faltan a este plan, en orden y sin repetir. Se
         // compara contra la traduccion, no contra un literal: la suite corre en
         // ingles y el texto en duro solo probaria en que idioma esta.
+        //
+        // El representante es una de ellas desde que dejo de ser una aprobacion:
+        // antes se contaba dentro de «faltan N aprobaciones obligatorias» y
+        // ahora se dice con su nombre, que es lo que hay que ir a hacer.
         $this->assertSame([
             __('work_plans.close_needs_date_end'),
             trans_choice('work_plans.close_needs_signatures', 1, ['count' => 1]),
+            __('work_plans.close_needs_representative'),
             trans_choice('work_plans.close_needs_forms_done', 1, ['count' => 1]),
             trans_choice('work_plans.close_needs_approvals', 2, ['count' => 2]),
         ], $falta);
@@ -316,10 +327,36 @@ class WorkPlanCompletionTest extends TestCase
         }
     }
 
-    /** El plan completo: firmas y formatos. Le faltan sólo las aprobaciones. */
+    /**
+     * Alguien que responda por los trabajadores.
+     *
+     * Antes esto se colaba por la via de las aprobaciones —habia una regla
+     * obligatoria de rol trabajador— y estas pruebas no tenian que montarlo.
+     * Al salir del flujo dejo de ser una aprobacion y paso a ser una columna
+     * del plan, y el cierre lo exige aparte: sin esto un plan con gente en la
+     * obra se cerraria sin nadie que responda por ella.
+     *
+     * Se designa **despues** de firmar, porque el representante sale de los que
+     * ya firmaron. Es lo que comprueba `designarRepresentante()`, y es la razon
+     * de que la firma tenga que estar puesta antes.
+     */
+    private function conRepresentante(WorkPlan $plan): void
+    {
+        $persona = $plan->people()->with('person')->first()?->person;
+
+        if ($persona) {
+            app(WorkPlanSetupService::class)->designarRepresentante($plan, $persona);
+        }
+    }
+
+    /**
+     * El plan completo: firmas, representante y formatos. Le faltan solo las
+     * aprobaciones.
+     */
     private function completar(WorkPlan $plan): void
     {
         $this->firmarCuadrilla($plan);
+        $this->conRepresentante($plan);
         $this->confirmarFormatos($plan);
     }
 

@@ -22,9 +22,13 @@ use Tests\TestCase;
 /**
  * El flujo de aprobacion es configuracion, no codigo.
  *
- * Arrancamos con tres firmas —trabajador, supervisor, supervisor HSE— pero eso
- * es una decision de la empresa, no del programa. Lo que estas pruebas fijan es
- * que crezca sin tocar codigo:
+ * Arrancamos con dos firmas —supervisor y supervisor HSE— pero eso es una
+ * decision de la empresa, no del programa. Antes eran tres: la primera la daba
+ * el rol «trabajador», que era el ejecutante. Dejo de ser una aprobacion —no
+ * recogia firma propia y desde el flujo se podia borrar o volver opcional— asi
+ * que quien responde por la gente de la obra es ahora una columna del plan.
+ *
+ * Lo que estas pruebas fijan es que el flujo crezca sin tocar codigo:
  *
  *   - cuantas firmas y en que orden: filas de `approval_rules`;
  *   - quien puede firmar: filas de `approver_roles`, no constantes;
@@ -46,14 +50,16 @@ class ApprovalFlowTest extends TestCase
         DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
     }
 
-    public function test_los_tres_roles_de_siempre_son_filas_y_se_pueden_ampliar(): void
+    public function test_los_roles_de_siempre_son_filas_y_se_pueden_ampliar(): void
     {
+        // Sin «trabajador»: la migracion lo saco del catalogo el dia que el
+        // representante dejo de ser una aprobacion.
         $this->assertEqualsCanonicalizing(
-            ['worker', 'supervisor', 'hse_supervisor'],
+            ['supervisor', 'hse_supervisor'],
             ApproverRole::pluck('code')->all(),
         );
 
-        // Un cuarto aprobador es una fila, no un despliegue.
+        // Un aprobador mas es una fila, no un despliegue.
         ApproverRole::create([
             'slug' => Str::random(22), 'code' => 'client',
             'name_es' => 'Cliente', 'name_en' => 'Client', 'sort_order' => 4,
@@ -95,7 +101,7 @@ class ApprovalFlowTest extends TestCase
         ApproverRole::create(['slug' => Str::random(22), 'code' => 'rigging_chief', 'name_es' => 'Jefe de izaje', 'name_en' => 'Rigging chief', 'sort_order' => 5]);
 
         // Cuatro firmas, y solo para el izaje.
-        foreach ([['worker', 1], ['supervisor', 2], ['hse_supervisor', 3], ['rigging_chief', 4]] as [$rol, $nivel]) {
+        foreach ([['site_chief', 1], ['supervisor', 2], ['hse_supervisor', 3], ['rigging_chief', 4]] as [$rol, $nivel]) {
             $this->regla($rol, $nivel, true, $izaje->id);
         }
 
@@ -107,7 +113,7 @@ class ApprovalFlowTest extends TestCase
     public function test_sin_reglas_propias_el_tipo_hereda_las_del_pais(): void
     {
         $this->reglasBase();
-        $this->regla('worker', 1, true, $this->tipo('IZAJE')->id);
+        $this->regla('site_chief', 1, true, $this->tipo('IZAJE')->id);
 
         $this->assertSame(3, $this->plan($this->tipo('OTRO'))->approvals()->count());
     }
@@ -127,7 +133,7 @@ class ApprovalFlowTest extends TestCase
 
         $this->assertCount(2, $pendientes);
         $this->assertEqualsCanonicalizing(
-            ['worker', 'supervisor'],
+            ['site_chief', 'supervisor'],
             $pendientes->map(fn ($a) => $a->approvalRule->approver_role)->all(),
         );
     }
@@ -135,7 +141,7 @@ class ApprovalFlowTest extends TestCase
     /** Una aprobacion opcional no frena a las de arriba: para eso es opcional. */
     public function test_una_aprobacion_opcional_no_bloquea_el_flujo(): void
     {
-        $this->regla('worker', 1, false);
+        $this->regla('site_chief', 1, false);
         $this->regla('supervisor', 2, true);
         $plan = $this->plan($this->tipo('MTTO'));
 
@@ -164,11 +170,26 @@ class ApprovalFlowTest extends TestCase
 
     // ── apoyo ────────────────────────────────────────────────────────────────
 
+    /**
+     * El flujo de tres firmas de siempre, con un jefe de obra donde antes iba
+     * el ejecutante: ese rol ya no aprueba nada, y lo que estas pruebas miran
+     * es el orden, no quien firma.
+     */
     private function reglasBase(): void
     {
-        $this->regla('worker', 1, true);
+        $this->jefeDeObra();
+        $this->regla('site_chief', 1, true);
         $this->regla('supervisor', 2, true);
         $this->regla('hse_supervisor', 3, false);
+    }
+
+    /** Un aprobador que no viene con el sistema: se da de alta y ya firma. */
+    private function jefeDeObra(): ApproverRole
+    {
+        return ApproverRole::firstOrCreate(['code' => 'site_chief'], [
+            'slug' => Str::random(22), 'name_es' => 'Jefe de obra',
+            'name_en' => 'Site chief', 'sort_order' => 4,
+        ]);
     }
 
     private function regla(string $rol, int $nivel, bool $obligatoria, ?int $tipoId = null): ApprovalRule

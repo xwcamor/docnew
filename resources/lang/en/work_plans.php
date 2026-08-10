@@ -246,17 +246,30 @@ return [
     'approval_change'    => 'Change',
     'approval_sign'      => 'Sign',
     'approval_no_one_with_role' => 'No :role with that document. Check the person has that role on their record.',
-    'approval_pick_from_crew' => 'Pick one of the plan’s workers',
-    'approval_nobody_signed_yet' => 'Nobody on the plan has signed yet. The executing worker is picked among those who already signed: their signature is what grants this approval.',
-    'approval_worker_must_sign_first' => ':name has not signed as a worker yet. The executing worker is picked among those who already signed: that signature is what grants the approval.',
-    'approval_signed_as_worker' => 'With their worker signature',
-    'approval_not_in_crew' => ':name is not on this plan. The executing worker has to be one of the people going out on site.',
     'approval_wrong_role' => ':name is not a :role. Only someone with that role on their worker record can sign this approval.',
     'approval_person_taken' => ':name already signs another role on this plan. One person does not cover two signatures.',
     'approval_signed_cannot_reassign' => 'This approval is already signed: the signer cannot be changed. The signature is the proof of who took responsibility.',
-    // Why an approval cannot be signed yet. The previous system simply hid
-    // these; showing them greyed out with the reason is better — the whole path
-    // is visible without being able to skip a step.
+
+    // ── Who answers for the workers ──────────────────────────────────────────
+    //
+    // This used to be one more row of the approval flow, the "executing
+    // worker". It is not any more: it collected no signature of its own -- it
+    // pointed at somebody who had already signed as a worker -- and living in
+    // the flow it could be deleted or made optional from the country's rules,
+    // leaving a plan with people on site and nobody answering for them.
+    'representative'        => 'Workers’ representative',
+    'representative_help'   => 'The person who answers for the workers on this plan. They are picked among those who already signed, and it can be anyone on the team: they do not have to be a boss or hold any particular position.',
+    'representative_none'   => 'Nobody yet. Pick who answers for the people going out on site.',
+    'representative_designate' => 'Designate',
+    'representative_change' => 'Change',
+    // Needing to designate somebody is not the same as having nobody to pick:
+    // with the whole team unsigned there are no candidates, hence no button.
+    'representative_needs_signature' => 'Nobody has signed yet. The representative is picked among those who already signed: as soon as there is one signature you can designate them.',
+    'representative_no_results' => 'Nobody with that document among those who already signed. The representative comes from the workers on this plan who have already signed.',
+    'representative_assigned' => ':name is now the workers’ representative.',
+    'representative_not_in_crew' => ':name is not on this plan. The representative has to be one of the workers going out on site.',
+    'representative_must_sign_first' => ':name has not signed on this plan yet. The representative is picked among those who already signed: that signature, with its photo and its time, is the one that counts.',
+
     // What the plan still needs to close itself. The previous system's two
     // conditions, and no others.
     'close_needs_date_end'  => 'The end time of the work is missing.',
@@ -267,15 +280,13 @@ return [
     'close_needs_signatures'  => '{1} 1 worker signature is missing.|[2,*] :count worker signatures are missing.',
     'close_needs_forms_done'  => '{1} 1 form is still unconfirmed.|[2,*] :count forms are still unconfirmed.',
     'close_needs_approvals' => '{1} 1 mandatory approval is missing.|[2,*] :count mandatory approvals are missing.',
+    'close_needs_representative' => 'The workers’ representative still has to be designated.',
 
-    // The v1 rule: until the executing worker signs their approval, the rest
-    // were not even shown. Not "the crew must sign" -- those are attendance
-    // signatures and do not govern authorisation.
-    'approval_waits_worker' => ':role has to sign first.',
     'approval_waits_prior' => 'Waiting on the :role signature.',
 
+    // No "worker" here: that role stopped signing approvals the day the
+    // representative left the flow, and the migration deleted its rules.
     'approver_role' => [
-        'worker'         => 'Worker',
         'supervisor'     => 'Supervisor',
         'hse_supervisor' => 'HSE supervisor',
     ],

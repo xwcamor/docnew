@@ -18,6 +18,7 @@ use App\Models\WorkPlanApproval;
 use App\Models\WorkPlanPerson;
 use App\Models\WorkType;
 use App\Services\BusinessManagement\WorkPlanService;
+use App\Services\BusinessManagement\WorkPlanSetupService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -644,73 +645,74 @@ class WorkPlanSetupTest extends TestCase
     }
 
     /**
-     * El ejecutante sale de los trabajadores **de este plan**, y sólo de ahí.
+     * El representante sale de los trabajadores **de este plan**, y sólo de ahí.
      *
      * Es quien está en la obra y responde por lo que se va a hacer. Ni el
      * sistema anterior ni mi primera versión lo comprobaban: los dos buscaban
      * por documento entre las 231 personas del padrón, así que se podía poner
      * como responsable de la obra a alguien que no salió a trabajar ese día.
+     *
+     * Se comprueba contra la columna del plan y no contra una aprobación: el
+     * representante dejó de ser una fila del flujo porque allí se podía borrar
+     * o volver opcional desde las reglas del país, y un plan podía acabar con
+     * gente en la obra y sin nadie que respondiera por ella.
      */
-    public function test_el_ejecutante_tiene_que_estar_en_la_cuadrilla(): void
+    public function test_el_representante_tiene_que_estar_entre_los_trabajadores(): void
     {
         $plan = $this->plan();
-        $aprobacion = $this->aprobacion($plan, $this->regla('worker', 1, true));
 
-        // Trabajador con el rol correcto, pero que no está en este plan.
+        // Trabajador de verdad, pero que no está en este plan.
         $fuera = $this->persona('Beto', 'Cruz', '40000050', ['worker']);
         $this->actingAs($this->supervisor());
 
-        $ruta = route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]);
+        $ruta = route('business_management.work_plans.representative', $plan->slug);
 
         $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('error');
-        $this->assertNull($aprobacion->fresh()->person_id);
+        $this->assertNull($plan->fresh()->crew_representative_person_id);
 
-        // Entrar en la cuadrilla no basta: además tiene que haber firmado.
+        // Entrar en el plan no basta: además tiene que haber firmado.
         $asignado = $this->asignar($plan, $fuera);
 
         $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('error');
-        $this->assertNull($aprobacion->fresh()->person_id);
+        $this->assertNull($plan->fresh()->crew_representative_person_id);
 
         // Con la firma puesta, sí.
         $asignado->forceFill(['is_approved' => true])->save();
 
         $this->put($ruta, ['person_slug' => $fuera->slug])->assertSessionHas('success');
-        $this->assertSame($fuera->id, $aprobacion->fresh()->person_id);
+        $this->assertSame($fuera->id, $plan->fresh()->crew_representative_person_id);
     }
 
     /**
-     * El ejecutante no vuelve a firmar: vale la firma que ya dio.
+     * Designarlo no le pide una segunda firma: vale la que ya dio.
      *
      * Es la misma persona, el mismo día, el mismo plan y la misma cámara. La
-     * segunda firma no prueba nada que no probara la primera, y en la ficha
-     * salía un botón «Firmar» al lado de alguien que aparecía como firmado dos
-     * columnas más a la izquierda.
-     *
-     * Por eso designarlo YA da la aprobación por hecha, sin crear un evento de
-     * firma nuevo: la evidencia es la que existe, y duplicarla haría parecer
-     * que hubo dos comprobaciones donde hubo una.
+     * segunda no probaría nada que no probara la primera, y mientras esto era
+     * una aprobación salía un botón «Firmar» al lado de alguien que aparecía
+     * como firmado dos columnas más a la izquierda. Por eso ya no es una fila
+     * del flujo: es un puntero a quien ya firmó, y la evidencia es la que hay.
      */
-    public function test_designar_al_ejecutante_da_la_aprobacion_con_su_firma_de_trabajador(): void
+    public function test_designar_al_representante_no_crea_una_firma_nueva(): void
     {
         $plan = $this->plan();
-        $aprobacion = $this->aprobacion($plan, $this->regla('worker', 1, true));
 
         $persona = $this->persona('Beto', 'Cruz', '40000051', ['worker']);
-        $this->asignar($plan, $persona)->forceFill(['is_approved' => true])->save();
+        $asignado = $this->asignar($plan, $persona);
+        $asignado->forceFill(['is_approved' => true])->save();
 
         $this->actingAs($this->supervisor());
         $this->put(
-            route('business_management.work_plans.approvals.approver', [$plan->slug, $aprobacion->slug]),
+            route('business_management.work_plans.representative', $plan->slug),
             ['person_slug' => $persona->slug],
         )->assertSessionHas('success');
 
-        $aprobacion->refresh();
-        $this->assertTrue((bool) $aprobacion->is_approved, 'la aprobación tenía que quedar dada');
-        $this->assertSame(0, $aprobacion->signatureEvents()->count(), 'no se duplica la evidencia');
+        $this->assertSame($persona->id, $plan->fresh()->crew_representative_person_id);
+        $this->assertSame(0, $plan->approvals()->count(), 'el representante no es una aprobación');
+        $this->assertSame(0, $asignado->signatureEvents()->count(), 'no se duplica la evidencia');
     }
 
     /** Y el buscador tampoco ofrece a quien aún no ha firmado. */
-    public function test_el_buscador_de_ejecutantes_solo_ofrece_a_los_que_ya_firmaron(): void
+    public function test_el_buscador_de_representantes_solo_ofrece_a_los_que_ya_firmaron(): void
     {
         $plan = $this->plan();
         $firmo    = $this->persona('Ana', 'Paz', '40000052', ['worker']);
@@ -722,8 +724,8 @@ class WorkPlanSetupTest extends TestCase
         $this->actingAs($this->supervisor());
         $ruta = route('business_management.work_plans.crew.candidates', $plan->slug);
 
-        $this->getJson($ruta . '?role=worker&q=40000052')->assertOk()->assertJsonCount(1, 'people');
-        $this->getJson($ruta . '?role=worker&q=40000053')->assertOk()->assertJsonCount(0, 'people');
+        $this->getJson($ruta . '?representante=1&q=40000052')->assertOk()->assertJsonCount(1, 'people');
+        $this->getJson($ruta . '?representante=1&q=40000053')->assertOk()->assertJsonCount(0, 'people');
     }
 
     /** Y el buscador tampoco lo ofrece: filtra por el rol que se está asignando. */
@@ -746,36 +748,38 @@ class WorkPlanSetupTest extends TestCase
     }
 
     /**
-     * Primero firma el ejecutante: el flujo lo bloquea **su aprobación**, no las
-     * firmas de la cuadrilla.
+     * El flujo espera al **representante**, no a las firmas de los trabajadores.
      *
      * Ésta es la condición literal del sistema anterior:
      *
      *     required_workers_pending = @list_plan_approvals.select { |p|
      *       p.approver_type == "Worker" && p.approval_rule.is_required && !p.is_approved }
      *
-     * Yo la había puesto contra `work_plan_people` —las firmas de asistencia a
-     * la charla—, que es otra cosa y no gobierna la autorización. Se comprueba
-     * sobre el modelo porque es lo que mira el servidor al firmar.
+     * Allí quien respondía por el trabajo era una aprobación más y esto se
+     * comprobaba contra esa fila. Ya no existe: es una columna del plan, así
+     * que la misma regla se mira donde ahora vive el dato.
+     *
+     * Y sigue sin ser lo mismo que las firmas de los trabajadores: ésas son de
+     * asistencia a la charla y no gobiernan la autorización — un plan con toda
+     * la gente firmada y sin representante no autoriza nada. Se comprueba sobre
+     * el modelo porque es lo que mira el servidor al firmar.
      */
-    public function test_el_flujo_espera_a_la_aprobacion_del_ejecutante_no_a_la_cuadrilla(): void
+    public function test_el_flujo_espera_al_representante_no_a_las_firmas_de_los_trabajadores(): void
     {
         $plan = $this->plan();
-        // Toda la cuadrilla ha firmado su asistencia...
-        $this->asignar($plan, $this->persona('Nora', 'Paz', '40000040'))->update(['is_approved' => true]);
+        // Todos los trabajadores han firmado su asistencia...
+        $persona = $this->persona('Nora', 'Paz', '40000040');
+        $this->asignar($plan, $persona)->update(['is_approved' => true]);
 
-        $ejecutante = $this->aprobacion($plan, $this->regla('worker', 1, true));
         $supervisor = $this->aprobacion($plan, $this->regla('supervisor', 2, true));
 
-        // ...y aun así el supervisor espera, porque el ejecutante no ha aprobado.
-        $this->assertCount(1, $supervisor->ejecutantesPendientes());
+        // ...y aun así el supervisor espera, porque nadie responde por ellos.
+        $this->assertTrue($supervisor->faltaElRepresentante());
 
-        // El ejecutante no se espera a sí mismo.
-        $this->assertCount(0, $ejecutante->ejecutantesPendientes());
+        // En cuanto hay representante, el supervisor queda libre.
+        app(WorkPlanSetupService::class)->designarRepresentante($plan, $persona);
 
-        // En cuanto el ejecutante aprueba, el supervisor queda libre.
-        $ejecutante->forceFill(['is_approved' => true])->save();
-        $this->assertCount(0, $supervisor->refresh()->ejecutantesPendientes());
+        $this->assertFalse($supervisor->refresh()->faltaElRepresentante());
     }
 
     /** La misma persona no cubre dos firmas del mismo plan. */

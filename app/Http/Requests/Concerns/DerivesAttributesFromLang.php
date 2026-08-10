@@ -91,7 +91,6 @@ trait DerivesAttributesFromLang
             'work_location_id'  => 'work_locations.singular',
             'work_area_id'      => 'work_areas.singular',
             'workstation_id'    => 'workstations.singular',
-            'nationality_id'    => 'nationalities.singular',
             'form_template_id'  => 'form_templates.singular',
         ];
 

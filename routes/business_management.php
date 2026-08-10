@@ -506,6 +506,9 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         // cambia en `approval_rules`, que es donde se decide.
         Route::post('work_plans/{workPlan}/approvals',                           [WorkPlanSetupController::class, 'addApproval'])->name('work_plans.approvals.store');
         Route::put('work_plans/{workPlan}/approvals/{workPlanApproval:slug}/approver', [WorkPlanSetupController::class, 'assignApprover'])->name('work_plans.approvals.approver')->withoutScopedBindings();
+        // Quien responde por la cuadrilla. No es una aprobacion —no recoge
+        // firma propia— asi que no cuelga de `approvals`.
+        Route::put('work_plans/{workPlan}/representative', [WorkPlanSetupController::class, 'designarRepresentante'])->name('work_plans.representative');
     });
 
 

@@ -211,8 +211,22 @@ class WorkPlan extends Model
 
     use SoftDeletes;
 
+    /**
+     * Quien responde por la cuadrilla de este plan.
+     *
+     * Del plan y no de la persona: un electricista que va solo a la obra es el
+     * representante ese dia y uno mas al siguiente. Y no es una aprobacion —no
+     * recoge firma propia—, sino un puntero a alguien que ya firmo como
+     * trabajador de este mismo plan.
+     */
+    public function crewRepresentative(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Person::class, 'crew_representative_person_id');
+    }
+
     protected $fillable = [
-        'slug', 'country_id', 'company_id', 'work_type_id', 'work_location_id',
+        'slug', 'country_id', 'company_id', 'crew_representative_person_id',
+        'work_type_id', 'work_location_id',
         'workstation_id', 'work_area_id', 'user_id', 'code', 'num_os', 'description',
         'date_start', 'date_end', 'is_closed', 'is_done', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',

@@ -81,11 +81,12 @@ class PositionService
         if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'], true)) {
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        // `is_signature_approver` estaba fuera de la lista y la columna del
-        // listado se pintaba ordenable: pulsar la cabecera —o elegirla en
-        // «Ordenar por»— movia la flecha y dejaba la tabla igual. Es la pregunta
-        // mas util de este catalogo («¿quienes firman?»), asi que ordena.
-        } elseif (in_array($sort, ['id', 'code', 'is_signature_approver', 'is_active', 'created_at', 'updated_at'], true)
+        // La lista es blanca a proposito: lo que no este aqui se ignora y la
+        // tabla sale en su orden de siempre. Eso es lo que salva a las vistas
+        // guardadas que aun pidan ordenar por `is_signature_approver`, que ya
+        // no existe como columna — piden algo que no esta, y en vez de reventar
+        // la consulta se quedan con el orden por nombre.
+        } elseif (in_array($sort, ['id', 'code', 'is_active', 'created_at', 'updated_at'], true)
             && in_array($direction, ['asc', 'desc'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
@@ -98,7 +99,6 @@ class PositionService
     {
         return [
             ['key' => 'code',     'label' => __('positions.code'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'is_signature_approver', 'label' => __('positions.is_signature_approver'), 'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'is_active',  'label' => __('positions.is_active'),  'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'created_at', 'label' => __('global.created_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];

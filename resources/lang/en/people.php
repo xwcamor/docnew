@@ -62,8 +62,12 @@ return [
 
     'country'              => 'Country',
     'country_help'         => 'Country of the document. Together with the number it defines the person uniqueness.',
-    'nationality'          => 'Nationality',
-    'nationality_help'     => 'Where they are from. If it does not match the document country, the person is flagged as a foreigner in the plan — which is what gets checked at the gate, because they carry a foreigner card and not a DNI.',
+    'origin'               => 'Origin',
+    // No longer asked: the document type says it. In Peru a local carries a
+    // DNI and someone from abroad carries a foreigner card, a PTP or a
+    // passport, and the catalogue marks which is which.
+    'origin_local'         => 'Local',
+    'origin_foreign'       => 'Foreign',
     'birthdate'            => 'Date of birth',
     'birthdate_help'       => 'Optional. Used in personnel reports.',
     'roles'                => 'Site roles',

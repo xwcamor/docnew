@@ -48,8 +48,8 @@ class WorkPlanApproval extends Model
     }
 
     /**
-     * La regla del sistema anterior, y la que rige siempre: **primero firma el
-     * ejecutante**.
+     * La regla del sistema anterior, y la que rige siempre: **primero responde
+     * la cuadrilla**.
      *
      * Literal de `_show_form_approvals.html.erb`:
      *
@@ -57,32 +57,20 @@ class WorkPlanApproval extends Model
      *       p.approver_type == "Worker" && p.approval_rule.is_required && !p.is_approved }
      *     next if approver_type != "worker" && !all_required_workers_signed
      *
-     * Es decir: mientras quede una aprobación **de rol trabajador** obligatoria
-     * sin firmar, las demás ni se enseñaban. El que ejecuta el trabajo declara
-     * primero lo que va a hacer; el supervisor autoriza sobre esa declaración.
+     * Es decir: mientras no hubiera alguien de la cuadrilla que respondiera por
+     * el trabajo, las demas aprobaciones ni se enseñaban. El que ejecuta declara
+     * primero lo que va a hacer; el supervisor autoriza sobre esa declaracion.
      * Autorizar antes es firmar en blanco.
      *
-     * Yo lo había puesto contra la cuadrilla (`work_plan_people`), que es otra
-     * cosa: ésas son firmas de asistencia a la charla y no gobiernan el flujo de
-     * autorización. Y la comprobación del servidor sólo existía con
-     * `docufiz.sequential_approvals` activo, que viene apagado — o sea que en la
-     * práctica no había ninguna: la pantalla bloqueaba y el servidor no.
-     *
-     * @return \Illuminate\Support\Collection<int, static>
+     * Antes esto se miraba contra una aprobacion de rol `worker`. Ese rol ya no
+     * existe —el representante es una columna del plan, no una aprobacion— asi
+     * que la misma regla se comprueba donde ahora vive el dato. Ojo con la
+     * tentacion de mirarlo contra `work_plan_people`: esas son firmas de
+     * asistencia a la charla y no gobiernan el flujo de autorizacion, que es
+     * justo el error que ya se cometio una vez.
      */
-    public function ejecutantesPendientes()
+    public function faltaElRepresentante(): bool
     {
-        // El propio ejecutante no se espera a sí mismo.
-        if ($this->approvalRule?->approver_role === ApproverRole::WORKER) {
-            return collect();
-        }
-
-        return static::query()
-            ->where('work_plan_id', $this->work_plan_id)
-            ->where('is_required', true)
-            ->where('is_approved', false)
-            ->whereHas('approvalRule', fn ($q) => $q->where('approver_role', ApproverRole::WORKER))
-            ->with('approvalRule.role')
-            ->get();
+        return $this->workPlan?->crew_representative_person_id === null;
     }
 }

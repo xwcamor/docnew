@@ -58,20 +58,11 @@ class PeopleCrudTest extends CatalogTestCase
     {
         return Position::firstOrCreate(
             ['code' => 'Técnico'],
-            $this->base() + ['is_signature_approver' => false],
+            $this->base(),
         );
     }
 
     /** Una nacionalidad es un PAIS: no hay catalogo aparte. */
-    private function nacionalidad(): \App\Models\Country
-    {
-        return \App\Models\Country::firstOrCreate(
-            ['iso_code' => 'VE'],
-            ['slug' => \Illuminate\Support\Str::random(22), 'region_id' => 999, 'name' => 'Venezuela',
-             'currency' => 'VES', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true],
-        );
-    }
-
     private function persona(string $numDoc = '47019236'): Person
     {
         return Person::create($this->base() + [
@@ -122,15 +113,13 @@ class PeopleCrudTest extends CatalogTestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.people.store'), $this->formulario([
-            'nationality_id' => $this->nacionalidad()->id,
-            'birthdate'      => '1990-05-14',
-            'roles'          => [PersonRole::WORKER, PersonRole::SUPERVISOR],
+            'birthdate' => '1990-05-14',
+            'roles'     => [PersonRole::SUPERVISOR, PersonRole::HSE_SUPERVISOR],
         ]))->assertRedirect(route('business_management.people.index'));
 
         $persona = Person::where('num_doc', '10203040')->first();
         $this->assertNotNull($persona, 'no se guardó la persona');
         $this->assertSame('Ramírez', $persona->lastname);
-        $this->assertSame($this->nacionalidad()->id, $persona->nationality_id);
         $this->assertSame('1990-05-14', $persona->birthdate->format('Y-m-d'));
 
         $this->assertDatabaseHas('person_company_links', [
@@ -140,7 +129,7 @@ class PeopleCrudTest extends CatalogTestCase
         ]);
 
         $this->assertEqualsCanonicalizing(
-            [PersonRole::WORKER, PersonRole::SUPERVISOR],
+            [PersonRole::SUPERVISOR, PersonRole::HSE_SUPERVISOR],
             $persona->roles()->where('is_active', true)->pluck('role')->all(),
         );
     }
@@ -167,15 +156,23 @@ class PeopleCrudTest extends CatalogTestCase
         $this->assertTrue($persona->hasRole(PersonRole::SUPERVISOR));
     }
 
-    /** Sin rol declarado la persona nace trabajadora, no sin nada. */
-    public function test_sin_rol_declarado_la_persona_nace_trabajadora(): void
+    /**
+     * Sin rol declarado, la persona nace SIN roles. Y esta bien asi.
+     *
+     * Nacia con «trabajador», que lo tenia el 100 % de la gente y por tanto no
+     * separaba nada. Los roles dicen que APRUEBA alguien en el flujo, y un
+     * trabajador de una contratista no aprueba nada: que estuvo en la obra lo
+     * dice estar en la cuadrilla del plan, que es otro dato y otra tabla.
+     */
+    public function test_sin_rol_declarado_la_persona_nace_sin_roles(): void
     {
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.people.store'), $this->formulario(['num_doc' => '10203042']));
 
-        $this->assertTrue(
-            Person::where('num_doc', '10203042')->firstOrFail()->hasRole(PersonRole::WORKER),
+        $this->assertSame(
+            0,
+            Person::where('num_doc', '10203042')->firstOrFail()->roles()->count(),
         );
     }
 

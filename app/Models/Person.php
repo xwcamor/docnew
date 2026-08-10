@@ -252,7 +252,7 @@ class Person extends Model
     }
 
     protected $fillable = [
-        'slug', 'country_id', 'nationality_id', 'doc_type', 'num_doc',
+        'slug', 'country_id', 'doc_type', 'num_doc',
         'name', 'lastname', 'birthdate', 'is_active', 'legacy_id', 'legacy_table',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
@@ -316,7 +316,6 @@ class Person extends Model
      * sembrada como «Peruana» los 224 peruanos habrian salido con carne de
      * extranjeria. Comparando numeros eso ya no puede pasar.
      */
-    public function nationality() { return $this->belongsTo(Country::class, 'nationality_id'); }
 
     /**
      * Su nacionalidad, **solo si no es la del pais donde trabaja**.
@@ -327,20 +326,34 @@ class Person extends Model
      * viene de fuera —11 de 391— porque lleva carne de extranjeria en vez de
      * DNI, y eso es justo lo que se comprueba en la puerta.
      */
-    public function getForeignNationalityAttribute(): ?string
-    {
-        if ($this->nationality_id === null || $this->nationality_id === $this->country_id) {
-            return null;
-        }
-
-        return $this->nationality?->name;
-    }
-
-    /** ¿Es extranjero donde trabaja? Lo que decide si lleva DNI o carne. */
+    /**
+     * ¿Es extranjero donde trabaja? Lo que se comprueba en la puerta.
+     *
+     * Lo dice **su documento**, no una nacionalidad aparte: en Peru un peruano
+     * lleva DNI y quien viene de fuera lleva carne de extranjeria, PTP o
+     * pasaporte. El catalogo marca cual es cual (`document_types.for_foreigners`).
+     *
+     * Antes se comparaba una columna `nationality_id` con `country_id`, y esa
+     * pregunta sobraba: el dato ya estaba en el tipo de documento. La
+     * nacionalidad existia en la v1 porque alli NO habia tipo —de hecho el tipo
+     * se dedujo de ella al migrar— y al portarla se quedaron las dos. La
+     * columna se borro.
+     *
+     * Si el catalogo de ese pais no dice nada, no se inventa: se responde que
+     * no es extranjero, que es lo que vale para el 97 % de la gente, y el
+     * catalogo se siembra.
+     */
     public function getIsForeignerAttribute(): bool
     {
-        return $this->nationality_id !== null && $this->nationality_id !== $this->country_id;
+        $tipo = DocumentType::query()
+            ->where('country_id', $this->country_id)
+            ->where('scope', DocumentType::PERSONA)
+            ->where('code', $this->doc_type)
+            ->first();
+
+        return (bool) $tipo?->for_foreigners;
     }
+
     public function companyLinks() { return $this->hasMany(PersonCompanyLink::class); }
     public function companies() { return $this->belongsToMany(Company::class, 'person_company_links'); }
     public function roles() { return $this->hasMany(PersonRole::class); }

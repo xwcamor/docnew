@@ -221,6 +221,10 @@ class WorkPlanController extends Controller
             // pantallas de obra. Todo se resuelve en esta consulta para no
             // dejar al frontend pidiendo datos de a poco.
             'crew'         => $this->crewPayload($workPlan),
+            // Quien responde por la cuadrilla. Va con la cuadrilla y no con las
+            // aprobaciones porque no es una: no recoge firma propia, apunta a
+            // alguien que ya firmo como trabajador de este plan.
+            'representative' => $this->representativePayload($workPlan),
             'forms'        => $this->formsPayload($workPlan),
             'approvals'    => $this->approvalsPayload($workPlan),
             'setupOptions' => $this->setupOptions($workPlan),
@@ -281,8 +285,7 @@ class WorkPlanController extends Controller
     {
         $asignados = $workPlan->people()
             ->with([
-                'person:id,slug,name,lastname,num_doc,doc_type,nationality_id,country_id',
-                'person.nationality:id,name',
+                'person:id,slug,name,lastname,num_doc,doc_type,country_id',
                 'person.country:id,name',
                 // El cargo de la persona EN LA EMPRESA DEL PLAN: la misma
                 // persona puede ser técnico en una contratista y supervisor en
@@ -329,7 +332,6 @@ class WorkPlanController extends Controller
                     // bandera repetida. Lo que importa es el que viene de fuera,
                     // porque lleva carne de extranjeria y no DNI, y eso es lo
                     // que el supervisor comprueba en la puerta.
-                    'foreign'   => $asignado->person?->foreign_nationality,
                     // El cargo, que es lo que la v1 ponía debajo del nombre.
                     'position'  => $asignado->person?->companyLinks->first()?->position?->code,
                     'signed'    => (bool) $asignado->is_approved || $firmadoEn !== null,
@@ -472,12 +474,39 @@ class WorkPlanController extends Controller
                 // La suya si la hay; si es el ejecutante, la que dio como
                 // trabajador.
                 'signed_at' => $firmas->get($a->id) ?? $firmasDeCuadrilla->get($a->person_id),
-                // Al ejecutante no se le pide firma: ya firmó. La ficha no
-                // tiene que ofrecer un botón que no hace falta.
-                'signs_as_worker' => $a->approvalRule?->approver_role === \App\Models\ApproverRole::WORKER,
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * El representante de la cuadrilla, con la hora de la firma que le vale.
+     *
+     * `can_designate` es lo que decide si la tarjeta ofrece el boton: hace
+     * falta alguien que ya haya firmado. Si la cuadrilla esta entera sin
+     * firmar, no hay a quien designar todavia y la tarjeta lo dice en vez de
+     * dejar un boton que solo puede fallar.
+     */
+    protected function representativePayload(WorkPlan $workPlan): array
+    {
+        $persona = $workPlan->crewRepresentative;
+
+        $firmados = $workPlan->people()
+            ->where(fn ($q) => $q->where('is_approved', true)->orWhereHas('signatureEvents'))
+            ->count();
+
+        return [
+            'person' => $persona ? [
+                'slug'     => $persona->slug,
+                'name'     => $persona->list_name,
+                'position' => $persona->companyLinks()
+                    ->where('company_id', $workPlan->company_id)
+                    ->with('position:id,code')
+                    ->first()?->position?->code,
+            ] : null,
+            'can_designate' => $firmados > 0,
+            'signed_crew'   => $firmados,
+        ];
     }
 
     /**

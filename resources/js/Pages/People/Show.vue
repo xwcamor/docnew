@@ -138,18 +138,18 @@ const subir = (tipo, archivo) => {
                             <span class="spec-cell__label">{{ $t('people.country') }}</span>
                             <span class="spec-cell__value">{{ person.country?.name || '—' }}</span>
                         </div>
-                        <!-- La nacionalidad se guardaba y no se enseñaba en
-                             ninguna parte. Cuando no es la del país donde
-                             trabaja se marca: es quien lleva carné de
-                             extranjería en vez de DNI, y es lo que se comprueba
-                             en la puerta. -->
+                        <!-- Aquí salía la nacionalidad, y era la misma pregunta
+                             hecha dos veces: el tipo de documento ya dice quién
+                             viene de fuera —en Perú un peruano lleva DNI y un
+                             extranjero carné o PTP— y eso es lo que se comprueba
+                             en la puerta. La columna se borró. -->
                         <div class="spec-cell">
-                            <span class="spec-cell__label">{{ $t('people.nationality') }}</span>
+                            <span class="spec-cell__label">{{ $t('people.origin') }}</span>
                             <span class="spec-cell__value">
-                                <Tag v-if="person.foreign_nationality" color="gold" :bordered="false">
-                                    {{ person.foreign_nationality }}
+                                <Tag v-if="person.is_foreigner" color="gold" :bordered="false">
+                                    {{ $t('people.origin_foreign') }}
                                 </Tag>
-                                <template v-else>{{ person.nationality?.code || '—' }}</template>
+                                <template v-else>{{ $t('people.origin_local') }}</template>
                             </span>
                         </div>
                         <div class="spec-cell">

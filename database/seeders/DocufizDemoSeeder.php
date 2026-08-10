@@ -54,12 +54,12 @@ class DocufizDemoSeeder extends Seeder
         // ── Catalogos de obra ────────────────────────────────────────────
         $cargoObrero = Position::create($base + [
             'slug' => Str::random(22), 'country_id' => $country->id,
-            'code' => 'OPERARIO', 'is_signature_approver' => false,
+            'code' => 'OPERARIO',
         ]);
 
         $cargoSupervisor = Position::create($base + [
             'slug' => Str::random(22), 'country_id' => $country->id,
-            'code' => 'SUPERVISOR', 'is_signature_approver' => true,
+            'code' => 'SUPERVISOR',
         ]);
 
         $sede = WorkLocation::create($base + [

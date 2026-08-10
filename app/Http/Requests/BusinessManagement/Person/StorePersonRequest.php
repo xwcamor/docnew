@@ -16,7 +16,6 @@ class StorePersonRequest extends FormRequest
 
     protected $attributeOverrides = [
         'country_id'     => 'people.country',
-        'nationality_id' => 'people.nationality',
         'company_id'     => 'people.company',
         'position_id'    => 'people.position',
         'roles'          => 'people.roles',
@@ -56,13 +55,14 @@ class StorePersonRequest extends FormRequest
             // supervisor: el selector de aprobadores del plan exige el rol y
             // ninguna pantalla lo ponía (ver WorkPlanSetupController).
             'roles'       => ['sometimes', 'array'],
-            'roles.*'     => ['string', Rule::in([
-                PersonRole::WORKER, PersonRole::SUPERVISOR, PersonRole::HSE_SUPERVISOR,
-            ])],
+            // Del catalogo, no de una lista escrita aqui. Estaban los tres
+            // codigos clavados mientras `approver_roles` era una pantalla que
+            // admitia filas nuevas: se podia crear la regla «Jefe de Izaje» y
+            // ninguna persona podia tener nunca ese rol, asi que el plan
+            // quedaba con una firma que nadie iba a firmar.
+            'roles.*'     => ['string', Rule::exists('approver_roles', 'code')
+                ->where('is_active', true)->whereNull('deleted_at')],
             'country_id'     => ['required', 'integer', Rule::exists('countries', 'id')],
-            // La nacionalidad es un pais: no habia razon para tener dos
-            // catalogos de lo mismo, y compararlos por texto casi cuesta caro.
-            'nationality_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'birthdate'      => ['nullable', 'date', 'before:today'],
             'is_active'      => ['sometimes', 'boolean'],
         ];

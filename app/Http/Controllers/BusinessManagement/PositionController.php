@@ -397,7 +397,6 @@ class PositionController extends Controller
             'code'      => $m->code,
             'country_id'  => $m->country_id,
             'country'     => $m->country?->name,
-            'is_signature_approver' => (bool) $m->is_signature_approver,
             'is_active'   => $m->is_active,
             'tenant_id'   => $m->tenant_id,
             'usage_count' => $service->usos($m),

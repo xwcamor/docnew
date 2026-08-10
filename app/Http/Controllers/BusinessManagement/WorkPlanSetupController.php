@@ -118,17 +118,17 @@ class WorkPlanSetupController extends Controller
             // Esto es sólo el filtro de la búsqueda; la regla que vale está en
             // WorkPlanSetupService::assignApprover(), porque una petición hecha
             // a mano no pasa por este selector.
-            // El ejecutante sale de los trabajadores de ESTE plan y, ademas,
-            // de los que YA FIRMARON: su firma de trabajador es la que da la
-            // aprobacion, asi que designar a quien no ha firmado dejaria la
-            // fila esperando una segunda firma que no aporta nada. Ver
-            // WorkPlanSetupService::assignApprover().
-            ->when((string) $request->string('role') === ApproverRole::WORKER,
+            // El representante sale de los trabajadores de ESTE plan y, ademas,
+            // de los que YA FIRMARON: esa firma es la que vale, asi que
+            // designar a quien no ha firmado dejaria al plan esperando una
+            // responsabilidad que nadie ha asumido. Ver
+            // WorkPlanSetupService::designarRepresentante().
+            ->when($request->boolean('representante'),
                 fn ($query) => $query->whereIn('id', $workPlan->people()
                     ->where(fn ($q) => $q->where('is_approved', true)->orWhereHas('signatureEvents'))
                     ->pluck('person_id')))
-            // Supervisor y HSE no estan en la cuadrilla: lo que se exige es el rol.
-            ->when($request->filled('role') && (string) $request->string('role') !== ApproverRole::WORKER,
+            // Los aprobadores no estan en la cuadrilla: lo que se exige es el rol.
+            ->when($request->filled('role'),
                 fn ($query) => $query->whereHas(
                     'roles',
                     fn ($q) => $q->where('role', $request->string('role'))->where('is_active', true),
@@ -242,6 +242,23 @@ class WorkPlanSetupController extends Controller
         return $this->run($workPlan,
             fn () => $this->armado->assignApprover($workPlan, $workPlanApproval, $persona),
             __('work_plans.approval_assigned', ['name' => $persona->list_name]));
+    }
+
+    /**
+     * Designa quien responde por la cuadrilla.
+     *
+     * No es una aprobacion: es una columna del plan. Ver la migracion
+     * `el_representante_no_es_una_aprobacion` para el porque.
+     */
+    public function designarRepresentante(Request $request, WorkPlan $workPlan): RedirectResponse
+    {
+        $datos = $request->validate(['person_slug' => ['required', 'string', 'size:22']]);
+
+        $persona = Person::where('slug', $datos['person_slug'])->where('is_active', true)->firstOrFail();
+
+        return $this->run($workPlan,
+            fn () => $this->armado->designarRepresentante($workPlan, $persona),
+            __('work_plans.representative_assigned', ['name' => $persona->list_name]));
     }
 
     // ── Apoyo ────────────────────────────────────────────────────────────────

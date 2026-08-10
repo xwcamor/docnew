@@ -62,8 +62,12 @@ return [
 
     'country'              => 'País',
     'country_help'         => 'País del documento. Junto con el número define la unicidad de la persona.',
-    'nationality'          => 'Nacionalidad',
-    'nationality_help'     => 'De dónde es. Si no coincide con el país del documento, la persona sale marcada como extranjera en el plan — que es lo que se comprueba en la puerta, porque lleva carné y no DNI.',
+    'origin'               => 'Procedencia',
+    // Ya no se pregunta: lo dice el tipo de documento. En Perú un peruano
+    // lleva DNI y quien viene de fuera lleva carné de extranjería, PTP o
+    // pasaporte, y el catálogo marca cuál es cuál.
+    'origin_local'         => 'Del país',
+    'origin_foreign'       => 'Extranjero',
     'birthdate'            => 'Fecha de nacimiento',
     'birthdate_help'       => 'Opcional. Se usa para los reportes de personal.',
     'roles'                => 'Roles en obra',

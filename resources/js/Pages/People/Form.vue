@@ -19,16 +19,18 @@ const props = defineProps({
     // Tipos de documento por país: el país se elige en esta misma pantalla, así
     // que la lista de tipos tiene que seguirlo.
     docTypesByCountry:  { type: Object, default: () => ({}) },
-    nationalityOptions: { type: Array,  default: () => [] },
     companyOptions:     { type: Array,  default: () => [] },
     positionOptions:    { type: Array,  default: () => [] },
     roleOptions:        { type: Array,  default: () => [] },
     defaultCountryId:   { type: Number, default: null },
+    // Cuál de las empresas es el propio workspace (Ajustes → Mi empresa).
+    ownCompanyId:       { type: Number, default: null },
     // Si es falso, el documento llega tapado: se enseña, no se toca.
     canViewPrivateInfo: { type: Boolean, default: true },
 });
 
 const isEdit = computed(() => !!props.person);
+
 
 // El documento sólo se edita con `people.view_private_info`. Sin el permiso el
 // número llega enmascarado (`******36`) y dejarlo editable significaba guardar
@@ -42,7 +44,6 @@ const form = useForm({
     num_doc:        props.person?.num_doc ?? '',
     // Al crear, por defecto el país del usuario; al editar, el de la persona.
     country_id:     props.person?.country_id ?? props.defaultCountryId ?? null,
-    nationality_id: props.person?.nationality_id ?? null,
     birthdate:      props.person?.birthdate ?? null,
     is_active:      props.person?.is_active ?? true,
     // Empresa y cargo: no son columnas de la persona, van al vinculo
@@ -50,8 +51,19 @@ const form = useForm({
     company_id:     props.person?.primary_link?.company_id ?? null,
     position_id:    props.person?.primary_link?.position_id ?? null,
     // Qué firma en obra. Una persona puede ser las dos cosas.
-    roles:          props.person?.roles?.length ? [...props.person.roles] : ['worker'],
+    // Sin roles por defecto. Venia con «trabajador» puesto, y ese rol ya no
+    // existe: lo tenia el 100 % de la gente y no separaba nada. Los roles dicen
+    // qué APRUEBA la persona en el flujo, y quien trabaja para una contratista
+    // no aprueba nada.
+    roles:          props.person?.roles?.length ? [...props.person.roles] : [],
 });
+
+// ¿La empresa elegida es la del propio workspace? De eso depende que se le
+// pregunte a esta persona qué aprueba. Si el workspace todavía no ha dicho cuál
+// es su empresa (Ajustes → Mi empresa), se pregunta a todos: es preferible a
+// esconder el campo y que nadie pueda dar de alta a un supervisor.
+const esDelWorkspace = computed(() =>
+    props.ownCompanyId === null || form.company_id === props.ownCompanyId);
 
 // Los tipos del país elegido. Si ese país no tiene catálogo se cae a los que
 // mande el servidor, que a su vez se cae a DNI/CE/PASAPORTE — igual que la
@@ -166,14 +178,10 @@ const consultarDni = async (dni) => {
             form.lastname = data.apellidos;
             nombreVerificado.value = true;
 
-            // El DNI solo lo lleva un peruano, así que la nacionalidad se
-            // deduce. Se rellena únicamente si está vacía: es de lo que depende
-            // que el tipo de documento salga bien, y en la base maestra hay
-            // gente sin ella.
-            if (!form.nationality_id) {
-                const peru = props.nationalityOptions.find((o) => /^per/i.test(o.label ?? ''));
-                if (peru) form.nationality_id = peru.value;
-            }
+            // Aquí se rellenaba la nacionalidad a «Perú» porque el DNI solo lo
+            // lleva un peruano. La deducción era correcta y por eso mismo la
+            // pregunta sobraba: si el documento ya lo dice, no hay nada que
+            // guardar aparte. Ver `Person::getIsForeignerAttribute()`.
         }
     } catch {
         dniEstado.value = 'error';
@@ -447,7 +455,12 @@ const submit = () => {
                      de supervisor la persona no aparece nunca en el selector de
                      aprobadores del plan, así que un supervisor nuevo no se
                      podía dar de alta. -->
+                <!-- Solo para la gente del propio workspace. A un electricista
+                     de una contratista no se le pregunta qué aprueba, porque no
+                     va a aprobar nada: quien autoriza un plan es del que
+                     contrata. La empresa propia se marca en Ajustes. -->
                 <FormItem
+                    v-if="esDelWorkspace"
                     :label="$t('people.roles')"
                     :tooltip="$t('people.roles_help')"
                     :validate-status="form.errors.roles ? 'error' : ''"
@@ -464,45 +477,20 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('people.section_optional') }}</h2>
 
-                <!-- Los dos opcionales, juntos y al final: la nacionalidad solo
-                     importa cuando NO es la del documento —es lo que marca al
-                     que lleva carné y no DNI— y la fecha de nacimiento solo se
-                     usa en los reportes de personal. Ponerlos arriba obligaba a
-                     saltárselos en cada alta. -->
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.nationality')"
-                            :tooltip="$t('people.nationality_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            :validate-status="form.errors.nationality_id ? 'error' : ''"
-                            :help="form.errors.nationality_id"
-                        >
-                            <Select
-                                v-model:value="form.nationality_id"
-                                size="large"
-                                show-search
-                                allow-clear
-                                :options="nationalityOptions"
-                                :filter-option="filterOption"
-                                :placeholder="$t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.birthdate')"
-                            :tooltip="$t('people.birthdate_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            :validate-status="form.errors.birthdate ? 'error' : ''"
-                            :help="form.errors.birthdate"
-                        >
-                            <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
-                        </FormItem>
-                    </Col>
-                </Row>
+                <!-- Aquí estaba también la nacionalidad, y sobraba: en Perú un
+                     peruano lleva DNI y quien viene de fuera lleva carné o PTP,
+                     así que el tipo de documento ya dice quién es extranjero.
+                     La pregunta existía en el sistema anterior porque allí NO
+                     había tipo de documento —de hecho el tipo se dedujo de ella
+                     al migrar— y al portarla se quedaron las dos. -->
+                <FormItem
+                    :label="$t('people.birthdate')"
+                    :tooltip="$t('people.birthdate_help')"
+                    :validate-status="form.errors.birthdate ? 'error' : ''"
+                    :help="form.errors.birthdate"
+                >
+                    <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                </FormItem>
 
                 <FormItem
                     v-if="isEdit"
