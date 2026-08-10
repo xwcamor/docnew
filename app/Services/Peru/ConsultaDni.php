@@ -52,7 +52,7 @@ class ConsultaDni
             return ['estado' => 'sin_configurar'];
         }
 
-        $clave = 'reniec:dni:' . $dni;
+        $clave = self::claveDeCache($dni);
         $cacheado = Cache::get($clave);
 
         if (is_array($cacheado)) {
@@ -139,6 +139,18 @@ class ConsultaDni
             'nombres'   => $nombres,
             'apellidos' => $apellidos,
         ];
+    }
+
+    /**
+     * Donde se guarda el acierto de un DNI.
+     *
+     * Publica para que el comando de diagnostico pueda olvidarla antes de
+     * probar: un diagnostico que contesta desde la cache dice «funciona» sin
+     * haber llamado a nadie, que es justo lo contrario de lo que se le pide.
+     */
+    public static function claveDeCache(string $dni): string
+    {
+        return 'reniec:dni:' . $dni;
     }
 
     /** Un DNI no se escribe entero en el log: es dato personal. */
