@@ -33,6 +33,12 @@ return [
     // Ecuador, RUT en Chile, CUIT en Argentina, NIT en Colombia, RFC en
     // México, CNPJ en Brasil. Sale del mismo catálogo que el DNI de una
     // persona, con `scope` de empresa.
+    // La razón social nace bloqueada: es el nombre legal, sale en la cabecera
+    // de cada PDF firmado, y tecleada a mano es como la misma empresa acaba
+    // tres veces en la base escrita de tres formas.
+    'razon_esperando_ruc'      => 'Se rellena al escribir el RUC.',
+    'razon_de_sunat'           => 'Razón social de SUNAT.',
+    'razon_editar_a_mano'      => 'Editar a mano',
     'doc_type'                 => 'Tipo de documento',
     'doc_type_help'            => 'Qué documento lleva la empresa en su país. En Perú es el RUC.',
     'doc_type_invalid'         => 'Tipo de documento no válido para ese país. Admitidos: :types.',

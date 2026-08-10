@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Form, FormItem, Input, Switch, Space, Alert, Select,
+    Form, FormItem, Input, Switch, Space, Alert, Select, Tooltip, Button,
 } from 'ant-design-vue';
 import { BankOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 
@@ -102,6 +102,18 @@ const faltanDigitos = computed(() => {
 const rucEstado = ref(null);   // 'buscando' | 'encontrado' | 'no_encontrado' | 'error' | null
 let temporizador = null;
 
+// Si el proveedor no esta configurado no hay consulta que esperar, asi que la
+// razon social no se puede quedar bloqueada esperandola.
+const consultaDisponible = ref(true);
+
+// La salida a mano: se pulsa cuando la consulta no encuentra la empresa, o
+// cuando devuelve algo que no cuadra.
+const razonAMano = ref(false);
+
+// Lo EXACTO que puso la consulta en cada campo, para saber despues si lo que
+// hay escrito lo trajo SUNAT o lo escribio una persona.
+const puestoPorSunat = ref({ razon: null, corto: null });
+
 const paisEsPeru = computed(() => {
     const p = props.countryOptions.find((o) => o.value === form.country_id);
     return /\(PE\)\s*$/.test(p?.label ?? '');
@@ -147,14 +159,19 @@ const consultarRuc = async (ruc) => {
             params: { ruc },
         });
         // `sin_configurar` no se le enseña al usuario: no ha hecho nada mal y no
-        // puede arreglarlo. La pantalla se queda como estaba.
+        // puede arreglarlo. Lo que sí hace es soltar el campo, porque si no
+        // habría que esperar a una consulta que nunca va a llegar.
+        consultaDisponible.value = data.estado !== 'sin_configurar';
         rucEstado.value = data.estado === 'sin_configurar' ? null : data.estado;
+
         if (data.estado === 'encontrado' && data.razon_social) {
             form.complete_name = data.razon_social;
+            puestoPorSunat.value.razon = data.razon_social;
 
             // Solo si esta vacio: lo que ya escribiste no se pisa nunca.
             if (!form.name?.trim()) {
                 form.name = nombreCorto(data.razon_social);
+                puestoPorSunat.value.corto = form.name;
             }
         }
     } catch {
@@ -162,14 +179,71 @@ const consultarRuc = async (ruc) => {
     }
 };
 
+/**
+ * Cambiar el documento borra lo que habia traido la consulta.
+ *
+ * Sin esto, teclear un RUC, dejar que rellene «HITACHI ENERGY PERU S.A.C.» y
+ * cambiarlo despues por otro numero dejaba el nombre legal de Hitachi pegado a
+ * un RUC que no es el suyo, y se guardaba tal cual. Solo se limpia lo que puso
+ * SUNAT y sigue intacto: si alguien lo corrigio a mano, ese texto es suyo y se
+ * respeta.
+ */
+const olvidarLoQueTrajoSunat = () => {
+    if (puestoPorSunat.value.razon !== null && form.complete_name === puestoPorSunat.value.razon) {
+        form.complete_name = '';
+    }
+    if (puestoPorSunat.value.corto !== null && form.name === puestoPorSunat.value.corto) {
+        form.name = '';
+    }
+
+    puestoPorSunat.value = { razon: null, corto: null };
+};
+
 watch(() => form.num_doc, (valor) => {
     clearTimeout(temporizador);
+    // Cambiar el RUC vuelve a poner el candado: la razon social de antes ya no
+    // es la de este documento.
+    razonAMano.value = false;
+    olvidarLoQueTrajoSunat();
+
     const ruc = (valor ?? '').replace(/\D/g, '');
     if (ruc.length !== 11 || !paisEsPeru.value) {
         rucEstado.value = null;
         return;
     }
     temporizador = setTimeout(() => consultarRuc(ruc), 500);
+});
+
+/**
+ * La razon social no se teclea: la dice SUNAT.
+ *
+ * Es el nombre legal de la empresa y sale en la cabecera de cada PDF firmado.
+ * Escribirla a mano es como acaban en la base «Hitachi Energy Peru SAC»,
+ * «HITACHI ENERGY PERÚ S.A.C.» y «Hitachi energy peru» siendo la misma
+ * empresa — que es justo lo que hubo que limpiar de la v1.
+ *
+ * Por eso nace bloqueada y solo se suelta cuando de verdad no hay de donde
+ * sacarla: si la consulta no la encuentra, si falla, si el pais no es Peru
+ * —fuera de ahi no hay a quien preguntar—, si el proveedor no esta
+ * configurado, o si se pide expresamente editarla a mano.
+ *
+ * Al editar una empresa que ya existe tambien se suelta: el dato ya esta
+ * guardado y se vino justamente a corregirlo.
+ */
+const razonBloqueada = computed(() => {
+    if (isEdit.value || razonAMano.value || !consultaDisponible.value) return false;
+    if (!paisEsPeru.value) return false;
+
+    return rucEstado.value === null || rucEstado.value === 'buscando' || rucEstado.value === 'encontrado';
+});
+
+/** Por que esta bloqueada, para que el campo gris no parezca roto. */
+const razonPista = computed(() => {
+    if (!razonBloqueada.value) return '';
+
+    return rucEstado.value === 'encontrado'
+        ? 'companies.razon_de_sunat'
+        : 'companies.razon_esperando_ruc';
 });
 
 
@@ -285,15 +359,31 @@ const submit = () => {
                     :tooltip="$t('companies.complete_name_help')"
                     required
                     :validate-status="form.errors.complete_name ? 'error' : ''"
-                    :help="form.errors.complete_name"
+                    :help="form.errors.complete_name || (razonPista ? $t(razonPista) : '')"
                 >
-                    <Input
-                        v-model:value="form.complete_name"
-                        size="large"
-                        :maxlength="255"
-                        showCount
-                        :placeholder="$t('companies.complete_name_placeholder')"
-                    />
+                    <!-- Bloqueada mientras haya de donde sacarla. El nombre
+                         legal sale en la cabecera de cada PDF firmado: tecleado
+                         a mano es como la misma empresa acaba tres veces en la
+                         base, escrita de tres formas. -->
+                    <Tooltip :title="razonBloqueada ? $t(razonPista) : ''">
+                        <Input
+                            v-model:value="form.complete_name"
+                            size="large"
+                            :maxlength="255"
+                            showCount
+                            :disabled="razonBloqueada"
+                            :placeholder="$t('companies.complete_name_placeholder')"
+                        />
+                    </Tooltip>
+                    <Button
+                        v-if="razonBloqueada && rucEstado === 'encontrado'"
+                        size="small"
+                        type="link"
+                        class="a-mano"
+                        @click="razonAMano = true"
+                    >
+                        {{ $t('companies.razon_editar_a_mano') }}
+                    </Button>
                 </FormItem>
 
                 <FormItem
@@ -345,4 +435,5 @@ const submit = () => {
     font-weight: 500;
 }
 .mb-4 { margin-bottom: 16px; }
+.a-mano { padding-left: 0; }
 </style>

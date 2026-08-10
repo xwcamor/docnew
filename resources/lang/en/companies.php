@@ -33,6 +33,12 @@ return [
     // Ecuador, RUT in Chile, CUIT in Argentina, NIT in Colombia, RFC in
     // Mexico, CNPJ in Brazil. It comes from the same catalogue as a person's
     // ID document, with a company scope.
+    // The legal name starts locked: it prints on the header of every signed
+    // PDF, and typing it by hand is how the same company ends up in the
+    // database three times, spelled three ways.
+    'razon_esperando_ruc'      => 'Filled in once you type the tax ID.',
+    'razon_de_sunat'           => 'Legal name from the tax authority.',
+    'razon_editar_a_mano'      => 'Edit by hand',
     'doc_type'                 => 'Document type',
     'doc_type_help'            => 'Which document the company carries in its country. In Peru it is the RUC.',
     'doc_type_invalid'         => 'Document type not valid for that country. Allowed: :types.',
