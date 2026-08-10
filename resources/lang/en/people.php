@@ -84,6 +84,7 @@ return [
     'trash_search_placeholder' => 'Search by name or document…',
 
     'section_identity' => 'Identity',
+    'section_optional' => 'Additional details',
     'section_work'     => 'Work',
     // Position and company were missing entirely from this screen, and in the
     // previous system both are mandatory on the worker record.

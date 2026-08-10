@@ -264,6 +264,24 @@ const submit = () => {
                     <template #icon><LockOutlined /></template>
                 </Alert>
 
+                <FormItem
+                    :label="$t('people.country')"
+                    :tooltip="$t('people.country_help')"
+                    required
+                    :validate-status="form.errors.country_id ? 'error' : ''"
+                    :help="form.errors.country_id"
+                >
+                    <Select
+                        v-model:value="form.country_id"
+                        size="large"
+                        show-search
+                        :disabled="docLocked"
+                        :options="countryOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
                 <Row :gutter="[20, 0]" class="form-grid">
                     <Col :xs="24" :lg="10">
                         <FormItem
@@ -315,61 +333,6 @@ const submit = () => {
                         </FormItem>
                     </Col>
                 </Row>
-
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.country')"
-                            :tooltip="$t('people.country_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.country_id ? 'error' : ''"
-                            :help="form.errors.country_id"
-                        >
-                            <Select
-                                v-model:value="form.country_id"
-                                size="large"
-                                show-search
-                                :disabled="docLocked"
-                                :options="countryOptions"
-                                :filter-option="filterOption"
-                                :placeholder="$t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.nationality')"
-                            :tooltip="$t('people.nationality_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            :validate-status="form.errors.nationality_id ? 'error' : ''"
-                            :help="form.errors.nationality_id"
-                        >
-                            <Select
-                                v-model:value="form.nationality_id"
-                                size="large"
-                                show-search
-                                allow-clear
-                                :options="nationalityOptions"
-                                :filter-option="filterOption"
-                                :placeholder="$t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                </Row>
-
-                <FormItem
-                    :label="$t('people.birthdate')"
-                    :tooltip="$t('people.birthdate_help')"
-                    :validate-status="form.errors.birthdate ? 'error' : ''"
-                    :help="form.errors.birthdate"
-                >
-                    <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
-                </FormItem>
-
-                <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
                 <!-- Con el nombre traído de RENIEC los dos campos se bloquean:
                      es el nombre oficial, el que tiene que cuadrar con el
@@ -498,6 +461,48 @@ const submit = () => {
                         :placeholder="$t('people.roles_placeholder')"
                     />
                 </FormItem>
+
+                <h2 class="form-section-title">{{ $t('people.section_optional') }}</h2>
+
+                <!-- Los dos opcionales, juntos y al final: la nacionalidad solo
+                     importa cuando NO es la del documento —es lo que marca al
+                     que lleva carné y no DNI— y la fecha de nacimiento solo se
+                     usa en los reportes de personal. Ponerlos arriba obligaba a
+                     saltárselos en cada alta. -->
+                <Row :gutter="[20, 0]" class="form-grid">
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.nationality')"
+                            :tooltip="$t('people.nationality_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :validate-status="form.errors.nationality_id ? 'error' : ''"
+                            :help="form.errors.nationality_id"
+                        >
+                            <Select
+                                v-model:value="form.nationality_id"
+                                size="large"
+                                show-search
+                                allow-clear
+                                :options="nationalityOptions"
+                                :filter-option="filterOption"
+                                :placeholder="$t('global.select')"
+                            />
+                        </FormItem>
+                    </Col>
+                    <Col :xs="24" :lg="12">
+                        <FormItem
+                            :label="$t('people.birthdate')"
+                            :tooltip="$t('people.birthdate_help')"
+                            :label-col="{ xs: 24, sm: 8 }"
+                            :wrapper-col="{ xs: 24, sm: 16 }"
+                            :validate-status="form.errors.birthdate ? 'error' : ''"
+                            :help="form.errors.birthdate"
+                        >
+                            <DatePicker v-model:value="form.birthdate" size="large" style="width: 100%" value-format="YYYY-MM-DD" />
+                        </FormItem>
+                    </Col>
+                </Row>
 
                 <FormItem
                     v-if="isEdit"

@@ -35,10 +35,15 @@ class DatabaseSeeder extends Seeder
             LocalesSeeder::class,
             CountriesSeeder::class,
 
-            // ── Tipos de documento (DNI, CE, PTP, Pasaporte) ────────────
+            // ── Tipos de documento (DNI, CE, PTP, Pasaporte; RUC) ───────
             //    Necesita los paises. Sin esto la ficha de una persona se cae
             //    a la lista vieja escrita en PHP, que es lo que se quito.
             DocumentTypesSeeder::class,
+
+            // ── Cargos de obra ──────────────────────────────────────────
+            //    La v1 traia dos para Peru —Tecnico y Supervisor— y con eso
+            //    no se distingue al que aprueba del que hace la maniobra.
+            PositionsSeeder::class,
 
             SystemModulesSeeder::class,
 

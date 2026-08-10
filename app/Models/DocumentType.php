@@ -10,7 +10,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
- * Que documento lleva una persona: DNI, carne de extranjeria, pasaporte, PTP.
+ * Que documento lleva una persona —DNI, carne de extranjeria, pasaporte, PTP—
+ * o una empresa: RUC en Peru, RUT en Chile, CUIT en Argentina, NIT en Colombia.
+ *
+ * Los dos casos son el mismo catalogo con `scope` distinto. La empresa tenia el
+ * suyo suelto: un `num_doc` sin tipo, sin longitud y llamado «codigo» en la
+ * pantalla, que no es nada. La pista estaba en el propio mensaje de error del
+ * importador —«El codigo (RUC/CUIT/RFC/NIT)»—: la frase reconoce que el dato
+ * cambia de pais en pais y que no habia donde guardar cual es.
  *
  * Estaba escrito a mano dentro de `StorePersonRequest`
  * (`Rule::in(['DNI', 'CE', 'PASAPORTE'])`), asi que anadir el PTP —que en Peru
@@ -36,8 +43,14 @@ class DocumentType extends Model
     /** Cifras y letras: el pasaporte. */
     public const CIFRAS_Y_LETRAS = 'alphanumeric';
 
+    /** El documento de una persona: DNI, carne de extranjeria, PTP, pasaporte. */
+    public const PERSONA = 'person';
+
+    /** El de una empresa: RUC, RUT, CUIT, RFC, NIT, CNPJ. */
+    public const EMPRESA = 'company';
+
     protected $fillable = [
-        'slug', 'country_id', 'code', 'name', 'min_length', 'max_length', 'allowed_chars', 'is_active',
+        'slug', 'country_id', 'scope', 'code', 'name', 'min_length', 'max_length', 'allowed_chars', 'is_active',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
@@ -115,12 +128,16 @@ class DocumentType extends Model
     /**
      * Los tipos vigentes de un pais, para un selector.
      *
+     * Por defecto los de persona: es lo que pedian todas las llamadas que ya
+     * existian cuando el catalogo solo servia para gente.
+     *
      * @return \Illuminate\Support\Collection<int, self>
      */
-    public static function delPais(?int $countryId): \Illuminate\Support\Collection
+    public static function delPais(?int $countryId, string $scope = self::PERSONA): \Illuminate\Support\Collection
     {
         return static::query()
             ->active()
+            ->where('scope', $scope)
             ->when($countryId, fn ($q) => $q->where('country_id', $countryId))
             ->orderBy('code')
             ->get();

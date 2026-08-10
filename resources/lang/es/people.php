@@ -84,6 +84,7 @@ return [
     'trash_search_placeholder' => 'Buscar por nombre, apellido o documento…',
 
     'section_identity' => 'Identidad',
+    'section_optional' => 'Datos adicionales',
     'section_work'     => 'Trabajo',
     // El cargo y la empresa faltaban por completo en esta pantalla, y en el
     // sistema anterior los dos son obligatorios en la ficha del trabajador.

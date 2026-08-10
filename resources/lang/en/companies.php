@@ -20,17 +20,28 @@ return [
     'empty_hint'      => 'Create your first company or import a batch from Excel.',
 
     // ── Fields ──────────────────────────────────────────────────────────────
-    'name'                     => 'Name',
-    'name_help'                => 'Short name the company is known by on site (e.g. HITACHI, LIMTEK).',
+    'name'                     => 'Trade name',
+    'name_help'                => 'What it is called on site. Proposed automatically from the legal name by dropping the company suffix (e.g. HITACHI ENERGY PERU).',
     'name_placeholder'         => 'E.g.: HITACHI',
     'complete_name'            => 'Legal name',
-    'complete_name_help'       => 'Full name exactly as it appears on the company registration.',
+    'complete_name_help'       => 'The legal name, exactly as it appears on the tax document. It is what the tax ID lookup returns.',
     'complete_name_placeholder'=> 'E.g.: Hitachi Energy Perú S.A.',
-    'num_doc'                  => 'Tax ID',
-    'num_doc_help'             => 'Tax identification number. It cannot repeat within the same country.',
+    'num_doc'                  => 'Document number',
+    'num_doc_help'             => 'Identifies the company. It cannot repeat within the same country.',
     'num_doc_placeholder'      => 'E.g.: 20512345678',
+    // A company's document changes from country to country: RUC in Peru and
+    // Ecuador, RUT in Chile, CUIT in Argentina, NIT in Colombia, RFC in
+    // Mexico, CNPJ in Brazil. It comes from the same catalogue as a person's
+    // ID document, with a company scope.
+    'doc_type'                 => 'Document type',
+    'doc_type_help'            => 'Which document the company carries in its country. In Peru it is the RUC.',
+    'doc_type_invalid'         => 'Document type not valid for that country. Allowed: :types.',
+    'num_doc_too_short'        => 'A :type has at least :min characters.',
+    'num_doc_too_long'         => 'A :type has at most :max characters.',
+    'num_doc_faltan'           => ':n digits to go.',
+    'num_doc_falta_uno'        => '1 digit to go.',
     'country'                  => 'Country',
-    'country_help'             => 'Country where the company is registered. Together with the tax ID it defines uniqueness.',
+    'country_help'             => 'Where it is registered. Decides which document it carries — RUC in Peru, RUT in Chile, CUIT in Argentina — and, together with the number, defines uniqueness.',
     'people_count'             => 'People',
     'plans_count'              => 'Plans',
     'is_active'                => 'Status',
@@ -70,10 +81,10 @@ return [
 
     // Validation
     'name_required'            => 'The company name is required.',
-    'name_unique'              => 'A company with this name already exists.',
+    'name_unique'              => 'A company with this trade name already exists.',
     'complete_name_required'   => 'The legal name is required.',
     'num_doc_required'         => 'The tax ID is required.',
-    'num_doc_unique'           => 'A company with this tax ID already exists in the same country.',
+    'num_doc_unique'           => 'A company with this document already exists in the same country.',
     'country_required'         => 'Pick the company country.',
     'name_duplicate_in_batch'  => 'Duplicate name in the same batch.',
     'is_active_required'       => 'The status field is required.',

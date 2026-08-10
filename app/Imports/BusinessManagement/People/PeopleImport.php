@@ -148,6 +148,7 @@ class PeopleImport implements ToCollection, WithHeadingRow
         // pais no tiene ninguno sembrado, los tres de siempre.
         $delPais = DocumentType::query()
             ->where('country_id', $this->countryId)
+            ->where('scope', DocumentType::PERSONA)
             ->where('is_active', true)
             ->get();
 

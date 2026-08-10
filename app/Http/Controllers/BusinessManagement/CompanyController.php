@@ -26,6 +26,8 @@ use Illuminate\Http\Request;
 
 class CompanyController extends Controller
 {
+    use \App\Http\Controllers\Concerns\TiposDeDocumento;
+
     use \App\Traits\BuildsRecordAudit;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
 
@@ -194,6 +196,7 @@ class CompanyController extends Controller
         return inertia('Companies/Form', [
             'company'          => null,
             'countryOptions'   => $this->countryOptions(),
+            'docTypesByCountry' => $this->docTypesByCountry(\App\Models\DocumentType::EMPRESA),
             // Al crear se propone el país del usuario: casi siempre es el suyo.
             'defaultCountryId' => request()->user()?->country_id,
         ]);
@@ -248,6 +251,7 @@ class CompanyController extends Controller
         return inertia('Companies/Form', [
             'company'          => $this->payload($company),
             'countryOptions'   => $this->countryOptions(),
+            'docTypesByCountry' => $this->docTypesByCountry(\App\Models\DocumentType::EMPRESA),
             'defaultCountryId' => request()->user()?->country_id,
         ]);
     }
@@ -507,6 +511,7 @@ class CompanyController extends Controller
             'id'         => $m->id,
             'slug'       => $m->slug,
             'name'       => $m->name,
+            'doc_type'      => $m->doc_type,
             'num_doc'       => $m->num_doc,
             'complete_name' => $m->complete_name,
             'country_id' => $m->country_id,

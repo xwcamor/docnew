@@ -13,21 +13,85 @@ import FormFooter from '@/Components/Common/FormFooter.vue';
 defineOptions({ layout: AppLayout });
 
 const props = defineProps({
-    company:          { type: Object, default: null },
-    countryOptions:   { type: Array,  default: () => [] },
-    defaultCountryId: { type: Number, default: null },
+    company:           { type: Object, default: null },
+    countryOptions:    { type: Array,  default: () => [] },
+    docTypesByCountry: { type: Object, default: () => ({}) },
+    defaultCountryId:  { type: Number, default: null },
 });
 
 const isEdit = computed(() => !!props.company);
 
 
 const form = useForm({
-    name:          props.company?.name ?? '',
-    complete_name: props.company?.complete_name ?? '',
-    num_doc:       props.company?.num_doc ?? '',
     // Al crear, por defecto el país del usuario; al editar, el de la empresa.
     country_id:    props.company?.country_id ?? props.defaultCountryId ?? null,
+    doc_type:      props.company?.doc_type ?? '',
+    num_doc:       props.company?.num_doc ?? '',
+    complete_name: props.company?.complete_name ?? '',
+    name:          props.company?.name ?? '',
     is_active:     props.company?.is_active ?? true,
+});
+
+// ── El documento de la empresa ─────────────────────────────────────────────
+//
+// No es «un código»: es un documento tributario y cambia de país en país — RUC
+// en Perú, RUT en Chile, CUIT en Argentina, NIT en Colombia. Sale del mismo
+// catálogo que el DNI de una persona, con scope de empresa, así que hereda lo
+// mismo: cuántos caracteres lleva y cuáles admite.
+const docTypesForCountry = computed(() => {
+    const lista = [...(props.docTypesByCountry?.[form.country_id] ?? [])];
+
+    // El tipo que la empresa ya tiene sigue en la lista aunque se haya dado de
+    // baja del catálogo: corregirle el nombre no puede cambiarle el documento.
+    const actual = props.company?.doc_type;
+    if (actual && form.country_id === props.company?.country_id
+        && !lista.some((o) => o.value === actual)) {
+        lista.unshift({ value: actual, label: actual });
+    }
+
+    return lista;
+});
+
+// Al cambiar de país, el tipo que ya no existe allí se descarta.
+watch(() => form.country_id, () => {
+    const lista = docTypesForCountry.value;
+    if (!lista.some((o) => o.value === form.doc_type)) {
+        form.doc_type = lista[0]?.value ?? '';
+    }
+}, { immediate: true });
+
+const tipoElegido = computed(() =>
+    docTypesForCountry.value.find((o) => o.value === form.doc_type) ?? null);
+
+// Sin catálogo (país sin sembrar) se cae al tope de siempre.
+const largoMaximo = computed(() => tipoElegido.value?.max ?? 20);
+
+const filtroDelNumero = computed(() => ({
+    digits:       /[^0-9]/g,
+    alphanumeric: /[^A-Za-z0-9]/g,
+}[tipoElegido.value?.allowed_chars] ?? /\s/g));
+
+// Se limpia lo pegado en vez de rechazar la tecla, y el tope se aplica DESPUÉS
+// de limpiar: con el `maxlength` del navegador, pegar «20-51234 5678» se
+// cortaba a los once primeros caracteres —guiones y espacios incluidos— y
+// perdía dígitos buenos.
+watch(() => form.num_doc, (valor) => {
+    if (typeof valor !== 'string') return;
+
+    let limpio = valor.replace(filtroDelNumero.value, '');
+    if (limpio.length > largoMaximo.value) {
+        limpio = limpio.slice(0, largoMaximo.value);
+    }
+
+    if (limpio !== valor) form.num_doc = limpio;
+});
+
+// Cuántos faltan para llegar al mínimo, para avisar mientras se teclea.
+const faltanDigitos = computed(() => {
+    const min = tipoElegido.value?.min ?? 0;
+    const largo = (form.num_doc ?? '').trim().length;
+
+    return min && largo > 0 && largo < min ? min - largo : 0;
 });
 
 // ─── Consulta del RUC en SUNAT ─────────────────────────────────────────────
@@ -154,21 +218,66 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
+                <!-- El país va primero porque decide todo lo que viene detrás:
+                     qué documento lleva la empresa y con qué forma. Detrás va
+                     el documento, que es lo que la identifica, y solo después
+                     los nombres — que además se rellenan solos cuando el RUC
+                     contesta. -->
                 <FormItem
-                    :label="$t('companies.name')"
-                    :tooltip="$t('companies.name_help')"
+                    :label="$t('companies.country')"
+                    :tooltip="$t('companies.country_help')"
                     required
-                    :validate-status="form.errors.name ? 'error' : ''"
-                    :help="form.errors.name"
+                    :validate-status="form.errors.country_id ? 'error' : ''"
+                    :help="form.errors.country_id"
+                >
+                    <Select
+                        v-model:value="form.country_id"
+                        size="large"
+                        show-search
+                        :options="countryOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('companies.doc_type')"
+                    :tooltip="$t('companies.doc_type_help')"
+                    required
+                    :validate-status="form.errors.doc_type ? 'error' : ''"
+                    :help="form.errors.doc_type"
+                >
+                    <Select
+                        v-model:value="form.doc_type"
+                        size="large"
+                        :options="docTypesForCountry"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('companies.num_doc')"
+                    :tooltip="$t('companies.num_doc_help')"
+                    required
+                    :validate-status="form.errors.num_doc ? 'error' : ''"
+                    :help="form.errors.num_doc
+                        || (rucEstado ? $t(`companies.ruc_${rucEstado}`) : '')
+                        || (faltanDigitos === 1 ? $t('companies.num_doc_falta_uno') : '')
+                        || (faltanDigitos > 1 ? $t('companies.num_doc_faltan', { n: faltanDigitos }) : '')"
                 >
                     <Input
-                        v-model:value="form.name"
+                        v-model:value="form.num_doc"
                         size="large"
-                        :maxlength="255"
-                        showCount
                         autofocus
-                        :placeholder="$t('companies.name_placeholder')"
-                    />
+                        :placeholder="$t('companies.num_doc_placeholder')"
+                    >
+                        <!-- SUNAT puede tardar varios segundos. Sin algo que se
+                             mueva, el campo parece muerto y se teclea la razon
+                             social encima de lo que iba a llegar. -->
+                        <template v-if="rucEstado === 'buscando'" #suffix>
+                            <LoadingOutlined />
+                        </template>
+                    </Input>
                 </FormItem>
 
                 <FormItem
@@ -188,41 +297,18 @@ const submit = () => {
                 </FormItem>
 
                 <FormItem
-                    :label="$t('companies.num_doc')"
-                    :tooltip="$t('companies.num_doc_help')"
+                    :label="$t('companies.name')"
+                    :tooltip="$t('companies.name_help')"
                     required
-                    :validate-status="form.errors.num_doc ? 'error' : ''"
-                    :help="form.errors.num_doc || (rucEstado ? $t(`companies.ruc_${rucEstado}`) : '')"
+                    :validate-status="form.errors.name ? 'error' : ''"
+                    :help="form.errors.name"
                 >
                     <Input
-                        v-model:value="form.num_doc"
+                        v-model:value="form.name"
                         size="large"
-                        :maxlength="20"
-                        :placeholder="$t('companies.num_doc_placeholder')"
-                    >
-                        <!-- SUNAT puede tardar varios segundos. Sin algo que se
-                             mueva, el campo parece muerto y se teclea la razon
-                             social encima de lo que iba a llegar. -->
-                        <template v-if="rucEstado === 'buscando'" #suffix>
-                            <LoadingOutlined />
-                        </template>
-                    </Input>
-                </FormItem>
-
-                <FormItem
-                    :label="$t('companies.country')"
-                    :tooltip="$t('companies.country_help')"
-                    required
-                    :validate-status="form.errors.country_id ? 'error' : ''"
-                    :help="form.errors.country_id"
-                >
-                    <Select
-                        v-model:value="form.country_id"
-                        size="large"
-                        show-search
-                        :options="countryOptions"
-                        :filter-option="filterOption"
-                        :placeholder="$t('global.select')"
+                        :maxlength="255"
+                        showCount
+                        :placeholder="$t('companies.name_placeholder')"
                     />
                 </FormItem>
 

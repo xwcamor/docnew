@@ -25,6 +25,8 @@ use Illuminate\Http\Request;
 
 class PersonController extends Controller
 {
+    use \App\Http\Controllers\Concerns\TiposDeDocumento;
+
     use \App\Traits\BuildsRecordAudit;
     use \App\Http\Controllers\Concerns\HandlesGlobalRecords;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
@@ -214,40 +216,6 @@ class PersonController extends Controller
         }
 
         return $tipos->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])->all();
-    }
-
-    /**
-     * Los tipos vigentes agrupados por país, para el formulario.
-     *
-     * El formulario elige país y tipo en la misma pantalla, así que la lista de
-     * tipos tiene que seguir al país elegido y no al del usuario. El catálogo
-     * es de unas pocas filas por país: cabe entero en la página.
-     *
-     * Van también `min` y `max`: el campo del número tenía un tope fijo de 20
-     * caracteres para todos los tipos, así que se podía teclear un celular de
-     * nueve dígitos en un DNI y no enterarse hasta darle a Guardar. Con la
-     * longitud del tipo delante, el campo corta al llegar al máximo.
-     *
-     * @return array<int, array<int, array{value: string, label: string, min: int|null, max: int|null}>>
-     */
-    protected function docTypesByCountry(): array
-    {
-        return \App\Models\DocumentType::query()
-            ->active()
-            ->orderBy('code')
-            ->get(['country_id', 'code', 'name', 'min_length', 'max_length', 'allowed_chars'])
-            ->groupBy('country_id')
-            ->map(fn ($tipos) => $tipos
-                ->map(fn ($t) => [
-                    'value'         => $t->code,
-                    'label'         => $t->label,
-                    'min'           => $t->min_length,
-                    'max'           => $t->max_length,
-                    'allowed_chars' => $t->allowed_chars,
-                ])
-                ->values()
-                ->all())
-            ->all();
     }
 
     /** Los tres de siempre, para cuando el catálogo de un país está vacío. */

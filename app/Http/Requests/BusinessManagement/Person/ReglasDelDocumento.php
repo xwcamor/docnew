@@ -41,6 +41,7 @@ trait ReglasDelDocumento
 
             $delPais = DocumentType::query()
                 ->where('country_id', $this->paisDelDocumento())
+                ->where('scope', DocumentType::PERSONA)
                 ->where('is_active', true)
                 ->whereNull('deleted_at')
                 ->pluck('code');
@@ -86,6 +87,7 @@ trait ReglasDelDocumento
             },
             function ($attribute, $value, $fail) {
                 $tipo = DocumentType::where('country_id', $this->paisDelDocumento())
+                    ->where('scope', DocumentType::PERSONA)
                     ->where('code', $this->input('doc_type'))
                     ->first();
 

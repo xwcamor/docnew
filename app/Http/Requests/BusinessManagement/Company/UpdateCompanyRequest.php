@@ -10,11 +10,14 @@ use Illuminate\Validation\Rule;
 class UpdateCompanyRequest extends FormRequest
 {
     use DerivesAttributesFromLang;
+    use ReglasDelDocumento;
 
     protected $attributeNamespace = 'companies';
 
     protected $attributeOverrides = [
         'country_id' => 'companies.country',
+        'doc_type'   => 'companies.doc_type',
+        'num_doc'    => 'companies.num_doc',
     ];
 
     protected function prepareForValidation(): void
@@ -23,6 +26,8 @@ class UpdateCompanyRequest extends FormRequest
         if ($this->filled('num_doc')) {
             $this->merge(['num_doc' => preg_replace('/[\s-]/', '', (string) $this->num_doc)]);
         }
+
+        $this->deducirElTipoSiNoViene();
     }
 
     public function authorize(): bool
@@ -68,28 +73,8 @@ class UpdateCompanyRequest extends FormRequest
             'complete_name' => ['required', 'string', 'min:3', 'max:255'],
             // El RUC no se repite dentro del mismo país y workspace — mismo
             // criterio que el índice único parcial de la tabla.
-            'num_doc' => [
-                // `min:3`: el sistema anterior lo exigia (parsley_minlength en
-                // _form.html.erb) y aqui se habia quedado solo el maximo, asi que
-                // se podia guardar un RUC de un solo caracter. No pongo
-                // `digits:11` porque eso es el RUC peruano y el modulo es
-                // multi-pais: cada uno tiene su documento fiscal.
-                'required', 'string', 'min:3', 'max:20',
-                function ($attribute, $value, $fail) use ($companyId, $company) {
-                    $countryId = $this->input('country_id')
-                        ?? (is_object($company) ? $company->country_id : null);
-                    $exists = DB::table('companies')
-                        ->whereNull('deleted_at')
-                        ->where('tenant_id', auth()->user()?->tenant_id)
-                        ->where('country_id', $countryId)
-                        ->when($companyId, fn ($qq) => $qq->where('id', '!=', $companyId))
-                        ->where('num_doc', trim((string) $value))
-                        ->exists();
-                    if ($exists) {
-                        $fail(__('companies.num_doc_unique'));
-                    }
-                },
-            ],
+            'doc_type' => $this->reglasDelTipoDeDocumento(),
+            'num_doc'  => $this->reglasDelNumeroDeDocumento($companyId),
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')],
             'is_active'  => ['sometimes', 'boolean'],
         ];

@@ -20,17 +20,28 @@ return [
     'empty_hint'      => 'Crea la primera empresa o importa un lote desde Excel para empezar.',
 
     // ── Campos ──────────────────────────────────────────────────────────────
-    'name'                     => 'Nombre',
-    'name_help'                => 'Nombre corto con el que se conoce a la empresa en obra (ej: HITACHI, LIMTEK).',
+    'name'                     => 'Nombre comercial',
+    'name_help'                => 'Con el que se la conoce en obra. Se propone solo a partir de la razón social quitándole la forma societaria (ej: HITACHI ENERGY PERU).',
     'name_placeholder'         => 'Ej: HITACHI',
     'complete_name'            => 'Razón social',
-    'complete_name_help'       => 'Nombre completo tal como figura en el documento de la empresa.',
+    'complete_name_help'       => 'El nombre legal, tal como figura en el documento tributario. Es lo que devuelve la consulta al RUC.',
     'complete_name_placeholder'=> 'Ej: Hitachi Energy Perú S.A.',
-    'num_doc'                  => 'RUC',
-    'num_doc_help'             => 'Documento de identificación tributaria. No se repite dentro del mismo país.',
+    'num_doc'                  => 'N° de documento',
+    'num_doc_help'             => 'Identifica a la empresa. No se repite dentro del mismo país.',
     'num_doc_placeholder'      => 'Ej: 20512345678',
+    // El documento de la empresa cambia de país en país: RUC en Perú y
+    // Ecuador, RUT en Chile, CUIT en Argentina, NIT en Colombia, RFC en
+    // México, CNPJ en Brasil. Sale del mismo catálogo que el DNI de una
+    // persona, con `scope` de empresa.
+    'doc_type'                 => 'Tipo de documento',
+    'doc_type_help'            => 'Qué documento lleva la empresa en su país. En Perú es el RUC.',
+    'doc_type_invalid'         => 'Tipo de documento no válido para ese país. Admitidos: :types.',
+    'num_doc_too_short'        => 'Un :type tiene al menos :min caracteres.',
+    'num_doc_too_long'         => 'Un :type tiene como mucho :max caracteres.',
+    'num_doc_faltan'           => 'Faltan :n dígitos.',
+    'num_doc_falta_uno'        => 'Falta 1 dígito.',
     'country'                  => 'País',
-    'country_help'             => 'País donde está registrada la empresa. Junto con el RUC define su unicidad.',
+    'country_help'             => 'País donde está registrada. Decide qué documento lleva —RUC en Perú, RUT en Chile, CUIT en Argentina— y, junto con el número, define su unicidad.',
     'people_count'             => 'Personas',
     'plans_count'              => 'Planes',
     'is_active'                => 'Estado',
@@ -70,10 +81,10 @@ return [
 
     // Validación
     'name_required'            => 'El nombre de la empresa es obligatorio.',
-    'name_unique'              => 'Ya existe una empresa con este nombre.',
+    'name_unique'              => 'Ya existe una empresa con este nombre comercial.',
     'complete_name_required'   => 'La razón social es obligatoria.',
     'num_doc_required'         => 'El RUC es obligatorio.',
-    'num_doc_unique'           => 'Ya existe una empresa con este RUC en el mismo país.',
+    'num_doc_unique'           => 'Ya existe una empresa con este documento en el mismo país.',
     'country_required'         => 'Indica el país de la empresa.',
     'name_duplicate_in_batch'  => 'Nombre duplicado dentro del mismo batch.',
     'is_active_required'       => 'El campo estado es obligatorio.',

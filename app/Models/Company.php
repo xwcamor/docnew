@@ -37,7 +37,7 @@ class Company extends Model
     protected string $auditModule = 'companies';
 
     protected $fillable = [
-        'slug', 'name', 'country_id',
+        'slug', 'name', 'country_id', 'doc_type',
         'num_doc', 'legacy_id', 'is_active', 'complete_name', 'tenant_id',
         'created_by', 'deleted_by', 'deleted_description',
     ];

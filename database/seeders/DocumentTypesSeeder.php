@@ -46,21 +46,32 @@ class DocumentTypesSeeder extends Seeder
             ['code' => 'PASAPORTE', 'name' => 'Pasaporte',                       'min' => 6,  'max' => 20, 'chars' => DocumentType::CIFRAS_Y_LETRAS],
         ];
 
-        foreach ($tipos as $t) {
-            DocumentType::firstOrCreate(
-                ['country_id' => $peru->id, 'code' => $t['code']],
-                [
-                    'slug'       => Str::random(22),
-                    'name'       => $t['name'],
-                    'min_length'    => $t['min'],
-                    'max_length'    => $t['max'],
-                    'allowed_chars' => $t['chars'],
-                    'is_active'  => true,
-                    'created_by' => 1,
-                ],
-            );
+        // El de la empresa. Once digitos exactos; no se comprueba que empiece
+        // por 10 o 20 porque hay RUC de otras formas en circulacion y una regla
+        // mas dura que la realidad deja fuera a empresas de verdad.
+        $deEmpresa = [
+            ['code' => 'RUC', 'name' => 'Registro Único de Contribuyentes', 'min' => 11, 'max' => 11, 'chars' => DocumentType::SOLO_CIFRAS],
+        ];
+
+        foreach ([DocumentType::PERSONA => $tipos, DocumentType::EMPRESA => $deEmpresa] as $scope => $lista) {
+            foreach ($lista as $t) {
+                DocumentType::firstOrCreate(
+                    ['country_id' => $peru->id, 'scope' => $scope, 'code' => $t['code']],
+                    [
+                        'slug'       => Str::random(22),
+                        'name'       => $t['name'],
+                        'min_length'    => $t['min'],
+                        'max_length'    => $t['max'],
+                        'allowed_chars' => $t['chars'],
+                        'is_active'  => true,
+                        'created_by' => 1,
+                    ],
+                );
+            }
         }
 
-        $this->command?->info('Tipos de documento sembrados para Perú: ' . count($tipos) . '.');
+        $this->command?->info(
+            'Tipos de documento sembrados para Perú: ' . count($tipos) . ' de persona y ' . count($deEmpresa) . ' de empresa.'
+        );
     }
 }
