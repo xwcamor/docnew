@@ -53,7 +53,15 @@ return [
     // attachment is not a field and has no label, so its wording lives here.
     'missing_attachment' => 'the form file',
     'missing_required' => 'Still to fill in: :fields. Fill it in and hit Confirm again.',
-    'readonly_notice' => 'This form is already confirmed: it can be viewed, but not changed.',
+    'readonly_notice' => 'This form is already confirmed. To change anything it has to be reopened, and that is recorded.',
+    'reopen'          => 'Edit again',
+    'reopen_title'    => 'Reopen this form?',
+    'reopen_help'     => 'It goes back to draft so it can be corrected. It is recorded in the history: who reopened it and when. It will have to be confirmed again.',
+    'reopened'        => 'Form reopened. Correct what you need and confirm it again.',
+    // The server says it too, not just the screen: until now the lock on a
+    // confirmed form lived only in the browser.
+    'confirmed_reopen_first' => 'This form is confirmed. Reopen it before changing anything.',
+    'plan_closed'     => 'The plan is closed: its forms are no longer editable.',
     'document'        => 'Document',
     'attach'          => 'Attach',
     'save'            => 'Save',

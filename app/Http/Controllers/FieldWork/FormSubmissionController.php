@@ -54,6 +54,13 @@ class FormSubmissionController extends Controller
 
         return inertia('FieldWork/FormFill', [
             'submission' => $entrega->only(['slug', 'status', 'template_version']),
+            // Un formato confirmado se puede volver a abrir para corregirlo,
+            // pero solo lo hace quien puede llenarlo —esta pantalla la abre
+            // tambien el auditor, que solo mira— y solo mientras el plan siga
+            // abierto. La regla la manda el servicio; esto es para no enseñar
+            // un boton que va a decir que no.
+            'canReopen' => $request->user()?->can('form_submissions.edit')
+                && ! $work_plan->is_closed,
             // El formato, la seccion y el campo llevan su nombre en columnas
             // (`name_es`/`name_en`, `label_es`/`label_en`) y el accesor `label`
             // elige por el idioma en curso. Se arma a mano en vez de mandar el
@@ -151,6 +158,14 @@ class FormSubmissionController extends Controller
         $this->formatos->confirmar($form_submission);
 
         return back()->with('success', __('Formato confirmado.'));
+    }
+
+    /** Lo abre de nuevo para corregirlo. Queda en el historial quien lo hizo. */
+    public function reopen(FormSubmission $form_submission)
+    {
+        $this->formatos->reabrir($form_submission);
+
+        return back()->with('success', __('field_work.reopened'));
     }
 
     /**

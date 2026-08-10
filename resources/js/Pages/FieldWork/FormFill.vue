@@ -1,5 +1,6 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
+import { Modal } from 'ant-design-vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -16,6 +17,7 @@ const props = defineProps({
     answers: Array,
     missing: Array,
     people: { type: Array, default: () => [] },
+    canReopen: { type: Boolean, default: false },
 });
 
 defineOptions({ layout: AppLayout });
@@ -181,6 +183,25 @@ function confirmar() {
         route('field_work.forms.confirm', props.submission.slug), {}, { preserveScroll: true },
     ));
 }
+
+/**
+ * Volver a abrir un formato confirmado.
+ *
+ * Se pregunta antes porque no es «editar»: deshace el cierre de un documento y
+ * deja rastro. La pregunta dice exactamente eso, que es lo que hay que saber
+ * antes de aceptar, y no «¿Estás seguro?».
+ */
+function reabrir() {
+    Modal.confirm({
+        title: t('field_work.reopen_title'),
+        content: t('field_work.reopen_help'),
+        okText: t('field_work.reopen'),
+        cancelText: t('global.cancel'),
+        onOk: () => router.post(
+            route('field_work.forms.reopen', props.submission.slug), {}, { preserveScroll: true },
+        ),
+    });
+}
 </script>
 
 <template>
@@ -257,6 +278,15 @@ function confirmar() {
                  del ratón como primer argumento, que aquí es la continuación
                  que se llama al terminar — y un MouseEvent no se puede llamar. -->
             <a-button size="large" :loading="guardando" @click="guardar()">{{ $t('field_work.save') }}</a-button>
+        </div>
+    </div>
+
+    <!-- Confirmado, pero no en piedra: corregir un dato mal tecleado se hace
+         desde aquí, en el mismo sitio donde estaba «Confirmar», y no es un
+         atajo — reabre el formato y lo anota en el historial. -->
+    <div v-else-if="canReopen" class="sap-actionbar ff-actions">
+        <div class="sap-actionbar__actions">
+            <a-button size="large" @click="reabrir">{{ $t('field_work.reopen') }}</a-button>
         </div>
     </div>
 </template>

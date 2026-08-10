@@ -52,7 +52,15 @@ return [
     // un campo y no tiene etiqueta, así que la suya va escrita aquí.
     'missing_attachment' => 'el archivo del formato',
     'missing_required' => 'Todavía falta por llenar: :fields. Rellénalo y vuelve a darle a Confirmar.',
-    'readonly_notice' => 'Este formato ya está confirmado: se puede consultar, pero no modificar.',
+    'readonly_notice' => 'Este formato ya está confirmado. Para cambiar algo hay que volver a abrirlo, y queda anotado quién lo hizo.',
+    'reopen'          => 'Volver a editar',
+    'reopen_title'    => '¿Volver a abrir este formato?',
+    'reopen_help'     => 'Vuelve a borrador para poder corregirlo. Queda registrado en el historial: quién lo reabrió y cuándo. Habrá que confirmarlo otra vez.',
+    'reopened'        => 'Formato abierto de nuevo. Corrige lo que haga falta y vuelve a confirmarlo.',
+    // El servidor tambien lo dice, no solo la pantalla: hasta ahora el candado
+    // de un formato confirmado vivia solo en el navegador.
+    'confirmed_reopen_first' => 'Este formato está confirmado. Vuelve a abrirlo antes de cambiar nada.',
+    'plan_closed'     => 'El plan está cerrado: sus formatos ya no se tocan.',
     'document'        => 'Documento',
     'attach'          => 'Adjuntar',
     'save'            => 'Guardar',

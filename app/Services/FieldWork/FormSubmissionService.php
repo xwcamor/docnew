@@ -61,6 +61,8 @@ class FormSubmissionService
      */
     public function responder(FormSubmission $entrega, array $respuestas): FormSubmission
     {
+        $this->exigirQueSePuedaEscribir($entrega);
+
         $campos = $entrega->formTemplate
             ->fields()
             ->get()
@@ -120,6 +122,8 @@ class FormSubmissionService
      */
     public function adjuntar(FormSubmission $entrega, string $contenido, string $mime, ?int $campoId = null): FormAttachment
     {
+        $this->exigirQueSePuedaEscribir($entrega);
+
         $hash = hash('sha256', $contenido);
         $existente = FormAttachment::where('sha256', $hash)->first();
 
@@ -148,6 +152,8 @@ class FormSubmissionService
      */
     public function confirmar(FormSubmission $entrega): FormSubmission
     {
+        $this->exigirQueSePuedaEscribir($entrega);
+
         $faltantes = $this->faltantes($entrega);
 
         if ($faltantes !== []) {
@@ -187,6 +193,71 @@ class FormSubmissionService
         }
 
         return $entrega->fresh();
+    }
+
+    /**
+     * Vuelve a abrir un formato confirmado, para poder corregirlo.
+     *
+     * Confirmar dejaba la entrega cerrada para siempre y no habia vuelta atras:
+     * un dato mal tecleado en el AST se quedaba mal tecleado. En obra eso no se
+     * sostiene —quien llena el formato es el que esta en el frente de trabajo,
+     * con guantes y con prisa— asi que corregir tiene que ser posible. Lo que no
+     * puede es pasar sin que se sepa.
+     *
+     * Por eso es una accion propia y no un simple «editar»: cambia el estado a
+     * borrador, y ese cambio queda en el historial con quien lo hizo y cuando
+     * (el trait `Auditable` de `FormSubmission` escribe la fila con el usuario,
+     * la IP y el antes/despues).
+     *
+     * El limite es el plan. Una vez cerrado, el plan entero es documento de
+     * archivo: ya lo firmaron los que autorizan y el sistema no deja ni editarlo
+     * (`WorkPlanController`, `cannot_edit_closed`). Reabrir un formato de dentro
+     * seria cambiar por la puerta de atras algo que ya esta firmado.
+     *
+     * Es idempotente: reabrir lo que ya esta en borrador no hace nada.
+     */
+    public function reabrir(FormSubmission $entrega): FormSubmission
+    {
+        if ($entrega->status !== 'confirmed') {
+            return $entrega;
+        }
+
+        $this->exigirQueElPlanSigaAbierto($entrega);
+
+        $entrega->update([
+            'status' => 'draft',
+            // La fecha de entrega se va con el estado: mientras esta en
+            // borrador no hay entrega, y dejar la de antes seria decir que se
+            // cerro un dia en que no estaba cerrado. Al volver a confirmar se
+            // pone la nueva, que es la que vale.
+            'submitted_at' => null,
+        ]);
+
+        return $entrega->fresh();
+    }
+
+    /**
+     * Si la entrega admite cambios ahora mismo.
+     *
+     * Estaba escrito solo en la pantalla —`soloLectura` en `FormFill.vue`— o
+     * sea que el candado era de mentira: una peticion a mano a `answers` o a
+     * `confirm` modificaba un formato ya cerrado sin que nada lo parara. Lo que
+     * decide que es editable lo decide el servidor, siempre.
+     */
+    protected function exigirQueSePuedaEscribir(FormSubmission $entrega): void
+    {
+        $this->exigirQueElPlanSigaAbierto($entrega);
+
+        if ($entrega->status === 'confirmed') {
+            throw new \DomainException(__('field_work.confirmed_reopen_first'));
+        }
+    }
+
+    protected function exigirQueElPlanSigaAbierto(FormSubmission $entrega): void
+    {
+        if ($entrega->workPlan?->is_closed) {
+            throw new \DomainException(__('field_work.plan_closed'));
+        }
     }
 
     /**

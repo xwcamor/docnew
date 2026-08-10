@@ -206,6 +206,12 @@ class FormSubmissionPdfTest extends TestCase
 
         $escenario = $this->escenario();
         $entrega = $escenario['entrega'];
+
+        // El escenario devuelve la entrega ya cerrada, y esta prueba le anade
+        // tres campos mas. Se reabre igual que lo haria una persona desde la
+        // pantalla, en vez de escribir sobre un formato confirmado por detras.
+        app(FormSubmissionService::class)->reabrir($entrega);
+
         $seccion = FormSection::create(['form_template_id' => $escenario['plantilla']->id, 'position' => 3]);
 
         $seccion->fields()->create([
@@ -536,10 +542,14 @@ class FormSubmissionPdfTest extends TestCase
             $creados[$campo['code']] = $seccion->fields()->create($campo);
         }
 
+        // Se llena y DESPUES se cierra, que es el orden en que pasa en obra.
+        // Estaba al reves —nacia confirmada y se rellenaba luego— y colaba
+        // porque el candado de «confirmado» vivia solo en la pantalla. Ahora lo
+        // aplica el servicio, asi que el atajo ya no existe ni aqui.
         $entrega = FormSubmission::create($base + [
             'slug' => Str::random(22), 'work_plan_id' => $plan->id,
             'form_template_id' => $plantilla->id, 'template_version' => $plantilla->version,
-            'status' => 'confirmed', 'submitted_at' => now(),
+            'status' => 'draft',
             'observations' => 'Sin incidencias durante la jornada.',
         ]);
 
@@ -562,6 +572,8 @@ class FormSubmissionPdfTest extends TestCase
             ]],
         ]);
 
+        $entrega->update(['status' => 'confirmed', 'submitted_at' => now()]);
+
         return [$plantilla, $entrega->fresh(['answers'])];
     }
 
@@ -576,13 +588,15 @@ class FormSubmissionPdfTest extends TestCase
 
         $entrega = FormSubmission::create([
             'slug' => Str::random(22), 'work_plan_id' => $plan->id, 'tenant_id' => 1, 'created_by' => 1,
-            'form_template_id' => $plantilla->id, 'template_version' => 1, 'status' => 'confirmed',
-            'submitted_at' => now(),
+            'form_template_id' => $plantilla->id, 'template_version' => 1, 'status' => 'draft',
         ]);
 
+        // Igual que arriba: primero la foto del papel, y cerrar es lo ultimo.
         app(FormSubmissionService::class)->adjuntar(
             $entrega, $this->imagenPng(600, 800), 'image/png',
         );
+
+        $entrega->update(['status' => 'confirmed', 'submitted_at' => now()]);
 
         return $entrega->fresh(['attachments']);
     }

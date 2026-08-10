@@ -50,6 +50,17 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
             ->name('forms.attach');
         Route::post('submissions/{form_submission}/confirm', [FormSubmissionController::class, 'confirm'])
             ->name('forms.confirm');
+
+        // Volver a abrir un formato ya confirmado, para corregirlo.
+        //
+        // Va con el mismo permiso que llenarlo, y a proposito: el que se
+        // equivoca al teclear es el que esta llenando el formato, y si tuviera
+        // que buscar a un supervisor para arreglar una fecha acabaria llamando
+        // por radio en vez de corregirlo. Lo que de verdad protege el documento
+        // no es este permiso, es el plan: una vez cerrado —firmado por quien
+        // autoriza— el servicio ya no deja reabrir nada.
+        Route::post('submissions/{form_submission}/reopen', [FormSubmissionController::class, 'reopen'])
+            ->name('forms.reopen');
     });
 
     // Firma
