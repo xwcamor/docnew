@@ -77,6 +77,9 @@ class DocufizDemoSeeder extends Seeder
         // ── Empresa contratista ──────────────────────────────────────────
         $empresa = Company::create($base + [
             'slug' => Str::random(22), 'country_id' => $country->id,
+            // Del catalogo del pais, no escrito aqui: ver
+            // `DocumentType::deLaEmpresaDe()`.
+            'doc_type' => \App\Models\DocumentType::deLaEmpresaDe($country->id),
             'num_doc' => '20521314649', 'name' => 'SERCE',
             'complete_name' => 'SERVICIOS DE CONSTRUCCIONES ELECTRICAS PERU SAC',
             'is_active' => true,

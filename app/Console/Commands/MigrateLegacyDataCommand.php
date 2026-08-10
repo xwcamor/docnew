@@ -185,6 +185,13 @@ class MigrateLegacyDataCommand extends Command
 
             $datos = [
                 'country_id'    => $this->countryId,
+                // Con que documento se identifica una empresa de este pais. La
+                // columna tenia `default 'RUC'` y el migrador se apoyaba en el
+                // sin saberlo; al quitarlo —porque una contratista chilena se
+                // guardaba en silencio con un documento peruano— las empresas
+                // migradas quedaron con el numero a secas, y el listado enseñaba
+                // «20522756441» sin decir que era un RUC.
+                'doc_type'      => \App\Models\DocumentType::deLaEmpresaDe($this->countryId),
                 'num_doc'       => $ruc,
                 'name'          => $v->name,
                 'complete_name' => $v->complete_name,

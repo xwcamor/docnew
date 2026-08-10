@@ -71,6 +71,10 @@ class DocufizLegacyDataSeeder extends Seeder
 
             $datos = $base + [
                 'country_id'    => $paisId,
+                // El documento de la empresa sale del catalogo del pais, igual
+                // que en el migrador: sin esto entra con el numero y sin decir
+                // de que es (ver `DocumentType::deLaEmpresaDe()`).
+                'doc_type'      => \App\Models\DocumentType::deLaEmpresaDe($paisId),
                 'num_doc'       => $f['num_doc'],
                 'name'          => $f['name'],
                 'complete_name' => $f['complete_name'],

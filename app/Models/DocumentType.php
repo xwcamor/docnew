@@ -144,4 +144,32 @@ class DocumentType extends Model
             ->orderBy('code')
             ->get();
     }
+
+    /**
+     * Con que documento se identifica una EMPRESA de este pais: RUC, RUT, NIT…
+     *
+     * Un pais tiene uno solo —es el documento tributario— asi que aqui no hay
+     * nada que elegir y se puede rellenar sin preguntar. Lo usan las tres
+     * puertas por las que entra una empresa sin pasar por el formulario: el
+     * migrador de la v1 y los dos seeders.
+     *
+     * Hizo falta al quitarle a la columna su `default 'RUC'`. Ese valor por
+     * defecto estaba mal —una contratista chilena se guardaba en silencio con un
+     * documento peruano— pero era lo que tapaba que el migrador nunca escribiera
+     * el tipo: al quitarlo, las empresas migradas quedaron con el numero a secas
+     * y en el listado salia «20522756441» sin decir que era un RUC.
+     *
+     * Devuelve null si el pais no tiene ninguno o tiene mas de uno: en ese caso
+     * no hay respuesta obvia y es mejor dejarlo vacio que inventarse una.
+     */
+    public static function deLaEmpresaDe(?int $countryId): ?string
+    {
+        if (! $countryId) {
+            return null;
+        }
+
+        $tipos = static::delPais($countryId, self::EMPRESA);
+
+        return $tipos->count() === 1 ? $tipos->first()->code : null;
+    }
 }
