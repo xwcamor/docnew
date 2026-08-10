@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select, DatePicker, Tooltip, Button,
+    Form, FormItem, Input, Switch, Space, Alert, Select, DatePicker, Tooltip, Button,
 } from 'ant-design-vue';
 import { IdcardOutlined, LockOutlined, SafetyCertificateOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 
@@ -316,61 +316,52 @@ const submit = () => {
                     />
                 </FormItem>
 
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="10">
-                        <FormItem
-                            :label="$t('people.doc_type')"
-                            :label-col="{ xs: 24, sm: 10 }"
-                            :wrapper-col="{ xs: 24, sm: 14 }"
-                            :required="!sinCatalogo"
-                            :validate-status="form.errors.doc_type ? 'error' : ''"
-                            :help="form.errors.doc_type || (sinCatalogo ? $t('people.doc_type_sin_catalogo') : '')"
+                <FormItem
+                    :label="$t('people.doc_type')"
+                    :required="!sinCatalogo"
+                    :validate-status="form.errors.doc_type ? 'error' : ''"
+                    :help="form.errors.doc_type || (sinCatalogo ? $t('people.doc_type_sin_catalogo') : '')"
+                >
+                    <Select
+                        v-model:value="form.doc_type"
+                        size="large"
+                        :disabled="docLocked || sinCatalogo"
+                        :options="docTypesForCountry"
+                        :placeholder="sinCatalogo ? $t('people.doc_type_ninguno') : $t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.num_doc')"
+                    :tooltip="docLocked ? $t('people.doc_masked_notice') : $t('people.num_doc_help')"
+                    :required="!sinCatalogo"
+                    :validate-status="form.errors.num_doc ? 'error' : ''"
+                    :help="form.errors.num_doc
+                        || (dniEstado ? $t(`people.dni_${dniEstado}`) : '')
+                        || (faltanDigitos === 1 ? $t('people.num_doc_falta_uno') : '')
+                        || (faltanDigitos ? $t('people.num_doc_faltan', { n: faltanDigitos }) : '')"
+                >
+                    <Tooltip :title="docLocked ? $t('people.doc_masked_notice') : ''">
+                        <!-- Sin tipo no hay número: la longitud y los caracteres
+                             que se admiten los dice el tipo, así que teclear aquí
+                             sería teclear contra nada y llevarse el error al
+                             darle a Crear. -->
+                        <Input
+                            v-model:value="form.num_doc"
+                            size="large"
+                            autofocus
+                            :disabled="docLocked || sinCatalogo"
+                            :placeholder="$t('people.num_doc_placeholder')"
                         >
-                            <Select
-                                v-model:value="form.doc_type"
-                                size="large"
-                                :disabled="docLocked || sinCatalogo"
-                                :options="docTypesForCountry"
-                                :placeholder="sinCatalogo ? $t('people.doc_type_ninguno') : $t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="14">
-                        <FormItem
-                            :label="$t('people.num_doc')"
-                            :tooltip="docLocked ? $t('people.doc_masked_notice') : $t('people.num_doc_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            :required="!sinCatalogo"
-                            :validate-status="form.errors.num_doc ? 'error' : ''"
-                            :help="form.errors.num_doc
-                                || (dniEstado ? $t(`people.dni_${dniEstado}`) : '')
-                                || (faltanDigitos === 1 ? $t('people.num_doc_falta_uno') : '')
-                                || (faltanDigitos ? $t('people.num_doc_faltan', { n: faltanDigitos }) : '')"
-                        >
-                            <Tooltip :title="docLocked ? $t('people.doc_masked_notice') : ''">
-                                <!-- Sin tipo no hay número: la longitud y los
-                                     caracteres que se admiten los dice el tipo,
-                                     así que teclear aquí sería teclear contra
-                                     nada y llevarse el error al darle a Crear. -->
-                                <Input
-                                    v-model:value="form.num_doc"
-                                    size="large"
-                                    autofocus
-                                    :disabled="docLocked || sinCatalogo"
-                                    :placeholder="$t('people.num_doc_placeholder')"
-                                >
-                                    <!-- RENIEC puede tardar varios segundos. Sin
-                                         algo que se mueva, el campo parece
-                                         muerto y se teclea el nombre encima. -->
-                                    <template v-if="dniEstado === 'buscando'" #suffix>
-                                        <LoadingOutlined />
-                                    </template>
-                                </Input>
-                            </Tooltip>
-                        </FormItem>
-                    </Col>
-                </Row>
+                            <!-- RENIEC puede tardar varios segundos. Sin algo que
+                                 se mueva, el campo parece muerto y se teclea el
+                                 nombre encima. -->
+                            <template v-if="dniEstado === 'buscando'" #suffix>
+                                <LoadingOutlined />
+                            </template>
+                        </Input>
+                    </Tooltip>
+                </FormItem>
 
                 <!-- Con el nombre traído de RENIEC los dos campos se bloquean:
                      es el nombre oficial, el que tiene que cuadrar con el
@@ -391,46 +382,37 @@ const submit = () => {
                     </template>
                 </Alert>
 
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.name')"
-                            :tooltip="$t('people.name_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.name ? 'error' : ''"
-                            :help="form.errors.name"
-                        >
-                            <Input
-                                v-model:value="form.name"
-                                size="large"
-                                :maxlength="255"
-                                :disabled="nombreVerificado"
-                                :placeholder="$t('people.name_placeholder')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.lastname')"
-                            :tooltip="$t('people.lastname_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.lastname ? 'error' : ''"
-                            :help="form.errors.lastname"
-                        >
-                            <Input
-                                v-model:value="form.lastname"
-                                size="large"
-                                :maxlength="255"
-                                :disabled="nombreVerificado"
-                                :placeholder="$t('people.lastname_placeholder')"
-                            />
-                        </FormItem>
-                    </Col>
-                </Row>
+                <FormItem
+                    :label="$t('people.name')"
+                    :tooltip="$t('people.name_help')"
+                    required
+                    :validate-status="form.errors.name ? 'error' : ''"
+                    :help="form.errors.name"
+                >
+                    <Input
+                        v-model:value="form.name"
+                        size="large"
+                        :maxlength="255"
+                        :disabled="nombreVerificado"
+                        :placeholder="$t('people.name_placeholder')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.lastname')"
+                    :tooltip="$t('people.lastname_help')"
+                    required
+                    :validate-status="form.errors.lastname ? 'error' : ''"
+                    :help="form.errors.lastname"
+                >
+                    <Input
+                        v-model:value="form.lastname"
+                        size="large"
+                        :maxlength="255"
+                        :disabled="nombreVerificado"
+                        :placeholder="$t('people.lastname_placeholder')"
+                    />
+                </FormItem>
 
                 <h2 class="form-section-title">{{ $t('people.section_work') }}</h2>
 
@@ -438,48 +420,39 @@ const submit = () => {
                      ficha del trabajador y los dos son obligatorios; aquí
                      faltaban los dos, así que no había forma de decir que
                      alguien es técnico de tal contratista. -->
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.company')"
-                            :tooltip="$t('people.company_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.company_id ? 'error' : ''"
-                            :help="form.errors.company_id"
-                        >
-                            <Select
-                                v-model:value="form.company_id"
-                                size="large"
-                                show-search
-                                :options="companyOptions"
-                                :filter-option="filterOption"
-                                :placeholder="$t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label="$t('people.position')"
-                            :tooltip="$t('people.position_help')"
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
-                            :validate-status="form.errors.position_id ? 'error' : ''"
-                            :help="form.errors.position_id"
-                        >
-                            <Select
-                                v-model:value="form.position_id"
-                                size="large"
-                                show-search
-                                :options="positionOptions"
-                                :filter-option="filterOption"
-                                :placeholder="$t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                </Row>
+                <FormItem
+                    :label="$t('people.company')"
+                    :tooltip="$t('people.company_help')"
+                    required
+                    :validate-status="form.errors.company_id ? 'error' : ''"
+                    :help="form.errors.company_id"
+                >
+                    <Select
+                        v-model:value="form.company_id"
+                        size="large"
+                        show-search
+                        :options="companyOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.position')"
+                    :tooltip="$t('people.position_help')"
+                    required
+                    :validate-status="form.errors.position_id ? 'error' : ''"
+                    :help="form.errors.position_id"
+                >
+                    <Select
+                        v-model:value="form.position_id"
+                        size="large"
+                        show-search
+                        :options="positionOptions"
+                        :filter-option="filterOption"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
 
                 <!-- Qué firma en obra. No estaba en ninguna pantalla: sin rol
                      de supervisor la persona no aparece nunca en el selector de
