@@ -216,6 +216,25 @@ const pendientes = computed(() => {
 
     return lista;
 });
+
+/**
+ * Del aviso del flujo a la tarjeta que lo desbloquea.
+ *
+ * Las dos están en el mismo tablero pero en columnas distintas, y en una tablet
+ * la de aprobaciones cae debajo del todo: el aviso decía qué hacer y lo que
+ * había que hacer no se veía en pantalla. Se baja hasta la tarjeta y se le da un
+ * destello, que es lo que hace que el ojo la encuentre sin buscarla.
+ */
+const tarjetaRepresentante = ref(null);
+
+const irAlRepresentante = () => {
+    const nodo = tarjetaRepresentante.value;
+    if (!nodo) return;
+
+    nodo.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    nodo.classList.add('wp-flash');
+    setTimeout(() => nodo.classList.remove('wp-flash'), 1600);
+};
 </script>
 
 <template>
@@ -511,11 +530,13 @@ const pendientes = computed(() => {
                             :can-sign="fieldWork.canSign"
                         />
 
-                        <WorkPlanRepresentativeCard
-                            :plan-slug="workPlan.slug"
-                            :representative="representative"
-                            :can-edit="canSetup"
-                        />
+                        <div ref="tarjetaRepresentante">
+                            <WorkPlanRepresentativeCard
+                                :plan-slug="workPlan.slug"
+                                :representative="representative"
+                                :can-edit="canSetup"
+                            />
+                        </div>
                     </div>
 
                     <WorkPlanFormsCard
@@ -537,6 +558,7 @@ const pendientes = computed(() => {
                         :representative="representative"
                         :can-edit="canSetup"
                         :can-sign="fieldWork.canSign"
+                        @ir-al-representante="irAlRepresentante"
                     />
                 </div>
             </template>
@@ -624,6 +646,22 @@ const pendientes = computed(() => {
    hueco entre ellas es el mismo de la rejilla: si se pusiera con el margen de
    la tarjeta, esta columna quedaría separada distinto que las otras dos. */
 .wp-board__col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+/* El destello con el que la tarjeta del representante dice «aquí estoy» cuando
+   se llega a ella desde el aviso del flujo. Dos latidos y se apaga: un
+   resaltado permanente se convierte en parte del fondo en diez segundos. */
+.wp-flash :deep(.info-card) { animation: wp-flash 0.8s ease-in-out 2; }
+
+@keyframes wp-flash {
+    0%, 100% { box-shadow: 0 0 0 0 transparent; }
+    50%      { box-shadow: 0 0 0 4px var(--state-warn-border, rgba(245, 158, 11, 0.24)); }
+}
+
+/* Quien haya pedido menos movimiento en su sistema no recibe el latido; el
+   scroll hasta la tarjeta sigue llevándole igual. */
+@media (prefers-reduced-motion: reduce) {
+    .wp-flash :deep(.info-card) { animation: none; outline: 2px solid var(--state-warn-border, rgba(245, 158, 11, 0.24)); }
+}
 
 /* En una tablet apaisada tres columnas dejan las listas en un canal
    demasiado estrecho: dos, y el flujo de firmas debajo a todo el ancho. */

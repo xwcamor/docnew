@@ -2,9 +2,9 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
-    Card, Tag, Button, Select, SelectOption, Tooltip,
+    Alert, Card, Tag, Button, Select, SelectOption, Tooltip,
 } from 'ant-design-vue';
-import { SafetyCertificateOutlined, EditOutlined } from '@ant-design/icons-vue';
+import { SafetyCertificateOutlined, EditOutlined, SolutionOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
@@ -41,6 +41,10 @@ const props = defineProps({
      */
     representative: { type: Object, default: () => ({ person: null }) },
 });
+
+// Lo que desbloquea el flujo no vive en esta tarjeta, así que el botón del
+// aviso no puede resolverlo solo: lo pide, y la ficha lleva hasta allí.
+defineEmits(['ir-al-representante']);
 
 const { t } = useI18n();
 
@@ -103,23 +107,30 @@ const cuando = (v) => {
  */
 const faltaRepresentante = computed(() => !props.representative?.person);
 
-const bloqueo = (a) => {
-    if (a.signed) return null;
-
-    return faltaRepresentante.value ? t('field_work.approval_needs_representative') : null;
-};
+/**
+ * Si esta fila esta bloqueada. Devuelve un booleano y NO el motivo.
+ *
+ * El motivo se decia entero debajo de cada fila, en gris de doce puntos: en un
+ * flujo de dos pasos era el mismo parrafo dos veces, y en uno de cuatro son
+ * cuatro. Lo que se repite deja de leerse. Ahora el motivo se dice UNA vez,
+ * arriba de la tarjeta y con color, junto al boton que lo arregla.
+ */
+const bloqueada = (a) => ! a.signed && faltaRepresentante.value;
 
 /** El estado del paso, con el mismo vocabulario que las otras dos columnas. */
 const estado = (a) => {
     if (a.signed) return 'done';
-    if (bloqueo(a)) return 'blocked';
+    if (bloqueada(a)) return 'blocked';
 
     return a.required ? 'pending' : 'optional';
 };
 
 const etiqueta = (a) => {
     if (a.signed) return t('work_plans.approval_approved');
-    if (bloqueo(a)) return t('work_plans.approval_pending');
+    // «En espera», no «Pendiente»: pendiente es la que se puede firmar y nadie
+    // ha firmado todavia. Con la misma palabra para las dos, la lista no decia
+    // cual de los dos pasos tocaba.
+    if (bloqueada(a)) return t('work_plans.approval_blocked');
 
     return a.required ? t('work_plans.approval_required') : t('work_plans.approval_optional');
 };
@@ -220,14 +231,41 @@ const firmar = (a) => router.get(
             <SafetyCertificateOutlined /> {{ $t('work_plans.approvals_title') }}
         </template>
         <template v-if="approvals.length" #extra>
-            <Tag :color="faltaObligatoria ? 'warning' : 'success'" :bordered="false">
-                {{ $tc('work_plans.approvals_summary', firmadas, { done: firmadas, total: approvals.length }) }}
+            <Tag
+                :color="faltaRepresentante ? 'warning' : (faltaObligatoria ? 'warning' : 'success')"
+                :bordered="false"
+            >
+                {{ faltaRepresentante
+                    ? $t('work_plans.approvals_blocked_tag')
+                    : $tc('work_plans.approvals_summary', firmadas, { done: firmadas, total: approvals.length }) }}
             </Tag>
         </template>
 
         <p v-if="!approvals.length" class="ff-empty">{{ $t('work_plans.approvals_empty') }}</p>
 
-        <ol v-else class="wp-rows">
+        <!-- El motivo, UNA vez y con color.
+             Estaba repetido bajo cada fila en gris de doce puntos, que es la
+             manera mas segura de que no se lea: lo mismo dos veces deja de ser
+             informacion. Y lo que hay que hacer estaba tres tarjetas mas arriba
+             sin nada que lo señalara, asi que aqui va tambien el boton que
+             lleva alli. -->
+        <Alert
+            v-if="approvals.length && faltaRepresentante"
+            type="warning"
+            show-icon
+            class="wp-block"
+            :message="$t('work_plans.approvals_blocked_title')"
+            :description="$t('work_plans.approvals_blocked_body')"
+        >
+            <template #icon><SolutionOutlined /></template>
+            <template #action>
+                <Button size="small" type="primary" @click="$emit('ir-al-representante')">
+                    {{ $t('work_plans.approvals_blocked_cta') }}
+                </Button>
+            </template>
+        </Alert>
+
+        <ol v-if="approvals.length" class="wp-rows">
             <WorkPlanBoardRow
                 v-for="a in approvals"
                 :key="a.slug"
@@ -237,10 +275,15 @@ const firmar = (a) => router.get(
                 :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
                 :when="a.signed ? a.signed_at : null"
                 :label="etiqueta(a)"
-                :reason="bloqueo(a) || ''"
             >
                 <template #actions>
-                    <template v-if="!a.signed">
+                    <!-- Mientras el flujo esta bloqueado no sale ningun boton.
+                         «Asignar firmante» abria un buscador para elegir a
+                         alguien que despues no iba a poder firmar, y «Firmar»
+                         salia apagado: un boton que solo puede fallar es peor
+                         que un boton que no esta (docs/UI.md §6). Lo que hay
+                         que hacer lo dice el aviso de arriba, con su boton. -->
+                    <template v-if="!a.signed && !bloqueada(a)">
                         <Tooltip
                             v-if="canEdit"
                             :title="a.person
@@ -260,9 +303,9 @@ const firmar = (a) => router.get(
                              había que pulsar y por eso dejó de ser una fila. -->
                         <Tooltip
                             v-if="canSign && a.person"
-                            :title="bloqueo(a) || $t('work_plans.crew_sign_hint', { name: a.person.name })"
+                            :title="$t('work_plans.crew_sign_hint', { name: a.person.name })"
                         >
-                            <Button size="small" type="primary" :disabled="!!bloqueo(a)" @click="firmar(a)">
+                            <Button size="small" type="primary" @click="firmar(a)">
                                 {{ $t('work_plans.approval_sign') }}
                             </Button>
                         </Tooltip>
@@ -272,7 +315,7 @@ const firmar = (a) => router.get(
                 <!-- Asignar quién firma. En su propia línea porque el selector
                      necesita el ancho entero: metido entre los botones aplastaba
                      el título hasta partirlo letra a letra. -->
-                <template v-if="canEdit && !a.signed && abierta === a.slug" #wide>
+                <template v-if="canEdit && !a.signed && !bloqueada(a) && abierta === a.slug" #wide>
                     <div class="wp-assign">
                         <!-- Supervisor y HSE: buscador por documento, que es lo
                              único que se asigna desde aquí. -->
@@ -303,5 +346,6 @@ const firmar = (a) => router.get(
 /* La escalera la dibuja WorkPlanBoardRow con `chained`: es la misma fila que
    usan las otras dos columnas del tablero, para que no vuelvan a divergir. */
 .wp-rows { list-style: none; margin: 0; padding: 0; }
+.wp-block { margin-bottom: 14px; }
 .wp-assign { width: 100%; }
 </style>

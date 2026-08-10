@@ -242,6 +242,9 @@ return [
     'approval_optional'  => 'Opcional',
     'approval_approved'  => 'Aprobado',
     'approval_pending'   => 'Pendiente',
+    // «Bloqueada» decia «Pendiente», la misma palabra que una que si se puede
+    // firmar. Dos estados distintos con el mismo nombre no son un estado.
+    'approval_blocked'   => 'En espera',
     'approval_added'     => 'Aprobador añadido al plan.',
     'approval_role_taken'=> 'Este plan ya tiene una aprobación de :role.',
     'approval_rules_empty' => 'No quedan roles de aprobación libres para este plan.',
@@ -269,13 +272,29 @@ return [
     //
     // Se dice «trabajadores», no la palabra que me inventé yo (docs/UI.md §2).
     'representative'        => 'Representante de los trabajadores',
-    'representative_help'   => 'Es quien responde por los trabajadores de este plan. Sale de los que ya firmaron y puede ser cualquiera del equipo: no hace falta que sea jefe ni que tenga un cargo especial.',
-    'representative_none'   => 'Todavía no hay nadie. Elige quién responde por los que salen a la obra.',
+    // Se dice DENTRO del aviso de que falta, y solo cuando ya se puede elegir:
+    // suelto encima de la tarjeta era un parrafo gris que nadie leia, y delante
+    // de una lista donde todavia no ha firmado nadie, «sale de los que ya
+    // firmaron» confunde en vez de ayudar.
+    'representative_help'   => 'Sale de los que ya firmaron y puede ser cualquiera del equipo: no hace falta que sea jefe ni que tenga un cargo especial.',
+    'representative_none'   => 'Falta designar al representante',
+    'representative_none_why' => 'Nadie autoriza el trabajo hasta que alguien responda por el equipo que va a hacerlo. Es lo único que falta para que el flujo de aprobaciones se pueda firmar.',
+    'representative_pending'  => 'Falta',
+    // «Designado», no «Aprobado»: aqui nadie aprueba nada. Se elige a quien
+    // responde, y la firma que vale es la que ya dio como trabajador.
+    'representative_done'     => 'Designado',
     'representative_designate' => 'Designar',
     'representative_change' => 'Cambiar',
     // No es lo mismo que falte designarlo que que no haya a quien: con el
     // equipo entero sin firmar no hay candidatos, y por eso no sale el botón.
-    'representative_needs_signature' => 'Todavía no ha firmado nadie. El representante sale de los que ya firmaron: en cuanto haya una firma se puede designar.',
+    'representative_needs_signature' => 'Todavía no ha firmado nadie',
+    'representative_needs_signature_why' => 'El representante sale de los trabajadores que ya firmaron: en cuanto haya una firma se podrá designar.',
+    // El aviso que encabeza el flujo cuando esta bloqueado, y el boton que
+    // lleva a lo unico que hay que hacer para desbloquearlo.
+    'approvals_blocked_title' => 'Falta designar al representante de los trabajadores',
+    'approvals_blocked_body'  => 'Nadie autoriza el trabajo hasta que alguien responda por el equipo que lo va a hacer. Hasta entonces no se asignan firmantes ni se firma.',
+    'approvals_blocked_cta'   => 'Ir a designarlo',
+    'approvals_blocked_tag'   => 'En espera',
     'representative_no_results' => 'Nadie con ese documento entre los que ya firmaron. El representante sale de los trabajadores de este plan que ya han firmado.',
     'representative_assigned' => ':name queda como representante de los trabajadores.',
     'representative_not_in_crew' => ':name no está en este plan. El representante tiene que ser uno de los trabajadores que salen a la obra.',

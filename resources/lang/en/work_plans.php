@@ -234,6 +234,9 @@ return [
     'approval_optional'  => 'Optional',
     'approval_approved'  => 'Approved',
     'approval_pending'   => 'Pending',
+    // "Blocked" used to read "Pending", the same word as one you can actually
+    // sign. Two different states under one name are not a state.
+    'approval_blocked'   => 'Waiting',
     'approval_added'     => 'Approver added to the plan.',
     'approval_role_taken'=> 'This plan already has a :role approval.',
     'approval_rules_empty' => 'No approval roles left for this plan.',
@@ -258,13 +261,30 @@ return [
     // the flow it could be deleted or made optional from the country's rules,
     // leaving a plan with people on site and nobody answering for them.
     'representative'        => 'Workers’ representative',
-    'representative_help'   => 'The person who answers for the workers on this plan. They are picked among those who already signed, and it can be anyone on the team: they do not have to be a boss or hold any particular position.',
-    'representative_none'   => 'Nobody yet. Pick who answers for the people going out on site.',
+    // Said INSIDE the missing-representative warning, and only once there is
+    // somebody to pick: loose above the card it was a grey paragraph nobody
+    // read, and before anyone has signed "picked among those who signed"
+    // confuses rather than helps.
+    'representative_help'   => 'They are picked among those who already signed and it can be anyone on the team: they do not have to be a boss or hold a special position.',
+    'representative_none'   => 'The representative still has to be designated',
+    'representative_none_why' => 'Nobody authorises the work until somebody answers for the team doing it. It is the only thing left before the approval flow can be signed.',
+    'representative_pending'  => 'Missing',
+    // "Designated", not "Approved": nobody approves anything here. Someone is
+    // picked to answer, and the signature that counts is the one they already
+    // gave as a worker.
+    'representative_done'     => 'Designated',
     'representative_designate' => 'Designate',
     'representative_change' => 'Change',
     // Needing to designate somebody is not the same as having nobody to pick:
     // with the whole team unsigned there are no candidates, hence no button.
-    'representative_needs_signature' => 'Nobody has signed yet. The representative is picked among those who already signed: as soon as there is one signature you can designate them.',
+    'representative_needs_signature' => 'Nobody has signed yet',
+    'representative_needs_signature_why' => 'The representative is picked among the workers who already signed: as soon as there is one signature you can designate them.',
+    // The banner heading the flow while it is blocked, and the button that
+    // leads to the one thing that unblocks it.
+    'approvals_blocked_title' => 'The workers’ representative still has to be designated',
+    'approvals_blocked_body'  => 'Nobody authorises the work until somebody answers for the team doing it. Until then no signer is assigned and nothing is signed.',
+    'approvals_blocked_cta'   => 'Go and designate them',
+    'approvals_blocked_tag'   => 'Waiting',
     'representative_no_results' => 'Nobody with that document among those who already signed. The representative comes from the workers on this plan who have already signed.',
     'representative_assigned' => ':name is now the workers’ representative.',
     'representative_not_in_crew' => ':name is not on this plan. The representative has to be one of the workers going out on site.',

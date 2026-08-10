@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
-    Card, Button, Select, SelectOption, Tooltip,
+    Alert, Card, Tag, Button, Select, SelectOption, Tooltip,
 } from 'ant-design-vue';
 import { SolutionOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
@@ -49,6 +49,16 @@ const props = defineProps({
 const { t } = useI18n();
 
 const persona = computed(() => props.representative?.person ?? null);
+
+/**
+ * Falta, y se nota.
+ *
+ * Es lo unico que bloquea el flujo de aprobaciones entero, y la tarjeta lo
+ * contaba con un parrafo gris dentro de una caja gris: al lado de las otras
+ * dos columnas, que llevan sus pastillas de color, esta parecia informativa.
+ * Con la pantalla llena de tarjetas, lo que no tiene color no existe.
+ */
+const falta = computed(() => ! persona.value);
 
 // Armar el plan exige permiso Y plan abierto, igual que en las otras tarjetas:
 // lo decide el servidor en `setup.can` y aquí sólo se obedece. Y además tiene
@@ -138,10 +148,22 @@ const designar = (personSlug) => {
     <Card :bodyStyle="{ padding: 18 }" class="info-card">
         <template #title><SolutionOutlined /> {{ $t('work_plans.representative') }}</template>
 
-        <!-- Quién puede serlo, antes de que nadie vaya a buscar al jefe: sale de
-             los que ya firmaron y vale cualquiera del equipo. -->
-        <p class="wp-rep__help">{{ $t('work_plans.representative_help') }}</p>
+        <!-- La misma pastilla que llevan las otras dos columnas del tablero, y
+             por el mismo motivo: el estado se ve sin leer (docs/UI.md §5). -->
+        <template #extra>
+            <Tag :color="falta ? 'warning' : 'success'" :bordered="false">
+                {{ falta ? $t('work_plans.representative_pending') : $t('work_plans.representative_done') }}
+            </Tag>
+        </template>
 
+        <!-- Quién puede serlo, antes de que nadie vaya a buscar al jefe: sale
+             de los que ya firmaron y vale cualquiera del equipo.
+
+             Sólo cuando toca elegir. Con alguien ya designado no hay nada que
+             decidir y sobra; y sin ninguna firma todavía, decir «sale de los que
+             ya firmaron» delante de una lista donde nadie ha firmado confunde en
+             vez de ayudar — para ese caso está el aviso de abajo, que dice qué
+             falta primero. -->
         <ul v-if="persona" class="wp-rows">
             <WorkPlanBoardRow
                 :key="persona.slug"
@@ -161,20 +183,45 @@ const designar = (personSlug) => {
         </ul>
 
         <template v-else>
-            <!-- Dos maneras de no tenerlo, y no son la misma: o falta
-                 designarlo, o todavía no hay a quien. La segunda no lleva
-                 botón — pulsarlo sólo podría acabar en un error. -->
-            <p v-if="representative.can_designate" class="ff-empty">
-                {{ $t('work_plans.representative_none') }}
-            </p>
-            <p v-else class="ff-empty">
-                {{ $t('work_plans.representative_needs_signature') }}
-            </p>
+            <!-- Dos maneras de no tenerlo, y no son la misma, así que tampoco se
+                 pintan igual.
 
-            <Button v-if="puedeDesignar" type="primary" :loading="guardando" @click="abrir">
-                <template #icon><EditOutlined /></template>
-                {{ $t('work_plans.representative_designate') }}
-            </Button>
+                 Falta designarlo → es lo que bloquea el flujo y va en ámbar, con
+                 el botón dentro del propio aviso: lo que hay que hacer y el sitio
+                 donde se hace, juntos.
+
+                 Nadie ha firmado todavía → no es culpa de nadie ni hay nada que
+                 pulsar, es que el paso anterior va antes. En azul informativo y
+                 sin botón: uno que sólo puede fallar es peor que ninguno
+                 (docs/UI.md §6). -->
+            <Alert
+                v-if="representative.can_designate"
+                type="warning"
+                show-icon
+                :message="$t('work_plans.representative_none')"
+                :description="`${$t('work_plans.representative_none_why')} ${$t('work_plans.representative_help')}`"
+            >
+                <template #action>
+                    <Button
+                        v-if="puedeDesignar"
+                        type="primary"
+                        size="small"
+                        :loading="guardando"
+                        @click="abrir"
+                    >
+                        <template #icon><EditOutlined /></template>
+                        {{ $t('work_plans.representative_designate') }}
+                    </Button>
+                </template>
+            </Alert>
+
+            <Alert
+                v-else
+                type="info"
+                show-icon
+                :message="$t('work_plans.representative_needs_signature')"
+                :description="$t('work_plans.representative_needs_signature_why')"
+            />
         </template>
 
         <!-- El buscador va en su propia línea y a todo el ancho: metido entre
