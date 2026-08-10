@@ -151,9 +151,17 @@ class FormSubmissionService
         $faltantes = $this->faltantes($entrega);
 
         if ($faltantes !== []) {
-            throw new \InvalidArgumentException(
-                'Faltan campos obligatorios: ' . implode(', ', $faltantes)
-            );
+            // `DomainException` y no `InvalidArgumentException`: esto no es un
+            // fallo de programacion, es el sistema diciendo que todavia no. La
+            // diferencia se nota en pantalla — lo primero vuelve como un aviso
+            // (ver `bootstrap/app.php`), lo segundo como un error 500 con la
+            // traza de PHP delante de alguien que esta en la obra.
+            //
+            // Y el texto sale de `resources/lang`, en los dos idiomas, no
+            // escrito en castellano aqui dentro.
+            throw new \DomainException(__('field_work.missing_required', [
+                'fields' => implode(', ', $faltantes),
+            ]));
         }
 
         $entrega->update([

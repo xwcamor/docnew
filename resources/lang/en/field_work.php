@@ -51,6 +51,7 @@ return [
     // warning is read by whoever is filling the form in on site. The
     // attachment is not a field and has no label, so its wording lives here.
     'missing_attachment' => 'the form file',
+    'missing_required' => 'Still to fill in: :fields. Fill it in and hit Confirm again.',
     'readonly_notice' => 'This form is already confirmed: it can be viewed, but not changed.',
     'document'        => 'Document',
     'attach'          => 'Attach',

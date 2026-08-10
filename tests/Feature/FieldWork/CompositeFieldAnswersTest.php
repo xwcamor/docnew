@@ -17,6 +17,9 @@ use App\Services\FieldWork\FormTemplateBuilder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /**
@@ -123,7 +126,10 @@ class CompositeFieldAnswersTest extends TestCase
         // lista sale en un aviso delante de quien rellena el formato en obra.
         $this->assertContains('Matriz de riesgo', $servicio->faltantes($entrega));
 
-        $this->expectException(\InvalidArgumentException::class);
+        // `DomainException` y no `InvalidArgumentException`: no es un fallo de
+        // programacion, es el sistema diciendo que todavia no. La diferencia se
+        // ve en pantalla — ver las pruebas del final.
+        $this->expectException(\DomainException::class);
         $servicio->confirmar($entrega);
     }
 
@@ -418,5 +424,78 @@ class CompositeFieldAnswersTest extends TestCase
             ->where('form_field_id', $campo->id)
             ->orderBy('row_index')
             ->get();
+    }
+
+    // ── Que confirmar sin lo obligatorio no reviente ─────────────────────────
+    //
+    // Lo que llego reportado: una pantalla de error 500 con la traza de PHP,
+    // delante de alguien de pie en la obra con guantes y una tablet. El texto
+    // era el correcto —«Faltan campos obligatorios: Matriz de riesgo»— pero
+    // servido como si el programa se hubiera roto. No se habia roto: era el
+    // sistema diciendo que todavia no, que es una cosa normal.
+
+    /** Quien llena el formato en obra: solo necesita poder editarlo. */
+    private function usuarioDeObra(): User
+    {
+        app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+        $permiso = Permission::firstOrCreate(['name' => 'form_submissions.edit', 'guard_name' => 'web']);
+        $rol = Role::firstOrCreate(['name' => 'obra', 'guard_name' => 'web'], ['description' => 'Llena formatos']);
+        $rol->syncPermissions([$permiso]);
+
+        $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $u->assignRole($rol);
+
+        return $u;
+    }
+
+    /** El servicio dice «todavia no», no «me he roto». */
+    public function test_confirmar_sin_lo_obligatorio_es_una_regla_y_no_una_averia(): void
+    {
+        [$entrega] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
+
+        try {
+            $servicio->confirmar($entrega);
+            $this->fail('Confirmar sin la matriz de riesgo tenía que negarse.');
+        } catch (\DomainException $e) {
+            // El mensaje nombra el campo por su etiqueta y sale de
+            // `resources/lang`, no de una cadena castellana dentro del servicio.
+            $this->assertStringContainsString('Matriz de riesgo', $e->getMessage());
+        }
+
+        $this->assertSame('draft', $entrega->fresh()->status);
+    }
+
+    /**
+     * Y por la puerta de verdad —la peticion HTTP— vuelve como aviso, no como
+     * un 500. Es lo unico que vio quien lo reporto.
+     */
+    public function test_por_http_vuelve_como_aviso_y_no_como_error(): void
+    {
+        [$entrega] = $this->entregaAst();
+
+        $this->actingAs($this->usuarioDeObra())
+            ->from(route('field_work.forms.open', [$entrega->workPlan->slug, $entrega->formTemplate->slug]))
+            ->post(route('field_work.forms.confirm', $entrega->slug))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertSame('draft', $entrega->fresh()->status);
+    }
+
+    /** Con lo obligatorio puesto, cierra. */
+    public function test_con_todo_lleno_si_cierra(): void
+    {
+        [$entrega] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
+
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
+        ]);
+
+        $servicio->confirmar($entrega);
+
+        $this->assertSame('confirmed', FormSubmission::find($entrega->id)->status);
     }
 }

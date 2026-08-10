@@ -125,6 +125,24 @@ return Application::configure(basePath: dirname(__DIR__))
                     ->with('error', 'La página que busca no existe.');
             }
 
+            // Una regla de negocio no es una averia: se cuenta, no se estrella.
+            //
+            // Los servicios lanzan `DomainException` cuando el sistema NO deja
+            // hacer algo —«este formato ya se llenó», «esa persona todavía no ha
+            // firmado»— siempre con un mensaje ya traducido y escrito para
+            // leerse. La mayoría de los controladores la cazaban uno a uno, pero
+            // los de obra no, y ahí la consecuencia es la peor de todas: alguien
+            // de pie en la obra, con guantes y una tablet, dándole a «Confirmar»
+            // y recibiendo una página de error con la traza de PHP dentro.
+            //
+            // Un solo sitio, y cubre también lo que venga después. Ojo con la
+            // tentación de meter aquí `InvalidArgumentException`: esa se usa
+            // para errores de programación —«Tipo de campo desconocido»— y
+            // taparlos con un aviso amable es dejar de enterarse de ellos.
+            if ($e instanceof \DomainException) {
+                return back()->with('error', $e->getMessage());
+            }
+
             return null;  // any other exception falls through to default handler
         });
     })->create();

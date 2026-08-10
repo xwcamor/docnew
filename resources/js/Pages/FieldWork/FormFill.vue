@@ -85,7 +85,8 @@ const guardando = ref(false);
  */
 const etiqueta = (campo) => campo.label || humanizar(campo.code);
 
-function guardar() {
+/** Lo tecleado, en el formato que espera el servidor. */
+function respuestasDeLaPantalla() {
     const respuestas = [];
 
     campos.forEach((campo) => {
@@ -114,12 +115,23 @@ function guardar() {
         respuestas.push({ code: campo.code, value: valor });
     });
 
-    if (! respuestas.length) return;
+    return respuestas;
+}
+
+function guardar(alTerminar = null) {
+    // Enganchado como `@click="guardar"` llegaria aqui el evento del raton en
+    // vez de una funcion. Se comprueba en vez de confiar: cuesta una linea y el
+    // fallo seria que «Guardar» deja de guardar sin decir nada.
+    const seguir = typeof alTerminar === 'function' ? alTerminar : null;
+    const respuestas = respuestasDeLaPantalla();
+
+    if (! respuestas.length) { seguir?.(); return; }
 
     guardando.value = true;
 
     router.post(route('field_work.forms.answer', props.submission.slug), { answers: respuestas }, {
         preserveScroll: true,
+        onSuccess: () => seguir?.(),
         onFinish: () => { guardando.value = false; },
     });
 }
@@ -133,8 +145,21 @@ function subir() {
     router.post(route('field_work.forms.attach', props.submission.slug), datos, { preserveScroll: true });
 }
 
+/**
+ * Confirmar guarda primero lo que hay en pantalla, y despues cierra.
+ *
+ * No lo hacia, y ese era el fallo: se rellenaba la matriz de riesgo, se pulsaba
+ * «Confirmar» sin pasar por «Guardar», y el servidor —que mira la base de datos,
+ * no la pantalla— contestaba que faltaba la matriz de riesgo. Con el campo
+ * relleno delante. Y ademas reventaba con un error 500.
+ *
+ * Guardar antes de cerrar es lo unico que tiene sentido en una tablet: en obra
+ * se rellena y se cierra, y nadie tiene por que saber que son dos pasos.
+ */
 function confirmar() {
-    router.post(route('field_work.forms.confirm', props.submission.slug), {}, { preserveScroll: true });
+    guardar(() => router.post(
+        route('field_work.forms.confirm', props.submission.slug), {}, { preserveScroll: true },
+    ));
 }
 </script>
 
@@ -197,7 +222,10 @@ function confirmar() {
         </a-card>
 
         <div v-if="!soloLectura" class="ff-actions">
-            <a-button size="large" :loading="guardando" @click="guardar">{{ $t('field_work.save') }}</a-button>
+            <!-- `guardar()` con paréntesis: sin ellos, Vue le pasa el evento
+                 del ratón como primer argumento, que aquí es la continuación
+                 que se llama al terminar — y un MouseEvent no se puede llamar. -->
+            <a-button size="large" :loading="guardando" @click="guardar()">{{ $t('field_work.save') }}</a-button>
             <a-button type="primary" size="large" @click="confirmar">{{ $t('field_work.confirm') }}</a-button>
         </div>
     </div>
