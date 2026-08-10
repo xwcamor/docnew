@@ -339,6 +339,38 @@ class UiStandardTest extends TestCase
             }
         }
 
+        // Y tampoco vale declararla en `app.css`, que es por donde se colo la
+        // de la pantalla de llenado: media 69 px donde el resto mide 57, no
+        // llegaba a los bordes y esta prueba no la veia porque solo miraba los
+        // `.vue`. Una barra que se pega abajo y NO es la compartida es otra
+        // barra, este donde este escrita.
+        //
+        // Los comentarios se quitan antes de trocear: el bloque que explica la
+        // barra compartida va justo delante de su regla y, si se deja, el
+        // troceo lo lee como parte del selector y la prueba se acusa a si misma.
+        $css = preg_replace('#/\*.*?\*/#s', '', file_get_contents(resource_path('css/app.css')));
+
+        foreach (preg_split('/(?<=\})\s*/', $css) as $regla) {
+            if (! preg_match('/position:\s*(sticky|fixed)[^}]*bottom:\s*0/s', $regla)) {
+                continue;
+            }
+
+            preg_match('/^\s*([^{]+)\{/s', $regla, $m);
+            $selector = trim($m[1] ?? '');
+
+            // La compartida, y los dos casos que no son el pie de una pagina:
+            // la barra de la aplicacion anclada abajo y el aviso de girar el
+            // movil, que tapa la pantalla entera.
+            if ($selector === '' || str_contains($selector, 'sap-actionbar')
+                || str_contains($selector, 'bulk-bar')
+                || str_contains($selector, 'app-bottomnav')
+                || str_contains($selector, 'rotate-overlay')) {
+                continue;
+            }
+
+            $reinventadas[] = "resources/css/app.css → {$selector}";
+        }
+
         $this->assertSame([], $reinventadas,
             "Barras de pie escritas a mano en vez de usar `.sap-actionbar` (ver docs/UI.md §8).\n"
             . "Cada una acaba con su propio alto y su propio ancho:\n  "

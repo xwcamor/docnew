@@ -1566,13 +1566,19 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 .ff-block .ant-input-number { width: 100%; }
 
 /* Barra de acciones: pegada al pie, con el pulgar a mano. */
+/* La barra de la pantalla de llenado es LA MISMA de siempre: aqui solo se
+   declaran las dos cosas que en obra son distintas.
+
+   Era una barra aparte —69 px de alto donde el resto mide 57, metida dentro de
+   la tarjeta y sin llegar a los bordes— porque se escribio por su cuenta. El
+   alto lo gobierna `--bar-control-h`, que existe justo para esto: un boton de
+   44 px sube la barra a 69 y sigue siendo la misma barra, no otra.
+
+   El hueco de abajo es el del borde inferior de la tablet: sin el, en un iPad
+   el ultimo boton queda debajo de la franja del gesto de inicio. */
 .ff-actions {
-    position: sticky; bottom: 0; z-index: 6;
-    display: flex; gap: 10px; justify-content: flex-end;
-    margin: 16px -14px -14px; padding: 12px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
-    background: var(--color-surface, #fff);
-    border-top: 1px solid var(--color-border-soft, #eceff2);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
+    --bar-control-h: 44px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
 }
 .ff-actions .ant-btn { min-height: 44px; padding-inline: 20px; font-weight: 600; }
 

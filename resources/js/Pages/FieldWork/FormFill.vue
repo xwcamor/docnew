@@ -240,13 +240,23 @@ function confirmar() {
                 <a-input v-else v-model:value="valores[c.id]" />
             </div>
         </a-card>
+    </div>
 
-        <div v-if="!soloLectura" class="ff-actions">
+    <!-- La barra va FUERA de la tarjeta, y es la misma que la de todas las
+         demás pantallas (`.sap-actionbar`, docs/UI.md §8).
+         Dentro de `.mi-console` se quedaba metida en una caja redondeada: medía
+         69 px donde el resto mide 57, empezaba a 25 px del borde y no llegaba a
+         los lados. Parecía un panel flotando en vez del pie de la pantalla.
+         Los 44 px de los botones sí se quedan —esto se pulsa con guantes, y para
+         eso el alto de la barra sale de `--bar-control-h` en vez de estar
+         clavado— igual que el hueco del borde inferior de la tablet. -->
+    <div v-if="!soloLectura" class="sap-actionbar ff-actions">
+        <div class="sap-actionbar__actions">
+            <a-button type="primary" size="large" @click="confirmar">{{ $t('field_work.confirm') }}</a-button>
             <!-- `guardar()` con paréntesis: sin ellos, Vue le pasa el evento
                  del ratón como primer argumento, que aquí es la continuación
                  que se llama al terminar — y un MouseEvent no se puede llamar. -->
             <a-button size="large" :loading="guardando" @click="guardar()">{{ $t('field_work.save') }}</a-button>
-            <a-button type="primary" size="large" @click="confirmar">{{ $t('field_work.confirm') }}</a-button>
         </div>
     </div>
 </template>
