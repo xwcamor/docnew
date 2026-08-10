@@ -51,6 +51,37 @@ export function respondidos(items = []) {
     return items.filter((i) => i?.answer !== null && i?.answer !== undefined && i?.answer !== '').length;
 }
 
+/**
+ * Estado de una fila de checklist, para el indice y para la cabecera plegada.
+ *
+ * El orden de las preguntas no es caprichoso: primero **cuanto falta**, que es
+ * el trabajo que queda, y solo cuando la fila esta entera se anuncia si salio
+ * no conforme. Al reves, un trabajador con una casilla en rojo y otras doce sin
+ * tocar saldria como «No conforme» y quien rellena leeria que ya termino.
+ *
+ * Devuelve la clave del tono —los `--state-*` de app.css— y cuantos faltan,
+ * para que el texto se escriba en el idioma de quien mira.
+ */
+export function estadoChecklist(items = []) {
+    const total = items.length;
+    const hechos = respondidos(items);
+
+    if (hechos === 0) return { clave: 'off', faltan: total, hechos, total };
+    if (hechos < total) return { clave: 'warn', faltan: total - hechos, hechos, total };
+    if (! filaConforme(items)) return { clave: 'bad', faltan: 0, hechos, total };
+
+    return { clave: 'ok', faltan: 0, hechos, total };
+}
+
+/** El estado en palabra, que es lo que acompaña al color (docs/UI.md §5). */
+export function textoEstado(t, estado) {
+    if (estado.clave === 'off')  return t('field_work.progress.not_started');
+    if (estado.clave === 'warn') return t('field_work.progress.missing', { n: estado.faltan });
+    if (estado.clave === 'bad')  return t('field_work.progress.nonconforming');
+
+    return t('field_work.progress.complete');
+}
+
 /** 'matriz_de_riesgo' → 'Matriz de riesgo'. El code ES la etiqueta del campo. */
 export function humanizar(code) {
     const texto = String(code ?? '').replace(/_/g, ' ').trim();

@@ -60,6 +60,7 @@
 | [x] | Enrolamiento desde la app | 3 muestras guiadas al ir a firmar sin cara registrada |
 | [ ] | Probar la cámara en una tablet real | **no verificable desde aquí** |
 | [x] | **Tipos de campo compuestos en pantalla** (matriz de riesgo, EPP por trabajador, IHM por herramienta, banco de preguntas) | probado: la pantalla emite exactamente lo que exige `validarValor()`, con una prueba por tipo |
+| [x] | **Los campos compuestos se pliegan y traen su índice** | comprobado en un Chromium real con un plan de 7 trabajadores: el EPP pasa de 12 413 px a 1 291 px a 1400 y de 17 974 px a 1 467 px a 768; el índice dice quién está completo con color **y** palabra, se salta a cualquiera de un toque y lo plegado se guarda igual |
 | [ ] | Editor de formatos desde la interfaz | el servicio existe (`FormTemplateBuilder`); falta la pantalla |
 | [x] | **PDF firmado de la entrega** | probado: membrete, versión congelada, adjuntos, bloque de firmas con foto de evidencia incrustada del disco privado, y las pendientes marcadas |
 | [x] | Módulos, roles y permisos de DOCUFIZ | **16 módulos, 117 permisos, 4 perfiles creados en base** |

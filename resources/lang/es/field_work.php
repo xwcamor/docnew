@@ -59,6 +59,35 @@ return [
     'confirm'         => 'Confirmar formato',
     'mark_all'        => 'Marcar todo',
 
+    // Avance de un campo compuesto: el índice de filas y las cabeceras
+    // plegadas del EPP, el IHM y la matriz de riesgo.
+    //
+    // El estado siempre es una PALABRA, nunca sólo un color (docs/UI.md §5), y
+    // «Faltan 3» dice lo mismo que la pastilla naranja pero además dice cuánto:
+    // con siete trabajadores y 25 items, saber que a alguien le faltan tres es
+    // la mitad del trabajo.
+    'progress' => [
+        'complete'      => 'Completo',
+        'not_started'   => 'Sin empezar',
+        'missing'       => 'Faltan :n',
+        'nonconforming' => 'No conforme',
+        'expand_all'    => 'Desplegar todo',
+        'collapse_all'  => 'Plegar todo',
+        'next'          => 'Siguiente: :name',
+        'checks'        => ':done de :total controles',
+        'people_done'   => ':done de :total trabajadores completos',
+        'tools_done'    => ':done de :total herramientas completas',
+        'hazards_rated' => ':done de :total peligros evaluados',
+        'by_level'      => 'Alto: :high · Medio: :mid · Bajo: :low',
+        // Nombre de respaldo de una fila que todavía no tiene el suyo: una
+        // herramienta recién añadida no se llama de ninguna manera.
+        'row'           => 'Fila :n',
+        'hazard'        => 'Peligro :n',
+        'index_people'  => 'Trabajadores del formato',
+        'index_tools'   => 'Herramientas del formato',
+        'index_hazards' => 'Peligros del formato',
+    ],
+
     'status' => [
         'pending'   => 'Sin empezar',
         'draft'     => 'En borrador',

@@ -6,10 +6,18 @@
  * nombre del item escrito en vertical para que cupieran: ilegible en una
  * tablet. Aqui es una tarjeta por trabajador del plan con sus items debajo.
  *
- * Las filas NO las elige el usuario: son los trabajadores de la cuadrilla del
- * plan, que es de donde salian en el sistema anterior (plan_workers).
+ * Las filas NO las elige el usuario: son los trabajadores del plan, que es de
+ * donde salian en el sistema anterior (plan_workers).
  *
- * FORMA DEL VALOR que emite (una respuesta por trabajador, con su `row`):
+ * Cada tarjeta esta **plegada**, y encima va el indice (`RowNavigator`) con el
+ * nombre y el estado de cada uno. Con siete trabajadores y 25 items la lista
+ * abierta median 12 400 px en el escritorio y casi 18 000 en la tablet en
+ * vertical; lo que se perdio al pasar de la cuadricula de papel a una tarjeta
+ * por persona fue justo la vista de conjunto, y el indice es lo que la
+ * devuelve. Ver `plegado.js` y `RowNavigator.vue`.
+ *
+ * FORMA DEL VALOR que emite (una respuesta por trabajador, con su `row`) — no
+ * cambia al plegar, porque el valor vive en la pagina y no en el DOM:
  *
  *   {
  *     person_slug, person_name, person_doc,
@@ -22,25 +30,35 @@
  */
 import { computed } from 'vue';
 import { Alert, Button } from 'ant-design-vue';
-import { CheckOutlined } from '@ant-design/icons-vue';
+import { ArrowRightOutlined, CheckOutlined, DownOutlined, RightOutlined } from '@ant-design/icons-vue';
 import AnswerToggle from './AnswerToggle.vue';
 import ExtraFields from './ExtraFields.vue';
-import { catalogo, filaConforme, respondidos, respuestaPositiva } from './respuestas';
+import RowNavigator from './RowNavigator.vue';
+import { usePlegado } from './plegado';
+import {
+    catalogo, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
+} from './respuestas';
+import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
     field:    { type: Object, required: true },
     value:    { type: Array, default: () => [] },
     readonly: { type: Boolean, default: false },
-    /** Cuadrilla del plan: una fila por trabajador. */
+    /** Trabajadores del plan: una fila por cada uno. */
     people:   { type: Array, default: () => [] },
 });
 
 const emit = defineEmits(['update:value']);
 
+const { t } = useI18n();
+
 const config = computed(() => props.field?.config ?? {});
 const items = computed(() => catalogo(config.value, 'items'));
 const respuestas = computed(() => catalogo(config.value, 'answers'));
 const extras = computed(() => catalogo(config.value, 'extra'));
+
+const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo } =
+    usePlegado(`epp-${props.field?.id ?? 'x'}`);
 
 function filaVacia(persona) {
     return {
@@ -53,9 +71,9 @@ function filaVacia(persona) {
 }
 
 /**
- * Las filas se recomponen contra la cuadrilla actual: si alguien entro al plan
- * despues de guardar, aparece con su fila vacia en vez de desaparecer. Se busca
- * por slug de persona y, si la entrega es vieja y no lo trae, por posicion.
+ * Las filas se recomponen contra los trabajadores actuales: si alguien entro al
+ * plan despues de guardar, aparece con su fila vacia en vez de desaparecer. Se
+ * busca por slug de persona y, si la entrega es vieja y no lo trae, por posicion.
  */
 const filas = computed(() => {
     const guardadas = Array.isArray(props.value) ? props.value : [];
@@ -96,7 +114,7 @@ function responder(indice, item, respuesta) {
     })));
 }
 
-/** Con doce items por trabajador, marcar todo y corregir la excepcion es lo rapido. */
+/** Con veinticinco items por trabajador, marcar todo y corregir la excepcion es lo rapido. */
 function marcarTodo(indice) {
     const positiva = respuestaPositiva(respuestas.value);
 
@@ -111,6 +129,48 @@ function cambiarExtra(indice, clave, valor) {
 }
 
 const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length}`;
+
+const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [])));
+
+/**
+ * El estado en palabra, precalculado.
+ *
+ * Se resuelve aqui y no en la plantilla porque `$t` es una propiedad global de
+ * Vue que lee `this.$page`: pasada como argumento a otra funcion pierde el
+ * `this` y revienta con «Cannot read properties of undefined». El `t` del
+ * composable no depende de nadie.
+ */
+const textos = computed(() => estados.value.map((e) => textoEstado(t, e)));
+
+/** Lo que lee el indice de arriba: nombre y estado en palabra. */
+const resumenFilas = computed(() => filas.value.map((fila, i) => ({
+    key: i,
+    label: fila.person_name || t('field_work.progress.row', { n: i + 1 }),
+    state: estados.value[i].clave,
+    stateText: textos.value[i],
+})));
+
+const hechos = computed(() => estados.value.reduce((n, e) => n + e.hechos, 0));
+const totales = computed(() => estados.value.reduce((n, e) => n + e.total, 0));
+const completas = computed(() => estados.value.filter((e) => e.total > 0 && e.faltan === 0).length);
+
+/**
+ * El siguiente al que le falta algo, dando la vuelta a la lista.
+ *
+ * La vuelta importa: se empieza por el tercero porque es el que estaba a mano,
+ * y al terminarlo lo que queda pendiente esta detras, no delante.
+ */
+function siguientePendiente(indice) {
+    const n = filas.value.length;
+
+    for (let salto = 1; salto < n; salto++) {
+        const j = (indice + salto) % n;
+
+        if (estados.value[j].faltan > 0) return j;
+    }
+
+    return null;
+}
 </script>
 
 <template>
@@ -122,8 +182,40 @@ const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length
             :message="$t('field_work.person_checklist.no_people')"
         />
 
-        <article v-for="(fila, i) in filas" :key="fila.person_slug ?? i" class="ff-row">
-            <header class="ff-row__head">
+        <!-- Con una sola fila el indice sobra: la cabecera ya lo dice todo. -->
+        <RowNavigator
+            v-if="filas.length > 1"
+            :rows="resumenFilas"
+            :active="todas ? null : abierta"
+            :summary="$t('field_work.progress.people_done', { done: completas, total: filas.length })"
+            :detail="$t('field_work.progress.checks', { done: hechos, total: totales })"
+            :ratio="totales ? hechos / totales : 0"
+            :all-open="todas"
+            :label="$t('field_work.progress.index_people')"
+            @select="abrir"
+            @toggle-all="alternarTodo"
+        />
+
+        <article
+            v-for="(fila, i) in filas"
+            :id="idFila(i)"
+            :key="fila.person_slug ?? i"
+            class="ff-row"
+            :class="{ 'is-open': estaAbierta(i) }"
+        >
+            <!-- La cabecera ENTERA es el boton de plegado: con guantes no se
+                 acierta a una flechita de 24 px, y aqui el objetivo de toque es
+                 toda la franja. Por eso «Marcar todo» y «Quitar» bajaron al pie
+                 de la tarjeta, donde no compiten con el. -->
+            <button
+                type="button"
+                class="ff-row__head ff-row__head--toggle"
+                :aria-expanded="estaAbierta(i)"
+                :aria-controls="`${idFila(i)}-cuerpo`"
+                @click="alternar(i)"
+            >
+                <component :is="estaAbierta(i) ? DownOutlined : RightOutlined" class="ff-row__chev" />
+
                 <span class="ff-row__num">{{ i + 1 }}</span>
 
                 <span class="ff-row__title">
@@ -131,32 +223,66 @@ const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length
                     <small v-if="fila.person_doc">{{ fila.person_doc }}</small>
                 </span>
 
-                <span class="ff-count" :class="{ 'is-done': respondidos(fila.items) === (fila.items ?? []).length }">
-                    {{ avance(fila) }}
-                </span>
+                <span class="ff-count" :class="{ 'is-done': estados[i].clave === 'ok' }">{{ avance(fila) }}</span>
 
-                <Button v-if="!readonly" size="large" class="ff-row__all" @click="marcarTodo(i)">
-                    <template #icon><CheckOutlined /></template>
-                    {{ $t('field_work.mark_all') }}
-                </Button>
-            </header>
+                <span class="ff-state" :class="`is-${estados[i].clave}`">{{ textos[i] }}</span>
+            </button>
 
-            <ul class="ff-items">
-                <li v-for="x in (fila.items ?? [])" :key="x.item" class="ff-item">
-                    <span class="ff-item__name">{{ x.item }}</span>
-                    <AnswerToggle
-                        :value="x.answer" :answers="respuestas" :readonly="readonly" :label="x.item"
-                        @update:value="responder(i, x.item, $event)" />
-                </li>
-            </ul>
+            <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
+                <ul class="ff-items">
+                    <li v-for="x in (fila.items ?? [])" :key="x.item" class="ff-item">
+                        <span class="ff-item__name">{{ x.item }}</span>
+                        <AnswerToggle
+                            :value="x.answer" :answers="respuestas" :readonly="readonly" :label="x.item"
+                            @update:value="responder(i, x.item, $event)" />
+                    </li>
+                </ul>
 
-            <!-- Los campos de correccion solo tienen sentido si algo salio mal. -->
-            <section v-if="extras.length && !fila.conforme" class="ff-correction">
-                <h4 class="ff-correction__title">{{ $t('field_work.correction_title') }}</h4>
-                <ExtraFields
-                    :keys="extras" :values="fila" :readonly="readonly"
-                    @change="(clave, valor) => cambiarExtra(i, clave, valor)" />
-            </section>
+                <!-- Los campos de correccion solo tienen sentido si algo salio mal. -->
+                <section v-if="extras.length && !fila.conforme" class="ff-correction">
+                    <h4 class="ff-correction__title">{{ $t('field_work.correction_title') }}</h4>
+                    <ExtraFields
+                        :keys="extras" :values="fila" :readonly="readonly"
+                        @change="(clave, valor) => cambiarExtra(i, clave, valor)" />
+                </section>
+
+                <!--
+                    El salto al siguiente es un boton, NO pasa solo.
+
+                    Que la tarjeta se cierre y salte al vecino en cuanto se marca
+                    el item 25 suena comodo y en obra es lo contrario: el ultimo
+                    toque es el que mas se falla —guantes, sol, la tablet en una
+                    mano— y si al fallarlo la pantalla se va, hay que volver a
+                    buscar al trabajador para corregir una casilla que se acaba
+                    de tocar. Ademas «Marcar todo» completa la fila de golpe: con
+                    salto automatico, un toque te dejaria dos trabajadores mas
+                    abajo sin haberlo pedido.
+
+                    Asi que el movimiento lo pide siempre la persona. Lo unico
+                    que hace la pantalla es ofrecerlo, y destacarlo cuando la
+                    fila ya esta entera.
+                -->
+                <footer v-if="!readonly" class="ff-row__foot">
+                    <Button size="large" class="ff-row__all" @click="marcarTodo(i)">
+                        <template #icon><CheckOutlined /></template>
+                        {{ $t('field_work.mark_all') }}
+                    </Button>
+
+                    <Button
+                        v-if="siguientePendiente(i) !== null"
+                        size="large"
+                        class="ff-row__next"
+                        :type="estados[i].faltan === 0 ? 'primary' : 'default'"
+                        @click="abrir(siguientePendiente(i))"
+                    >
+                        {{ $t('field_work.progress.next', { name: filas[siguientePendiente(i)].person_name }) }}
+                        <!-- La flecha va DESPUES del texto y por eso no usa el
+                             slot `#icon` de Ant, que la pinta siempre delante:
+                             «→ Siguiente: Ana» se lee como si volviera atras. -->
+                        <ArrowRightOutlined class="ff-row__next-icon" />
+                    </Button>
+                </footer>
+            </div>
         </article>
     </div>
 </template>

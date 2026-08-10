@@ -7,6 +7,11 @@
  * probabilidad → riesgo. En una tablet de 10" esa tabla obliga a scroll
  * horizontal, asi que aqui cada fila es una tarjeta.
  *
+ * Y plegable, con el mismo indice que el EPP y el IHM: un AST de verdad trae
+ * diez o quince peligros, cada uno con seis desplegables, y desplegados son
+ * otra columna infinita. Lo que se quiere ver de un vistazo es cuantos peligros
+ * quedan sin evaluar y cuantos salieron altos, no los desplegables.
+ *
  * FORMA DEL VALOR que emite (una respuesta por fila, con su `row`):
  *
  *   { actividad, peligro, riesgo, control, severidad, probabilidad,
@@ -26,9 +31,12 @@
  */
 import { computed } from 'vue';
 import { Button } from 'ant-design-vue';
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue';
+import { DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons-vue';
 import CatalogSelect from './CatalogSelect.vue';
+import RowNavigator from './RowNavigator.vue';
+import { usePlegado } from './plegado';
 import { catalogo } from './respuestas';
+import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
     field:    { type: Object, required: true },
@@ -37,6 +45,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:value']);
+
+const { t } = useI18n();
 
 const config = computed(() => props.field?.config ?? {});
 const actividades = computed(() => catalogo(config.value, 'activities'));
@@ -47,6 +57,9 @@ const severidades = computed(() => catalogo(config.value, 'severities', 'severid
 const probabilidades = computed(() => catalogo(config.value, 'probabilities', 'probabilidades'));
 
 const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
+
+const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo, cerrar } =
+    usePlegado(`riesgo-${props.field?.id ?? 'x'}`);
 
 /**
  * El riesgo sale de la tabla, no de una multiplicacion.
@@ -118,97 +131,166 @@ function cambiar(indice, clave, valor) {
     ));
 }
 
+/** El peligro recien añadido se abre solo: esta vacio y hay que llenarlo. */
 function agregar() {
     emit('update:value', [...filas.value, filaVacia()]);
+    abrir(filas.value.length);
 }
 
+/** Se pliega todo al borrar: la fila abierta se guarda por posicion y al
+ *  quitar la 2 de cuatro la que era 3 pasa a ser 2. Ver el IHM. */
 function quitar(indice) {
     emit('update:value', filas.value.filter((_, i) => i !== indice));
+    cerrar();
 }
+
+/**
+ * Aqui el estado de la fila NO es cuanto lleva rellenado sino que riesgo
+ * salio: eso es lo que se busca al abrir un AST, y es lo unico que decide algo.
+ * Una fila sin severidad y probabilidad esta sin evaluar, que es el hueco.
+ */
+const TONO_NIVEL = { alto: 'bad', medio: 'warn', bajo: 'ok' };
+
+const estados = computed(() => filas.value.map((fila) => (
+    fila?.nivel
+        ? { clave: TONO_NIVEL[fila.nivel] ?? 'off', texto: t(`field_work.risk_matrix.level_${fila.nivel}`) }
+        : { clave: 'off', texto: t('field_work.risk_matrix.no_risk') }
+)));
+
+/** Actividad → peligro, que es como se lee una fila del AST de papel. */
+function titulo(fila, i) {
+    const partes = [fila?.actividad, fila?.peligro].filter(Boolean);
+
+    return partes.length ? partes.join(' → ') : t('field_work.progress.hazard', { n: i + 1 });
+}
+
+const resumenFilas = computed(() => filas.value.map((fila, i) => ({
+    key: i,
+    label: titulo(fila, i),
+    state: estados.value[i].clave,
+    stateText: estados.value[i].texto,
+})));
+
+const evaluadas = computed(() => filas.value.filter((f) => f?.nivel).length);
+const porNivel = (nivel) => filas.value.filter((f) => f?.nivel === nivel).length;
 </script>
 
 <template>
     <div class="ff-field">
         <p v-if="!filas.length" class="ff-empty">{{ $t('field_work.risk_matrix.empty') }}</p>
 
-        <article v-for="(fila, i) in filas" :key="i" class="ff-row">
-            <header class="ff-row__head">
+        <RowNavigator
+            v-if="filas.length > 1"
+            :rows="resumenFilas"
+            :active="todas ? null : abierta"
+            :summary="$t('field_work.progress.hazards_rated', { done: evaluadas, total: filas.length })"
+            :detail="$t('field_work.progress.by_level', {
+                high: porNivel('alto'), mid: porNivel('medio'), low: porNivel('bajo'),
+            })"
+            :ratio="filas.length ? evaluadas / filas.length : 0"
+            :all-open="todas"
+            :label="$t('field_work.progress.index_hazards')"
+            @select="abrir"
+            @toggle-all="alternarTodo"
+        />
+
+        <article
+            v-for="(fila, i) in filas"
+            :id="idFila(i)"
+            :key="i"
+            class="ff-row"
+            :class="{ 'is-open': estaAbierta(i) }"
+        >
+            <button
+                type="button"
+                class="ff-row__head ff-row__head--toggle"
+                :aria-expanded="estaAbierta(i)"
+                :aria-controls="`${idFila(i)}-cuerpo`"
+                @click="alternar(i)"
+            >
+                <component :is="estaAbierta(i) ? DownOutlined : RightOutlined" class="ff-row__chev" />
+
                 <span class="ff-row__num">{{ i + 1 }}</span>
+
+                <span class="ff-row__title">{{ titulo(fila, i) }}</span>
 
                 <span v-if="fila.nivel" class="ff-risk" :class="`is-${fila.nivel}`">
                     {{ $t(`field_work.risk_matrix.level_${fila.nivel}`) }} · {{ fila.valor_riesgo }}
                 </span>
                 <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
+            </button>
 
-                <Button
-                    v-if="!readonly"
-                    class="ff-row__del"
-                    danger
-                    size="large"
-                    :title="$t('field_work.risk_matrix.remove_row')"
-                    :aria-label="$t('field_work.risk_matrix.remove_row')"
-                    @click="quitar(i)"
-                >
-                    <template #icon><DeleteOutlined /></template>
-                </Button>
-            </header>
+            <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
+                <div class="ff-row__body">
+                    <div class="ff-cell">
+                        <label class="ff-label">{{ $t('field_work.risk_matrix.activity') }}</label>
+                        <CatalogSelect
+                            :value="fila.actividad" :options="actividades" :readonly="readonly"
+                            :placeholder="$t('field_work.risk_matrix.search')"
+                            @update:value="cambiar(i, 'actividad', $event)" />
+                    </div>
 
-            <div class="ff-row__body">
-                <div class="ff-cell">
-                    <label class="ff-label">{{ $t('field_work.risk_matrix.activity') }}</label>
-                    <CatalogSelect
-                        :value="fila.actividad" :options="actividades" :readonly="readonly"
-                        :placeholder="$t('field_work.risk_matrix.search')"
-                        @update:value="cambiar(i, 'actividad', $event)" />
-                </div>
+                    <div class="ff-cell">
+                        <label class="ff-label">{{ $t('field_work.risk_matrix.danger') }}</label>
+                        <CatalogSelect
+                            :value="fila.peligro" :options="peligros" :readonly="readonly"
+                            :placeholder="$t('field_work.risk_matrix.search')"
+                            @update:value="cambiar(i, 'peligro', $event)" />
+                    </div>
 
-                <div class="ff-cell">
-                    <label class="ff-label">{{ $t('field_work.risk_matrix.danger') }}</label>
-                    <CatalogSelect
-                        :value="fila.peligro" :options="peligros" :readonly="readonly"
-                        :placeholder="$t('field_work.risk_matrix.search')"
-                        @update:value="cambiar(i, 'peligro', $event)" />
-                </div>
+                    <div class="ff-cell">
+                        <label class="ff-label">{{ $t('field_work.risk_matrix.risk') }}</label>
+                        <CatalogSelect
+                            :value="fila.riesgo" :options="riesgos" :readonly="readonly"
+                            :placeholder="$t('field_work.risk_matrix.search')"
+                            @update:value="cambiar(i, 'riesgo', $event)" />
+                    </div>
 
-                <div class="ff-cell">
-                    <label class="ff-label">{{ $t('field_work.risk_matrix.risk') }}</label>
-                    <CatalogSelect
-                        :value="fila.riesgo" :options="riesgos" :readonly="readonly"
-                        :placeholder="$t('field_work.risk_matrix.search')"
-                        @update:value="cambiar(i, 'riesgo', $event)" />
-                </div>
+                    <div class="ff-cell ff-cell--wide">
+                        <label class="ff-label">{{ $t('field_work.risk_matrix.control') }}</label>
+                        <CatalogSelect
+                            :value="fila.control" :options="controles" :readonly="readonly"
+                            :placeholder="$t('field_work.risk_matrix.search')"
+                            @update:value="cambiar(i, 'control', $event)" />
+                    </div>
 
-                <div class="ff-cell ff-cell--wide">
-                    <label class="ff-label">{{ $t('field_work.risk_matrix.control') }}</label>
-                    <CatalogSelect
-                        :value="fila.control" :options="controles" :readonly="readonly"
-                        :placeholder="$t('field_work.risk_matrix.search')"
-                        @update:value="cambiar(i, 'control', $event)" />
-                </div>
+                    <div class="ff-cell">
+                        <label class="ff-label">{{ $t('field_work.risk_matrix.severity') }}</label>
+                        <div class="ff-chips">
+                            <span v-if="readonly" class="ff-readonly">{{ fila.severidad || '—' }}</span>
+                            <button
+                                v-for="s in (readonly ? [] : severidades)" :key="s" type="button"
+                                class="ff-chip" :class="{ 'is-on': fila.severidad === s }"
+                                :aria-pressed="fila.severidad === s"
+                                @click="cambiar(i, 'severidad', s)">{{ s }}</button>
+                        </div>
+                    </div>
 
-                <div class="ff-cell">
-                    <label class="ff-label">{{ $t('field_work.risk_matrix.severity') }}</label>
-                    <div class="ff-chips">
-                        <span v-if="readonly" class="ff-readonly">{{ fila.severidad || '—' }}</span>
-                        <button
-                            v-for="s in (readonly ? [] : severidades)" :key="s" type="button"
-                            class="ff-chip" :class="{ 'is-on': fila.severidad === s }"
-                            :aria-pressed="fila.severidad === s"
-                            @click="cambiar(i, 'severidad', s)">{{ s }}</button>
+                    <div class="ff-cell">
+                        <label class="ff-label">{{ $t('field_work.risk_matrix.probability') }}</label>
+                        <div class="ff-chips">
+                            <span v-if="readonly" class="ff-readonly">{{ fila.probabilidad || '—' }}</span>
+                            <button
+                                v-for="p in (readonly ? [] : probabilidades)" :key="p" type="button"
+                                class="ff-chip" :class="{ 'is-on': fila.probabilidad === p }"
+                                :aria-pressed="fila.probabilidad === p"
+                                @click="cambiar(i, 'probabilidad', p)">{{ p }}</button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="ff-cell">
-                    <label class="ff-label">{{ $t('field_work.risk_matrix.probability') }}</label>
-                    <div class="ff-chips">
-                        <span v-if="readonly" class="ff-readonly">{{ fila.probabilidad || '—' }}</span>
-                        <button
-                            v-for="p in (readonly ? [] : probabilidades)" :key="p" type="button"
-                            class="ff-chip" :class="{ 'is-on': fila.probabilidad === p }"
-                            :aria-pressed="fila.probabilidad === p"
-                            @click="cambiar(i, 'probabilidad', p)">{{ p }}</button>
-                    </div>
-                </div>
+                <footer v-if="!readonly" class="ff-row__foot">
+                    <Button
+                        class="ff-row__del"
+                        danger
+                        size="large"
+                        :title="$t('field_work.risk_matrix.remove_row')"
+                        @click="quitar(i)"
+                    >
+                        <template #icon><DeleteOutlined /></template>
+                        {{ $t('field_work.risk_matrix.remove_row') }}
+                    </Button>
+                </footer>
             </div>
         </article>
 

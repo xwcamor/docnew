@@ -60,6 +60,28 @@ return [
     'confirm'         => 'Confirm form',
     'mark_all'        => 'Mark all',
 
+    // Avance de un campo compuesto: el índice de filas y las cabeceras
+    // plegadas del EPP, el IHM y la matriz de riesgo. Ver la nota en `es`.
+    'progress' => [
+        'complete'      => 'Complete',
+        'not_started'   => 'Not started',
+        'missing'       => ':n left',
+        'nonconforming' => 'Not compliant',
+        'expand_all'    => 'Expand all',
+        'collapse_all'  => 'Collapse all',
+        'next'          => 'Next: :name',
+        'checks'        => ':done of :total checks',
+        'people_done'   => ':done of :total workers complete',
+        'tools_done'    => ':done of :total tools complete',
+        'hazards_rated' => ':done of :total hazards rated',
+        'by_level'      => 'High: :high · Medium: :mid · Low: :low',
+        'row'           => 'Row :n',
+        'hazard'        => 'Hazard :n',
+        'index_people'  => 'Workers in this form',
+        'index_tools'   => 'Tools in this form',
+        'index_hazards' => 'Hazards in this form',
+    ],
+
     'status' => [
         'pending'   => 'Not started',
         'draft'     => 'Draft',
