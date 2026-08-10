@@ -138,6 +138,8 @@ return [
     'num_doc_sin_espacios'     => 'The document number has no spaces.',
     'num_doc_unique'             => 'A person with this document already exists in the same country.',
     'doc_type_invalid'           => 'Document type not valid for that country. Allowed: :types.',
+    'doc_type_ninguno'           => 'No types for this country',
+    'doc_type_sin_catalogo'      => 'This country has no person document in the catalogue. Create one under Document types, with scope «Person».',
     'doc_masked_notice'          => 'The document is hidden and cannot be changed: it needs the private data permission (people.view_private_info).',
     'country_required'           => 'Pick the document country.',
     'name_duplicate_in_batch'    => 'Duplicate document in the same batch.',

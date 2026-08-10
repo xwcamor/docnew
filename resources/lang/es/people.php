@@ -138,6 +138,8 @@ return [
     'num_doc_sin_espacios'     => 'El número de documento no lleva espacios.',
     'num_doc_unique'             => 'Ya existe una persona con este documento en el mismo país.',
     'doc_type_invalid'           => 'Tipo de documento no válido para ese país. Admitidos: :types.',
+    'doc_type_ninguno'           => 'Sin tipos para este país',
+    'doc_type_sin_catalogo'      => 'Este país no tiene ningún documento de persona en el catálogo. Créalo en Tipos de documento, con ámbito «Persona».',
     'doc_masked_notice'          => 'El documento está oculto y no se puede modificar: hace falta el permiso de datos privados (people.view_private_info).',
     'country_required'           => 'Indica el país del documento.',
     'name_duplicate_in_batch'    => 'Documento duplicado dentro del mismo batch.',

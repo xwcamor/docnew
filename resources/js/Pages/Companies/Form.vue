@@ -342,17 +342,20 @@ const submit = () => {
                 <FormItem
                     :label="$t('companies.num_doc')"
                     :tooltip="$t('companies.num_doc_help')"
-                    required
+                    :required="!sinCatalogo"
                     :validate-status="form.errors.num_doc ? 'error' : ''"
                     :help="form.errors.num_doc
                         || (rucEstado ? $t(`companies.ruc_${rucEstado}`) : '')
                         || (faltanDigitos === 1 ? $t('companies.num_doc_falta_uno') : '')
                         || (faltanDigitos > 1 ? $t('companies.num_doc_faltan', { n: faltanDigitos }) : '')"
                 >
+                    <!-- Sin tipo no hay número: la longitud y los caracteres que
+                         se admiten los dice el tipo. -->
                     <Input
                         v-model:value="form.num_doc"
                         size="large"
                         autofocus
+                        :disabled="sinCatalogo"
                         :placeholder="$t('companies.num_doc_placeholder')"
                     >
                         <!-- SUNAT puede tardar varios segundos. Sin algo que se

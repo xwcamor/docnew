@@ -65,12 +65,13 @@ const form = useForm({
 const esDelWorkspace = computed(() =>
     props.ownCompanyId === null || form.company_id === props.ownCompanyId);
 
-// Los tipos del país elegido. Si ese país no tiene catálogo se cae a los que
-// mande el servidor, que a su vez se cae a DNI/CE/PASAPORTE — igual que la
-// validación, para que la pantalla no ofrezca nada que el servidor rechace.
+// Los tipos del país elegido y de nadie más. Antes, si ese país no tenía
+// ninguno sembrado, se caía a la lista de siempre —DNI, CE, PASAPORTE—, que son
+// los documentos PERUANOS: elegías India y te ofrecía un DNI. Ese apaño tenía
+// sentido cuando no existía el catálogo; ahora se siembra, y la lista vacía dice
+// la verdad mientras que la de Perú miente.
 const docTypesForCountry = computed(() => {
-    const delPais = props.docTypesByCountry?.[form.country_id];
-    const lista = [...(delPais?.length ? delPais : props.docTypeOptions)];
+    const lista = [...(props.docTypesByCountry?.[form.country_id] ?? [])];
 
     // El tipo que la persona ya tiene sigue en la lista aunque se haya dado de
     // baja del catálogo: corregir un apellido no puede cambiarle el documento.
@@ -103,6 +104,10 @@ watch(docTypesForCountry, (opciones) => {
 // notaba hasta darle a Guardar — y en la base maestra hay uno.
 const tipoElegido = computed(() =>
     docTypesForCountry.value.find((o) => o.value === form.doc_type) ?? null);
+
+// El país elegido no tiene ningún documento de persona en el catálogo. Se dice
+// y se manda al sitio donde se arregla, en vez de dejar un desplegable mudo.
+const sinCatalogo = computed(() => docTypesForCountry.value.length === 0);
 
 // Sin catálogo (país sin sembrar) se cae al tope de siempre: cortar en un largo
 // inventado sería peor que no cortar.
@@ -296,16 +301,16 @@ const submit = () => {
                             :label="$t('people.doc_type')"
                             :label-col="{ xs: 24, sm: 10 }"
                             :wrapper-col="{ xs: 24, sm: 14 }"
-                            required
+                            :required="!sinCatalogo"
                             :validate-status="form.errors.doc_type ? 'error' : ''"
-                            :help="form.errors.doc_type"
+                            :help="form.errors.doc_type || (sinCatalogo ? $t('people.doc_type_sin_catalogo') : '')"
                         >
                             <Select
                                 v-model:value="form.doc_type"
                                 size="large"
-                                :disabled="docLocked"
+                                :disabled="docLocked || sinCatalogo"
                                 :options="docTypesForCountry"
-                                :placeholder="$t('global.select')"
+                                :placeholder="sinCatalogo ? $t('people.doc_type_ninguno') : $t('global.select')"
                             />
                         </FormItem>
                     </Col>
@@ -315,7 +320,7 @@ const submit = () => {
                             :tooltip="docLocked ? $t('people.doc_masked_notice') : $t('people.num_doc_help')"
                             :label-col="{ xs: 24, sm: 8 }"
                             :wrapper-col="{ xs: 24, sm: 16 }"
-                            required
+                            :required="!sinCatalogo"
                             :validate-status="form.errors.num_doc ? 'error' : ''"
                             :help="form.errors.num_doc
                                 || (dniEstado ? $t(`people.dni_${dniEstado}`) : '')
@@ -323,11 +328,15 @@ const submit = () => {
                                 || (faltanDigitos ? $t('people.num_doc_faltan', { n: faltanDigitos }) : '')"
                         >
                             <Tooltip :title="docLocked ? $t('people.doc_masked_notice') : ''">
+                                <!-- Sin tipo no hay número: la longitud y los
+                                     caracteres que se admiten los dice el tipo,
+                                     así que teclear aquí sería teclear contra
+                                     nada y llevarse el error al darle a Crear. -->
                                 <Input
                                     v-model:value="form.num_doc"
                                     size="large"
                                     autofocus
-                                    :disabled="docLocked"
+                                    :disabled="docLocked || sinCatalogo"
                                     :placeholder="$t('people.num_doc_placeholder')"
                                 >
                                     <!-- RENIEC puede tardar varios segundos. Sin

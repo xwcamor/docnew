@@ -222,7 +222,15 @@ class PersonController extends Controller
         return $tipos->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])->all();
     }
 
-    /** Los tres de siempre, para cuando el catálogo de un país está vacío. */
+    /**
+     * Los tres de Peru, para cuando el catalogo entero esta vacio.
+     *
+     * OJO con el alcance: es una red para una base SIN SEMBRAR, no para un pais
+     * sin tipos. Se uso para lo segundo y el resultado era que eligiendo India
+     * el formulario ofrecia un DNI —que es peruano— y la validacion lo daba por
+     * bueno. Un pais sin tipos ahora lo dice; esto solo cubre el arranque en
+     * seco.
+     */
     public static function docTypesPorDefecto(): array
     {
         return ['DNI', 'CE', 'PASAPORTE'];

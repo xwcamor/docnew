@@ -138,18 +138,47 @@ class PeopleImport implements ToCollection, WithHeadingRow
         // Snapshot del count actual del tenant (global scope de BelongsToTenant).
         $this->currentCount = Person::count();
 
-        // Mismo criterio que `ReglasDelDocumento`: manda el catalogo y, si el
-        // pais no tiene ninguno sembrado, los tres de siempre.
+        // Mismo criterio que `ReglasDelDocumento`: manda el catalogo del pais y
+        // solo se cae a los tres de siempre —que son los PERUANOS— cuando no hay
+        // catalogo en ninguna parte, o sea en una base sin sembrar. Que el pais
+        // de quien importa no tenga tipos NO es eso, y darle Peru por defecto es
+        // como ofrecerle un DNI a quien eligio India.
         $delPais = DocumentType::query()
             ->where('country_id', $this->countryId)
             ->where('scope', DocumentType::PERSONA)
             ->where('is_active', true)
             ->get();
 
-        $this->docTypes = $delPais->pluck('code')->all() ?: PersonController::docTypesPorDefecto();
+        $hayCatalogo = DocumentType::query()
+            ->where('scope', DocumentType::PERSONA)
+            ->where('is_active', true)
+            ->exists();
+
+        $this->docTypes = $delPais->isNotEmpty()
+            ? $delPais->pluck('code')->all()
+            : ($hayCatalogo ? [] : PersonController::docTypesPorDefecto());
         $this->tiposPorSigla = $delPais->keyBy('code')->all();
 
         $this->cargarCatalogos();
+    }
+
+    /**
+     * El tipo que lleva quien es del pais, para la celda que llego en blanco.
+     *
+     * En Peru es el DNI, en Chile el RUN, en Brasil el CPF. Se busca por
+     * `for_foreigners`, que es justo lo que distingue el documento del de casa
+     * del que lleva quien viene de fuera.
+     */
+    protected function docTypeDeCasa(): string
+    {
+        foreach ($this->tiposPorSigla as $code => $tipo) {
+            if (! $tipo->for_foreigners) {
+                return (string) $code;
+            }
+        }
+
+        // Sin catalogo del pais quedan los de la red de arranque en seco.
+        return (string) (array_key_first($this->tiposPorSigla) ?? ($this->docTypes[0] ?? ''));
     }
 
     /**
@@ -217,11 +246,15 @@ class PeopleImport implements ToCollection, WithHeadingRow
                     continue;
                 }
 
-                $docType = strtoupper((string) ($this->trimOrNull($row['doc_type'] ?? null) ?? 'DNI'));
+                // Sin celda, el del propio país — el que no es de extranjero. Era
+                // «DNI» a secas, que es peruano y no le sirve a nadie más.
+                $docType = strtoupper((string) ($this->trimOrNull($row['doc_type'] ?? null) ?? $this->docTypeDeCasa()));
                 if (! in_array($docType, $this->docTypes, true)) {
                     $this->errors[] = [
                         'row'     => $absoluteRow,
-                        'message' => __('people.doc_type_invalid', ['types' => implode(', ', $this->docTypes)]),
+                        'message' => $this->docTypes === []
+                            ? __('people.doc_type_sin_catalogo')
+                            : __('people.doc_type_invalid', ['types' => implode(', ', $this->docTypes)]),
                         'value'   => $docType,
                     ];
                     continue;

@@ -17,13 +17,12 @@ use Illuminate\Support\Facades\DB;
 trait ReglasDelDocumento
 {
     /**
-     * El tipo sale del catálogo, no de una lista escrita aquí.
+     * El tipo sale del catálogo del PAÍS elegido — ni de una lista escrita aquí
+     * ni del catálogo de otro país.
      *
-     * Con una salvedad: si el catálogo de ese país está vacío se admiten los
-     * tres de siempre. El desplegable ya se caía a ellos —está en
-     * `PersonController::docTypeOptions()`— pero la validación no, así que en
-     * una base sin sembrar la pantalla ofrecía «DNI», el servidor lo rechazaba
-     * por no existir en el catálogo y no había forma de dar de alta a nadie.
+     * Con una salvedad: si no hay catálogo en ninguna parte —base recién
+     * levantada, sin sembrar— se admite lo que venga, porque cortar ahí dejaría
+     * la pantalla sin poder dar de alta a nadie.
      *
      * @return array<int, mixed>
      */
@@ -46,12 +45,32 @@ trait ReglasDelDocumento
                 ->whereNull('deleted_at')
                 ->pluck('code');
 
-            $admitidos = $delPais->isEmpty()
-                ? \App\Http\Controllers\BusinessManagement\PersonController::docTypesPorDefecto()
-                : $delPais->all();
+            $admitidos = $delPais->all();
 
-            if (! in_array((string) $value, $admitidos, true)) {
-                $fail(__('people.doc_type_invalid', ['types' => implode(', ', $admitidos)]));
+            if ($admitidos !== []) {
+                if (! in_array((string) $value, $admitidos, true)) {
+                    $fail(__('people.doc_type_invalid', ['types' => implode(', ', $admitidos)]));
+                }
+
+                return;
+            }
+
+            // El país elegido no tiene ninguno. Aquí se caía antes a «DNI, CE,
+            // PASAPORTE» —que son los PERUANOS— y se daban por buenos en
+            // cualquier país: elegías India y el DNI pasaba la validación.
+            //
+            // Esa lista vacía puede significar dos cosas distintas y se separan.
+            // Si no hay catálogo en ninguna parte, es una base sin sembrar y se
+            // deja pasar. Si otros países sí tienen, lo que falta es el de éste,
+            // y eso se dice y se manda al sitio donde se arregla.
+            $hayCatalogo = DocumentType::query()
+                ->where('scope', DocumentType::PERSONA)
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->exists();
+
+            if ($hayCatalogo) {
+                $fail(__('people.doc_type_sin_catalogo'));
             }
         }];
     }
