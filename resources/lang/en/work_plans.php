@@ -155,6 +155,8 @@ return [
     'crew_title'    => 'Workers',
     'crew_summary'  => '{0} Nobody signed yet|{1} 1 of :total signed|[2,*] :signed of :total signed',
     'crew_empty'    => 'Nobody here yet. Scan the first worker’s document.',
+    'crew_empty_why' => 'With no workers no form can be filled in, there is nobody to designate as representative and nothing can be signed. It is the first thing on the plan.',
+    'crew_pending_tag' => 'Workers missing',
     'crew_add'      => 'Add worker',
     'crew_add_title'=> 'Add worker',
     'crew_search_placeholder' => 'Scan or type the worker’s document…',

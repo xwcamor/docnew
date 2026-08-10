@@ -227,6 +227,19 @@ const pendientes = computed(() => {
  */
 const tarjetaRepresentante = ref(null);
 
+/**
+ * Con representante, el tablero cambia de forma.
+ *
+ * Sin él no hay nada que firmar, así que enseñar el flujo de aprobaciones
+ * entero en gris y bloqueado era enseñar trabajo que no se puede hacer. La
+ * tercera columna es «lo que toca ahora»: mientras falta, ahí va el
+ * representante; cuando está, sube al lado de la cuadrilla de la que salió y el
+ * hueco lo ocupa el flujo.
+ *
+ * Y sale de los que YA firmaron, así que tenerlo implica que hay firma.
+ */
+const hayRepresentante = computed(() => !!props.representative?.person);
+
 const irAlRepresentante = () => {
     const nodo = tarjetaRepresentante.value;
     if (!nodo) return;
@@ -521,20 +534,26 @@ const irAlRepresentante = () => {
                          flujo de aprobaciones— obligaba a cruzar la pantalla
                          para comprobar quién había firmado ya. -->
                     <div class="wp-board__col">
-                        <WorkPlanCrewCard
-                            :plan-slug="workPlan.slug"
-                            :crew="crew"
-                            :can-edit="canSetup"
-                            :can-sign="fieldWork.canSign"
-                        />
-
-                        <div ref="tarjetaRepresentante">
+                        <!-- Con representante designado, su tarjeta sube encima
+                             de la cuadrilla: el paso está hecho y se lee de
+                             arriba abajo, cuadrilla → representante → firmas.
+                             Mientras falta, la tarjeta no está aquí: está en el
+                             sitio del flujo (ver más abajo), que es el hueco de
+                             lo que toca hacer ahora. -->
+                        <div v-if="hayRepresentante" ref="tarjetaRepresentante">
                             <WorkPlanRepresentativeCard
                                 :plan-slug="workPlan.slug"
                                 :representative="representative"
                                 :can-edit="canSetup"
                             />
                         </div>
+
+                        <WorkPlanCrewCard
+                            :plan-slug="workPlan.slug"
+                            :crew="crew"
+                            :can-edit="canSetup"
+                            :can-sign="fieldWork.canSign"
+                        />
                     </div>
 
                     <WorkPlanFormsCard
@@ -546,11 +565,19 @@ const irAlRepresentante = () => {
                         :work-type-code="workPlan.work_type?.code || ''"
                     />
 
-                    <!-- Lo que bloquea el flujo es que nadie responda todavía
-                         por los trabajadores. No son sus firmas —esas son de
-                         asistencia a la charla— ni una fila de esta lista: es
-                         la columna del plan, y por eso la tarjeta la recibe. -->
+                    <!-- La tercera columna es «lo que toca ahora».
+                         Sin representante no hay nada que firmar —nadie autoriza
+                         hasta que alguien responda por el equipo— así que en vez
+                         de enseñar un flujo entero bloqueado, aquí va lo que lo
+                         desbloquea. Designado el representante, su tarjeta sube
+                         a la primera columna y este hueco lo ocupa el flujo, que
+                         es lo siguiente que hay que hacer.
+
+                         El representante sale de los que YA firmaron, así que
+                         tenerlo significa que hay firma: no hace falta
+                         comprobarlo aparte. -->
                     <WorkPlanApprovalsCard
+                        v-if="hayRepresentante"
                         :plan-slug="workPlan.slug"
                         :approvals="approvals"
                         :representative="representative"
@@ -558,6 +585,14 @@ const irAlRepresentante = () => {
                         :can-sign="fieldWork.canSign"
                         @ir-al-representante="irAlRepresentante"
                     />
+
+                    <div v-else ref="tarjetaRepresentante">
+                        <WorkPlanRepresentativeCard
+                            :plan-slug="workPlan.slug"
+                            :representative="representative"
+                            :can-edit="canSetup"
+                        />
+                    </div>
                 </div>
             </template>
 

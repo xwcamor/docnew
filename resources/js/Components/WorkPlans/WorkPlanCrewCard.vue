@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
-    Card, Tag, Button, Input, Popconfirm, Tooltip, Popover,
+    Alert, Card, Tag, Button, Input, Popconfirm, Tooltip, Popover,
 } from 'ant-design-vue';
 import {
     TeamOutlined, DeleteOutlined, EditOutlined, IdcardOutlined, LoadingOutlined, CameraOutlined,
@@ -139,15 +139,34 @@ const firmar = (fila) => router.get(
 <template>
     <Card :bodyStyle="{ padding: 18 }" class="info-card">
         <template #title><TeamOutlined /> {{ $t('work_plans.crew_title') }} ({{ crew.length }})</template>
-        <template v-if="crew.length" #extra>
-            <Tag :color="todosFirmaron ? 'success' : 'warning'" :bordered="false">
-                {{ $tc('work_plans.crew_summary', firmados, { signed: firmados, total: crew.length }) }}
+        <!-- La pastilla también cuando está vacía, y en ámbar: es el primer
+             paso del plan y sin ella la tarjeta se veía igual de tranquila que
+             una ya terminada. -->
+        <template #extra>
+            <Tag
+                :color="crew.length ? (todosFirmaron ? 'success' : 'warning') : 'warning'"
+                :bordered="false"
+            >
+                {{ crew.length
+                    ? $tc('work_plans.crew_summary', firmados, { signed: firmados, total: crew.length })
+                    : $t('work_plans.crew_pending_tag') }}
             </Tag>
         </template>
 
-        <p v-if="!crew.length" class="ff-empty">{{ $t('work_plans.crew_empty') }}</p>
+        <!-- Sin nadie en la cuadrilla no hay plan: no se pueden llenar los
+             formatos, no hay a quien designar representante y no se puede
+             firmar nada. Era un párrafo gris que se leía como un pie de página;
+             es lo primero que hay que hacer y ahora se ve como tal. -->
+        <Alert
+            v-if="!crew.length"
+            type="warning"
+            show-icon
+            class="wp-crew__vacio"
+            :message="$t('work_plans.crew_empty')"
+            :description="$t('work_plans.crew_empty_why')"
+        />
 
-        <ul v-else class="wp-rows">
+        <ul v-if="crew.length" class="wp-rows">
             <WorkPlanBoardRow
                 v-for="fila in crew"
                 :key="fila.slug"
@@ -241,6 +260,7 @@ const firmar = (fila) => router.get(
 /* La cara de quien firmo, dentro del globo. Grande de verdad: si no se le
    reconoce, no sirve de nada enseñarla. */
 .crew-face { display: block; width: 220px; height: 220px; object-fit: cover; border-radius: 8px; }
+.wp-crew__vacio { margin-bottom: 4px; }
 .wp-add { margin-top: 14px; }
 .wp-add__hint { margin: 6px 2px 0; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 .wp-add__hint.is-bad { color: var(--color-error, #BB0000); }

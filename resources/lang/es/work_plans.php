@@ -159,6 +159,8 @@ return [
     'crew_title'    => 'Trabajadores',
     'crew_summary'  => '{0} Nadie firmó todavía|{1} 1 de :total firmó|[2,*] :signed de :total firmaron',
     'crew_empty'    => 'Todavía no hay nadie. Escanea el documento del primer trabajador.',
+    'crew_empty_why' => 'Sin trabajadores no se puede llenar ningún formato, no hay a quién designar representante y no se puede firmar. Es lo primero del plan.',
+    'crew_pending_tag' => 'Faltan los trabajadores',
     'crew_add'      => 'Añadir trabajador',
     'crew_add_title'=> 'Añadir trabajador',
     // La misma frase que en obra: se escanea el DNI, no se busca por apellido.

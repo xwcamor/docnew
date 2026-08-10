@@ -163,7 +163,11 @@ const etiqueta = computed(() => cuando.value || props.label);
 }
 
 .wp-row__body  { min-width: 0; }
-.wp-row__title { display: block; font-weight: 600; font-size: 0.95rem; color: var(--color-text, #32363A); overflow-wrap: anywhere; }
+/* `break-word` y no `anywhere`: con `anywhere` el navegador parte por donde le
+   viene bien y «AST (Análisis de Seguridad en el Trabajo)» salía como «AST
+   (Análisi / s de / Segurid / ad», una sílaba por línea. Así solo se parte la
+   palabra que de verdad no cabe, y el resto respeta los espacios. */
+.wp-row__title { display: block; font-weight: 600; font-size: 0.95rem; color: var(--color-text, #32363A); overflow-wrap: break-word; }
 .wp-row__sub   { display: block; margin-top: 2px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 .wp-row__why   { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); }
 
