@@ -77,6 +77,14 @@ class DatabaseSeeder extends Seeder
             //    El plan se deriva de la suscripcion vigente.
             ExampleSubscriptionsSeeder::class,
 
+            // ── Los cuatro formatos de obra: AST, PTF, EPP e IHM ────────
+            //    Al final, porque necesita el pais y el workspace. Crearlos ya
+            //    se podia con `docufiz:migrate-formats`, pero ese lee la MySQL
+            //    de la v1 y sin ella no crea nada: en cualquier instalacion
+            //    limpia el motor se quedaba con las seis tablas a cero. Los
+            //    catalogos viajan ahora en seeders/data/formatos-v1.json.
+            FormTemplatesSeeder::class,
+
             // Aqui iban los clientes, transformadores y muestras de TRAFODEX.
             // Se quitaron: son datos de otro sistema —344 empresas con su
             // jerarquia de sedes, areas y subestaciones— y no pintan nada en una

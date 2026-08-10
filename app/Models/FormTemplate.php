@@ -234,11 +234,35 @@ class FormTemplate extends Model
     // `name` es el nombre de verdad del formato — «AST (Análisis de Seguridad en
     // el Trabajo)»—, no el código. Faltaba, y `scopeFilter()` ya lo daba por
     // existente: filtrar por nombre reventaba con «column name does not exist».
-    protected $fillable = ['slug', 'country_id', 'code', 'name', 'kind', 'status', 'version',
+    //
+    // `name_es` / `name_en` son el mismo nombre en cada idioma. Se separan
+    // porque el nombre de un formato es un dato —lo escribe el cliente al
+    // crearlo desde la pantalla— y no una cadena de `resources/lang`, donde
+    // solo cabe lo que viaja en el repositorio. Mismo criterio que
+    // `approver_roles` y `positions`, con su accesor `label`.
+    //
+    // `name` se queda como nombre por defecto: lo consultan `scopeFilter()` y
+    // las pantallas ya escritas, y quitarlo seria romperlas sin necesidad.
+    protected $fillable = ['slug', 'country_id', 'code', 'name', 'name_es', 'name_en',
+                           'kind', 'status', 'version',
                            'requires_signature', 'pdf_template', 'published_at', 'is_active',
                            'tenant_id', 'created_by', 'deleted_by', 'deleted_description'];
     protected $casts = ['requires_signature' => 'boolean', 'is_active' => 'boolean',
                         'published_at' => 'datetime'];
+
+    /**
+     * Como se llama el formato en el idioma en curso.
+     *
+     * Cae a `name` y de ahi al codigo. Lo ultimo importa: los cuatro formatos
+     * migrados antes de que existiera la columna `name` estaban en la base con
+     * el nombre a nulo, y una cabecera vacia se lee peor que una sigla.
+     */
+    public function getLabelAttribute(): string
+    {
+        $preferido = app()->getLocale() === 'en' ? $this->name_en : $this->name_es;
+
+        return $preferido ?? $this->name_es ?? $this->name ?? (string) $this->code;
+    }
 
     /** structured: campos propios · upload_only: solo se fotografia el papel · hybrid: ambos. */
     public const STRUCTURED  = 'structured';
