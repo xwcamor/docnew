@@ -444,6 +444,69 @@ class UiStandardTest extends TestCase
             . implode("\n  ", array_unique($encontrados)));
     }
 
+    /**
+     * Ningun texto nombra el documento de un pais.
+     *
+     * DOCUFIZ se vende en 21 paises y cada uno lleva el suyo: RUC en Peru, RUT
+     * en Chile, NIT en Colombia, CNPJ en Brasil, RFC en Mexico. Cual es lo dice
+     * el catalogo `document_types`, asi que una traduccion que escribe la sigla
+     * a mano acierta en un pais y miente en los otros veinte — «Da de alta una
+     * empresa contratista con su RUC y su razon social» salia igual para todos.
+     *
+     * El texto o va en generico —«el numero de documento»— o interpola la sigla
+     * del catalogo donde el tipo ya esta elegido. Ver docs/UI.md §2.
+     *
+     * Se miran solo los VALORES: los comentarios del archivo de idioma explican
+     * por que el texto dejo de nombrarlo, y son justo lo que hay que conservar.
+     */
+    public function test_ningun_texto_nombra_el_documento_de_un_pais(): void
+    {
+        $siglas = ['RUC', 'DNI', 'RUT', 'CUIT', 'CNPJ', 'RFC', 'NIT'];
+
+        // Las tres excepciones, y por que cada una:
+        //
+        //  · `document_types.php` es el catalogo. Explicar que es un tipo de
+        //    documento sin nombrar ninguno no se puede hacer, y ahi las siglas
+        //    son el contenido y no una suposicion sobre quien mira.
+        //
+        //  · Las otras dos son integraciones de UN pais de verdad: SUNAT solo
+        //    contesta por un RUC y RENIEC solo por un DNI. Nombrarlos ahi es
+        //    exacto, y ademas ese texto solo aparece cuando la consulta ya ha
+        //    contestado, que solo pasa en Peru.
+        $salvo = ['document_types.php'];
+        $salvoClaves = ['ruc_no_encontrado', 'dni_no_encontrado'];
+
+        $encontradas = [];
+
+        foreach (glob(lang_path('*/*.php')) as $archivo) {
+            if (in_array(basename($archivo), $salvo, true)) {
+                continue;
+            }
+
+            foreach ($this->valores(require $archivo) as $clave => $texto) {
+                if (in_array($clave, $salvoClaves, true)) {
+                    continue;
+                }
+
+                foreach ($siglas as $sigla) {
+                    // Palabra entera, no trozo. Buscando `RUT` a secas saltaba
+                    // «ruta» y `NIT` saltaba «infinito»: una prueba que grita
+                    // por eso se acaba desactivando (misma leccion que `ransa`
+                    // dentro de `DB::transaction`, mas abajo).
+                    if (preg_match('/\b' . $sigla . '\b/iu', $texto) === 1) {
+                        $encontradas[] = basename(dirname($archivo)) . '/' . basename($archivo)
+                            . " → {$clave} ({$sigla})";
+                    }
+                }
+            }
+        }
+
+        $this->assertSame([], array_unique($encontradas),
+            "Textos que nombran el documento de un pais concreto (ver docs/UI.md §2).\n"
+            . "Dilo en generico, o saca la sigla del catalogo con :type:\n  "
+            . implode("\n  ", array_unique($encontradas)));
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     /** El contenido de los bloques `<style>` de un .vue, o cadena vacia. */

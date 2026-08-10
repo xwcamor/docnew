@@ -191,6 +191,19 @@ class CompanyController extends Controller
         return response()->json($sunat->buscar($validado['ruc']));
     }
 
+    /**
+     * Si hay a quien preguntarle por el documento de una empresa.
+     *
+     * La pantalla bloquea la razon social mientras espera la consulta, y sin
+     * esto lo hacia tambien en una instalacion sin token: el campo salia gris,
+     * con un «se rellena al escribir el documento» debajo, y no se soltaba hasta
+     * que alguien tecleaba once digitos y la respuesta desmentia la promesa.
+     */
+    private function hayConsultaDeDocumento(): bool
+    {
+        return app(\App\Services\Peru\Proveedor::class)->hayToken();
+    }
+
     public function create()
     {
         return inertia('Companies/Form', [
@@ -199,6 +212,7 @@ class CompanyController extends Controller
             'docTypesByCountry' => $this->docTypesByCountry(\App\Models\DocumentType::EMPRESA),
             // Al crear se propone el país del usuario: casi siempre es el suyo.
             'defaultCountryId' => request()->user()?->country_id,
+            'consultaConfigurada' => $this->hayConsultaDeDocumento(),
         ]);
     }
 
@@ -253,6 +267,7 @@ class CompanyController extends Controller
             'countryOptions'   => $this->countryOptions(),
             'docTypesByCountry' => $this->docTypesByCountry(\App\Models\DocumentType::EMPRESA),
             'defaultCountryId' => request()->user()?->country_id,
+            'consultaConfigurada' => $this->hayConsultaDeDocumento(),
         ]);
     }
 

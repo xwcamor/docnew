@@ -12,7 +12,7 @@ return [
         'code'          => 'Código',
         'work_order'    => 'Orden de trabajo',
         'company'       => 'Empresa contratista',
-        'tax_id'        => 'RUC',
+        'tax_id'        => 'Documento',
         'work_type'     => 'Tipo de trabajo',
         'location'      => 'Ubicación',
         'date_start'    => 'Inicio',

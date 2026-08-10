@@ -133,7 +133,8 @@
             <tr>
                 <td class="k">{{ __('form_submissions.pdf.company') }}</td>
                 <td>{{ $plan['empresa'] ?: '—' }}</td>
-                <td class="k">{{ __('form_submissions.pdf.tax_id') }}</td>
+                {{-- La sigla que lleva la empresa en su país; genérico si no la tiene. --}}
+                <td class="k">{{ ($plan['empresa_doc_tipo'] ?? null) ?: __('form_submissions.pdf.tax_id') }}</td>
                 <td>{{ $plan['empresa_doc'] ?: '—' }}</td>
             </tr>
             <tr>

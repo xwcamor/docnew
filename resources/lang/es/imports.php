@@ -59,7 +59,7 @@ return [
 
     // Row-level error messages
     'err_name_required'    => 'El nombre es obligatorio.',
-    'err_cod_required'      => 'El código (RUC/CUIT/RFC/NIT) es obligatorio.',
+    'err_cod_required'      => 'El código (identificador fiscal) es obligatorio.',
     'err_code_too_long'     => 'El código supera los 40 caracteres.',
     'err_code_duplicate'    => 'El código ":value" ya existe en otro registro.',
     'err_name_too_long'    => 'El nombre supera los 255 caracteres.',

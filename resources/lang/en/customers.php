@@ -24,7 +24,7 @@ return [
     'name_help' => 'Customer commercial name as it will appear in invoices, lists and reports.',
     'cod'       => 'Code',
     'cod_hint'  => 'Tax ID, internal code or commercial identifier.',
-    'cod_help'  => 'Tax ID or internal identifier (Tax ID, EIN, RUC, RFC). Must be unique within the workspace.',
+    'cod_help'  => 'Customer tax ID, or an internal identifier — whichever it carries in its country. Must be unique within the workspace.',
     'cod_placeholder' => 'E.g.: 20123456789',
     'country'           => 'Country',
     'chip_active'       => 'Active',

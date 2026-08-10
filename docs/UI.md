@@ -59,6 +59,44 @@ una palabra, pregunta antes de escribirla en veinte sitios.
 > *Caso real:* «Cuadrilla» llegó a la ficha del plan, a la pantalla de firma y a
 > tres archivos de traducción antes de que nadie la cuestionara.
 
+### El documento no se llama igual en los 21 países
+
+DOCUFIZ se vende en toda Latinoamérica y **cada país tiene su documento**: RUC en
+Perú, RUT en Chile, NIT en Colombia, CNPJ en Brasil, RFC en México. Cuál lleva
+cada uno lo dice el catálogo `document_types` —con su `scope`, de persona o de
+empresa—, no `resources/lang`.
+
+**Regla:** un texto de interfaz **no nombra el documento de un país**. O lo dice
+en genérico, o saca la sigla del catálogo.
+
+| Mal | Bien | Cómo |
+| --- | --- | --- |
+| «El RUC es obligatorio» | «El número de documento es obligatorio» | Genérico: no se pierde nada |
+| «Se rellena al escribir el RUC» | «Se rellena al escribir el `:type`» | Del catálogo: en esa pantalla el tipo ya está elegido (`docTypesForCountry`) |
+| «Nombre, razón social o RUC» | «Nombre, razón social o documento» | Genérico: el listado trae los países a la vez |
+
+La sigla se interpola **donde el tipo ya está a mano**. Si no llega hasta ahí,
+el texto va en genérico: montar un andamio para pasear una sigla por media
+aplicación cuesta más de lo que da.
+
+La excepción es la **integración de un país concreto**. La consulta a SUNAT
+existe solo para el RUC y la de RENIEC solo para el DNI: ahí nombrarlos es lo
+correcto, porque es literalmente de eso de lo que se habla. A cambio, ese texto
+**solo puede salir cuando la consulta esté disponible** — un «se rellena al
+escribir el RUC» en una instalación sin token es una promesa que no se cumple.
+
+Y el propio **catálogo de tipos de documento** se explica con ejemplos, como
+cualquier catálogo: ahí «DNI, CE, PTP» o «RUC, RUT, CUIT» son el contenido, no
+una suposición sobre el país de quien mira.
+
+`UiStandardTest` lo comprueba: ninguna sigla de documento —RUC, DNI, RUT, CUIT,
+CNPJ, RFC, NIT— en un valor de `resources/lang`, salvo esas excepciones.
+
+> *Caso real:* «me di cuenta que estás siendo específico en algunas cosas como
+> *ingrese RUC*; se supone que es un SaaS». El alta de empresa abría con «Da de
+> alta una empresa contratista con su RUC y su razón social» para los 21 países,
+> y el filtro del listado decía «Nombre, razón social o RUC».
+
 ---
 
 ## 2-bis. Los ejemplos son de mentira

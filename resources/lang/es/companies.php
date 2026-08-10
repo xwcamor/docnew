@@ -11,12 +11,12 @@ return [
     'index_title'    => 'Empresas',
     'index_subtitle' => 'Empresas contratistas que ejecutan los trabajos en obra.',
     'create_title'   => 'Crear empresa',
-    'create_subtitle'=> 'Da de alta una empresa contratista con su RUC y su razón social.',
+    'create_subtitle'=> 'Da de alta una empresa contratista con su documento y su razón social.',
     'edit_title'     => 'Editar empresa',
     'delete_title'   => 'Eliminar empresa',
     'show_title'     => 'Empresa — Información',
     'trash_title'    => 'Papelera de empresas',
-    'form_create_hint' => 'Da de alta una empresa contratista con su RUC y su razón social.',
+    'form_create_hint' => 'Da de alta una empresa contratista con su documento y su razón social.',
     'empty_hint'      => 'Crea la primera empresa o importa un lote desde Excel para empezar.',
 
     // ── Campos ──────────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@ return [
     'name_help'                => 'Con el que se la conoce en obra. Se propone solo a partir de la razón social quitándole la forma societaria (ej: ACME SERVICIOS GENERALES).',
     'name_placeholder'         => 'Ej: ACME',
     'complete_name'            => 'Razón social',
-    'complete_name_help'       => 'El nombre legal, tal como figura en el documento tributario. Es lo que devuelve la consulta al RUC.',
+    'complete_name_help'       => 'El nombre legal, tal como figura en el documento tributario. Donde hay consulta oficial, se rellena solo.',
     'complete_name_placeholder'=> 'Ej: Acme Servicios Generales S.A.C.',
     'num_doc'                  => 'N° de documento',
     'num_doc_help'             => 'Identifica a la empresa. No se repite dentro del mismo país.',
@@ -38,12 +38,12 @@ return [
     // La razón social nace bloqueada: es el nombre legal, sale en la cabecera
     // de cada PDF firmado, y tecleada a mano es como la misma empresa acaba
     // tres veces en la base escrita de tres formas.
-    'razon_esperando_ruc'      => 'Se rellena al escribir el RUC.',
+    'razon_esperando_doc'      => 'Se rellena al escribir el :type.',
     'razon_de_sunat'           => 'Razón social de SUNAT.',
     'razon_editar_a_mano'      => 'Editar a mano',
     'document'                 => 'Documento',
     'doc_type'                 => 'Tipo de documento',
-    'doc_type_help'            => 'Qué documento lleva la empresa en su país. En Perú es el RUC.',
+    'doc_type_help'            => 'Qué documento lleva la empresa en su país. Sale del catálogo de tipos de documento.',
     'doc_type_invalid'         => 'Tipo de documento no válido para ese país. Admitidos: :types.',
     'doc_type_ninguno'         => 'Sin tipos para este país',
     'doc_type_sin_catalogo'    => 'Este país no tiene ningún documento de empresa en el catálogo. Créalo en Tipos de documento, con ámbito «Empresa». La empresa se puede guardar sin él.',
@@ -52,13 +52,13 @@ return [
     'num_doc_faltan'           => 'Faltan :n dígitos.',
     'num_doc_falta_uno'        => 'Falta 1 dígito.',
     'country'                  => 'País',
-    'country_help'             => 'País donde está registrada. Decide qué documento lleva —RUC en Perú, RUT en Chile, CUIT en Argentina— y, junto con el número, define su unicidad.',
+    'country_help'             => 'País donde está registrada. Decide qué documento lleva —cada país tiene el suyo— y, junto con el número, define su unicidad.',
     'people_count'             => 'Personas',
     'plans_count'              => 'Planes',
     'is_active'                => 'Estado',
     'is_active_help'           => 'Si está inactiva, la empresa no aparecerá al crear un plan de trabajo.',
-    'filter_name'              => 'Nombre, razón social o RUC',
-    'search_placeholder'       => 'Buscar por nombre, razón social o RUC…',
+    'filter_name'              => 'Nombre, razón social o documento',
+    'search_placeholder'       => 'Buscar por nombre, razón social o documento…',
 
     'edit_hint'   => 'Modificar este registro',
     'delete_hint' => 'Eliminar (queda en papelera)',
@@ -94,16 +94,17 @@ return [
     'name_required'            => 'El nombre de la empresa es obligatorio.',
     'name_unique'              => 'Ya existe una empresa con este nombre comercial.',
     'complete_name_required'   => 'La razón social es obligatoria.',
-    'num_doc_required'         => 'El RUC es obligatorio.',
+    'num_doc_required'         => 'El número de documento es obligatorio.',
     'num_doc_unique'           => 'Ya existe una empresa con este documento en el mismo país.',
     'country_required'         => 'Indica el país de la empresa.',
     'name_duplicate_in_batch'  => 'Nombre duplicado dentro del mismo batch.',
     'is_active_required'       => 'El campo estado es obligatorio.',
     'import_super_blocked'     => 'Un super sin workspace asignado no puede importar (el match por nombre podría actualizar registros de otro workspace).',
-    // Errores del import: la columna del RUC es obligatoria en la tabla, así que
-    // una celda vacía no puede llegar a la base.
-    'import_err_num_doc_required' => 'Falta el RUC. Es obligatorio para dar de alta una empresa.',
-    'import_err_num_doc_too_long' => 'El RUC supera los 20 caracteres.',
+    // Errores del import: la columna del documento es obligatoria en la tabla,
+    // así que una celda vacía no puede llegar a la base. El fichero trae empresas
+    // de varios países en la misma hoja, así que aquí no hay una sigla que decir.
+    'import_err_num_doc_required' => 'Falta el número de documento. Es obligatorio para dar de alta una empresa.',
+    'import_err_num_doc_too_long' => 'El número de documento supera los 20 caracteres.',
     'import_err_no_country'       => 'Tu usuario no tiene país asignado y el país es obligatorio. Pídele a un administrador que te lo asigne antes de importar.',
 
     // Edit All

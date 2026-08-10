@@ -178,6 +178,10 @@ class FormSubmissionPdfService
             'num_os'      => $plan->num_os,
             'empresa'     => $plan->company?->complete_name ?: $plan->company?->name,
             'empresa_doc' => $plan->company?->num_doc,
+            // La sigla del documento, del catalogo de la empresa. El PDF es lo
+            // que se ensena en la puerta, y ahi «RUC 20…» rotulando el numero de
+            // una contratista chilena es una etiqueta falsa: el suyo es el RUT.
+            'empresa_doc_tipo' => $plan->company?->doc_type,
             'tipo'        => $plan->workType?->code,
             'ubicacion'   => $plan->workLocation?->name,
             'puesto'      => $plan->workstation_id

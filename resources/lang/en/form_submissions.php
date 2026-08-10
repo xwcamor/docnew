@@ -12,7 +12,7 @@ return [
         'code'          => 'Code',
         'work_order'    => 'Work order',
         'company'       => 'Contractor',
-        'tax_id'        => 'Tax ID',
+        'tax_id'        => 'Document',
         'work_type'     => 'Work type',
         'location'      => 'Location',
         'date_start'    => 'Start',

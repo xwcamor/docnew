@@ -9,14 +9,21 @@ import { BankOutlined, LoadingOutlined } from '@ant-design/icons-vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import FormFooter from '@/Components/Common/FormFooter.vue';
+import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
+
+const { t } = useI18n();
 
 const props = defineProps({
     company:           { type: Object, default: null },
     countryOptions:    { type: Array,  default: () => [] },
     docTypesByCountry: { type: Object, default: () => ({}) },
     defaultCountryId:  { type: Number, default: null },
+    // Si el proveedor de la consulta peruana tiene token puesto. Lo dice el
+    // servidor porque la pantalla no puede saberlo hasta haber preguntado una
+    // vez, y hasta entonces prometia un relleno automatico que no iba a llegar.
+    consultaConfigurada: { type: Boolean, default: false },
 });
 
 const isEdit = computed(() => !!props.company);
@@ -112,8 +119,11 @@ const rucEstado = ref(null);   // 'buscando' | 'encontrado' | 'no_encontrado' | 
 let temporizador = null;
 
 // Si el proveedor no esta configurado no hay consulta que esperar, asi que la
-// razon social no se puede quedar bloqueada esperandola.
-const consultaDisponible = ref(true);
+// razon social no se puede quedar bloqueada esperandola. Arranca con lo que
+// dice el servidor: antes arrancaba en `true` y el candado —con su «se rellena
+// al escribir el documento» debajo— salia igual en una instalacion sin token,
+// hasta que alguien tecleaba once digitos y la respuesta lo desmentia.
+const consultaDisponible = ref(props.consultaConfigurada);
 
 // La salida a mano: se pulsa cuando la consulta no encuentra la empresa, o
 // cuando devuelve algo que no cuadra.
@@ -246,13 +256,21 @@ const razonBloqueada = computed(() => {
     return rucEstado.value === null || rucEstado.value === 'buscando' || rucEstado.value === 'encontrado';
 });
 
-/** Por que esta bloqueada, para que el campo gris no parezca roto. */
+/**
+ * Por que esta bloqueada, para que el campo gris no parezca roto.
+ *
+ * La sigla del documento sale del catalogo y no del texto: aqui el tipo ya esta
+ * elegido, asi que la pista puede decirlo con su nombre —«al escribir el RUC»,
+ * «al escribir el RUT»— en vez de escribir el peruano para todo el mundo.
+ */
 const razonPista = computed(() => {
     if (!razonBloqueada.value) return '';
 
-    return rucEstado.value === 'encontrado'
-        ? 'companies.razon_de_sunat'
-        : 'companies.razon_esperando_ruc';
+    if (rucEstado.value === 'encontrado') return t('companies.razon_de_sunat');
+
+    return t('companies.razon_esperando_doc', {
+        type: tipoElegido.value?.value || t('companies.document').toLowerCase(),
+    });
 });
 
 
@@ -372,13 +390,13 @@ const submit = () => {
                     :tooltip="$t('companies.complete_name_help')"
                     required
                     :validate-status="form.errors.complete_name ? 'error' : ''"
-                    :help="form.errors.complete_name || (razonPista ? $t(razonPista) : '')"
+                    :help="form.errors.complete_name || razonPista"
                 >
                     <!-- Bloqueada mientras haya de donde sacarla. El nombre
                          legal sale en la cabecera de cada PDF firmado: tecleado
                          a mano es como la misma empresa acaba tres veces en la
                          base, escrita de tres formas. -->
-                    <Tooltip :title="razonBloqueada ? $t(razonPista) : ''">
+                    <Tooltip :title="razonPista">
                         <Input
                             v-model:value="form.complete_name"
                             size="large"

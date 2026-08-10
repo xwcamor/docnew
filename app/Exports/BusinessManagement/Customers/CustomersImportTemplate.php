@@ -55,7 +55,10 @@ class CustomersImportTemplate implements FromArray, WithEvents
                 $commentCod = $sheet->getComment('B1');
                 $commentCod->setAuthor(__('imports.template_author'));
                 $commentCod->getText()->createTextRun(
-                    'Codigo comercial (RUC, RFC, CUIT, NIT, etc). OBLIGATORIO. Unico por PAIS dentro del workspace.'
+                    // La hoja se descarga igual en los 21 paises: enumerar las
+                    // siglas de cuatro de ellos no ayuda al que no esta en la
+                    // lista y le hace dudar de si la suya vale.
+                    'Codigo comercial o identificador fiscal. OBLIGATORIO. Unico por PAIS dentro del workspace.'
                 );
                 $commentCod->setWidth('260pt');
                 $commentCod->setHeight('60pt');
