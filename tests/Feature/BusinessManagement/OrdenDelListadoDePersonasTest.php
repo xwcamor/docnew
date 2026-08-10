@@ -292,7 +292,8 @@ class OrdenDelListadoDePersonasTest extends CatalogTestCase
         $porDefecto = $this->apellidos('id', 'desc');
 
         $this->assertSame($porDefecto, $this->apellidos('columna_que_no_existe', 'desc'));
-        $this->assertSame($porDefecto, $this->apellidos('roles', 'desc'));
+        // «actions» no es un dato, son botones: sigue sin ser un orden valido.
+        $this->assertSame($porDefecto, $this->apellidos('actions', 'desc'));
     }
 
     /**
@@ -344,14 +345,18 @@ class OrdenDelListadoDePersonasTest extends CatalogTestCase
     }
 
     /**
-     * La estrella, los roles y las acciones NO son ordenables, y eso tambien se
-     * fija aqui: una cabecera clicable que no hace nada es peor que una que no
-     * lo es, y la misma lista de `sorter` alimenta el desplegable de orden de
-     * las vistas guardadas.
+     * La estrella y las acciones NO son ordenables, y eso tambien se fija aqui:
+     * una cabecera clicable que no hace nada es peor que una que no lo es, y la
+     * misma lista de `sorter` alimenta el desplegable de orden de las vistas
+     * guardadas.
+     *
+     * Los roles SI, desde que se pidieron: una persona lleva varios a la vez,
+     * asi que se ordena por el primero alfabeticamente —ver la prueba de
+     * abajo— y con eso la lista queda agrupada por rol.
      */
     public function test_las_columnas_sin_orden_no_estan_en_la_lista_blanca(): void
     {
-        foreach (['favorite', 'is_favorite', 'roles', 'actions'] as $clave) {
+        foreach (['favorite', 'is_favorite', 'actions'] as $clave) {
             $this->assertNotContains($clave, Person::ordenesDelListado(), "«{$clave}» no deberia ser ordenable");
             $this->assertSame('id', Person::ordenValidoDelListado($clave));
         }
@@ -366,10 +371,62 @@ class OrdenDelListadoDePersonasTest extends CatalogTestCase
     {
         $cabeceras = ['lastname', 'document', 'company_links_count', 'biometric',
                       'is_active', 'tenant', 'company', 'position', 'country',
-                      'signatures_count', 'created_at'];
+                      'signatures_count', 'roles'];
 
         foreach ($cabeceras as $clave) {
             $this->assertContains($clave, Person::ordenesDelListado(), "La cabecera «{$clave}» no la sabe ordenar el servidor");
         }
+    }
+
+    /**
+     * Ordenar por rol agrupa por rol, que es para lo que se pulsa.
+     *
+     * Se ordena por el PRIMERO alfabeticamente y por el nombre del CATALOGO, no
+     * por `person_roles.role`: por el codigo, «hse_supervisor» va antes que
+     * «supervisor» y la lista sale en un orden que no es el que se lee.
+     */
+    public function test_ordena_por_el_primer_rol_como_se_lee(): void
+    {
+        Person::query()->forceDelete();
+
+        // El idioma se fija: la columna que se ordena es la del idioma en curso
+        // —`name_es` o `name_en`— y en las pruebas el de partida es el ingles.
+        // Sin esto, la prueba escrita con las etiquetas castellanas comprobaba
+        // un orden que no era el que se pedia.
+        app()->setLocale('es');
+
+        // `updateOrCreate` y no `firstOrCreate`: «supervisor» y «hse_supervisor»
+        // vienen sembrados, y con `firstOrCreate` los nombres de aqui no se
+        // aplicaban — la prueba ordenaba por unas etiquetas y esperaba otras.
+        foreach ([['supervisor', 'Supervisor', 1], ['hse_supervisor', 'Supervisor HSE', 2],
+                  ['jefe_izaje', 'Jefe de Izaje', 3]] as [$code, $nombre, $orden]) {
+            \App\Models\ApproverRole::withoutGlobalScopes()->updateOrCreate(
+                ['code' => $code],
+                ['slug' => \Illuminate\Support\Str::random(22), 'name_es' => $nombre, 'name_en' => $nombre,
+                 'sort_order' => $orden, 'is_active' => true, 'created_by' => 1],
+            );
+        }
+
+        $conRol = function (string $apellido, string $doc, array $roles) {
+            $persona = $this->persona($apellido, 'Ana', 'DNI', $doc);
+            foreach ($roles as $r) {
+                \App\Models\PersonRole::create(['person_id' => $persona->id, 'role' => $r, 'is_active' => true]);
+            }
+
+            return $persona;
+        };
+
+        // «Jefe de Izaje» va antes que «Supervisor» alfabeticamente, aunque su
+        // codigo empiece por j y su `sort_order` sea el ultimo.
+        $conRol('Zapata', '45000001', ['supervisor']);
+        $conRol('Alvarez', '45000002', ['jefe_izaje']);
+        // Con dos roles manda el primero alfabeticamente: «Supervisor HSE» va
+        // detras de «Supervisor», asi que esta persona ordena por «Supervisor».
+        $conRol('Medina', '45000003', ['hse_supervisor']);
+
+        $this->actingAs($this->admin());
+
+        $this->assertSame(['Alvarez', 'Zapata', 'Medina'], $this->apellidos('roles', 'asc'));
+        $this->assertSame(['Medina', 'Zapata', 'Alvarez'], $this->apellidos('roles', 'desc'));
     }
 }

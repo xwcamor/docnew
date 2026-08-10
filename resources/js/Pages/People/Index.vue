@@ -207,6 +207,29 @@ const tablePagination = computed(() => ({
 const normField = (di) => Array.isArray(di) ? di[0] : (typeof di === 'string' && di.includes('.') ? di.split('.')[0] : di);
 const sortKeyOf = (c) => normField(c.dataIndex) ?? c.key;
 
+/**
+ * Los roles de una fila, como se leen y en el orden en el que se ordenan.
+ *
+ * El nombre sale del CATALOGO (`approver_roles`, que llega en `roleOptions`) y
+ * no de una clave de idioma. Se pintaba con `$t('people.role_' + codigo)`, y eso
+ * solo funciona con los tres que trae el producto: el catalogo es editable —un
+ * cliente puede añadir «Jefe de Izaje»— y a ese la celda le sacaba el literal
+ * «people.role_jefe_izaje» en pantalla.
+ *
+ * Y van alfabeticos porque asi es como los ordena el servidor: se ordena por el
+ * primero de la lista, o sea el que se lee primero. Sin esto la celda enseñaria
+ * uno y la cabecera ordenaria por otro.
+ */
+const etiquetasDeRol = computed(() =>
+    Object.fromEntries((props.roleOptions ?? []).map((o) => [o.value, o.label])));
+
+const rolesDe = (record) => (record.roles ?? [])
+    .map((r) => {
+        const code = r.role ?? r;
+        return { code, label: etiquetasDeRol.value[code] ?? code };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+
 const onTableChange = (pag, _f, sorter) => {
     const pedida = normField(sorter?.field) || sorter?.columnKey;
     // AntD cicla ascendente → descendente → sin orden, y el tercer clic llega
@@ -636,7 +659,7 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
 
                     <template v-else-if="column.key === 'roles'">
                         <template v-if="record.roles?.length">
-                            <Tag v-for="r in record.roles" :key="r.id ?? r" color="geekblue" :bordered="false">{{ $t('people.role_' + (r.role ?? r)) }}</Tag>
+                            <Tag v-for="r in rolesDe(record)" :key="r.code" color="geekblue" :bordered="false">{{ r.label }}</Tag>
                         </template>
                         <span v-else class="muted">—</span>
                     </template>

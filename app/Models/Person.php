@@ -278,6 +278,30 @@ class Person extends Model
                 static::subconsultaDeConteo('person_biometrics', $tbl)->where('is_active', true),
                 $direction,
             );
+        } elseif ($sort === 'roles') {
+            // Los roles son una LISTA —una persona puede ser supervisor y
+            // supervisor HSE a la vez— asi que no hay un valor unico por el que
+            // ordenar. Se ordena por el PRIMERO alfabeticamente, que es el que
+            // la celda enseña primero, y con eso la lista queda agrupada por
+            // rol: pulsar la cabecera junta a todos los supervisores, que es
+            // para lo que se pulsa.
+            //
+            // Por el nombre del catalogo y no por `person_roles.role`, que es un
+            // codigo: ordenando por el codigo, «hse_supervisor» va antes que
+            // «supervisor» y la lista sale en un orden que no es el que se lee.
+            // Y por el nombre DEL IDIOMA EN CURSO, que es el que esta en
+            // pantalla.
+            $columna = app()->getLocale() === 'en' ? 'name_en' : 'name_es';
+
+            $query->orderBy(
+                \DB::table('person_roles')
+                    ->join('approver_roles', 'approver_roles.code', '=', 'person_roles.role')
+                    ->whereColumn('person_roles.person_id', "{$tbl}.id")
+                    ->where('person_roles.is_active', true)
+                    ->whereNull('approver_roles.deleted_at')
+                    ->selectRaw("min(approver_roles.{$columna})"),
+                $direction,
+            );
         } elseif ($sort === 'signatures_count') {
             $query->orderBy(static::subconsultaDeConteo('person_signatures', $tbl), $direction);
         } else {
@@ -307,7 +331,7 @@ class Person extends Model
             // Columnas de `people`.
             'id', 'name', 'lastname', 'num_doc', 'doc_type', 'is_active', 'created_at', 'updated_at',
             // Columnas compuestas o de relacion, resueltas en `scopeFilter`.
-            'person', 'document', 'country', 'tenant', 'company', 'position',
+            'person', 'document', 'country', 'tenant', 'company', 'position', 'roles',
             // Conteos: la cabecera manda la clave de la columna y el
             // desplegable de orden manda el alias del withCount. Valen las dos.
             'companies_count', 'company_links_count',

@@ -44,10 +44,10 @@ export const peopleTableColumns = (t, { isSuper = false, isMobile = false } = {}
     { title: t('people.country'),        key: 'country',           width: 110, sorter: true, mobile: { role: 'meta', icon: GlobalOutlined } },
     { title: t('people.company'),        key: 'company',           width: 160, sorter: true, mobile: { role: 'meta', icon: ShopOutlined } },
     { title: t('people.biometric'),      key: 'biometric',         width: 118, align: 'center', sorter: true, mobile: { role: 'meta', icon: ScanOutlined } },
-    // Sin sorter a propósito: una persona lleva varios roles a la vez
-    // (trabajador + supervisor HSE), o sea que la celda es una lista y no hay
-    // un valor por el que ordenar. Para buscar por rol está el filtro.
-    { title: t('people.roles'),          key: 'roles',             width: 155, mobile: { role: 'subtitle' } },
+    // Ordena por el PRIMER rol alfabéticamente, que es el que la celda enseña
+    // primero: una persona lleva varios a la vez, así que no hay un valor único,
+    // pero agrupar por rol es justo para lo que se pulsa esa cabecera.
+    { title: t('people.roles'),          key: 'roles',             width: 155, sorter: true, mobile: { role: 'subtitle' } },
     { title: t('people.is_active'),      dataIndex: 'is_active',   key: 'status',   width: 110, align: 'center', sorter: true, mobile: { role: 'status' } },
     // Oculto desde que existe la columna Empresa: esa celda ya enseña la
     // primera y un «+2» con el resto, así que el número al lado es el mismo dato
