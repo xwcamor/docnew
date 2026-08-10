@@ -43,6 +43,39 @@ const paisEsPeru = computed(() => {
     return /\(PE\)\s*$/.test(p?.label ?? '');
 });
 
+/**
+ * Las formas societarias peruanas, al final del nombre.
+ *
+ * El separador de delante es obligatorio y no es un detalle: sin el, «EMPRESA»
+ * acabaria en «EMPRE» y «MASA» en «MA», porque las dos terminan en «SA».
+ */
+const FORMA_SOCIETARIA = new RegExp(
+    '[\\s,]+(?:' + [
+        'S\\.?\\s?A\\.?\\s?C\\.?',
+        'S\\.?\\s?A\\.?\\s?A\\.?',
+        'S\\.?\\s?C\\.?\\s?R\\.?\\s?L\\.?(?:\\s?TDA\\.?)?',
+        'S\\.?\\s?R\\.?\\s?L\\.?(?:\\s?TDA\\.?)?',
+        'E\\.?\\s?I\\.?\\s?R\\.?\\s?L\\.?',
+        'S\\.?\\s?A\\.?',
+        'SOCIEDAD\\s+AN[OÓ]NIMA(?:\\s+(?:CERRADA|ABIERTA))?',
+        'EMPRESA\\s+INDIVIDUAL\\s+DE\\s+RESPONSABILIDAD\\s+LIMITADA',
+        'SUCURSAL\\s+DEL\\s+PERU',
+    ].join('|') + ')\\.?\\s*$', 'i');
+
+/**
+ * El nombre corto propuesto a partir de la razon social.
+ *
+ * Son dos campos distintos y los dos hacen falta, como en el sistema anterior:
+ * la razon social es el nombre legal y sale en la cabecera del PDF; el corto es
+ * el que cabe en un listado, en la tarjeta de un plan y en un selector con
+ * guantes. SUNAT solo da el primero.
+ *
+ * Esto propone el segundo quitandole la forma societaria — «HITACHI ENERGY PERU
+ * S.A.C.» → «HITACHI ENERGY PERU» — para no teclearlo entero. Recortar de ahi a
+ * «HITACHI» es un segundo; escribirlo desde cero, no.
+ */
+const nombreCorto = (razon) => (razon ?? '').trim().replace(FORMA_SOCIETARIA, '').trim();
+
 const consultarRuc = async (ruc) => {
     rucEstado.value = 'buscando';
     try {
@@ -54,6 +87,11 @@ const consultarRuc = async (ruc) => {
         rucEstado.value = data.estado === 'sin_configurar' ? null : data.estado;
         if (data.estado === 'encontrado' && data.razon_social) {
             form.complete_name = data.razon_social;
+
+            // Solo si esta vacio: lo que ya escribiste no se pisa nunca.
+            if (!form.name?.trim()) {
+                form.name = nombreCorto(data.razon_social);
+            }
         }
     } catch {
         rucEstado.value = 'error';
