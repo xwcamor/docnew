@@ -36,6 +36,7 @@ return [
         'clear'              => 'Clear',
         'take_photo_and_sign'=> 'Take photo and sign',
         'back_to_plan'       => 'Back to the plan',
+        'back_to_plan_in'    => 'Back to the plan… :n',
         'no_target'          => 'No idea who is signing',
         'no_target_hint'     => 'Go back to the plan and press Sign on that person’s row.',
         'signature_required' => ':name has no signature on file: it has to be drawn before signing the plan.',

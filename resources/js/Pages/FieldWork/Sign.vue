@@ -77,6 +77,41 @@ const pideTrazo = computed(() => !!fila.value && (!fila.value.has_signature || r
 
 const volver = () => router.get(route('business_management.work_plans.show', props.plan.slug));
 
+/**
+ * Vuelta sola al plan, con unos segundos para leer el aviso.
+ *
+ * La firma limpia ya se iba sola. La que queda pendiente de revision se paraba
+ * aqui con un boton «Volver al plan» que habia que pulsar — y eso es un toque de
+ * mas con la siguiente persona esperando, con guantes, delante de la tablet. El
+ * aviso hay que leerlo, pero leerlo no es lo mismo que confirmar que se ha
+ * leido: se enseña, se cuenta atras y se vuelve.
+ *
+ * El boton se queda: quien ya lo leyo no tiene por que esperar. Y el mensaje no
+ * se pierde al irse — el servidor lo dejo tambien en la sesion y sale otra vez
+ * en el plan.
+ */
+const SEGUNDOS_PARA_LEERLO = 6;
+const cuentaAtras = ref(0);
+let temporizador = null;
+
+const volverEnUnosSegundos = () => {
+    cuentaAtras.value = SEGUNDOS_PARA_LEERLO;
+
+    temporizador = setInterval(() => {
+        cuentaAtras.value -= 1;
+
+        if (cuentaAtras.value <= 0) {
+            clearInterval(temporizador);
+            temporizador = null;
+            volver();
+        }
+    }, 1000);
+};
+
+// Si alguien pulsa el boton antes de que acabe la cuenta, o se va de la
+// pantalla, el temporizador no puede seguir vivo disparando una navegacion.
+onBeforeUnmount(() => { if (temporizador) clearInterval(temporizador); });
+
 // ── El reto de vida ──────────────────────────────────────────────────────────
 
 const INSTRUCCION = {
@@ -185,6 +220,7 @@ async function firmar() {
         if (resultado.retoFallido) {
             listo.value = true;
             mensaje.value = t('field_work.sign.challenge_failed');
+            volverEnUnosSegundos();
 
             return;
         }
@@ -286,12 +322,15 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
             </template>
 
             <!-- Sólo se llega aquí cuando la firma quedó pendiente de revisión:
-                 es un aviso que hay que leer antes de seguir. La firma limpia no
-                 pasa por esta pantalla — se va al plan sola. -->
+                 es un aviso que hay que leer. La firma limpia no pasa por esta
+                 pantalla — se va al plan sola, y ésta también, en cuanto da
+                 tiempo a leerlo. El botón se queda para quien no quiera esperar. -->
             <div v-else class="firma__acciones">
                 <Button size="large" type="primary" @click="volver">
                     <template #icon><ArrowLeftOutlined /></template>
-                    {{ $t('field_work.sign.back_to_plan') }}
+                    {{ cuentaAtras > 0
+                        ? $t('field_work.sign.back_to_plan_in', { n: cuentaAtras })
+                        : $t('field_work.sign.back_to_plan') }}
                 </Button>
             </div>
         </template>

@@ -35,6 +35,7 @@ return [
         'clear'              => 'Borrar',
         'take_photo_and_sign'=> 'Tomar foto y firmar',
         'back_to_plan'       => 'Volver al plan',
+        'back_to_plan_in'    => 'Volviendo al plan… :n',
         'no_target'          => 'No se sabe a quién firmar',
         'no_target_hint'     => 'Vuelve al plan y pulsa Firmar en la fila de la persona.',
         'signature_required' => ':name no tiene firma registrada: hay que trazarla antes de firmar el plan.',
