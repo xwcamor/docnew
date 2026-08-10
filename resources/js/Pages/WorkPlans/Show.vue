@@ -438,8 +438,10 @@ const irAlRepresentante = () => {
                             </span>
                         </div>
 
-                        <!-- Datos del registro: quién lo dio de alta y cuándo. No
-                             sirven en obra, pero es aquí donde se vienen a buscar. -->
+                        <!-- Datos del registro: quién lo dio de alta. No sirven en
+                             obra, pero es aquí donde se vienen a buscar. La fecha
+                             de alta no está: es traza del registro y vive en la
+                             pestaña Historial (ver docs/UI.md §4). -->
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.registered_by') }}</span>
                             <span class="spec-cell__value">{{ workPlan.registered_by?.name || '—' }}</span>
@@ -447,10 +449,6 @@ const irAlRepresentante = () => {
                         <div v-if="workPlan.creator" class="spec-cell">
                             <span class="spec-cell__label">{{ $t('global.created_by') }}</span>
                             <span class="spec-cell__value">{{ workPlan.creator.name }}</span>
-                        </div>
-                        <div class="spec-cell">
-                            <span class="spec-cell__label">{{ $t('global.created_at') }}</span>
-                            <span class="spec-cell__value">{{ fmt(workPlan.created_at) }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('global.updated_at') }}</span>

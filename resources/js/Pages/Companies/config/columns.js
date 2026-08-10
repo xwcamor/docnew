@@ -1,5 +1,5 @@
 import {
-    ApartmentOutlined, CalendarOutlined, GlobalOutlined,
+    ApartmentOutlined, GlobalOutlined,
     TeamOutlined, ScheduleOutlined, IdcardOutlined,
 } from '@ant-design/icons-vue';
 
@@ -28,7 +28,6 @@ export const companiesTableColumns = (t, { isSuper = false, isMobile = false } =
     ] : []),
     { title: t('companies.complete_name'), dataIndex: 'complete_name', key: 'complete_name', width: 320, ellipsis: true, sorter: true, defaultHidden: true, mobile: { role: 'subtitle' } },
     { title: t('companies.is_active'),     dataIndex: 'is_active',     key: 'status',   width: 130, align: 'center', sorter: true, mobile: { role: 'status' } },
-    { title: t('global.created_at'),       dataIndex: 'created_at',    key: 'created_at', width: 180, sorter: true, defaultHidden: true, mobile: { role: 'meta', icon: CalendarOutlined } },
     // En pantalla chica las acciones se colapsan en un kebab → columna angosta.
     { title: t('global.actions'),          key: 'actions',             width: isMobile ? 56 : 150, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

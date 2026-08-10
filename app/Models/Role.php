@@ -96,7 +96,6 @@ class Role extends SpatieRole
             ['key' => 'name',        'label' => __('roles.name'),         'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'description', 'label' => __('roles.description'),  'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',   'label' => __('global.active'),      'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at',  'label' => __('global.created_at'),  'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at',  'label' => __('global.updated_at'),  'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

@@ -275,7 +275,6 @@ class Customer extends Model
             ['key' => 'cod',        'label' => __('customers.cod'),        'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'country_id', 'label' => __('customers.country'),    'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['countries'] ?? []],
             ['key' => 'is_active',  'label' => __('customers.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),    'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),    'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

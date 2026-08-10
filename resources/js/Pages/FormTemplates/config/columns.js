@@ -1,4 +1,4 @@
-import { ApartmentOutlined, CalendarOutlined } from '@ant-design/icons-vue';
+import { ApartmentOutlined } from '@ant-design/icons-vue';
 
 /**
  * Columnas de la tabla principal de Documentos.
@@ -27,6 +27,5 @@ export const formTemplatesTableColumns = (t, { isSuper = false, isMobile = false
         { title: t('tenants.singular'), dataIndex: ['tenant', 'name'], key: 'tenant', width: 180, sorter: true, mobile: { role: 'meta', icon: ApartmentOutlined } },
     ] : []),
     { title: t('form_templates.is_active'), dataIndex: 'is_active',   key: 'status',     width: 150, sorter: (a, b) => Number(a.is_active) - Number(b.is_active), mobile: { role: 'meta' } },
-    { title: t('global.created_at'),   dataIndex: 'created_at',  key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     { title: t('global.actions'),      key: 'actions',           width: isMobile ? 56 : 150, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

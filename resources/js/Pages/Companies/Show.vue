@@ -115,7 +115,11 @@ const fmt = (d) => formatDateTimeFull(d);
                     <!-- Filas etiqueta/valor en vez de ocho cajas iguales: el RUC
                          y la razon social son lo que identifica a la empresa y hay
                          que poder leerlos de un vistazo. El nombre y el estado NO
-                         se repiten aqui: ya estan en la cabecera. -->
+                         se repiten aqui: ya estan en la cabecera.
+
+                         Tampoco la fecha de alta: cuando se creo el registro y
+                         quien lo creo son la traza del registro, y esa vive
+                         entera en la pestaña Historial (ver docs/UI.md §4). -->
                     <dl class="ficha-datos">
                         <div class="ficha-datos__fila">
                             <dt>{{ $t('companies.num_doc') }}</dt>
@@ -124,13 +128,6 @@ const fmt = (d) => formatDateTimeFull(d);
                         <div class="ficha-datos__fila">
                             <dt>{{ $t('companies.country') }}</dt>
                             <dd>{{ company.country?.name || '—' }}</dd>
-                        </div>
-                        <div class="ficha-datos__fila">
-                            <dt>{{ $t('global.created_at') }}</dt>
-                            <dd>
-                                {{ fmt(company.created_at) }}
-                                <span v-if="company.creator" class="muted">· {{ company.creator.name }}</span>
-                            </dd>
                         </div>
                         <div class="ficha-datos__fila">
                             <dt>{{ $t('global.updated_at') }}</dt>
@@ -155,7 +152,6 @@ const fmt = (d) => formatDateTimeFull(d);
 
 <style scoped>
 .show-page { /* fullscreen — sin max-width, ocupa todo el ancho del content */ }
-.muted { color: var(--color-text-muted); font-size: 0.8125rem; }
 .cab-razon { color: var(--color-text-muted); font-size: 0.875rem; }
 .deleted-alert { margin-bottom: 16px; }
 .info-card { margin-bottom: 16px; border-radius: 8px; }

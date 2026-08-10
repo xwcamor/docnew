@@ -229,7 +229,6 @@ class SystemModule extends Model
             ['key' => 'name',           'label' => __('system_modules.name'),           'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'permission_key', 'label' => __('system_modules.permission_key'), 'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',      'label' => __('global.active'),                 'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at',     'label' => __('global.created_at'),             'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at',     'label' => __('global.updated_at'),             'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

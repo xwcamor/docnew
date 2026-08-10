@@ -111,11 +111,43 @@ columnas:
 - **cómo va** — cuántos de cuántos, qué falta,
 - y qué hay que hacer ahora.
 
-Lo técnico —`id`, `slug`, quién lo registró, fechas de creación— va en una
-**segunda vista, con un botón para cambiar**, y la elección se recuerda.
+Lo técnico —`id`, `slug`, quién lo registró— va en una **segunda vista, con un
+botón para cambiar**, y la elección se recuerda. Las fechas del registro ni
+siquiera eso: están en el Historial (§4-ter).
 
 > *Caso real:* la ficha del plan abría con «Información general»: veinte campos
 > apilados con etiquetas en mayúsculas. Venía tal cual del generador de módulos.
+
+---
+
+## 4-ter. La fecha de creación no se enseña, se consulta
+
+`created_at` **no va en la ficha, ni en el listado, ni en los filtros**. Vive en
+la pestaña **Historial**, al lado de quién lo creó y de la última modificación,
+que es la traza del registro y está puesta ahí para eso.
+
+No es una manía de colocación. Es que la fecha de alta no contesta ninguna de
+las preguntas con las que se abre una pantalla: de un plan se quiere saber
+cuándo se ejecuta, de una persona si tiene la biometría vigente, de una
+contratista su RUC. Cuándo se tecleó el registro no cambia nada de eso, y aun
+así se llevaba una columna de 180px en la tablet, una fila en el panel de datos
+de la ficha y una entrada en el desplegable de filtros y en el de orden.
+
+Lo que **sí** se queda, y no se toca:
+
+| Dónde | Por qué |
+| --- | --- |
+| La pestaña Historial (`RecordHistory`, `ActivityTimeline`) | Es la traza de auditoría —«creado el X por Y»—, no un campo de la ficha |
+| La papelera | Ahí la fecha sí dice algo: cuándo se borró el registro |
+| Las listas blancas de orden del servidor (`in_array($sort, [… 'created_at' …])`) | Hay **vistas guardadas** de usuarios ordenando por esa clave. Quitarla de la pantalla ya la saca del menú; quitarla del servidor haría que esas vistas se cayeran al orden por defecto sin avisar |
+| La clave `global.created_at` de `es`/`en` | La usa el Historial |
+
+> *Caso real:* «en todos los módulos quita la fecha de creación de filtros, ver
+> columna y del rightside, no aporta nada ese campo». Estaba en el
+> `filterSchema()` de 24 modelos y servicios, en 23 `columns.js` y en dos fichas.
+
+`UiStandardTest` lo comprueba: si vuelve a colarse en un `columns.js` o en un
+`filterSchema()`, la prueba falla.
 
 ---
 
@@ -329,6 +361,8 @@ medían 57 y 49, y son pantallas que se abren una detrás de otra.
 - [ ] Ninguna cabecera sale en mayúsculas con un punto (= clave sin traducir)
 - [ ] `es` y `en` tienen las mismas claves, y el namespace está en `loadTranslations()`
 - [ ] La ficha abre con la vista útil; lo técnico está en la vista larga
+- [ ] La fecha de creación no sale ni en la ficha, ni en las columnas, ni en los
+      filtros — su sitio es el Historial
 - [ ] A 1024×768 no hay scroll horizontal; a 768 se apila
 - [ ] Los objetivos de toque llegan a 44 px
 - [ ] Cada estado tiene color **y** palabra

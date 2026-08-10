@@ -52,9 +52,7 @@ import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useModuleSavedViews } from '@/Composables/useModuleSavedViews';
 import { useModuleFavorites } from '@/Composables/useModuleFavorites';
 import { useModuleUndoToast } from '@/Composables/useModuleUndoToast';
-import { useDateFormat } from '@/Composables/useDateFormat';
 const { canUse: canUsePlanFeature } = usePlanFeatures();
-const { formatDateTime } = useDateFormat();
 import { useI18n } from '@/Plugins/i18n';
 import { QuestionCircleOutlined } from '@ant-design/icons-vue';
 
@@ -596,10 +594,6 @@ const toggleOnlyFavorites = () => {
                             <span class="pill__dot" />
                             {{ record.is_active ? $t('global.active') : $t('global.inactive') }}
                         </span>
-                    </template>
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
                     </template>
 
                     <UsersActionsCell

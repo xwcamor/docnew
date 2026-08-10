@@ -1,5 +1,3 @@
-import { CalendarOutlined } from '@ant-design/icons-vue';
-
 /**
  * Columnas del listado de reglas del flujo.
  *
@@ -26,6 +24,5 @@ export const approvalRulesTableColumns = (t, { isSuper = false, isMobile = false
     { title: t('approval_rules.country'), dataIndex: ['country', 'name'], key: 'country', width: 160, mobile: { role: 'meta' } },
     { title: t('approval_rules.is_required'), dataIndex: 'is_required', key: 'is_required', width: 130, align: 'center', sorter: true, mobile: { role: 'meta' } },
     { title: t('approval_rules.is_active'), dataIndex: 'is_active', key: 'status', width: 130, sorter: true, mobile: { role: 'status' } },
-    { title: t('global.created_at'), dataIndex: 'created_at', key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     { title: t('global.actions'), key: 'actions', width: isMobile ? 56 : 120, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

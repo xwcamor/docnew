@@ -1,4 +1,4 @@
-import { GlobalOutlined, IdcardOutlined, ApartmentOutlined, CalendarOutlined } from '@ant-design/icons-vue';
+import { GlobalOutlined, IdcardOutlined, ApartmentOutlined } from '@ant-design/icons-vue';
 /**
  * Columnas de la tabla principal de Users.
  *
@@ -27,7 +27,6 @@ export const usersTableColumns = (t, { isSuper = false, isMobile = false } = {})
 
     cols.push(
         { title: t('users.is_active'),   dataIndex: 'is_active',  key: 'status',     sorter: true, width: 120, mobile: { role: 'status' } },
-        { title: t('global.created_at'), dataIndex: 'created_at', key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
         { title: t('global.actions'),    key: 'actions',          width: isMobile ? 56 : 100, fixed: 'right', alwaysVisible: true, mobile: { role: 'actions' } },
     );
 

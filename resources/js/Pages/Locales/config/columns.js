@@ -1,4 +1,4 @@
-import { TagOutlined, TranslationOutlined, CalendarOutlined } from '@ant-design/icons-vue';
+import { TagOutlined, TranslationOutlined } from '@ant-design/icons-vue';
 
 /**
  * Columnas de la tabla principal de Locales.
@@ -9,7 +9,6 @@ export const localesTableColumns = (t, { isMobile = false } = {}) => [
     { title: t('locales.code'),      dataIndex: 'code',        key: 'code',       sorter: true, width: 110, mobile: { role: 'meta', icon: TagOutlined }, defaultHidden: true },
     { title: t('locales.language'),  dataIndex: 'language',    key: 'language',   sorter: true, width: 180, mobile: { role: 'meta', icon: TranslationOutlined } },
     { title: t('locales.is_active'), dataIndex: 'is_active',   key: 'status',     sorter: true, width: 130, mobile: { role: 'status' } },
-    { title: t('global.created_at'), dataIndex: 'created_at',  key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     // En pantalla chica (tabla) las acciones se colapsan en un kebab → columna angosta.
     { title: t('global.actions'),    key: 'actions',           width: isMobile ? 56 : 100, fixed: 'right', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

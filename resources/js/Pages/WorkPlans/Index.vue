@@ -40,7 +40,6 @@ import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useModuleTour } from '@/Composables/useModuleTour';
 import { useKeyboardShortcuts } from '@/Composables/useKeyboardShortcuts';
 import { useViewport } from '@/Composables/useViewport';
-import { useDateFormat } from '@/Composables/useDateFormat';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 import { useI18n } from '@/Plugins/i18n';
@@ -63,7 +62,6 @@ defineOptions({ layout: AppLayout });
 
 const { t } = useI18n();
 const { can, isSuper, canSeeAudit } = useAuth();
-const { formatDateTime } = useDateFormat();
 
 // Las fechas del plan llegan ya como Y-m-d (son días de calendario, no
 // instantes): se muestran dd-mm-aaaa sin pasarlas por ninguna zona horaria.
@@ -604,10 +602,6 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
 
                     <template v-else-if="column.key === 'date_start' || column.key === 'date_end'">
                         {{ plainDate(record[column.dataIndex]) }}
-                    </template>
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
                     </template>
 
                     <WorkPlansActionsCell

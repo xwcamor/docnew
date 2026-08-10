@@ -169,6 +169,57 @@ class UiStandardTest extends TestCase
     }
 
     /**
+     * La fecha de creacion no vuelve a la pantalla.
+     *
+     * «No aporta nada ese campo»: cuando se tecleo el registro no contesta
+     * ninguna de las preguntas con las que se abre una lista o una ficha, y se
+     * llevaba una columna de 180px en la tablet, una fila en el panel de datos
+     * y una entrada en el desplegable de filtros y en el de orden.
+     *
+     * Su sitio es la pestana Historial, que es la traza del registro —creado el
+     * X por Y— y ahi si tiene sentido. Se cuela sola: la trae el generador de
+     * modulos y nadie la borra, asi que estaba en 24 `filterSchema()` y en 23
+     * `columns.js`. Ver docs/UI.md §4-ter.
+     *
+     * Lo que esta prueba NO mira, a proposito: `RecordHistory`, la papelera,
+     * las listas blancas de orden del servidor —hay vistas guardadas ordenando
+     * por esa clave— ni los `fields()` del motor de automatizaciones, que es un
+     * motor de reglas y no una pantalla.
+     */
+    public function test_la_fecha_de_creacion_no_esta_en_columnas_ni_en_filtros(): void
+    {
+        $encontrada = [];
+
+        // 1. El selector de columnas y la tabla.
+        foreach (glob(resource_path('js/Pages/*/config/columns.js')) as $archivo) {
+            if (str_contains(file_get_contents($archivo), "'created_at'")) {
+                $encontrada[] = str_replace(base_path() . '/', '', $archivo);
+            }
+        }
+
+        // 2. El desplegable de «Filtros avanzados». Solo el cuerpo de
+        //    `filterSchema()`: el mismo fichero filtra por `created_at` en el
+        //    scope del listado y eso es lo que hace que las vistas guardadas
+        //    que ya existen sigan funcionando.
+        foreach ($this->archivosPhpDeApp() as $archivo) {
+            $fuente = file_get_contents($archivo);
+
+            if (! preg_match('/function filterSchema\([^)]*\): array\s*\{.*?\n    \}/s', $fuente, $m)) {
+                continue;
+            }
+
+            if (str_contains($m[0], "'key' => 'created_at'")) {
+                $encontrada[] = str_replace(base_path() . '/', '', $archivo) . ' → filterSchema()';
+            }
+        }
+
+        $this->assertSame([], $encontrada,
+            "La fecha de creacion volvio a una pantalla (ver docs/UI.md §4-ter).\n"
+            . "Su sitio es la pestana Historial, no la columna ni el filtro:\n  "
+            . implode("\n  ", $encontrada));
+    }
+
+    /**
      * Ninguna fila de formulario sin `form-grid`.
      *
      * `app.css` aplana con `!important` toda `.ant-row` dentro de `.sap-form`
@@ -428,6 +479,21 @@ class UiStandardTest extends TestCase
                 $salida += $this->valores($valor, $entera);
             } elseif (is_string($valor)) {
                 $salida[$entera] = $valor;
+            }
+        }
+
+        return $salida;
+    }
+
+    /** @return string[] */
+    private function archivosPhpDeApp(): array
+    {
+        $salida = [];
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(app_path()));
+
+        foreach ($it as $archivo) {
+            if ($archivo->isFile() && $archivo->getExtension() === 'php') {
+                $salida[] = $archivo->getPathname();
             }
         }
 

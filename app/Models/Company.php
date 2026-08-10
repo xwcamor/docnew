@@ -262,7 +262,6 @@ class Company extends Model
             ['key' => 'complete_name', 'label' => __('companies.complete_name'), 'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'country_id',    'label' => __('companies.country'),       'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['countries'] ?? []],
             ['key' => 'is_active',     'label' => __('companies.is_active'),     'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at',    'label' => __('global.created_at'),       'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at',    'label' => __('global.updated_at'),       'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

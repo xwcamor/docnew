@@ -95,7 +95,6 @@ class WorkstationService
         return [
             ['key' => 'name',     'label' => __('workstations.name'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('workstations.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

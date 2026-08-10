@@ -115,7 +115,6 @@ class DocumentTypeService
             ['key' => 'min_length', 'label' => __('document_types.min_length'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'max_length', 'label' => __('document_types.max_length'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_active',  'label' => __('document_types.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),         'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

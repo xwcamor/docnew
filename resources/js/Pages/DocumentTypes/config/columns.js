@@ -1,4 +1,4 @@
-import { ApartmentOutlined, CalendarOutlined } from '@ant-design/icons-vue';
+import { ApartmentOutlined } from '@ant-design/icons-vue';
 
 /**
  * Columnas del listado de tipos de documento.
@@ -30,6 +30,5 @@ export const document_typesTableColumns = (t, { isSuper = false, isMobile = fals
         { title: t('tenants.singular'), dataIndex: ['tenant', 'name'], key: 'tenant', width: 180, sorter: true, mobile: { role: 'meta', icon: ApartmentOutlined } },
     ] : []),
     { title: t('document_types.is_active'), dataIndex: 'is_active', key: 'status', width: 130, sorter: true, mobile: { role: 'status' } },
-    { title: t('global.created_at'), dataIndex: 'created_at', key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     { title: t('global.actions'), key: 'actions', width: isMobile ? 56 : 120, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

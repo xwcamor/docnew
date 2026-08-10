@@ -46,7 +46,6 @@ import { usePageLoading } from '@/Composables/usePageLoading';
 import { useI18n } from '@/Plugins/i18n';
 import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useColumnPreferences } from '@/Composables/useColumnPreferences';
-import { useDateFormat } from '@/Composables/useDateFormat';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 
@@ -71,7 +70,6 @@ const props = defineProps({
 
 const { t } = useI18n();
 const { can, isSuper } = useAuth();
-const { formatDateTime } = useDateFormat();
 const { canUse: canUsePlanFeature } = usePlanFeatures();
 
 // Avatar de iniciales con color estable (para la celda principal de la tabla).
@@ -575,10 +573,6 @@ const tour = useModuleTour({ module: 'automations', steps: () => moduleTourSteps
                         <Tag v-if="record.failures_count > 0" color="error" :bordered="false">
                             {{ record.failures_count }} fail
                         </Tag>
-                    </template>
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
                     </template>
 
                     <AutomationsActionsCell

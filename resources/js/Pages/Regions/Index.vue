@@ -43,7 +43,6 @@ import { usePageLoading } from '@/Composables/usePageLoading';
 import { useI18n } from '@/Plugins/i18n';
 import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useColumnPreferences } from '@/Composables/useColumnPreferences';
-import { useDateFormat } from '@/Composables/useDateFormat';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 
@@ -70,7 +69,6 @@ const props = defineProps({
 
 const { t } = useI18n();
 const { can, isSuper, canSeeAudit } = useAuth();
-const { formatDateTime } = useDateFormat();
 
 // Gate per plan: saved_views requiere basic+, imports/edit_all requieren pro+.
 const { canUse: canUsePlanFeature } = usePlanFeatures();
@@ -539,10 +537,6 @@ const tour = useModuleTour({ module: 'regions', steps: () => moduleTourSteps(t, 
                             <span class="pill__dot" />
                             {{ record.is_active ? $t('global.active') : $t('global.inactive') }}
                         </span>
-                    </template>
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
                     </template>
 
                     <RegionsActionsCell

@@ -175,7 +175,6 @@ class Brand extends Model
             ['key' => 'code',       'label' => __('brands.code'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'sort_order', 'label' => __('brands.sort_order'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_active',  'label' => __('brands.is_active'), 'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

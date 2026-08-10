@@ -226,7 +226,6 @@ class FormTemplate extends Model
                 ['value' => self::HYBRID,      'label' => __('form_templates.kind_hybrid')],
             ]],
             ['key' => 'is_active',  'label' => __('form_templates.is_active'), 'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

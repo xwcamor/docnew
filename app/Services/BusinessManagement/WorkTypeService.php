@@ -104,7 +104,6 @@ class WorkTypeService
         return [
             ['key' => 'code',       'label' => __('work_types.code'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('work_types.is_active'), 'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),    'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

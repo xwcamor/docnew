@@ -95,7 +95,6 @@ class WorkAreaService
         return [
             ['key' => 'name',     'label' => __('work_areas.name'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('work_areas.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

@@ -204,7 +204,6 @@ class WorkPlan extends Model
             ['key' => 'is_closed',        'label' => __('work_plans.is_closed'),     'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'date_start',       'label' => __('work_plans.date_start'),    'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'date_end',         'label' => __('work_plans.date_end'),      'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
-            ['key' => 'created_at',       'label' => __('global.created_at'),        'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at',       'label' => __('global.updated_at'),        'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

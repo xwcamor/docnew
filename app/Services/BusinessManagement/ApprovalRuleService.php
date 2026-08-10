@@ -109,7 +109,6 @@ class ApprovalRuleService
             ['key' => 'priority_level', 'label' => __('approval_rules.priority_level'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_required',    'label' => __('approval_rules.is_required'),    'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'is_active',      'label' => __('approval_rules.is_active'),      'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at',     'label' => __('global.created_at'),             'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

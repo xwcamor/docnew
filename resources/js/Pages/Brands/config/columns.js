@@ -1,4 +1,4 @@
-import { ApartmentOutlined, CalendarOutlined } from '@ant-design/icons-vue';
+import { ApartmentOutlined } from '@ant-design/icons-vue';
 
 /**
  * Columnas de la tabla principal de Brands.
@@ -23,6 +23,5 @@ export const brandsTableColumns = (t, { isSuper = false, isMobile = false } = {}
     // ahora solo existia en la exportacion (y salia vacia).
     { title: t('brands.sort_order'), dataIndex: 'sort_order', key: 'sort_order', width: 110, align: 'right', sorter: true, defaultHidden: true, mobile: { role: 'meta' } },
     { title: t('brands.is_active'), dataIndex: 'is_active',   key: 'status',     width: 150, sorter: (a, b) => Number(a.is_active) - Number(b.is_active), mobile: { role: 'status' } },
-    { title: t('global.created_at'),   dataIndex: 'created_at',  key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     { title: t('global.actions'),      key: 'actions',           width: isMobile ? 56 : 150, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

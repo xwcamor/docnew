@@ -100,7 +100,6 @@ class PositionService
         return [
             ['key' => 'code',     'label' => __('positions.code'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('positions.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

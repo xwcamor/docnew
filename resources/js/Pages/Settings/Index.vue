@@ -43,7 +43,6 @@ import { useViewport } from '@/Composables/useViewport';
 import { usePageLoading } from '@/Composables/usePageLoading';
 import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useColumnPreferences } from '@/Composables/useColumnPreferences';
-import { useDateFormat } from '@/Composables/useDateFormat';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 import { useI18n } from '@/Plugins/i18n';
@@ -71,7 +70,6 @@ const props = defineProps({
 
 const { t } = useI18n();
 const { can, isSuper, canSeeAudit } = useAuth();
-const { formatDateTime } = useDateFormat();
 
 // Gates por plan: saved_views (basic+), imports/edit_all (pro+). El toolbar
 // inline remasterizado los repite manualmente para no mostrar acciones inertes.
@@ -587,10 +585,6 @@ const tour = useModuleTour({ module: 'settings', steps: () => moduleTourSteps(t,
                             <span class="pill__dot" />
                             {{ record.is_active ? $t('global.active') : $t('global.inactive') }}
                         </span>
-                    </template>
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
                     </template>
 
                     <SettingsActionsCell

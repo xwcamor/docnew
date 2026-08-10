@@ -120,7 +120,6 @@ class ApproverRoleService
             ['key' => 'name_en',    'label' => __('approver_roles.name_en'),    'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'sort_order', 'label' => __('approver_roles.sort_order'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'is_active',  'label' => __('approver_roles.is_active'),  'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),         'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }
 

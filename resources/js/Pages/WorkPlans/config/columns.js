@@ -36,7 +36,6 @@ export const workPlansTableColumns = (t, { isSuper = false, isMobile = false } =
     { title: t('work_plans.forms_count'),    dataIndex: 'submissions_count', key: 'submissions_count', width: 120, align: 'center', defaultHidden: true, mobile: { role: 'meta', icon: FileTextOutlined, hideWhenZero: true } },
     { title: t('work_plans.date_end'),       dataIndex: 'date_end',    key: 'date_end',      width: 130, sorter: true, defaultHidden: true, mobile: { role: 'meta', icon: CalendarOutlined } },
     { title: t('work_plans.registered_by'),  key: 'registered_by',     width: 190, defaultHidden: true, mobile: { role: 'meta', icon: UserOutlined } },
-    { title: t('global.created_at'),         dataIndex: 'created_at',  key: 'created_at',    width: 180, sorter: true, defaultHidden: true, mobile: { role: 'meta', icon: CalendarOutlined } },
     // En pantalla chica las acciones se colapsan en un kebab → columna angosta.
     { title: t('global.actions'),            key: 'actions',           width: isMobile ? 56 : 150, fixed: 'right', align: 'center', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

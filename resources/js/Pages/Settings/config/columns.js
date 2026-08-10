@@ -18,6 +18,5 @@ export const settingsTableColumns = (t, { isMobile = false } = {}) => [
     { title: t('settings.group'),     dataIndex: 'group',       key: 'group',      sorter: true, width: 130, defaultHidden: true, mobile: { role: 'meta', icon: FolderOutlined } },
     { title: t('settings.is_secret'), dataIndex: 'is_secret',   key: 'is_secret',  width: 100, defaultHidden: true, mobile: { role: 'meta', icon: LockOutlined } },
     { title: t('settings.is_active'), dataIndex: 'is_active',   key: 'status',     sorter: true, width: 130, mobile: { role: 'status' } },
-    { title: t('global.created_at'), dataIndex: 'created_at',  key: 'created_at', sorter: true, width: 180, defaultHidden: true, mobile: { role: 'hidden' } },
     { title: t('global.actions'),    key: 'actions',           width: isMobile ? 56 : 100, fixed: 'right', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

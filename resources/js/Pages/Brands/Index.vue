@@ -40,7 +40,6 @@ import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useModuleTour } from '@/Composables/useModuleTour';
 import { useKeyboardShortcuts } from '@/Composables/useKeyboardShortcuts';
 import { useViewport } from '@/Composables/useViewport';
-import { useDateFormat } from '@/Composables/useDateFormat';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 import { useI18n } from '@/Plugins/i18n';
@@ -63,7 +62,6 @@ defineOptions({ layout: AppLayout });
 
 const { t } = useI18n();
 const { can, isSuper, canSeeAudit } = useAuth();
-const { formatDateTime } = useDateFormat();
 
 // Avatar de iniciales con color estable (para la celda principal de la tabla).
 const initials = (name) => (name || '').split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '—';
@@ -554,10 +552,6 @@ const goDelete = (record) => router.visit(route('business_management.brands.dele
                         </span>
                     </template>
 
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
-                    </template>
 
                     <BrandsActionsCell
                         v-else-if="column.key === 'actions'"

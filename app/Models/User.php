@@ -264,7 +264,6 @@ class User extends Authenticatable implements HasLocalePreference
             ['key' => 'name',       'label' => __('users.name'),        'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'email',      'label' => __('users.email'),       'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('global.active'),     'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'), 'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

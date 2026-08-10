@@ -278,7 +278,6 @@ class Country extends Model
             ['key' => 'name',       'label' => __('countries.name'),     'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'iso_code',   'label' => __('countries.iso_code'), 'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('global.active'),      'type' => 'boolean', 'operators' => ['=']],
-            ['key' => 'created_at', 'label' => __('global.created_at'),  'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),  'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
     }

@@ -1,4 +1,4 @@
-import { ApartmentOutlined, ThunderboltOutlined, SendOutlined, FieldTimeOutlined, ReloadOutlined, CalendarOutlined } from '@ant-design/icons-vue';
+import { ApartmentOutlined, ThunderboltOutlined, SendOutlined, FieldTimeOutlined, ReloadOutlined } from '@ant-design/icons-vue';
 
 /**
  * Columnas de la tabla principal de Automations. `mobile.role` determina cómo
@@ -21,6 +21,5 @@ export const automationsTableColumns = (t, { isSuper = false, isMobile = false }
     { title: t('automations.col_status'),  dataIndex: 'is_active',   key: 'status',     sorter: true, width: 110, align: 'center', mobile: { role: 'status' } },
     { title: t('automations.col_next_run'),dataIndex: 'next_run_at', key: 'next_run',   sorter: true, width: 180, mobile: { role: 'meta', icon: FieldTimeOutlined } },
     { title: t('automations.col_runs'),    key: 'runs', dataIndex: 'runs_count', sorter: true, width: 110, align: 'center', mobile: { role: 'meta', icon: ReloadOutlined }, defaultHidden: true },
-    { title: t('global.created_at'),       dataIndex: 'created_at',  key: 'created_at', sorter: true, width: 180, mobile: { role: 'meta', icon: CalendarOutlined }, defaultHidden: true },
     { title: t('global.actions'),          key: 'actions',           width: isMobile ? 56 : 220, fixed: 'right', alwaysVisible: true, mobile: { role: 'actions' } },
 ];

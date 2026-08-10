@@ -33,7 +33,6 @@ import { useModuleListMeta } from '@/Composables/useModuleListMeta';
 import { useModuleTour } from '@/Composables/useModuleTour';
 import { useKeyboardShortcuts } from '@/Composables/useKeyboardShortcuts';
 import { useViewport } from '@/Composables/useViewport';
-import { useDateFormat } from '@/Composables/useDateFormat';
 import { usePlanFeatures } from '@/Composables/usePlanFeatures';
 import { useVoiceSearch } from '@/Composables/useVoiceSearch';
 import { useI18n } from '@/Plugins/i18n';
@@ -53,7 +52,6 @@ defineOptions({ layout: AppLayout });
 
 const { t } = useI18n();
 const { can, isSuper } = useAuth();
-const { formatDateTime } = useDateFormat();
 
 const props = defineProps({
     work_types:   { type: Object, required: true },
@@ -487,10 +485,6 @@ const goDelete = (record) => router.visit(route('business_management.work_types.
                             <span class="pill__dot" />
                             {{ record.is_active ? $t('global.active') : $t('global.inactive') }}
                         </span>
-                    </template>
-
-                    <template v-else-if="column.key === 'created_at'">
-                        {{ formatDateTime(record.created_at) }}
                     </template>
 
                     <WorkTypesActionsCell
