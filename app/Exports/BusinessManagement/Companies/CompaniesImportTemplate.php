@@ -32,8 +32,11 @@ class CompaniesImportTemplate implements FromArray, WithEvents
     {
         return [
             ['name', 'num_doc', 'complete_name'],
-            ['HITACHI', '20512345678', 'Hitachi Energy Perú S.A.'],
-            ['LIMTEK', '20487654321', 'Limtek Servicios Integrales S.A.'],
+            // Nombres y numeros de mentira, a proposito. Una plantilla que se
+            // descarga con clientes de verdad dentro es un fichero que acaba en
+            // el correo de cualquiera, y ademas invita a subirla tal cual.
+            ['ACME', '20123456789', 'Acme Servicios Generales S.A.C.'],
+            ['GLOBEX', '20987654321', 'Globex Contratistas S.A.C.'],
         ];
     }
 

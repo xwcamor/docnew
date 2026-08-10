@@ -31,7 +31,7 @@ return [
     'doc_type'             => 'Tipo de documento',
     'num_doc'              => 'N° de documento',
     'num_doc_help'         => 'Identifica a la persona. No se repite dentro del mismo país.',
-    'num_doc_placeholder'  => 'Ej: 45871236',
+    'num_doc_placeholder'  => 'Ej: 12345678',
     'num_doc_faltan'       => 'Faltan :n dígitos.',
     'num_doc_falta_uno'    => 'Falta 1 dígito.',
 

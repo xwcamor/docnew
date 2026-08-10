@@ -21,8 +21,8 @@ return [
 
     // Campos
     'name'               => 'Nombre de la firma',
-    'name_help'          => 'Cómo se llama esta firma en la obra: «Supervisor Autorizante - HITACHI». El rol dice qué clase de persona firma; el nombre dice por parte de quién. Si lo dejas vacío, en pantalla saldrá el rol.',
-    'name_placeholder'   => 'Supervisor Autorizante - HITACHI',
+    'name_help'          => 'Cómo se llama esta firma en la obra: «Supervisor Autorizante - ACME». El rol dice qué clase de persona firma; el nombre dice por parte de quién. Si lo dejas vacío, en pantalla saldrá el rol.',
+    'name_placeholder'   => 'Ej: Supervisor Autorizante - ACME',
     'name_missing'       => 'Sin nombre propio: se muestra el rol',
     'country'            => 'País',
     'country_help'       => 'Las reglas son por país: cada país tiene su procedimiento.',

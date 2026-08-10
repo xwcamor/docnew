@@ -94,4 +94,5 @@ return [
         'remove_tool' => 'Quitar esta herramienta',
         'empty'       => 'Todavía no hay herramientas. Añade la primera.',
     ],
+    'signature_reason_placeholder' => 'Motivo (opcional)',
 ];

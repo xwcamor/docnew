@@ -21,8 +21,8 @@ return [
 
     // Fields
     'name'               => 'Signature name',
-    'name_help'          => 'What this signature is called on site: "Authorising Supervisor - HITACHI". The role says what kind of person signs; the name says on whose behalf. Leave it empty and the screen falls back to the role.',
-    'name_placeholder'   => 'Authorising Supervisor - HITACHI',
+    'name_help'          => 'What this signature is called on site: "Authorising Supervisor - ACME". The role says what kind of person signs; the name says on whose behalf. Leave it empty and the screen falls back to the role.',
+    'name_placeholder'   => 'E.g.: Authorising Supervisor - ACME',
     'name_missing'       => 'No name of its own: showing the role',
     'country'            => 'Country',
     'country_help'       => 'Rules are per country: each country has its own procedure.',

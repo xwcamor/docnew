@@ -21,11 +21,11 @@ return [
 
     // ── Fields ──────────────────────────────────────────────────────────────
     'name'                     => 'Trade name',
-    'name_help'                => 'What it is called on site. Proposed automatically from the legal name by dropping the company suffix (e.g. HITACHI ENERGY PERU).',
-    'name_placeholder'         => 'E.g.: HITACHI',
+    'name_help'                => 'What it is called on site. Proposed automatically from the legal name by dropping the company suffix (e.g. ACME SERVICIOS GENERALES).',
+    'name_placeholder'         => 'E.g.: ACME',
     'complete_name'            => 'Legal name',
     'complete_name_help'       => 'The legal name, exactly as it appears on the tax document. It is what the tax ID lookup returns.',
-    'complete_name_placeholder'=> 'E.g.: Hitachi Energy Perú S.A.',
+    'complete_name_placeholder'=> 'E.g.: Acme Servicios Generales S.A.C.',
     'num_doc'                  => 'Document number',
     'num_doc_help'             => 'Identifies the company. It cannot repeat within the same country.',
     // No fixed example: an eleven-digit RUC is no help to someone registering

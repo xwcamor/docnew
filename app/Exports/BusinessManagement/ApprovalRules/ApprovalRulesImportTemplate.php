@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Style\Fill;
  * Columnas (el docblock decia «name obligatorio / code opcional»: venia
  * clonado de Brand y no correspondia con lo que el importador lee):
  *   - name           opcional, max 255. Como se llama la firma en obra
- *                    («Supervisor Autorizante - HITACHI»). Sin nombre, la
+ *                    («Supervisor Autorizante - ACME»). Sin nombre, la
  *                    pantalla cae al rol generico.
  *   - country        obligatorio, codigo ISO del pais
  *   - work_type      opcional, codigo del tipo; vacio = todos los tipos
@@ -36,8 +36,8 @@ class ApprovalRulesImportTemplate implements FromArray, WithEvents
             ['name', 'country', 'work_type', 'approver_role', 'priority_level', 'is_required'],
             // Sin tipo de trabajo: la regla vale para todos los tipos del país.
             ['Supervisor Ejecutante',             'PE', '',      'worker',         1, 1],
-            ['Supervisor Autorizante - HITACHI',  'PE', '',      'supervisor',     2, 1],
-            ['Supervisor de Seguridad - HITACHI', 'PE', '',      'hse_supervisor', 3, 0],
+            ['Supervisor Autorizante - ACME',     'PE', '',      'supervisor',     2, 1],
+            ['Supervisor de Seguridad - ACME',    'PE', '',      'hse_supervisor', 3, 0],
             // Con tipo: solo para IZAJE, y a más riesgo, una firma más.
             ['Jefe de Izaje',                     'PE', 'IZAJE', 'rigging_chief',  4, 1],
         ];

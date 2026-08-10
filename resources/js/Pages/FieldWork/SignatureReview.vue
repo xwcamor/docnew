@@ -42,7 +42,7 @@ function resolver(evento, aceptada) {
                     <p v-if="e.override_reason" class="text-muted">{{ e.override_reason }}</p>
                 </div>
                 <div class="revision-acciones">
-                    <a-input v-model:value="motivo" placeholder="Motivo (opcional)" size="small" />
+                    <a-input v-model:value="motivo" :placeholder="$t('field_work.signature_reason_placeholder')" size="small" />
                     <a-button type="primary" size="small" @click="resolver(e, true)">Aceptar</a-button>
                     <a-button danger size="small" @click="resolver(e, false)">Rechazar</a-button>
                 </div>

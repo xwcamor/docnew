@@ -61,6 +61,36 @@ una palabra, pregunta antes de escribirla en veinte sitios.
 
 ---
 
+## 2-bis. Los ejemplos son de mentira
+
+En un `placeholder`, en un texto de ayuda o en una plantilla de importación
+descargable, **nunca va nada real**: ni un cliente, ni un documento, ni una
+dirección.
+
+| Para qué | Lo que se usa |
+| --- | --- |
+| Empresa, nombre corto | `ACME`, `GLOBEX` |
+| Empresa, razón social | `Acme Servicios Generales S.A.C.` |
+| Persona | `Juan Carlos`, `Pérez Gómez` |
+| DNI | `12345678` |
+| RUC | `20123456789` |
+| Dirección | `Av. Principal 123, Lima` |
+| Correo | `tu@empresa.com` |
+
+Los números van en cuesta a propósito: nadie los confunde con uno de verdad.
+
+> *Caso real:* los campos de empresa proponían «HITACHI» y «Hitachi Energy Perú
+> S.A.», y la plantilla que se descarga traía esa fila más otra de LIMTEK con sus
+> RUC. Son clientes reales del sistema anterior metidos dentro del producto:
+> salen en la pantalla de cualquier otro cliente, viajan en un `.xlsx` que acaba
+> en el correo de quien sea, y encima invitan a subirlo tal cual y dar de alta la
+> empresa equivocada.
+
+Los **comentarios del código** sí pueden nombrarlos: explican el caso real que
+motivó cada decisión y no los ve ningún usuario. `UiStandardTest` los distingue.
+
+---
+
 ## 3. Tablet primero
 
 - **Objetivos de toque de 44 px o más.** Con guantes, menos no se acierta.

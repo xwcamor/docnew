@@ -31,7 +31,7 @@ return [
     'doc_type'             => 'Document type',
     'num_doc'              => 'Document number',
     'num_doc_help'         => 'Identifies the person. It cannot repeat within the same country.',
-    'num_doc_placeholder'  => 'E.g.: 45871236',
+    'num_doc_placeholder'  => 'E.g.: 12345678',
     'num_doc_faltan'       => ':n digits to go.',
     'num_doc_falta_uno'    => '1 digit to go.',
 

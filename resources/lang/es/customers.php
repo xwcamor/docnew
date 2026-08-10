@@ -37,7 +37,7 @@ return [
     'upload_logo'       => 'Subir logo',
     'change_logo'       => 'Cambiar logo',
     'logo_hint'         => 'JPG, PNG, SVG o WebP. Máx 2 MB.',
-    'address_placeholder' => 'Ej: Av. Jorge Basadre 233, Lima',
+    'address_placeholder' => 'Ej: Av. Principal 123, Lima',
 
     // ── Jerarquía geográfica (árbol) ──────────────────────────────────
     'structure'         => 'Estructura',

@@ -334,6 +334,49 @@ class UiStandardTest extends TestCase
             . "Usa los tokens de docs/UI.md §5-bis. Los ficheros con mas:\n  " . $detalle);
     }
 
+    /**
+     * Ningun cliente de verdad dentro de un ejemplo.
+     *
+     * Los campos de la pantalla proponian «HITACHI» y «Hitachi Energy Perú
+     * S.A.», y la plantilla de empresas que se descarga traia esa fila y otra de
+     * LIMTEK con sus RUC. Son clientes reales del sistema anterior metidos en el
+     * producto: salen en la pantalla de cualquier otro cliente, viajan en un
+     * .xlsx que acaba en el correo de cualquiera, y encima invitan a subirlos tal
+     * cual y crear la empresa equivocada.
+     *
+     * Los ejemplos usan nombres de mentira —ACME, Globex— y numeros en cuesta.
+     * Ver docs/UI.md §2-bis.
+     */
+    public function test_ningun_ejemplo_nombra_a_un_cliente_de_verdad(): void
+    {
+        $reales = ['hitachi', 'limtek', 'enel', 'serce', 'ransa', 'adecco', 'sipal', 'cosapi'];
+
+        $donde = array_merge(
+            glob(resource_path('lang/*/*.php')),
+            glob(base_path('app/Exports/*/*/*ImportTemplate.php')),
+        );
+
+        $encontrados = [];
+
+        foreach ($donde as $archivo) {
+            $fuente = file_get_contents($archivo);
+
+            // Los comentarios del codigo si pueden nombrarlos: explican el caso
+            // real que motivo cada decision, y no los ve ningun usuario.
+            $fuente = preg_replace('#(/\*.*?\*/|//[^\n]*)#s', '', $fuente);
+
+            foreach ($reales as $nombre) {
+                if (stripos($fuente, $nombre) !== false) {
+                    $encontrados[] = str_replace(base_path() . '/', '', $archivo) . " → {$nombre}";
+                }
+            }
+        }
+
+        $this->assertSame([], array_unique($encontrados),
+            "Clientes de verdad dentro de textos o plantillas que ve el usuario (ver docs/UI.md §2-bis):\n  "
+            . implode("\n  ", array_unique($encontrados)));
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     /** El contenido de los bloques `<style>` de un .vue, o cadena vacia. */

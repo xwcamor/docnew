@@ -94,4 +94,5 @@ return [
         'remove_tool' => 'Remove this tool',
         'empty'       => 'No tools yet. Add the first one.',
     ],
+    'signature_reason_placeholder' => 'Reason (optional)',
 ];

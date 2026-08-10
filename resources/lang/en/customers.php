@@ -37,7 +37,7 @@ return [
     'upload_logo'       => 'Upload logo',
     'change_logo'       => 'Change logo',
     'logo_hint'         => 'JPG, PNG, SVG or WebP. Max 2 MB.',
-    'address_placeholder' => 'E.g.: 233 Jorge Basadre Ave, Lima',
+    'address_placeholder' => 'E.g.: 123 Main Ave, Lima',
 
     // ── Geographic hierarchy (tree) ───────────────────────────────────
     'structure'         => 'Structure',

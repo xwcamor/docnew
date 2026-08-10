@@ -21,11 +21,11 @@ return [
 
     // ── Campos ──────────────────────────────────────────────────────────────
     'name'                     => 'Nombre comercial',
-    'name_help'                => 'Con el que se la conoce en obra. Se propone solo a partir de la razón social quitándole la forma societaria (ej: HITACHI ENERGY PERU).',
-    'name_placeholder'         => 'Ej: HITACHI',
+    'name_help'                => 'Con el que se la conoce en obra. Se propone solo a partir de la razón social quitándole la forma societaria (ej: ACME SERVICIOS GENERALES).',
+    'name_placeholder'         => 'Ej: ACME',
     'complete_name'            => 'Razón social',
     'complete_name_help'       => 'El nombre legal, tal como figura en el documento tributario. Es lo que devuelve la consulta al RUC.',
-    'complete_name_placeholder'=> 'Ej: Hitachi Energy Perú S.A.',
+    'complete_name_placeholder'=> 'Ej: Acme Servicios Generales S.A.C.',
     'num_doc'                  => 'N° de documento',
     'num_doc_help'             => 'Identifica a la empresa. No se repite dentro del mismo país.',
     // Sin ejemplo fijo: un RUC de once cifras no le sirve a quien está dando
