@@ -58,7 +58,7 @@ class FormSubmissionPdfTest extends TestCase
         DB::table('subscriptions')->insertOrIgnore([['id' => 1, 'tenant_id' => 1, 'plan' => 'enterprise', 'status' => 'active', 'starts_at' => now()->subDay(), 'ends_at' => now()->addYear(), 'currency' => 'USD', 'payment_method' => 'manual', 'created_at' => now(), 'updated_at' => now()]]);
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        foreach (['form_submissions.view', 'form_submissions.export'] as $permiso) {
+        foreach (['form_submissions.view', 'form_submissions.export', 'people.view_private_info'] as $permiso) {
             Permission::firstOrCreate(['name' => $permiso, 'guard_name' => 'web']);
         }
 
@@ -393,8 +393,16 @@ class FormSubmissionPdfTest extends TestCase
             ->get($ruta)
             ->assertRedirect();
 
-        $respuesta = $this->actingAs($this->usuarioCon(['form_submissions.view', 'form_submissions.export']))
-            ->get($ruta);
+        // Y exportar tampoco basta: el PDF lleva dentro las firmas y los DNI
+        // completos de la cuadrilla, asi que pide ademas el permiso de datos
+        // privados. Sin esto el enmascarado de la pantalla no servia de nada.
+        $this->actingAs($this->usuarioCon(['form_submissions.view', 'form_submissions.export']))
+            ->get($ruta)
+            ->assertRedirect();
+
+        $respuesta = $this->actingAs($this->usuarioCon([
+            'form_submissions.view', 'form_submissions.export', 'people.view_private_info',
+        ]))->get($ruta);
 
         $respuesta->assertOk();
         $respuesta->assertHeader('content-type', 'application/pdf');

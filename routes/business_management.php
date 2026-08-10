@@ -346,6 +346,18 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::post('people/edit_all/update', [PersonController::class, 'editAllUpdate'])->name('people.edit_all.update');
     });
 
+    // La foto de referencia y la firma guardadas de una persona.
+    //
+    // `people.view_media` es el unico permiso que el admin del workspace NO
+    // recibe por defecto: es material del administrador del sistema, que es
+    // quien sube la foto buena cuando la capturada en obra sale
+    // irreconocible. El admin si ve la cara de quien firmo DENTRO de un plan,
+    // que es otra cosa y va por otra ruta.
+    Route::middleware('permission:people.view_media')->group(function () {
+        Route::get('people/{person}/media/{kind}',  [PersonController::class, 'media'])->name('people.media');
+        Route::post('people/{person}/media/{kind}', [PersonController::class, 'storeMedia'])->name('people.media.store');
+    });
+
     // Consulta a RENIEC para rellenar el nombre desde el DNI. Va ANTES de
     // `people/{person}`, o el comodin se la come.
     //
@@ -441,6 +453,16 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::post('work_plans',       [WorkPlanController::class, 'store'])->name('work_plans.store');
         Route::post('work_plans/{workPlan}/duplicate', [WorkPlanController::class, 'duplicate'])->name('work_plans.duplicate');
     });
+
+    // La cara de quien firmo, dentro de la ficha del plan. Va ANTES del
+    // comodin `work_plans/{workPlan}` para que no se la coma.
+    //
+    // Pide ADEMAS `people.view_private_info`, el mismo permiso que destapa el
+    // DNI: lo tienen el super y el admin del workspace —que necesitan saber
+    // quien estuvo de verdad en obra— y no los perfiles de campo.
+    Route::middleware(['permission:work_plans.view', 'permission:people.view_private_info'])
+        ->get('work_plans/{work_plan}/signer_face/{person}', [WorkPlanController::class, 'signerFace'])
+        ->name('work_plans.signer_face');
 
     Route::middleware('permission:work_plans.view')->group(function () {
         Route::get('work_plans',                [WorkPlanController::class, 'index'])->name('work_plans.index');

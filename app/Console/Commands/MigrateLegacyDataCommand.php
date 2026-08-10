@@ -260,7 +260,7 @@ class MigrateLegacyDataCommand extends Command
 
                 $porDocumento[$doc] ??= [
                     'name' => $f->name, 'lastname' => $f->lastname,
-                    'roles' => [], 'empresas' => [], 'firmas' => [], 'legacy' => [],
+                    'roles' => [], 'empresas' => [], 'firmas' => [], 'fotos' => [], 'legacy' => [],
                     'nombres_vistos' => [], 'nacionalidad' => null,
                 ];
 
@@ -286,12 +286,20 @@ class MigrateLegacyDataCommand extends Command
                 if (! empty($f->signature)) {
                     $p['firmas'][$f->signature] = true;
                 }
+
+                // La foto de referencia: la BUENA, la que el administrador
+                // subia a mano cuando la que se capturaba en obra salia
+                // irreconocible. Se habia quedado sin migrar y era justo la que
+                // sirve para saber a quien se esta mirando.
+                if (! empty($f->photo)) {
+                    $p['fotos'][$f->photo] = true;
+                }
                 unset($p);
             }
         }
 
         $conflictos = [];
-        $creadas = $vinculos = $firmas = 0;
+        $creadas = $vinculos = $firmas = $fotos = 0;
 
         foreach ($porDocumento as $doc => $d) {
             if (count($d['nombres_vistos']) > 1) {
@@ -371,11 +379,27 @@ class MigrateLegacyDataCommand extends Command
                 );
                 $firmas++;
             }
+
+            // La misma persona puede traer foto en las tres tablas. Se queda
+            // con UNA —la primera— porque son la misma cara: mas de una fila
+            // vigente no significa nada y ademas rompe `currentPhoto()`.
+            foreach (array_slice(array_keys($d['fotos']), 0, 1) as $archivo) {
+                \App\Models\PersonPhoto::firstOrCreate(
+                    ['person_id' => $persona->id, 'sha256' => hash('sha256', $archivo)],
+                    [
+                        'file_path'  => 'legacy/fotos/' . $archivo,
+                        'source'     => \App\Models\PersonPhoto::MIGRADA,
+                        'valid_from' => now(),
+                    ],
+                );
+                $fotos++;
+            }
         }
 
         $this->linea('personas', $filasOrigen, Person::count(),
             sprintf('%d identidades desde %d filas de las tres tablas', $creadas, $filasOrigen));
-        $this->line(sprintf('  vinculos persona-empresa: %d · firmas de referencia: %d', $vinculos, $firmas));
+        $this->line(sprintf('  vinculos persona-empresa: %d · firmas de referencia: %d · fotos de referencia: %d',
+            $vinculos, $firmas, $fotos));
 
         if ($conflictos !== []) {
             $this->newLine();
@@ -2145,11 +2169,13 @@ class MigrateLegacyDataCommand extends Command
         // las dos.
         $this->recalcularEvidenciaPerdida();
 
-        // Las firmas de referencia de cada persona salen del mismo sitio.
-        $firmas = $this->copiarFirmasDePersona($carpeta);
+        // Las firmas y las fotos de referencia salen de la misma carpeta.
+        $firmas = $this->copiarDeReferencia($carpeta, 'person_signatures', 'legacy/firmas/', 'firmas/legacy/');
+        $fotos  = $this->copiarDeReferencia($carpeta, 'person_photos', 'legacy/fotos/', 'fotos/legacy/');
 
         $this->line(sprintf('  evidencias: %d copiadas · %d ya estaban · %d no aparecieron', $copiados, $yaEstaban, $perdidos));
         $this->line(sprintf('  firmas de persona: %d copiadas · %d no aparecieron', $firmas[0], $firmas[1]));
+        $this->line(sprintf('  fotos de persona: %d copiadas · %d no aparecieron', $fotos[0], $fotos[1]));
 
         if ($perdidos > 0) {
             $this->warn('  Las que no aparecieron quedan marcadas como evidencia perdida (evidence_missing).');
@@ -2174,13 +2200,22 @@ class MigrateLegacyDataCommand extends Command
             ->whereNotExists($conArchivo)->update(['evidence_missing' => true]);
     }
 
-    /** @return array{0:int,1:int} copiadas, perdidas */
-    protected function copiarFirmasDePersona(string $carpeta): array
+    /**
+     * Copia las firmas o las fotos de referencia desde la carpeta de la v1.
+     *
+     * Las dos tablas tienen la misma forma —`file_path` + `sha256`— y hasta
+     * ahora esto solo existia para las firmas. El nombre del fichero en la v1
+     * no dice nada del contenido, asi que al copiarlo se renombra por su hash:
+     * dos personas con la misma imagen comparten archivo y no se duplica.
+     *
+     * @return array{0:int,1:int} copiadas, perdidas
+     */
+    protected function copiarDeReferencia(string $carpeta, string $tabla, string $prefijoViejo, string $prefijoNuevo): array
     {
         $copiadas = $perdidas = 0;
 
-        DB::table('person_signatures')->where('file_path', 'like', 'legacy/firmas/%')
-            ->orderBy('id')->chunkById(500, function ($filas) use ($carpeta, &$copiadas, &$perdidas) {
+        DB::table($tabla)->where('file_path', 'like', $prefijoViejo . '%')
+            ->orderBy('id')->chunkById(500, function ($filas) use ($carpeta, $tabla, $prefijoNuevo, &$copiadas, &$perdidas) {
                 foreach ($filas as $f) {
                     $fuente = rtrim($carpeta, '/') . '/' . basename($f->file_path);
 
@@ -2192,13 +2227,13 @@ class MigrateLegacyDataCommand extends Command
 
                     $contenido = file_get_contents($fuente);
                     $hash = hash('sha256', $contenido);
-                    $destino = 'firmas/legacy/' . substr($hash, 0, 2) . '/' . $hash . '.' . pathinfo($f->file_path, PATHINFO_EXTENSION);
+                    $destino = $prefijoNuevo . substr($hash, 0, 2) . '/' . $hash . '.' . pathinfo($f->file_path, PATHINFO_EXTENSION);
 
                     if (! Storage::disk('local')->exists($destino)) {
                         Storage::disk('local')->put($destino, $contenido);
                     }
 
-                    DB::table('person_signatures')->where('id', $f->id)
+                    DB::table($tabla)->where('id', $f->id)
                         ->update(['file_path' => $destino, 'sha256' => $hash]);
                     $copiadas++;
                 }

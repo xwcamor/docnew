@@ -44,6 +44,22 @@ return [
     'dni_verificado'    => 'Name verified with RENIEC.',
     'dni_editar_a_mano' => 'Edit by hand',
 
+    // Reference photo and stored signature. Requires `people.view_media`.
+    'media_title'  => 'Photo and signature',
+    'media_file'   => 'file',
+    'media_help'   => 'Internal material: neither the worker nor the field profiles see it. The photo is for recognising the person; the signature is only printed in the PDFs, never shown on screen.',
+    'photo'        => 'Reference photo',
+    'no_photo'     => 'No photo',
+    'no_signature' => 'No signature',
+    'upload'       => 'Upload',
+    'replace'      => 'Replace',
+    'photo_saved'     => 'Photo saved.',
+    'signature_saved' => 'Signature saved.',
+    'photo_source_uploaded' => 'Uploaded by hand',
+    'photo_source_captured' => 'Captured while signing',
+    'photo_source_migrated' => 'From the previous system',
+    'signer_face'  => 'See the face they signed with',
+
     'country'              => 'Country',
     'country_help'         => 'Country of the document. Together with the number it defines the person uniqueness.',
     'nationality'          => 'Nationality',

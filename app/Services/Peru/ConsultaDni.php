@@ -3,12 +3,11 @@
 namespace App\Services\Peru;
 
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
- * Consulta de DNI contra RENIEC (via apis.net.pe).
+ * Consulta de DNI en RENIEC.
  *
  * La v1 ya la tenia —`services_management/peru/search_codes_controller.rb:31`—
  * y al portar el modulo se perdio, asi que el nombre de cada trabajador se
@@ -21,9 +20,9 @@ use Illuminate\Support\Str;
  * pasaporte no estan en RENIEC: ahi no hay nada que consultar y quien lo llama
  * ni lo intenta.
  *
- * Degradar bien es parte del contrato, igual que en {@see ConsultaRuc}: sin
- * token, con la API caida o con un DNI que no existe, esto NO revienta ni
- * bloquea el alta. Devuelve un estado y la pantalla deja escribir a mano.
+ * Quien contesta —Decolecta o apis.net.pe— y con que nombres lo hace lo resuelve
+ * {@see Proveedor}. Degradar bien es parte del contrato: sin token, con la API
+ * caida o con un DNI que no existe, esto NO revienta ni bloquea el alta.
  */
 class ConsultaDni
 {
@@ -31,6 +30,10 @@ class ConsultaDni
 
     /** Un nombre no cambia. Lo que se guarda vale para un mes largo. */
     private const DIAS_EN_CACHE = 30;
+
+    public function __construct(private readonly Proveedor $proveedor)
+    {
+    }
 
     /**
      * @return array{estado:'encontrado'|'no_encontrado'|'sin_configurar'|'error', nombres?:string, apellidos?:string}
@@ -43,9 +46,7 @@ class ConsultaDni
             return ['estado' => 'no_encontrado'];
         }
 
-        $token = config('services.apis_net_pe.token');
-
-        if (blank($token)) {
+        if (! $this->proveedor->hayToken()) {
             // Sin credencial no se puede consultar. No es un error del usuario:
             // la pantalla se queda callada y se teclea a mano.
             return ['estado' => 'sin_configurar'];
@@ -58,7 +59,7 @@ class ConsultaDni
             return $cacheado;
         }
 
-        $resultado = $this->consultar($dni, (string) $token);
+        $resultado = $this->consultar($dni);
 
         // Solo se guarda el acierto. Un fallo en cache es un fallo repetido
         // durante un mes, y el que no encuentra hoy puede encontrar mañana.
@@ -70,24 +71,17 @@ class ConsultaDni
     }
 
     /** @return array{estado:string, nombres?:string, apellidos?:string} */
-    private function consultar(string $dni, string $token): array
+    private function consultar(string $dni): array
     {
-        try {
-            $respuesta = Http::withToken($token)
-                ->withHeaders(['Referer' => 'https://apis.net.pe/consulta-dni-api'])
-                ->timeout((int) config('services.apis_net_pe.timeout', 6))
-                ->get(rtrim((string) config('services.apis_net_pe.url'), '/') . '/v2/reniec/dni', [
-                    'numero' => $dni,
-                ]);
-        } catch (\Throwable $e) {
-            Log::warning('Consulta DNI fallida', [
-                'dni' => $this->tapado($dni), 'error' => $e->getMessage(),
-            ]);
+        $respuesta = $this->proveedor->preguntar('dni', $dni);
 
+        if ($respuesta === null) {
             return ['estado' => 'error'];
         }
 
-        if ($respuesta->status() === 404) {
+        // 404 en apis.net.pe, 422 en Decolecta: los dos significan «ese numero
+        // no esta», que no es un fallo del sistema.
+        if (in_array($respuesta->status(), [404, 422], true)) {
             return ['estado' => 'no_encontrado'];
         }
 
@@ -103,27 +97,28 @@ class ConsultaDni
     }
 
     /**
-     * Saca nombres y apellidos de la respuesta.
+     * Saca nombres y apellidos, se llamen como se llamen los campos.
      *
-     * apis.net.pe devuelve `nombres`, `apellidoPaterno` y `apellidoMaterno`,
-     * pero no siempre: segun el plan contratado a veces solo llega
-     * `nombreCompleto`, y ahi hay que partirlo. RENIEC lo escribe siempre en el
-     * mismo orden —PATERNO MATERNO NOMBRES—, asi que los dos primeros trozos
-     * son los apellidos y el resto el nombre.
+     *   Decolecta    first_name, first_last_name, second_last_name, full_name
+     *   apis.net.pe  nombres, apellidoPaterno, apellidoMaterno, nombreCompleto
+     *
+     * Y si solo llega el nombre completo hay que partirlo. RENIEC lo escribe
+     * siempre en el mismo orden —PATERNO MATERNO NOMBRES—, asi que los dos
+     * primeros trozos son los apellidos y el resto el nombre.
      *
      * @param  array<string, mixed>  $datos
      * @return array{estado:string, nombres?:string, apellidos?:string}
      */
     private function leer(array $datos): array
     {
-        $nombres = trim((string) ($datos['nombres'] ?? ''));
+        $nombres = $this->proveedor->campo($datos, ['first_name', 'nombres']);
         $apellidos = trim(
-            trim((string) ($datos['apellidoPaterno'] ?? '')) . ' ' .
-            trim((string) ($datos['apellidoMaterno'] ?? ''))
+            $this->proveedor->campo($datos, ['first_last_name', 'apellidoPaterno']) . ' ' .
+            $this->proveedor->campo($datos, ['second_last_name', 'apellidoMaterno'])
         );
 
         if ($nombres === '' && $apellidos === '') {
-            $completo = trim((string) ($datos['nombreCompleto'] ?? ''));
+            $completo = $this->proveedor->campo($datos, ['full_name', 'nombreCompleto']);
             $trozos = array_values(array_filter(explode(' ', $completo), fn ($t) => $t !== ''));
 
             if (count($trozos) >= 3) {
@@ -137,7 +132,7 @@ class ConsultaDni
         }
 
         return [
-            'estado'    => 'encontrado',
+            'estado' => 'encontrado',
             // RENIEC contesta en mayusculas. Se deja como viene: es el nombre
             // oficial, y es el que tiene que cuadrar con el documento que el
             // inspector pide en la puerta.

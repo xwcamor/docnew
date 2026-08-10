@@ -51,7 +51,7 @@ class WorkPlanExportTest extends TestCase
         DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
 
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
-        foreach (['form_submissions.view', 'form_submissions.export'] as $p) {
+        foreach (['form_submissions.view', 'form_submissions.export', 'people.view_private_info'] as $p) {
             Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
         }
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['description' => 'a']);
@@ -142,6 +142,27 @@ class WorkPlanExportTest extends TestCase
         $respuesta->assertSessionHas('error');
     }
 
+    /**
+     * Y con el permiso de exportar pero SIN el de datos privados, tampoco.
+     *
+     * Es el caso real que motivo el cambio: el supervisor de obra y el auditor
+     * HSE exportan, y el expediente lleva los DNI completos de la cuadrilla.
+     */
+    public function test_exportar_no_basta_hace_falta_ver_datos_privados(): void
+    {
+        $plan = $this->plan();
+        $this->entrega($plan, 'AST', 'confirmed');
+
+        $soloExporta = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
+        $soloExporta->assignRole(Role::firstOrCreate(
+            ['name' => 'supervisor_obra', 'guard_name' => 'web'], ['description' => 'supervisor']));
+        $soloExporta->givePermissionTo(['form_submissions.view', 'form_submissions.export']);
+
+        $this->actingAs($soloExporta)
+            ->get(route('field_work.forms.zip', $plan->slug))
+            ->assertRedirect(route('dashboard_management.dashboards.index'));
+    }
+
     /** Y con permiso, baja de verdad, con el codigo del plan en el nombre. */
     public function test_con_permiso_la_descarga_sale_con_el_nombre_del_plan(): void
     {
@@ -157,11 +178,19 @@ class WorkPlanExportTest extends TestCase
 
     // ── apoyo ────────────────────────────────────────────────────────────────
 
+    /**
+     * Quien puede bajarse el expediente.
+     *
+     * Pide DOS permisos: exportar y ver datos privados. El segundo se añadio
+     * cuando se cerro el agujero de que el PDF lleva dentro las firmas y los
+     * DNI completos de toda la cuadrilla — sin el, el enmascarado de la
+     * pantalla no servia de nada porque bastaba con descargar el documento.
+     */
     private function auditor(): User
     {
         $u = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
         $u->assignRole('admin');
-        $u->givePermissionTo(['form_submissions.view', 'form_submissions.export']);
+        $u->givePermissionTo(['form_submissions.view', 'form_submissions.export', 'people.view_private_info']);
 
         return $u;
     }

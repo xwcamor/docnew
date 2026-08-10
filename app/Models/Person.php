@@ -339,6 +339,7 @@ class Person extends Model
     public function roles() { return $this->hasMany(PersonRole::class); }
     public function biometrics() { return $this->hasMany(PersonBiometric::class); }
     public function signatures() { return $this->hasMany(PersonSignature::class); }
+    public function photos() { return $this->hasMany(PersonPhoto::class); }
     public function signatureEvents() { return $this->hasMany(SignatureEvent::class); }
 
     /** Biometria vigente: es la que se compara al firmar. */
@@ -351,6 +352,12 @@ class Person extends Model
     public function currentSignature()
     {
         return $this->hasOne(PersonSignature::class)->whereNull('valid_to')->latestOfMany();
+    }
+
+    /** Foto de referencia vigente: la cara con la que se le identifica. */
+    public function currentPhoto()
+    {
+        return $this->hasOne(PersonPhoto::class)->whereNull('valid_to')->latestOfMany();
     }
 
     public function hasRole(string $role): bool

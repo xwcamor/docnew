@@ -42,8 +42,9 @@ class PersonDniLookupTest extends CatalogTestCase
              'min_length' => 8, 'max_length' => 8, 'is_active' => true, 'created_by' => 1],
         );
 
-        config(['services.apis_net_pe.token' => 'token-de-prueba']);
-        config(['services.apis_net_pe.url' => 'https://api.apis.net.pe']);
+        config(['services.peru_lookup.token' => 'token-de-prueba']);
+        config(['services.peru_lookup.provider' => \App\Services\Peru\Proveedor::APIS_NET_PE]);
+        config(['services.peru_lookup.url' => null]);
         Cache::flush();
     }
 
@@ -120,7 +121,7 @@ class PersonDniLookupTest extends CatalogTestCase
      */
     public function test_sin_token_configurado_avisa_pero_no_falla(): void
     {
-        config(['services.apis_net_pe.token' => null]);
+        config(['services.peru_lookup.token' => null]);
         Http::fake();
 
         $this->actingAs($this->admin())
@@ -168,6 +169,53 @@ class PersonDniLookupTest extends CatalogTestCase
         $servicio->buscar('43673535');
 
         Http::assertSentCount(2);
+    }
+
+    /**
+     * El fallo que costo una tarde: el token era de Decolecta y el codigo
+     * llamaba a apis.net.pe.
+     *
+     * Son dos proveedores distintos. Ni la URL —`/v1/reniec/dni` contra
+     * `/v2/reniec/dni`— ni los nombres de los campos coinciden, asi que apuntar
+     * el token de uno al otro devuelve un 401 y desde la pantalla parece que
+     * «la API no funciona». La respuesta de aqui es la del ejemplo de su propia
+     * documentacion.
+     */
+    public function test_tambien_entiende_a_decolecta(): void
+    {
+        config(['services.peru_lookup.provider' => \App\Services\Peru\Proveedor::DECOLECTA]);
+
+        Http::fake(['api.decolecta.com/*' => Http::response([
+            'first_name'       => 'ROXANA KARINA',
+            'first_last_name'  => 'DELGADO',
+            'second_last_name' => 'HUAMANI',
+            'full_name'        => 'DELGADO HUAMANI ROXANA KARINA',
+            'document_number'  => '46027897',
+        ])]);
+
+        $this->actingAs($this->admin())
+            ->getJson(route('business_management.people.lookup_dni', ['dni' => '46027897']))
+            ->assertOk()
+            ->assertJson([
+                'estado'    => 'encontrado',
+                'nombres'   => 'ROXANA KARINA',
+                'apellidos' => 'DELGADO HUAMANI',
+            ]);
+
+        // Y le pregunta a SU ruta, no a la del otro proveedor.
+        Http::assertSent(fn ($p) => str_contains($p->url(), 'api.decolecta.com/v1/reniec/dni'));
+    }
+
+    /** Decolecta contesta 422 a un documento que no existe; apis.net.pe, 404. */
+    public function test_el_422_de_decolecta_tambien_es_no_encontrado(): void
+    {
+        config(['services.peru_lookup.provider' => \App\Services\Peru\Proveedor::DECOLECTA]);
+        Http::fake(['api.decolecta.com/*' => Http::response(['message' => 'not found'], 422)]);
+
+        $this->actingAs($this->admin())
+            ->getJson(route('business_management.people.lookup_dni', ['dni' => '11111111']))
+            ->assertOk()
+            ->assertJson(['estado' => 'no_encontrado']);
     }
 
     /** Quien solo mira no abre la consulta: cada llamada gasta credito. */

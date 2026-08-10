@@ -20,10 +20,19 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
     });
 
     // El PDF firmado saca el documento del sistema, asi que pide el mismo
-    // permiso que el resto de exports: lo tienen el supervisor de obra y el
-    // auditor HSE, no el usuario de campo que solo llena el formato.
+    // permiso que el resto de exports.
+    //
+    // Y ADEMAS `people.view_private_info`: el PDF lleva dentro las firmas y los
+    // DNI completos de toda la cuadrilla. Sin esto, el enmascarado de la
+    // pantalla no servia de nada — quien quisiera los documentos solo tenia que
+    // descargarse el PDF. Es el documento legal y va entero; lo que se controla
+    // es quien se lo lleva.
+    //
+    // Ojo con el efecto: el supervisor de obra y el auditor HSE tienen el
+    // permiso de exportar pero NO el de datos privados, asi que dejan de poder
+    // descargarlo. Si en un workspace hace falta, se le concede al perfil.
     // Se enlaza por slug, que es el identificador que sale impreso en el pie.
-    Route::middleware('permission:form_submissions.export')->group(function () {
+    Route::middleware(['permission:form_submissions.export', 'permission:people.view_private_info'])->group(function () {
         Route::get('submissions/{form_submission}/pdf', [FormSubmissionController::class, 'pdf'])
             ->name('forms.pdf');
 

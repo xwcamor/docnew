@@ -44,7 +44,14 @@ class RolesAndPermissionsSeeder extends Seeder
         // (******78) y la foto y la firma no se sirven. Es el
         // `users.display_private_info` del sistema anterior, pero por perfil en
         // vez de por usuario, que es como se conceden aqui los permisos.
-        foreach (['comments.view', 'comments.create', 'comments.delete', 'form_submissions.sign', 'signature_events.review', 'people.view_private_info'] as $perm) {
+        // people.view_media: ver y reemplazar la FOTO DE REFERENCIA y la FIRMA
+        // guardadas de una persona, desde su ficha. Es el unico permiso que el
+        // admin del workspace NO recibe por defecto: es material interno del
+        // administrador del sistema, que es quien sube la foto buena cuando la
+        // capturada en obra sale irreconocible. Un admin que de verdad lo
+        // necesite lo tiene concediendoselo; no esta cerrado, esta cerrado POR
+        // DEFECTO, que no es lo mismo.
+        foreach (['comments.view', 'comments.create', 'comments.delete', 'form_submissions.sign', 'signature_events.review', 'people.view_private_info', 'people.view_media'] as $perm) {
             Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 
@@ -71,10 +78,17 @@ class RolesAndPermissionsSeeder extends Seeder
         // super: Gate::before bypass + sync all (consistency con policy checks).
         $superAdmin->syncPermissions(Permission::all());
 
-        // admin: TODOS los permisos del sistema. Los módulos core (tenants, regions,
-        // languages, etc.) no generan permissions a propósito → admin nunca puede
-        // siquiera intentar asignarlos a sus roles. Ver SystemModulesSeeder.
-        $admin->syncPermissions(Permission::all());
+        // admin: TODOS los permisos del sistema MENOS uno. Los módulos core
+        // (tenants, regions, languages, etc.) no generan permissions a propósito
+        // → admin nunca puede siquiera intentar asignarlos a sus roles. Ver
+        // SystemModulesSeeder.
+        //
+        // La excepción es `people.view_media`: la foto de referencia y la firma
+        // guardadas son material del administrador del sistema. El admin del
+        // workspace sí ve la cara de quien firmó dentro de un plan —que es lo
+        // que necesita para saber quién estuvo en obra— pero no el archivo de
+        // cada persona. Si en algún workspace hace falta, se le concede.
+        $admin->syncPermissions(Permission::all()->reject(fn ($p) => $p->name === 'people.view_media'));
 
         // ─── 4 PERFILES GLOBALES (plantillas que publica el super) ──────────
         // tenant_id null = globales → TODOS los workspaces los ven y los asignan

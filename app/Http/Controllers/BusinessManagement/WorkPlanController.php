@@ -20,6 +20,7 @@ use App\Jobs\BusinessManagement\WorkPlans\GenerateWorkPlansWordJob;
 use App\Models\AuditLog;
 use App\Models\WorkPlan;
 use App\Services\BusinessManagement\WorkPlanService;
+use App\Support\PrivateInfo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -242,6 +243,40 @@ class WorkPlanController extends Controller
      * persona tiene la cara enrolada (sin eso no puede firmar con
      * reconocimiento) y si ya firmó (y por tanto ya no se la puede quitar).
      */
+    /**
+     * La cara con la que firmo una persona en ESTE plan.
+     *
+     * Primero la que se capturo al firmar aqui —que es la prueba de que estuvo
+     * ese dia— y, si no hay, la foto de referencia. Sin ninguna de las dos, 404.
+     *
+     * El permiso lo pone la ruta; que el plan sea del propio workspace lo
+     * garantiza el scope al resolverlo, y que la persona este en la cuadrilla
+     * se comprueba aqui: sin eso, con un slug cualquiera se sacaria la cara de
+     * alguien que no pinta nada en este plan.
+     */
+    public function signerFace(WorkPlan $work_plan, \App\Models\Person $person, \App\Services\FieldWork\SignatureService $firmas)
+    {
+        $asignado = $work_plan->people()->where('person_id', $person->id)->first();
+
+        abort_if($asignado === null, 404);
+
+        $evidencia = \App\Models\EvidenceFile::query()
+            ->whereIn('signature_event_id', \App\Models\SignatureEvent::query()
+                ->where('signable_type', (new \App\Models\WorkPlanPerson)->getMorphClass())
+                ->where('signable_id', $asignado->id)
+                ->select('id'))
+            ->where('kind', \App\Models\EvidenceFile::FACE)
+            ->latest('id')
+            ->first();
+
+        $ruta = $evidencia?->file_path ?? $firmas->fotoVigente($person)?->file_path;
+
+        abort_if($ruta === null, 404);
+        abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($ruta), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($ruta);
+    }
+
     protected function crewPayload(WorkPlan $workPlan): array
     {
         $asignados = $workPlan->people()
@@ -266,8 +301,18 @@ class WorkPlanController extends Controller
             ->orderBy('signed_at')
             ->pluck('signed_at', 'signable_id');
 
+        // La cara de quien firmo. Es lo que un admin necesita para saber quien
+        // estuvo de verdad en obra, y es justo lo que se pierde cuando la
+        // cuadrilla es de una contratista que no conoce.
+        //
+        // Va con `people.view_private_info`, el mismo permiso que destapa el
+        // DNI: lo tienen el super y el admin del workspace, no los perfiles de
+        // campo. Y va como URL, nunca como imagen incrustada: el JSON de
+        // Inertia viaja entero al navegador.
+        $puedeVerCaras = PrivateInfo::visibleFor(request()->user());
+
         return $asignados
-            ->map(function ($asignado) use ($firmas) {
+            ->map(function ($asignado) use ($firmas, $workPlan, $puedeVerCaras) {
                 $firmadoEn = $firmas->get($asignado->id);
 
                 return [
@@ -289,6 +334,9 @@ class WorkPlanController extends Controller
                     'position'  => $asignado->person?->companyLinks->first()?->position?->code,
                     'signed'    => (bool) $asignado->is_approved || $firmadoEn !== null,
                     'signed_at' => $firmadoEn,
+                    'face_url'  => $puedeVerCaras && $asignado->person
+                        ? route('business_management.work_plans.signer_face', [$workPlan->slug, $asignado->person->slug])
+                        : null,
                 ];
             })
             ->all();

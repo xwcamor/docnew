@@ -4,6 +4,7 @@ namespace App\Services\FieldWork;
 
 use App\Models\EvidenceFile;
 use App\Models\Person;
+use App\Models\PersonPhoto;
 use App\Models\PersonSignature;
 use App\Models\Setting;
 use App\Models\SignatureEvent;
@@ -128,6 +129,13 @@ class SignatureService
                 } else {
                     $this->guardarEvidencia($evento, $foto, EvidenceFile::FACE);
                 }
+
+                // Si la persona no tiene foto de referencia, esta se queda como
+                // suya. Una captura de obra no es la buena —a contraluz, con
+                // casco, en movimiento— pero es muchisimo mejor que nada a la
+                // hora de saber a quien se esta mirando. En cuanto el
+                // administrador suba una decente, esta se jubila sola.
+                $this->adoptarFotoSiNoTiene($persona, $foto);
             }
 
             // La aprobacion la calcula el servidor a partir del evento.
@@ -276,6 +284,98 @@ class SignatureService
             ->whereNull('valid_to')
             ->latest('valid_from')
             ->first();
+    }
+
+    // ── La foto de referencia ────────────────────────────────────────────────
+    //
+    // La cara con la que se identifica a una persona. En el sistema anterior
+    // era `workers.photo`: el administrador subia la buena cuando la que se
+    // capturaba en obra salia irreconocible. Aqui vive en `person_photos`,
+    // versionada igual que la firma y por lo mismo — un plan firmado hace un
+    // año tiene que poder seguir enseñando la cara de entonces.
+
+    public function fotoVigente(Person $persona): ?PersonPhoto
+    {
+        return $persona->photos()
+            ->whereNull('valid_to')
+            ->latest('valid_from')
+            ->first();
+    }
+
+    /**
+     * Guarda una foto de referencia nueva y jubila la anterior.
+     *
+     * @param  string  $imagen  binario, o `data:image/...;base64,...`
+     */
+    public function guardarFoto(Person $persona, string $imagen, string $origen = PersonPhoto::SUBIDA): PersonPhoto
+    {
+        $binario = $this->aBinario($imagen);
+
+        if ($binario === null) {
+            throw new \InvalidArgumentException('La foto no es una imagen valida.');
+        }
+
+        // Mismo tratamiento que la evidencia: 320 px de lado en WebP. Es de
+        // sobra para reconocer una cara y son ~15 KB en vez de ~80.
+        [$binario] = $this->comprimir($binario);
+        $hash = hash('sha256', $binario);
+
+        return DB::transaction(function () use ($persona, $binario, $hash, $origen) {
+            $vigente = $this->fotoVigente($persona);
+
+            // La misma foto otra vez no crea una version nueva.
+            if ($vigente && $vigente->sha256 === $hash) {
+                return $vigente;
+            }
+
+            $vigente?->update(['valid_to' => now()]);
+
+            $ruta = sprintf('fotos/%s/%s.webp', now()->format('Y/m'), Str::random(24));
+            Storage::disk('local')->put($ruta, $binario);
+
+            return $persona->photos()->create([
+                'file_path'  => $ruta,
+                'sha256'     => $hash,
+                'source'     => $origen,
+                'valid_from' => now(),
+            ]);
+        });
+    }
+
+    /**
+     * La primera foto que se le toma a alguien sin foto se queda como suya.
+     *
+     * Solo si no tiene ninguna: una capturada en obra nunca pisa a la que subio
+     * el administrador, que es justo la que existe porque la de obra no valia.
+     */
+    protected function adoptarFotoSiNoTiene(Person $persona, string $foto): void
+    {
+        if ($this->fotoVigente($persona) !== null) {
+            return;
+        }
+
+        try {
+            $this->guardarFoto($persona, $foto, PersonPhoto::CAPTURADA);
+        } catch (\Throwable $e) {
+            // Esto es un extra: que no se pueda guardar la foto de referencia
+            // NO puede tumbar una firma en obra, que es lo que de verdad hay
+            // que registrar.
+            \Illuminate\Support\Facades\Log::warning('No se pudo adoptar la foto de referencia', [
+                'person_id' => $persona->id, 'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /** Acepta el binario tal cual o una cadena `data:image/...;base64,...`. */
+    protected function aBinario(string $imagen): ?string
+    {
+        if (! str_starts_with($imagen, 'data:')) {
+            return $imagen === '' ? null : $imagen;
+        }
+
+        $decodificado = base64_decode(preg_replace('#^data:image/\w+;base64,#', '', $imagen), true);
+
+        return $decodificado === false || $decodificado === '' ? null : $decodificado;
     }
 
     /**

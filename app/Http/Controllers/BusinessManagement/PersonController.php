@@ -277,6 +277,60 @@ class PersonController extends Controller
         return response()->json($reniec->buscar($validado['dni']));
     }
 
+    /**
+     * La foto de referencia o la firma guardada, servidas del disco privado.
+     *
+     * Nunca son públicas. Viven en `storage/app`, fuera de la carpeta que sirve
+     * el servidor web, y salen por aquí: autenticado, con permiso y del propio
+     * workspace (el scope de `Person` ya lo garantiza al resolver la ruta).
+     */
+    public function media(Request $request, Person $person, string $kind, \App\Services\FieldWork\SignatureService $firmas)
+    {
+        abort_unless(in_array($kind, ['photo', 'signature'], true), 404);
+
+        $archivo = $kind === 'photo'
+            ? $firmas->fotoVigente($person)
+            : $firmas->firmaVigente($person);
+
+        abort_if($archivo === null, 404);
+        abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($archivo->file_path), 404);
+
+        return \Illuminate\Support\Facades\Storage::disk('local')->response($archivo->file_path);
+    }
+
+    /**
+     * Sube la foto de referencia o la firma de una persona.
+     *
+     * La foto es la razón de ser de esto: la que se captura en obra sale a
+     * contraluz, con casco y en movimiento, y con ella no se reconoce a nadie.
+     * En el sistema anterior el administrador subía la buena a mano y aquí se
+     * había perdido.
+     *
+     * No se sobrescribe: la anterior se cierra con `valid_to` y la nueva pasa a
+     * ser la vigente, para que un plan firmado hace un año siga enseñando la
+     * cara con la que se identificó entonces.
+     */
+    public function storeMedia(Request $request, Person $person, string $kind, \App\Services\FieldWork\SignatureService $firmas): RedirectResponse
+    {
+        abort_unless(in_array($kind, ['photo', 'signature'], true), 404);
+
+        $request->validate([
+            'file' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
+        ], [], ['file' => __('people.media_file')]);
+
+        $binario = file_get_contents($request->file('file')->getRealPath());
+
+        try {
+            $kind === 'photo'
+                ? $firmas->guardarFoto($person, $binario, \App\Models\PersonPhoto::SUBIDA)
+                : $firmas->guardarFirma($person, base64_encode($binario));
+        } catch (\InvalidArgumentException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', __($kind === 'photo' ? 'people.photo_saved' : 'people.signature_saved'));
+    }
+
     /** Roles en obra — el enum de `person_roles.role`. */
     protected function roleOptions(): array
     {
@@ -311,6 +365,7 @@ class PersonController extends Controller
             'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
             'country:id,name,iso_code', 'nationality:id,code',
             'roles', 'companyLinks.company:id,name', 'companyLinks.position:id,code',
+            'currentPhoto', 'currentSignature',
         ])->loadCount([
             'companyLinks',
             'biometrics as active_biometrics_count' => fn ($q) => $q->where('is_active', true),
@@ -767,6 +822,24 @@ class PersonController extends Controller
             'updated_at' => $m->updated_at,
             'deleted_at' => $m->deleted_at,
         ];
+        // La foto de referencia y la firma solo se nombran a quien puede
+        // verlas. Y se manda la URL, nunca el archivo: el JSON de Inertia viaja
+        // entero al navegador y una imagen incrustada ahi la lee cualquiera que
+        // abra las herramientas del navegador.
+        if ($withAudit && auth()->user()?->can('people.view_media')) {
+            $foto = $m->relationLoaded('currentPhoto') ? $m->currentPhoto : $m->currentPhoto()->first();
+            $firma = $m->relationLoaded('currentSignature') ? $m->currentSignature : $m->currentSignature()->first();
+
+            $base['media'] = [
+                'photo_url'     => $foto ? route('business_management.people.media', [$m->slug, 'photo']) : null,
+                // De donde salio la foto. Importa: una «capturada» es la que se
+                // tomo en obra a falta de otra, y es justo la que hay que
+                // reemplazar por una decente.
+                'photo_source'  => $foto?->source,
+                'signature_url' => $firma ? route('business_management.people.media', [$m->slug, 'signature']) : null,
+            ];
+        }
+
         if ($withAudit) {
             $base['deleted_description'] = $m->deleted_description;
             $base['creator'] = $m->creator ? ['id' => $m->creator->id, 'name' => $m->creator->name, 'email' => $m->creator->email] : null;

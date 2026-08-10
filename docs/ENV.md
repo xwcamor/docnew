@@ -63,7 +63,7 @@ El procedimiento completo está en [`BASE-DE-DATOS-LOCAL.md`](BASE-DE-DATOS-LOCA
 
 ---
 
-## Consultas a SUNAT y RENIEC (apis.net.pe)
+## Consultas a SUNAT y RENIEC (solo Perú)
 
 Un solo token para las dos consultas que hacía el sistema anterior y que aquí se
 recuperaron:
@@ -75,14 +75,26 @@ recuperaron:
   carné de extranjería, un PTP o un pasaporte no están en RENIEC.
   ([`ConsultaDni`](../app/Services/Peru/ConsultaDni.php))
 
-Es el mismo token que la v1 guardaba en las credenciales de Rails como
-`pe_reniec_token`. Se saca en <https://apis.net.pe>.
+### Ojo: hay dos proveedores y no hablan igual
+
+| Proveedor | Host | Ruta del DNI | Campos que devuelve |
+|---|---|---|---|
+| `decolecta` (por defecto) | `api.decolecta.com` | `/v1/reniec/dni` | `first_name`, `first_last_name`, `second_last_name` |
+| `apis_net_pe` | `api.apis.net.pe` | `/v2/reniec/dni` | `nombres`, `apellidoPaterno`, `apellidoMaterno` |
+
+Ni la URL ni los nombres de los campos coinciden, así que **poner el token de
+uno con el otro seleccionado devuelve un 401** y desde la pantalla parece que la
+API está rota. Los tokens de Decolecta empiezan por `sk_`.
 
 | Variable | Default | Descripción |
 |---|---|---|
-| `APIS_NET_PE_URL` | `https://api.apis.net.pe` | |
-| `APIS_NET_PE_TOKEN` | (vacío) | Sin él no se consulta nada y todo se escribe a mano |
-| `APIS_NET_PE_TIMEOUT` | `6` | Segundos antes de rendirse |
+| `PERU_LOOKUP_PROVIDER` | `decolecta` | `decolecta` o `apis_net_pe` |
+| `PERU_LOOKUP_TOKEN` | (vacío) | Sin él no se consulta nada y todo se escribe a mano |
+| `PERU_LOOKUP_TIMEOUT` | `6` | Segundos antes de rendirse |
+| `PERU_LOOKUP_URL` | (del proveedor) | Solo para un espejo o un doble en pruebas |
+
+Las variables `APIS_NET_PE_*` siguen valiendo como respaldo para no romper un
+`.env` ya escrito, pero lo que manda es `PERU_LOOKUP_PROVIDER`.
 
 **Sin token no es un error.** Las dos consultas degradan sin estorbar: sin
 credencial, con la API caída o con un número que no existe, devuelven un estado,

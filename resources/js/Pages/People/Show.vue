@@ -1,10 +1,10 @@
 <script setup>
-import { computed } from 'vue';
-import { Head } from '@inertiajs/vue3';
+import { computed, ref } from 'vue';
+import { Head, router } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert,
+    Card, Tag, Space, Alert, Upload, Button,
 } from 'ant-design-vue';
-import { IdcardOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined, CameraOutlined, UploadOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -31,6 +31,30 @@ const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--c
 
 // Wrapper local para mantener call-sites compactos (fmt(...) en templates).
 const fmt = (d) => formatDateTimeFull(d);
+
+// ── Foto de referencia y firma ───────────────────────────────────────────────
+//
+// La foto que se captura al firmar sale a contraluz, con casco y en
+// movimiento: con ella no se reconoce a nadie. Aqui se sube la buena, que es lo
+// que hacia el administrador en el sistema anterior.
+const subiendo = ref(null);
+
+/** Devuelve `false` para que Ant Design no suba el archivo por su cuenta. */
+const subir = (tipo, archivo) => {
+    subiendo.value = tipo;
+
+    router.post(
+        route('business_management.people.media.store', [props.person.slug, tipo]),
+        { file: archivo },
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onFinish: () => { subiendo.value = null; },
+        },
+    );
+
+    return false;
+};
 </script>
 
 <template>
@@ -176,6 +200,65 @@ const fmt = (d) => formatDateTimeFull(d);
                         </div>
                     </div>
                 </Card>
+
+                <!-- Foto de referencia y firma. Solo con `people.view_media`,
+                     que por defecto tiene el super y no el admin del workspace:
+                     esto es material del administrador del sistema. La firma se
+                     ENSEÑA aqui y en ningun otro sitio de la aplicacion —al
+                     papel solo llega dentro del PDF. -->
+                <Card v-if="person.media" size="small" class="info-card">
+                    <template #title><CameraOutlined /> {{ $t('people.media_title') }}</template>
+
+                    <div class="media-grid">
+                        <div class="media-slot">
+                            <span class="media-slot__label">{{ $t('people.photo') }}</span>
+
+                            <img v-if="person.media.photo_url" :src="person.media.photo_url" class="media-slot__foto" alt="">
+                            <div v-else class="media-slot__vacio">{{ $t('people.no_photo') }}</div>
+
+                            <!-- Una capturada es la que se tomo en obra a falta
+                                 de otra, y es justo la que hay que reemplazar. -->
+                            <Tag
+                                v-if="person.media.photo_source"
+                                :color="person.media.photo_source === 'captured' ? 'orange' : 'blue'"
+                                :bordered="false"
+                            >
+                                {{ $t(`people.photo_source_${person.media.photo_source}`) }}
+                            </Tag>
+
+                            <Upload
+                                :before-upload="(f) => subir('photo', f)"
+                                :show-upload-list="false"
+                                accept="image/jpeg,image/png,image/webp"
+                            >
+                                <Button size="small" :loading="subiendo === 'photo'">
+                                    <template #icon><UploadOutlined /></template>
+                                    {{ person.media.photo_url ? $t('people.replace') : $t('people.upload') }}
+                                </Button>
+                            </Upload>
+                        </div>
+
+                        <div class="media-slot">
+                            <span class="media-slot__label">{{ $t('people.signature') }}</span>
+
+                            <img v-if="person.media.signature_url" :src="person.media.signature_url" class="media-slot__firma" alt="">
+                            <div v-else class="media-slot__vacio">{{ $t('people.no_signature') }}</div>
+
+                            <Upload
+                                :before-upload="(f) => subir('signature', f)"
+                                :show-upload-list="false"
+                                accept="image/jpeg,image/png,image/webp"
+                            >
+                                <Button size="small" :loading="subiendo === 'signature'">
+                                    <template #icon><UploadOutlined /></template>
+                                    {{ person.media.signature_url ? $t('people.replace') : $t('people.upload') }}
+                                </Button>
+                            </Upload>
+                        </div>
+                    </div>
+
+                    <p class="media-nota">{{ $t('people.media_help') }}</p>
+                </Card>
             </template>
 
             <template #history>
@@ -190,6 +273,28 @@ const fmt = (d) => formatDateTimeFull(d);
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; }
 .deleted-alert { margin-bottom: 16px; }
 .info-card { margin-bottom: 16px; border-radius: 8px; }
+
+/* Foto y firma, una al lado de la otra. La foto es cuadrada porque es una
+   cara; la firma es apaisada porque es un trazo. */
+.media-grid { display: flex; flex-wrap: wrap; gap: 24px; }
+.media-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.media-slot__label { font-size: 0.8125rem; color: var(--color-text-muted); }
+.media-slot__foto {
+    width: 140px; height: 140px; object-fit: cover;
+    border: 1px solid var(--ant-color-border, #d9d9d9); border-radius: 8px;
+}
+.media-slot__firma {
+    width: 220px; height: 90px; object-fit: contain; padding: 6px;
+    background: #fff;
+    border: 1px solid var(--ant-color-border, #d9d9d9); border-radius: 8px;
+}
+.media-slot__vacio {
+    display: flex; align-items: center; justify-content: center;
+    width: 140px; height: 140px; padding: 8px; text-align: center;
+    font-size: 0.8125rem; color: var(--color-text-muted);
+    border: 1px dashed var(--ant-color-border, #d9d9d9); border-radius: 8px;
+}
+.media-nota { margin: 16px 0 0; font-size: 0.8125rem; color: var(--color-text-muted); }
 
 @media (max-width: 767px) {
     :deep(.ant-descriptions-item-label) {

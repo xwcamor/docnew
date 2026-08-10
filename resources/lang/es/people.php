@@ -44,6 +44,22 @@ return [
     'dni_verificado'    => 'Nombre verificado con RENIEC.',
     'dni_editar_a_mano' => 'Editar a mano',
 
+    // Foto de referencia y firma guardada. Solo con `people.view_media`.
+    'media_title'  => 'Foto y firma',
+    'media_file'   => 'archivo',
+    'media_help'   => 'Material interno: no lo ven ni el trabajador ni los perfiles de campo. La foto sirve para reconocer a la persona; la firma solo se imprime en los PDF, nunca se muestra en pantalla.',
+    'photo'        => 'Foto de referencia',
+    'no_photo'     => 'Sin foto',
+    'no_signature' => 'Sin firma',
+    'upload'       => 'Subir',
+    'replace'      => 'Reemplazar',
+    'photo_saved'     => 'Foto guardada.',
+    'signature_saved' => 'Firma guardada.',
+    'photo_source_uploaded' => 'Subida a mano',
+    'photo_source_captured' => 'Capturada al firmar',
+    'photo_source_migrated' => 'Del sistema anterior',
+    'signer_face'  => 'Ver la cara con la que firmó',
+
     'country'              => 'País',
     'country_help'         => 'País del documento. Junto con el número define la unicidad de la persona.',
     'nationality'          => 'Nacionalidad',
