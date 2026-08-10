@@ -39,6 +39,7 @@ return [
     'razon_esperando_ruc'      => 'Filled in once you type the tax ID.',
     'razon_de_sunat'           => 'Legal name from the tax authority.',
     'razon_editar_a_mano'      => 'Edit by hand',
+    'document'                 => 'Document',
     'doc_type'                 => 'Document type',
     'doc_type_help'            => 'Which document the company carries in its country. In Peru it is the RUC.',
     'doc_type_invalid'         => 'Document type not valid for that country. Allowed: :types.',

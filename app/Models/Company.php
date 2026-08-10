@@ -234,10 +234,17 @@ class Company extends Model
         } elseif ($sort === 'country') {
             $query->leftJoin('countries', "{$tbl}.country_id", '=', 'countries.id')
                   ->orderBy('countries.name', $direction);
+        } elseif ($sort === 'document') {
+            // La columna «Documento» junta el tipo y el numero, asi que no
+            // tiene columna propia que ordenar. Mismo caso que en personas: sin
+            // esto, pulsar la cabecera manda `sort=document`, no encaja en
+            // ningun caso y la lista vuelve igual.
+            $query->orderBy("{$tbl}.doc_type", $direction)
+                  ->orderBy("{$tbl}.num_doc", $direction);
         } elseif (in_array($sort, ['people_count', 'work_plans_count'], true)) {
             // Alias del withCount del controller — sin prefijo de tabla.
             $query->orderBy($sort, $direction);
-        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'is_active', 'complete_name', 'created_at', 'updated_at'], true)) {
+        } elseif (in_array($sort, ['id', 'name', 'num_doc', 'doc_type', 'is_active', 'complete_name', 'created_at', 'updated_at'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
 

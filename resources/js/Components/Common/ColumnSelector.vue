@@ -40,6 +40,13 @@ const props = defineProps({
     columns:    { type: Array, required: true },
     modelValue: { type: Array, required: true }, // array ordenado de visible keys
     storageKey: { type: String, default: 'default' },
+    // Columnas que cambiaron de clave, `{ vieja: nueva }`.
+    //
+    // Lo guardado vive en el navegador de cada usuario, asi que renombrar una
+    // clave hace que la columna desaparezca en silencio para todo el que haya
+    // abierto esa pantalla antes — no porque la ocultara, sino porque su lista
+    // guardada nombra algo que ya no existe. Con esto se traduce al leerla.
+    renamedKeys: { type: Object, default: () => ({}) },
 });
 const emit = defineEmits(['update:modelValue']);
 
@@ -75,7 +82,8 @@ onMounted(() => {
         if (raw) {
             const stored = JSON.parse(raw);
             // stored es un array de keys — preserva orden tal cual.
-            const valid = stored.filter(k => props.columns.some(c => c.key === k));
+            const traducido = stored.map(k => props.renamedKeys[k] ?? k);
+            const valid = traducido.filter(k => props.columns.some(c => c.key === k));
             // alwaysVisible que no estén en stored los agregamos al final
             const missingAlways = alwaysVisible.value.filter(k => !valid.includes(k));
             emit('update:modelValue', [...valid, ...missingAlways]);

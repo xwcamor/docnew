@@ -39,6 +39,7 @@ return [
     'razon_esperando_ruc'      => 'Se rellena al escribir el RUC.',
     'razon_de_sunat'           => 'Razón social de SUNAT.',
     'razon_editar_a_mano'      => 'Editar a mano',
+    'document'                 => 'Documento',
     'doc_type'                 => 'Tipo de documento',
     'doc_type_help'            => 'Qué documento lleva la empresa en su país. En Perú es el RUC.',
     'doc_type_invalid'         => 'Tipo de documento no válido para ese país. Admitidos: :types.',

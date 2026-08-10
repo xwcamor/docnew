@@ -401,6 +401,7 @@ const goDelete = (record) => router.visit(route('business_management.companies.d
                     :columns="allColumns"
                     v-model="visibleColumnKeys"
                     storage-key="companies"
+                    :renamed-keys="{ num_doc: 'document' }"
                 />
             </span>
         </div>
@@ -545,8 +546,10 @@ const goDelete = (record) => router.visit(route('business_management.companies.d
                         </div>
                     </template>
 
-                    <template v-else-if="column.key === 'num_doc'">
-                        <code class="mono">{{ record.num_doc }}</code>
+                    <template v-else-if="column.key === 'document'">
+                        <!-- Con el tipo delante, igual que en personas: el
+                             numero solo no dice si es un RUC o un RUT. -->
+                        <span class="doc"><span class="doc__type">{{ record.doc_type }}</span> <code class="mono">{{ record.num_doc }}</code></span>
                     </template>
 
                     <template v-else-if="column.key === 'country'">
@@ -687,6 +690,8 @@ const goDelete = (record) => router.visit(route('business_management.companies.d
 .pill--ok  .pill__dot { background: #1d7a44; box-shadow: 0 0 0 3px rgba(29,122,68,0.12); }
 .pill--off { color: #6a6d70; background: var(--color-surface-alt, #f3f4f6); border-color: var(--color-border, #e5e7eb); }
 .pill--off .pill__dot { background: #9aa0a6; }
+
+.doc__type { font-size: 0.7rem; font-weight: 600; color: var(--color-text-muted); letter-spacing: 0.04em; }
 
 /* Cabecera minimal + filas aireadas + hover suave. */
 .grid-card :deep(.ant-table-thead > tr > th) {
