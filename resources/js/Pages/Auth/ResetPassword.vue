@@ -208,7 +208,7 @@ const submit = () => {
     grid-template-columns: 1fr;
     min-height: 100vh;
     min-height: 100dvh;
-    background: #fff;
+    background: var(--color-surface);
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
@@ -222,7 +222,11 @@ const submit = () => {
     display: none;
     position: relative;
     overflow: hidden;
-    color: #fff;
+    color: var(--color-text-on-dark);
+    /* El degradado se queda a mano. Tokenizar solo el primer tramo lo partiria:
+       arrancaria con el color del esquema del usuario y terminaria en un navy
+       fijo, y el salto se ve. Un degradado necesita sus dos extremos del mismo
+       sitio, y de eso no hay token. */
     background: linear-gradient(160deg, #354A5F 0%, #2C3E51 100%);
     padding: clamp(2.5rem, 5vw, 5rem) clamp(2rem, 4vw, 4rem);
 }
@@ -259,7 +263,7 @@ const submit = () => {
     justify-content: center;
     font-size: 1.75rem;
     margin-bottom: 1.25rem;
-    color: #cbd5e1;
+    color: var(--color-icon-mute);
 }
 .auth-brand__title {
     font-weight: 700;
@@ -317,7 +321,7 @@ const submit = () => {
 .auth-main {
     display: flex;
     flex-direction: column;
-    background: #fff;
+    background: var(--color-surface);
     min-height: 100vh;
     min-height: 100dvh;
 }
@@ -332,7 +336,7 @@ const submit = () => {
 /* Mobile-only header */
 .auth-mobile-header {
     background: linear-gradient(160deg, #354A5F 0%, #2C3E51 100%);
-    color: #fff;
+    color: var(--color-text-on-dark);
     text-align: center;
     padding: calc(env(safe-area-inset-top, 0px) + 2.25rem) 1.5rem 2.5rem;
     border-bottom-left-radius: 28px;
@@ -361,7 +365,7 @@ const submit = () => {
     justify-content: center;
     font-size: 1.5rem;
     margin-bottom: 0.85rem;
-    color: #cbd5e1;
+    color: var(--color-icon-mute);
     position: relative;
     z-index: 1;
 }
@@ -369,7 +373,7 @@ const submit = () => {
     font-weight: 700;
     font-size: 1.35rem;
     margin: 0 0 0.15rem 0;
-    color: #fff;
+    color: var(--color-text-on-dark);
     letter-spacing: -0.01em;
     position: relative;
     z-index: 1;
@@ -378,7 +382,7 @@ const submit = () => {
     font-size: 0.8rem;
     opacity: 0.85;
     margin: 0;
-    color: #fff;
+    color: var(--color-text-on-dark);
     position: relative;
     z-index: 1;
 }
@@ -397,7 +401,7 @@ const submit = () => {
 @media (max-width: 767.98px) {
     .auth-form-wrap {
         flex: 1;
-        background: #fff;
+        background: var(--color-surface);
         border-top-left-radius: 24px;
         border-top-right-radius: 24px;
         padding: 2rem 1.5rem 1.25rem;
@@ -418,23 +422,23 @@ const submit = () => {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    color: #6b7280;
+    color: var(--color-text-muted);
     font-size: 0.875rem;
     text-decoration: none;
     margin-bottom: 1.25rem;
 }
-.back-link:hover { color: #0A6ED1; }
+.back-link:hover { color: var(--color-primary); }
 
 .auth-form__header { margin-bottom: 1.75rem; }
 .auth-form__header h1 {
     font-weight: 700;
     font-size: 1.75rem;
-    color: #1f2937;
+    color: var(--color-text);
     margin: 0 0 0.4rem 0;
     letter-spacing: -0.02em;
 }
 .auth-form__header p {
-    color: #6b7280;
+    color: var(--color-text-muted);
     font-size: 0.95rem;
     margin: 0;
     line-height: 1.5;
@@ -444,12 +448,12 @@ const submit = () => {
     display: block;
     font-size: 0.78rem;
     font-weight: 600;
-    color: #334155;
+    color: var(--color-text-strong);
     margin-bottom: 7px;
     letter-spacing: 0.01em;
 }
 .field-error {
-    color: #dc2626;
+    color: var(--state-bad-text);
     font-size: 0.8rem;
     font-weight: 500;
     margin: 6px 0 0 0;
@@ -460,10 +464,12 @@ const submit = () => {
 .auth-form :deep(.ant-input) {
     height: 50px;
     border-radius: 10px;
-    background: #fff;
+    background: var(--color-surface);
+    /* El gris del borde no tiene token: es mas oscuro que --color-border a
+       proposito, para que el campo se vea sin tener que enfocarlo. */
     border: 1.5px solid #d4d8dd;
     font-size: 0.95rem;
-    color: #1f2937;
+    color: var(--color-text);
     padding: 0 14px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -477,6 +483,10 @@ const submit = () => {
     height: 100%;
     padding: 0;
 }
+/* Los grises del campo —borde en reposo, borde al pasar, icono de prefijo,
+   placeholder y el ojo de la contraseña— son una escala propia del formulario:
+   cada uno tiene que quedar por debajo del anterior. Los tokens de texto no
+   dan esa gradacion, asi que se quedan en hex hasta que exista. */
 .auth-form :deep(.ant-input-affix-wrapper:hover),
 .auth-form :deep(.ant-input:hover) {
     border-color: #94a3b8;
@@ -484,11 +494,11 @@ const submit = () => {
 .auth-form :deep(.ant-input-affix-wrapper-focused),
 .auth-form :deep(.ant-input-affix-wrapper:focus-within),
 .auth-form :deep(.ant-input:focus) {
-    border-color: #0A6ED1 !important;
+    border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.18) !important;
 }
 .auth-form :deep(.ant-input-affix-wrapper-status-error) {
-    border-color: #ef4444 !important;
+    border-color: var(--color-input-error) !important;
 }
 .auth-form :deep(.ant-input-affix-wrapper-status-error:focus-within) {
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
@@ -513,7 +523,7 @@ const submit = () => {
     border-radius: 6px;
     transition: background 0.12s ease, color 0.12s ease;
 }
-.pass-toggle:hover { background: #f1f5f9; color: #0A6ED1; }
+.pass-toggle:hover { background: var(--color-surface-hover); color: var(--color-primary); }
 
 .submit-btn {
     margin-top: 20px;
@@ -521,6 +531,8 @@ const submit = () => {
     font-weight: 600 !important;
     font-size: 1rem !important;
     border-radius: 10px !important;
+    /* Mismo caso que el panel de marca: degradado de dos tramos, y el segundo
+       tramo oscuro no tiene token. Se deja entero para no partirlo. */
     background: linear-gradient(135deg, #0A6ED1 0%, #064C92 100%) !important;
     border: 0 !important;
     box-shadow: 0 6px 18px rgba(10, 110, 209, 0.28) !important;
@@ -536,7 +548,7 @@ const submit = () => {
 .auth-footer {
     text-align: center;
     padding: 1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
-    color: #9ca3af;
+    color: var(--color-text-dim);
     font-size: 0.7rem;
 }
 .auth-footer p { margin: 0; font-weight: 500; }
@@ -560,43 +572,37 @@ const submit = () => {
 }
 </style>
 
-<!-- Dark mode overrides (NOT scoped) -->
+<!-- Ajustes de tema oscuro (sin scope).
+     Solo queda lo que el token no resuelve solo: la sombra de la hoja movil y
+     los tonos de los campos, que en oscuro van MAS claros que la tarjeta. El
+     resto se ha borrado porque arriba ya son tokens y cambiaban dos veces. -->
 <style>
-html[data-theme="dark"] .auth-grid { background: #1a1f24; }
-html[data-theme="dark"] .auth-main { background: #1a1f24; }
-
 @media (max-width: 767.98px) {
     html[data-theme="dark"] .auth-form-wrap {
-        background: #1a1f24 !important;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
     }
 }
 
-html[data-theme="dark"] .auth-form__header h1 { color: #e5e6e7; }
-html[data-theme="dark"] .auth-form__header p  { color: #a8aaae; }
-html[data-theme="dark"] .field-label          { color: #cbd5e1; }
-html[data-theme="dark"] .back-link            { color: #a8aaae; }
-html[data-theme="dark"] .back-link:hover      { color: #4db6e8; }
-
+/* El campo va sobre la superficie alterna: con la de la tarjeta desaparecia. */
 html[data-theme="dark"] .auth-form .ant-input-affix-wrapper,
 html[data-theme="dark"] .auth-form .ant-input {
-    background: #2c3034 !important;
-    border-color: #3f4448 !important;
-    color: #e5e6e7 !important;
+    background: var(--color-surface-alt) !important;
+    border-color: var(--color-border) !important;
 }
+/* El azul principal no se aclara en oscuro, asi que el foco tira del acento. */
 html[data-theme="dark"] .auth-form .ant-input-affix-wrapper:hover,
 html[data-theme="dark"] .auth-form .ant-input:hover {
-    border-color: #4db6e8 !important;
+    border-color: var(--color-primary-accent) !important;
 }
 html[data-theme="dark"] .auth-form .ant-input-affix-wrapper-focused,
 html[data-theme="dark"] .auth-form .ant-input-affix-wrapper:focus-within {
-    border-color: #4db6e8 !important;
+    border-color: var(--color-primary-accent) !important;
     box-shadow: 0 0 0 3px rgba(77, 182, 232, 0.18) !important;
 }
+/* Grises de dentro del campo: escala propia del formulario, sin token. */
 html[data-theme="dark"] .auth-form .ant-input-prefix       { color: #7c8390; }
 html[data-theme="dark"] .auth-form .ant-input::placeholder { color: #6b7785; }
 
-html[data-theme="dark"] .pass-toggle:hover { background: #313a44; color: #4db6e8; }
-
-html[data-theme="dark"] .auth-footer { color: #6b7785; }
+html[data-theme="dark"] .back-link:hover   { color: var(--color-primary-accent); }
+html[data-theme="dark"] .pass-toggle:hover { color: var(--color-primary-accent); }
 </style>

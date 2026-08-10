@@ -28,7 +28,9 @@ return [
     'complete_name_placeholder'=> 'E.g.: Hitachi Energy Perú S.A.',
     'num_doc'                  => 'Document number',
     'num_doc_help'             => 'Identifies the company. It cannot repeat within the same country.',
-    'num_doc_placeholder'      => 'E.g.: 20512345678',
+    // No fixed example: an eleven-digit RUC is no help to someone registering
+    // a Chilean contractor. The chosen type already states the shape.
+    'num_doc_placeholder'      => 'Document number',
     // A company's document changes from country to country: RUC in Peru and
     // Ecuador, RUT in Chile, CUIT in Argentina, NIT in Colombia, RFC in
     // Mexico, CNPJ in Brazil. It comes from the same catalogue as a person's
@@ -43,6 +45,8 @@ return [
     'doc_type'                 => 'Document type',
     'doc_type_help'            => 'Which document the company carries in its country. In Peru it is the RUC.',
     'doc_type_invalid'         => 'Document type not valid for that country. Allowed: :types.',
+    'doc_type_ninguno'         => 'No types for this country',
+    'doc_type_sin_catalogo'    => 'This country has no company document in the catalogue. Create one under Document types, with scope «Company». The company can be saved without it.',
     'num_doc_too_short'        => 'A :type has at least :min characters.',
     'num_doc_too_long'         => 'A :type has at most :max characters.',
     'num_doc_faltan'           => ':n digits to go.',

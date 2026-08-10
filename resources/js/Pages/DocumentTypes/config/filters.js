@@ -10,6 +10,13 @@ import dayjs from 'dayjs';
  */
 export const document_typesFilterFields = (t) => [
     { key: 'name',      label: t('document_types.filter_name'), type: 'tags' },
+    // Persona y empresa conviven en la misma tabla y son dos listas que nadie
+    // consulta a la vez: quien viene a revisar por qué el alta de empresas de
+    // Chile no ofrece documento quiere ver los seis de empresa, no los cuarenta.
+    { key: 'scope',     label: t('document_types.scope'),       type: 'select', options: [
+        { value: 'person',  label: t('document_types.scope_person')  },
+        { value: 'company', label: t('document_types.scope_company') },
+    ]},
     { key: 'is_active', label: t('document_types.is_active'),   type: 'select', options: [
         { value: true,  label: t('global.active')   },
         { value: false, label: t('global.inactive') },
@@ -20,6 +27,7 @@ export const document_typesFilterFields = (t) => [
 /** Estado vacío del formulario de filtros (lo usa también «limpiar»). */
 export const document_typesEmptyFilters = () => ({
     name: [],
+    scope: null,
     is_active: null,
     created_at: null,
 });
@@ -27,6 +35,7 @@ export const document_typesEmptyFilters = () => ({
 /** Lo que devuelve el backend → formulario local (fechas ISO → dayjs). */
 export const hydrateDocumentTypesFilters = (server) => ({
     name:       Array.isArray(server.name) ? server.name : [],
+    scope:      server.scope ?? null,
     is_active:  server.is_active ?? null,
     created_at: (server.created_from && server.created_to)
         ? [dayjs(server.created_from), dayjs(server.created_to)]
@@ -36,6 +45,7 @@ export const hydrateDocumentTypesFilters = (server) => ({
 /** Formulario local → parámetros de la petición. */
 export const document_typesFiltersToQuery = (f) => ({
     name:         f.name?.length ? f.name : undefined,
+    scope:        f.scope ?? undefined,
     is_active:    f.is_active ?? undefined,
     created_from: f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
     created_to:   f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
@@ -45,6 +55,9 @@ export const document_typesFiltersToQuery = (f) => ({
 export const document_typesFiltersSummary = (f, t) => {
     const parts = [];
     if (f.name?.length) parts.push(`${t('document_types.filter_name')}: ${f.name.join(', ')}`);
+    if (f.scope) {
+        parts.push(`${t('document_types.scope')}: ${f.scope === 'company' ? t('document_types.scope_company') : t('document_types.scope_person')}`);
+    }
     if (f.is_active !== null && f.is_active !== undefined) {
         parts.push(`${t('document_types.is_active')}: ${f.is_active ? t('global.active') : t('global.inactive')}`);
     }
@@ -55,6 +68,7 @@ export const document_typesFiltersSummary = (f, t) => {
 /** Serialización para Vistas guardadas: JSON plano, sin objetos dayjs. */
 export const serializeSavedFilters = (f) => ({
     name:       f.name ?? [],
+    scope:      f.scope ?? null,
     is_active:  f.is_active ?? null,
     created_at: f.created_at?.[0]
         ? [f.created_at[0].format('YYYY-MM-DD'), f.created_at[1]?.format('YYYY-MM-DD')]
@@ -63,6 +77,7 @@ export const serializeSavedFilters = (f) => ({
 
 export const deserializeSavedFilters = (f = {}) => ({
     name:       Array.isArray(f.name) ? f.name : [],
+    scope:      f.scope ?? null,
     is_active:  f.is_active ?? null,
     created_at: f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
 });

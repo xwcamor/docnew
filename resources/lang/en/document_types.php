@@ -11,7 +11,7 @@ return [
     'index_title'                  => 'Document types',
     'index_subtitle'               => 'Which ID each person carries: national ID, foreigner card, passport, temporary permit.',
     'create_title'                 => 'Create document type',
-    'create_subtitle'              => 'A new document type can be picked on a person record as soon as it is saved.',
+    'create_subtitle'              => 'Available as soon as it is saved: on a person record or on a company record, depending on the scope.',
     'edit_title'                   => 'Edit document type',
     'delete_title'                 => 'Delete document type',
     'show_title'                   => 'Document type — Details',
@@ -21,6 +21,10 @@ return [
     // Fields
     'code'                         => 'Abbreviation',
     'code_help'                    => 'The abbreviation that reads on the person record: DNI, CE, PTP, PASAPORTE. It is the text that stays written on the record.',
+    'scope'                        => 'Scope',
+    'scope_help'                   => 'Who the document belongs to. A person’s document (national ID, foreigner card, temporary permit, passport) and a company’s (RUC, RUT, CUIT, NIT) come from this same catalogue, but they never mix: a person record only offers person documents and a company record only company ones. Pick the wrong one and the type is saved but never shows up where it is needed.',
+    'scope_person'                 => 'Person',
+    'scope_company'                => 'Company',
     'name'                         => 'Full name',
     'name_help'                    => 'What the document is called: “National Identity Document”, “Foreigner ID Card”. The abbreviation goes above.',
     'min_length'                   => 'Minimum length',
@@ -63,6 +67,7 @@ return [
 
     // Validation
     'code_required'                => 'The "Abbreviation" field is required.',
+    'scope_required'               => 'State whether the document belongs to a person or to a company.',
     'code_unique'                  => 'Another document type in that country already uses that abbreviation.',
     'is_active_required'           => 'The status field is required.',
     'max_length_gte'               => 'The maximum length cannot be smaller than the minimum.',

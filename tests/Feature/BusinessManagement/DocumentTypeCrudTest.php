@@ -33,10 +33,10 @@ class DocumentTypeCrudTest extends CatalogTestCase
         return $this->tipo('DNI', 7, 8);
     }
 
-    private function tipo(string $codigo, ?int $min = null, ?int $max = null): DocumentType
+    private function tipo(string $codigo, ?int $min = null, ?int $max = null, string $ambito = DocumentType::PERSONA): DocumentType
     {
         return DocumentType::create($this->base() + [
-            'code' => $codigo, 'name' => $codigo . ' largo',
+            'code' => $codigo, 'name' => $codigo . ' largo', 'scope' => $ambito,
             'min_length' => $min, 'max_length' => $max, 'is_active' => true,
         ]);
     }
@@ -46,7 +46,8 @@ class DocumentTypeCrudTest extends CatalogTestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'PTP', 'name' => 'Permiso Temporal de Permanencia',
+            'country_id' => 1, 'scope' => DocumentType::PERSONA,
+            'code' => 'PTP', 'name' => 'Permiso Temporal de Permanencia',
             'min_length' => 9, 'max_length' => 12,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -59,7 +60,8 @@ class DocumentTypeCrudTest extends CatalogTestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'PTP', 'min_length' => 12, 'max_length' => 9,
+            'country_id' => 1, 'scope' => DocumentType::PERSONA,
+            'code' => 'PTP', 'min_length' => 12, 'max_length' => 9,
         ])->assertSessionHasErrors('max_length');
     }
 
@@ -69,7 +71,7 @@ class DocumentTypeCrudTest extends CatalogTestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'DNI',
+            'country_id' => 1, 'scope' => DocumentType::PERSONA, 'code' => 'DNI',
         ])->assertSessionHasErrors('code');
 
         $this->assertSame(1, DocumentType::where('code', 'DNI')->count());
@@ -89,7 +91,7 @@ class DocumentTypeCrudTest extends CatalogTestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'dni',
+            'country_id' => 1, 'scope' => DocumentType::PERSONA, 'code' => 'dni',
         ])->assertSessionHasErrors('code');
 
         $this->assertSame(1, DocumentType::withoutGlobalScopes()->where('country_id', 1)->count());
@@ -114,13 +116,14 @@ class DocumentTypeCrudTest extends CatalogTestCase
         // Un tipo PRIVADO de la empresa 2, que la empresa 1 no ve en ningun sitio.
         DocumentType::withoutGlobalScopes()->create([
             'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 2,
-            'code' => 'PTP', 'is_active' => true, 'created_by' => 1,
+            'scope' => DocumentType::PERSONA, 'code' => 'PTP', 'is_active' => true, 'created_by' => 1,
         ]);
 
         $this->actingAs($this->admin()); // empresa 1
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'PTP', 'name' => 'Permiso Temporal de Permanencia',
+            'country_id' => 1, 'scope' => DocumentType::PERSONA,
+            'code' => 'PTP', 'name' => 'Permiso Temporal de Permanencia',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame(2, DocumentType::withoutGlobalScopes()->where('code', 'PTP')->count());
@@ -131,14 +134,72 @@ class DocumentTypeCrudTest extends CatalogTestCase
     {
         DocumentType::withoutGlobalScopes()->create([
             'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => null,
-            'code' => 'PASAPORTE', 'is_active' => true, 'created_by' => 1,
+            'scope' => DocumentType::PERSONA, 'code' => 'PASAPORTE', 'is_active' => true, 'created_by' => 1,
         ]);
 
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'PASAPORTE',
+            'country_id' => 1, 'scope' => DocumentType::PERSONA, 'code' => 'PASAPORTE',
         ])->assertSessionHasErrors('code');
+    }
+
+    /**
+     * La misma sigla en los dos ambitos son dos filas distintas.
+     *
+     * `siglaRepetida` miraba pais y workspace, pero no el ambito, y desde que el
+     * catalogo sirve tambien a las empresas eso rechaza altas legitimas: los dos
+     * selectores piden su `scope` y ninguno de los dos ofrece el del otro, asi
+     * que dos filas con la misma sigla y distinto ambito no se cruzan en
+     * ninguna pantalla y no hay nada ambiguo que elegir.
+     */
+    public function test_la_misma_sigla_convive_en_los_dos_ambitos(): void
+    {
+        $this->tipo('RUC', null, null, DocumentType::EMPRESA);
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.document_types.store'), [
+            'country_id' => 1, 'scope' => DocumentType::PERSONA, 'code' => 'RUC',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertSame(2, DocumentType::where('code', 'RUC')->count());
+
+        // Y dentro del MISMO ambito sigue chocando, que es de lo que protege.
+        $this->post(route('business_management.document_types.store'), [
+            'country_id' => 1, 'scope' => DocumentType::EMPRESA, 'code' => 'RUC',
+        ])->assertSessionHasErrors('code');
+    }
+
+    /**
+     * Sin ambito no se da de alta.
+     *
+     * El campo no estaba en la pantalla, asi que todo lo que se creaba a mano
+     * nacia con el valor por defecto de la columna —persona— y era imposible
+     * dar de alta el documento fiscal de otro pais: al abrir una empresa y
+     * elegir Chile, el selector de tipo de documento salia vacio.
+     */
+    public function test_el_ambito_es_obligatorio_al_dar_de_alta(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.document_types.store'), [
+            'country_id' => 1, 'code' => 'RUT',
+        ])->assertSessionHasErrors('scope');
+
+        $this->assertDatabaseMissing('document_types', ['code' => 'RUT']);
+    }
+
+    /** El ambito de empresa se guarda tal cual se eligio, no como persona. */
+    public function test_un_documento_de_empresa_se_da_de_alta_como_tal(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.document_types.store'), [
+            'country_id' => 1, 'scope' => DocumentType::EMPRESA,
+            'code' => 'RUT', 'name' => 'Rol Único Tributario',
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('document_types', ['code' => 'RUT', 'scope' => DocumentType::EMPRESA]);
     }
 
     // ── Los tres campos propios llegan a la pantalla ─────────────────────────
@@ -174,6 +235,45 @@ class DocumentTypeCrudTest extends CatalogTestCase
                 ->where('documentType.max_length', 12));
     }
 
+    /**
+     * El ambito llega al listado y a la ficha, y el listado se puede filtrar.
+     *
+     * Es lo que faltaba de punta a punta: el dato estaba en la tabla desde la
+     * migracion y no salia por ninguna pantalla, asi que no habia manera de ver
+     * —ni de arreglar— que todo lo dado de alta a mano era de persona.
+     */
+    public function test_el_ambito_llega_al_listado_y_se_puede_filtrar(): void
+    {
+        $ruc = $this->tipo('RUC', 11, 11, DocumentType::EMPRESA);
+        $this->tipo('DNI', 8, 8);
+
+        $this->actingAs($this->admin());
+
+        $this->get(route('business_management.document_types.index', ['scope' => DocumentType::EMPRESA]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('DocumentTypes/Index')
+                ->where('document_types.total', 1)
+                ->where('document_types.data.0.code', 'RUC')
+                ->where('document_types.data.0.scope', DocumentType::EMPRESA)
+                ->where('filters.scope', DocumentType::EMPRESA));
+
+        $this->get(route('business_management.document_types.show', $ruc->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('DocumentTypes/Show')
+                ->where('documentType.scope', DocumentType::EMPRESA));
+
+        // Y el formulario recibe las dos opciones ya traducidas: sin ellas el
+        // selector sale vacio, que es exactamente el fallo que se arregla.
+        $this->get(route('business_management.document_types.edit', $ruc->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('DocumentTypes/Form')
+                ->where('documentType.scope', DocumentType::EMPRESA)
+                ->count('scopeOptions', 2));
+    }
+
     /** El buscador de la barra encuentra por nombre largo, no solo por sigla. */
     public function test_el_buscador_encuentra_por_el_nombre_largo(): void
     {
@@ -196,7 +296,7 @@ class DocumentTypeCrudTest extends CatalogTestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.document_types.store'), [
-            'country_id' => 1, 'code' => 'PTP', 'name' => '   ',
+            'country_id' => 1, 'scope' => DocumentType::PERSONA, 'code' => 'PTP', 'name' => '   ',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertNull(DocumentType::where('code', 'PTP')->first()->name);

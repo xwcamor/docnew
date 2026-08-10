@@ -555,6 +555,38 @@ html, body { overflow-x: clip; }
     /* Row tints (filas dirty/duplicate, alertas suaves) */
     --tint-dirty:              rgba(245, 158, 11, 0.06);
     --tint-duplicate:          rgba(200, 40, 29, 0.06);
+
+    /* ── Estados ────────────────────────────────────────────────────────
+       Cada estado son TRES colores —texto, fondo y borde— porque asi es como
+       se pinta en pantalla: una pastilla, no una palabra suelta.
+
+       Faltaba el verde entero. No habia token de «correcto» y por eso el
+       #1D7A44 y el #137A43 estan tecleados a mano 46 veces repartidas por las
+       paginas, en dos verdes distintos que nadie eligio: son el mismo estado
+       pintado de dos colores segun quien escribiera la pantalla.
+
+       Se usan SIEMPRE por nombre. Si tecleas el hex, el dia que se retoque la
+       paleta tu pantalla se queda con el color viejo y nadie se entera hasta
+       que alguien las ve juntas. */
+    --state-ok-text:           #137A43;
+    --state-ok-bg:             rgba(19, 122, 67, 0.08);
+    --state-ok-border:         rgba(19, 122, 67, 0.20);
+
+    --state-warn-text:         #8a6116;
+    --state-warn-bg:           rgba(245, 158, 11, 0.10);
+    --state-warn-border:       rgba(245, 158, 11, 0.24);
+
+    --state-bad-text:          #a8261c;
+    --state-bad-bg:            rgba(200, 40, 29, 0.08);
+    --state-bad-border:        rgba(200, 40, 29, 0.20);
+
+    --state-info-text:         var(--color-primary);
+    --state-info-bg:           rgba(10, 110, 209, 0.08);
+    --state-info-border:       rgba(10, 110, 209, 0.20);
+
+    --state-off-text:          var(--color-text-muted);
+    --state-off-bg:            rgba(106, 109, 112, 0.08);
+    --state-off-border:        rgba(106, 109, 112, 0.18);
 }
 
 /* ─── Esquemas de color (apariencia, por usuario) ───────────────────────
@@ -651,6 +683,30 @@ html[data-theme="dark"] {
     --color-divider:           #3f4448;
     --tint-dirty:              rgba(245, 158, 11, 0.10);
     --tint-duplicate:          rgba(200, 40, 29, 0.12);
+
+    /* Los mismos estados, subidos de luminosidad: el verde y el rojo del tema
+       claro sobre un fondo #1c2228 no llegan al contraste minimo y se leen
+       como manchas. Los nombres NO cambian — ese es justo el motivo de que se
+       usen por nombre y no por hex. */
+    --state-ok-text:           #5dd39e;
+    --state-ok-bg:             rgba(93, 211, 158, 0.12);
+    --state-ok-border:         rgba(93, 211, 158, 0.26);
+
+    --state-warn-text:         #e8b339;
+    --state-warn-bg:           rgba(232, 179, 57, 0.12);
+    --state-warn-border:       rgba(232, 179, 57, 0.26);
+
+    --state-bad-text:          #f08b82;
+    --state-bad-bg:            rgba(240, 139, 130, 0.12);
+    --state-bad-border:        rgba(240, 139, 130, 0.26);
+
+    --state-info-text:         #69b3f5;
+    --state-info-bg:           rgba(105, 179, 245, 0.12);
+    --state-info-border:       rgba(105, 179, 245, 0.26);
+
+    --state-off-text:          var(--color-text-muted);
+    --state-off-bg:            rgba(168, 170, 174, 0.10);
+    --state-off-border:        rgba(168, 170, 174, 0.22);
 }
 
 /* ─── Fullscreen modals (export/import) ─────────────────────────────────
@@ -1220,12 +1276,12 @@ html[data-theme="dark"] .lift:hover {
 /* ════════════════════════════════════════════════════════════════════════════
    LOOK SAP/FIORI PARA FORMS DE CREATE/EDIT (.sap-form)
    Familia de .sap-index. Se activa con class="form-page sap-form" en el div raíz
-   del Form, + el Form en layout="horizontal" + FormFooter con prop `floating`.
+   del Form, + el Form en layout="horizontal" + FormFooter al final.
    Da: fondo gris, franja blanca de título full-bleed, cuerpo sin fondo blanco,
    campos apilados (label izq + input der), footer toolbar fino full-bleed.
    ════════════════════════════════════════════════════════════════════════════ */
-/* La pagina en columna para que la barra de acciones baje al pie: ver el bloque
-   de `.form-footer--floating` mas abajo. */
+/* La pagina en columna para que la barra de acciones baje al pie: ver
+   `.sap-actionbar` mas abajo. */
 .sap-form { background: var(--sap-page-bg, #e9edf2); margin: -24px; padding: 24px; min-height: calc(100vh - var(--shell-bar-h, 44px)); display: flex; flex-direction: column; }
 /* Franja blanca del título a borde completo. */
 .sap-form .section-header {
@@ -1269,16 +1325,18 @@ html[data-theme="dark"] .lift:hover {
    `:has` en vez de nombrar las clases una por una porque el envoltorio cambia
    segun la pagina —unas usan `.form-body`, otras una tarjeta— y asi no toca las
    que no tienen barra flotante (papeleras, editar todo). */
-.sap-form > *:has(.form-footer--floating),
-.sap-form > * > *:has(.form-footer--floating),
-.sap-form > * > * > *:has(.form-footer--floating) { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
-/* Doble clase a proposito: el estilo `scoped` del componente trae su propio
-   `margin-top` y, a igual especificidad, gana el que Vite inyecta ultimo. */
-.sap-form .form-footer.form-footer--floating { margin: auto -52px -48px; padding: 8px 52px 14px; }
+/* Cada eslabon ENTRE la pagina y la barra se vuelve columna elastica, que es
+   lo que le da al `margin: auto` de la barra un hueco que comerse. Va con
+   `:has` en vez de nombrar las clases una por una porque el envoltorio cambia
+   segun la pagina —unas usan `.form-body`, otras una tarjeta— y asi no toca las
+   que no tienen barra. Las medidas de la barra en si estan en un solo sitio:
+   `.sap-actionbar`, mas abajo. */
+.sap-form > *:has(.sap-actionbar),
+.sap-form > * > *:has(.sap-actionbar),
+.sap-form > * > * > *:has(.sap-actionbar) { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
 @media (max-width: 768px) {
     .sap-form { margin: -16px; padding: 16px; }
     .sap-form .section-header { margin: -16px -16px 16px; padding: 14px 16px; }
-    .sap-form .form-footer.form-footer--floating { margin: auto -32px -40px; padding: 8px 16px 14px; }
 }
 
 /* ── Ficha (Show): franja blanca del título full-bleed sobre fondo gris ──────
@@ -1346,62 +1404,92 @@ html[data-theme="dark"] .lift:hover {
 .trash-page .trash-toolbar { display: flex; justify-content: flex-end; margin: 0 0 12px; }
 .trash-page .trash-search { max-width: 320px; }
 
-/* ── Barra de acciones masivas (selección de filas en los índices) ─────────
-   Franja blanca pegada al pie (sticky), full-bleed dentro de .sap-index, igual
-   que el footer flotante de los forms / "Editar todo". Aparece al seleccionar
-   filas y va como hijo de .sap-index DESPUÉS del card de la tabla. Antes era una
-   banda tintada arriba del card (y oscura fija solo en móvil); ahora es la misma
-   franja blanca en todas las pantallas. La regla está GLOBAL (no scoped) para que
-   los 20 *BulkBar.vue la compartan sin duplicar estilos. */
+/* ── LA BARRA DE ACCIONES ──────────────────────────────────────────────────
+   Una sola franja blanca pegada al pie, y una sola altura, la use quien la use:
+   Guardar/Cancelar de un formulario, Eliminar de una ficha, Guardar todo de
+   «Editar todo» y las acciones masivas de un índice.
+
+   Habia cuatro copias con numeros distintos —20px de padding arriba en unas y
+   10px en otras, botones `middle` en unas y `small` en otras, margenes
+   negativos en dos de las cuatro— asi que la franja cambiaba de alto y de
+   ancho segun la pantalla. Y entre los propios formularios: trece llevaban el
+   footer dentro de `.form-body` y trece suelto, o sea dos insets distintos
+   dentro del mismo modulo.
+
+   Los DOS margenes hacen falta, y cada uno arregla un caso que el otro no:
+     · `auto` arriba. Los contenedores son flex en columna con `min-height` de
+       pantalla completa, asi que cuando el contenido es corto y la pagina NO
+       scrollea sobra hueco: la barra se quedaba a media pantalla, con un
+       pastizal gris debajo. `sticky` ahi no hace nada, porque no hay scroll
+       del que engancharse. El `auto` se come ese hueco.
+     · Negativo abajo. Cuando SI scrollea, `sticky` no puede salirse de su
+       caja: al llegar al final aterrizaba por encima del borde y se despegaba.
+
+   Cuanto hay que sangrar depende de donde cuelgue la barra, y eso lo dice el
+   contenedor con `--bar-bleed-*` en vez de que cada componente cuente los
+   paddings de sus antepasados a mano. Asi una barra dentro de `.form-body`
+   —que padea 28 encima de los 24 de la pagina— sale igual de ancha que una
+   colgada de `.sap-index`.
+
+   Documentado en docs/UI.md §8. Si hace falta otra barra, se usa esta clase;
+   `UiStandardTest` falla si alguien vuelve a escribir un `position: sticky;
+   bottom: 0` con sus propios numeros. */
+.sap-form, .sap-index { --bar-bleed-x: 24px; --bar-bleed-b: 24px; }
+.sap-form .form-body  { --bar-bleed-x: 52px; --bar-bleed-b: 48px; }
+
+.sap-actionbar,
 .bulk-bar {
-    display: flex; align-items: center; justify-content: space-between;
-    gap: 12px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
     position: sticky; bottom: 0; z-index: 6;
-    /* Los dos margenes que la mantienen abajo. Hacen falta LOS DOS, y cada uno
-       arregla un caso distinto — con uno solo se ve mal en el otro:
-         · `auto` arriba. `.sap-index` es flex en columna con `min-height` de
-           pantalla completa, asi que cuando la tabla es corta y la pagina NO
-           scrollea sobra hueco: la barra se quedaba justo debajo del card, a
-           media pantalla, con un pastizal gris debajo. `sticky` ahi no hace
-           nada, porque no hay scroll del que engancharse. El `auto` se come
-           ese hueco y la baja.
-         · Negativo abajo. Cuando SI scrollea, `sticky` no puede salirse de su
-           caja: la barra es el ultimo hijo y `.sap-index` padea 24px, asi que
-           al llegar al final aterrizaba 24px por encima del borde y **se
-           despegaba**. Va pegada todo el scroll y se suelta justo al final,
-           que es cuando mas raro se ve.
-       Es el mismo par que ya llevaba `.form-footer--floating`. */
-    margin: auto -24px -24px; padding: 10px 24px 14px;
+    /* Nunca se encoge: es hija flex de una pagina en columna y encogerse aqui
+       no recorta un hueco vacio, recorta la barra. */
+    flex-shrink: 0;
+    /* Y el alto se DECLARA, no se deduce de lo que lleve dentro. Es lo que
+       significa «una sola barra»: la del formulario lleva dos botones, la del
+       indice cuatro y un contador, y las dos tienen que medir lo mismo al pasar
+       de una pantalla a la otra. Dejandolo al contenido median 57 y 49.
+       El numero no es a ojo: borde de arriba + relleno + alto de un boton de Ant
+       Design + relleno. El borde cuenta porque la caja es `border-box`. */
+    --bar-control-h: 32px;
+    min-height: calc(1px + 10px + var(--bar-control-h) + 14px);
+    margin: auto calc(-1 * var(--bar-bleed-x, 24px)) calc(-1 * var(--bar-bleed-b, 24px));
+    padding: 10px var(--bar-bleed-x, 24px) 14px;
     background: var(--color-surface, #fff);
     box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
     border-top: 1px solid var(--color-border-soft, #eceff2);
     font-size: 0.875rem;
 }
-.bulk-bar__label { color: var(--color-text); }
+/* Las acciones, siempre a la derecha y siempre en el mismo orden: la primaria
+   pegada al borde y las demas a su izquierda (`row-reverse`). Lo que haya a la
+   izquierda —«3 seleccionados», «2 cambios pendientes»— es informacion, no una
+   accion, y se queda donde empieza la franja. */
+.sap-actionbar__info    { color: var(--color-text-muted, #6A6D70); margin-right: auto; }
+.sap-actionbar__actions { display: inline-flex; flex-direction: row-reverse; gap: 12px; margin-left: auto; }
+
+@media (max-width: 768px) {
+    .sap-form, .sap-index { --bar-bleed-x: 16px; --bar-bleed-b: 16px; }
+    .sap-form .form-body  { --bar-bleed-x: 32px; --bar-bleed-b: 32px; }
+    .sap-actionbar,
+    .bulk-bar { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 12px); }
+    /* Rejilla de dos columnas, no una accion por linea: estas barras llevan
+       hasta cuatro botones y cuatro de 44px se comen un tercio de la pantalla. */
+    .sap-actionbar__info    { flex: 1 1 100%; text-align: left; margin-right: 0; }
+    .sap-actionbar__actions { width: 100%; display: grid; grid-template-columns: 1fr 1fr; }
+    .sap-actionbar__actions > :only-child { grid-column: 1 / -1; }
+}
+
+/* ── Acciones masivas de los indices ───────────────────────────────────────
+   Misma franja; lo unico suyo es el contador de la izquierda, que hace de
+   `__info`: el «3 seleccionados» empuja los botones a la derecha. */
+.bulk-bar__label { color: var(--color-text); margin-right: auto; }
 .bulk-bar__label strong { color: var(--color-primary); font-weight: 600; }
 @media (max-width: 768px) {
-    .bulk-bar {
-        /* Aqui el contenedor padea 16, no 24. */
-        margin: auto -16px -16px;
-        padding: 10px 16px calc(env(safe-area-inset-bottom, 0px) + 12px);
-        /* La franja ya estaba pegada al pie como el footer de los forms, pero
-           DENTRO no seguia su regla. El form en movil hace `column-reverse` +
-           `width: 100%` (ver FormFooter.vue): botones a ancho completo, uno por
-           linea, a dedo. Aqui los botones iban en un `<Space wrap>` y salian al
-           ancho del texto, alineados a la derecha y partidos en tres lineas
-           ragged, con el «N seleccionados» estrujado en una columna de dos
-           lineas. Misma franja, contenido distinto.
-
-           No los apilo uno por linea como el form: estas barras llevan hasta
-           cuatro acciones (Cancelar / Activar / Desactivar / Eliminar) y cuatro
-           botones de 44px se comen un tercio de la pantalla. Rejilla de dos
-           columnas: mismo principio —ancho completo de su celda, 44px de alto,
-           sin wrap ragged— y la mitad de alto. Con dos acciones (las barras de
-           Papelera) queda una fila; con cuatro, dos. */
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
+    /* Margenes, padding y safe-area los pone ya `.sap-actionbar`. Aqui solo lo
+       que es propio de estas barras: apilar el contador sobre los botones y
+       pasar el `<Space>` de AntD a rejilla de dos columnas. Uno por linea no,
+       que llevan hasta cuatro acciones y cuatro botones de 44px se comen un
+       tercio de la pantalla. */
+    .bulk-bar { flex-direction: column; align-items: stretch; gap: 8px; }
     .bulk-bar__label { text-align: left; }
     /* `Space` es flex con wrap; lo paso a rejilla. Sus `gap` en linea siguen
        valiendo, que grid usa la misma propiedad. */
@@ -1418,7 +1506,10 @@ html[data-theme="dark"] .lift:hover {
        la fila envuelve a dos lineas, el de al lado se queda corto y quedan
        desparejos (70 vs 44). */
     .bulk-bar .ant-space-item { min-width: 0; display: flex; }
-    /* Los botones son `size="small"`: sin esto no llegan al minimo tactil.
+    /* Los botones ya no son `size="small"`: van al tamano por defecto, 32px,
+       para que la franja mida igual que el pie de los formularios. Aun asi el
+       suelo de 44px se queda, que 32 sigue por debajo del objetivo tactil de
+       docs/UI.md §3 —tablet en obra, con guantes—.
        `white-space: normal` porque a media pantalla «Desactivar seleccionados»
        no cabe en una linea y AntD trae `nowrap`: el texto se salia del boton y
        se metia debajo del de al lado. Envuelve a dos lineas y el alto se

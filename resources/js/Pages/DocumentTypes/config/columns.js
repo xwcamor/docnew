@@ -17,6 +17,11 @@ import { ApartmentOutlined, CalendarOutlined } from '@ant-design/icons-vue';
  */
 export const document_typesTableColumns = (t, { isSuper = false, isMobile = false } = {}) => [
     { title: t('document_types.code'), dataIndex: 'code', key: 'code', width: 130, sorter: true, alwaysVisible: true, mobile: { role: 'title' } },
+    // A quién pertenece el documento, pegado a la sigla. Sin esta columna, «RUC»
+    // y «DNI» se leían igual en la lista y no había forma de saber cuál de los
+    // dos selectores lo va a ofrecer — que es justo lo que hay que mirar cuando
+    // alguien avisa de que el alta de empresas no le da ningún tipo.
+    { title: t('document_types.scope'), dataIndex: 'scope', key: 'scope', width: 130, sorter: true, mobile: { role: 'meta' } },
     { title: t('document_types.name'), dataIndex: 'name', key: 'name', sorter: true, ellipsis: true, mobile: { role: 'subtitle' } },
     { title: t('document_types.length'), dataIndex: 'min_length', key: 'length', width: 170, mobile: { role: 'meta' } },
     { title: t('document_types.country'), dataIndex: ['country', 'name'], key: 'country', width: 180, mobile: { role: 'meta' } },

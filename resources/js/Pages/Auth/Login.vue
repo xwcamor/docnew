@@ -330,7 +330,7 @@ const disclosureHtml = computed(() => {
     grid-template-columns: 1fr;
     min-height: 100vh;
     min-height: 100dvh;
-    background: #fff;
+    background: var(--color-surface);
     width: 100%;
     max-width: 100%;
     overflow-x: hidden;
@@ -344,7 +344,11 @@ const disclosureHtml = computed(() => {
     display: none;
     position: relative;
     overflow: hidden;
-    color: #fff;
+    color: var(--color-text-on-dark);
+    /* El degradado se queda a mano. Tokenizar solo el primer tramo lo partiria:
+       arrancaria con el color del esquema del usuario y terminaria en un navy
+       fijo, y el salto se ve. Un degradado necesita sus dos extremos del mismo
+       sitio, y de eso no hay token. */
     background: linear-gradient(160deg, #354A5F 0%, #2C3E51 100%);
     padding: clamp(2.5rem, 5vw, 5rem) clamp(2rem, 4vw, 4rem);
 }
@@ -381,7 +385,7 @@ const disclosureHtml = computed(() => {
     justify-content: center;
     font-size: 1.75rem;
     margin-bottom: 1.25rem;
-    color: #cbd5e1;
+    color: var(--color-icon-mute);
     overflow: hidden;
 }
 .login-brand__logo-img {
@@ -471,7 +475,7 @@ const disclosureHtml = computed(() => {
 .login-main {
     display: flex;
     flex-direction: column;
-    background: #fff;
+    background: var(--color-surface);
     min-height: 100vh;
     min-height: 100dvh;
 }
@@ -486,7 +490,7 @@ const disclosureHtml = computed(() => {
 /* Mobile-only header (app-like sheet style) */
 .login-mobile-header {
     background: linear-gradient(160deg, #354A5F 0%, #2C3E51 100%);
-    color: #fff;
+    color: var(--color-text-on-dark);
     text-align: center;
     padding: calc(env(safe-area-inset-top, 0px) + 2.25rem) 1.5rem 2.5rem;
     border-bottom-left-radius: 28px;
@@ -515,7 +519,7 @@ const disclosureHtml = computed(() => {
     justify-content: center;
     font-size: 1.5rem;
     margin-bottom: 0.85rem;
-    color: #cbd5e1;
+    color: var(--color-icon-mute);
     position: relative;
     z-index: 1;
     overflow: hidden;
@@ -530,7 +534,7 @@ const disclosureHtml = computed(() => {
     font-weight: 700;
     font-size: 1.35rem;
     margin: 0 0 0.15rem 0;
-    color: #fff;
+    color: var(--color-text-on-dark);
     letter-spacing: -0.01em;
     position: relative;
     z-index: 1;
@@ -539,7 +543,7 @@ const disclosureHtml = computed(() => {
     font-size: 0.8rem;
     opacity: 0.85;
     margin: 0;
-    color: #fff;
+    color: var(--color-text-on-dark);
     position: relative;
     z-index: 1;
 }
@@ -558,7 +562,7 @@ const disclosureHtml = computed(() => {
 @media (max-width: 767.98px) {
     .login-form-wrap {
         flex: 1;
-        background: #fff;
+        background: var(--color-surface);
         border-top-left-radius: 24px;
         border-top-right-radius: 24px;
         padding: 2rem 1.5rem 1.25rem;  /* más respiro lateral en mobile (1.5rem en lugar de 1.25rem) */
@@ -580,12 +584,12 @@ const disclosureHtml = computed(() => {
 .login-form__header h1 {
     font-weight: 700;
     font-size: 1.75rem;
-    color: #1f2937;
+    color: var(--color-text);
     margin: 0 0 0.4rem 0;
     letter-spacing: -0.02em;
 }
 .login-form__header p {
-    color: #6b7280;
+    color: var(--color-text-muted);
     font-size: 0.95rem;
     margin: 0;
 }
@@ -594,13 +598,13 @@ const disclosureHtml = computed(() => {
     display: block;
     font-size: 0.78rem;
     font-weight: 600;
-    color: #334155;
+    color: var(--color-text-strong);
     margin-bottom: 7px;
     letter-spacing: 0.01em;
 }
 
 .field-error {
-    color: #dc2626;
+    color: var(--state-bad-text);
     font-size: 0.8rem;
     font-weight: 500;
     margin: 6px 0 0 0;
@@ -612,10 +616,12 @@ const disclosureHtml = computed(() => {
 .login-form :deep(.ant-input) {
     height: 50px;
     border-radius: 10px;
-    background: #fff;
+    background: var(--color-surface);
+    /* El gris del borde no tiene token: es mas oscuro que --color-border a
+       proposito, para que el campo se vea sin tener que enfocarlo. */
     border: 1.5px solid #d4d8dd;
     font-size: 0.95rem;
-    color: #1f2937;
+    color: var(--color-text);
     padding: 0 14px;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -629,6 +635,10 @@ const disclosureHtml = computed(() => {
     height: 100%;
     padding: 0;
 }
+/* Los grises del campo —borde en reposo, borde al pasar, icono de prefijo,
+   placeholder y el ojo de la contraseña— son una escala propia del formulario:
+   cada uno tiene que quedar por debajo del anterior. Los tokens de texto no
+   dan esa gradacion, asi que se quedan en hex hasta que exista. */
 .login-form :deep(.ant-input-affix-wrapper:hover),
 .login-form :deep(.ant-input:hover) {
     border-color: #94a3b8;
@@ -636,11 +646,11 @@ const disclosureHtml = computed(() => {
 .login-form :deep(.ant-input-affix-wrapper-focused),
 .login-form :deep(.ant-input-affix-wrapper:focus-within),
 .login-form :deep(.ant-input:focus) {
-    border-color: #0A6ED1 !important;
+    border-color: var(--color-primary) !important;
     box-shadow: 0 0 0 3px rgba(10, 110, 209, 0.18) !important;
 }
 .login-form :deep(.ant-input-affix-wrapper-status-error) {
-    border-color: #ef4444 !important;
+    border-color: var(--color-input-error) !important;
 }
 .login-form :deep(.ant-input-affix-wrapper-status-error:focus-within) {
     box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
@@ -661,10 +671,12 @@ const disclosureHtml = computed(() => {
 }
 .link-sm {
     font-size: 0.875rem;
-    color: #0A6ED1;
+    color: var(--color-primary);
     font-weight: 500;
     text-decoration: none;
 }
+/* El hover es el azul principal oscurecido a mano. No hay token de «primary un
+   punto mas oscuro», y derivarlo aqui a ojo seria inventarse uno. */
 .link-sm:hover { color: #085CAF; text-decoration: underline; }
 
 .submit-btn {
@@ -673,6 +685,8 @@ const disclosureHtml = computed(() => {
     font-weight: 600 !important;
     font-size: 1rem !important;
     border-radius: 10px !important;
+    /* Mismo caso que el panel de marca: degradado de dos tramos, y el segundo
+       tramo oscuro no tiene token. Se deja entero para no partirlo. */
     background: linear-gradient(135deg, #0A6ED1 0%, #064C92 100%) !important;
     border: 0 !important;
     box-shadow: 0 6px 18px rgba(10, 110, 209, 0.28) !important;
@@ -696,28 +710,31 @@ const disclosureHtml = computed(() => {
     border-radius: 6px;
     transition: background 0.12s ease, color 0.12s ease;
 }
-.pass-toggle:hover { background: #f1f5f9; color: #0A6ED1; }
+.pass-toggle:hover { background: var(--color-surface-hover); color: var(--color-primary); }
 
-/* Primera entrada — aviso para las cuentas migradas sin contraseña. */
+/* Primera entrada — aviso para las cuentas migradas sin contraseña.
+   Es una pastilla informativa, asi que se pinta con los tres tokens del estado
+   «info» (texto, fondo y borde) en vez de con un azul claro a mano: en oscuro
+   el azul claro se quedaba tal cual y el aviso salia como una mancha. */
 .first-time {
     margin-top: 20px;
     padding: 12px 14px;
-    border: 1px solid #dbeafe;
-    border-left: 3px solid #0A6ED1;
+    border: 1px solid var(--state-info-border);
+    border-left: 3px solid var(--state-info-text);
     border-radius: 8px;
-    background: #f5f9ff;
+    background: var(--state-info-bg);
 }
 .first-time__title {
     margin: 0 0 4px;
     font-size: 0.85rem;
     font-weight: 700;
-    color: #1f2937;
+    color: var(--color-text);
 }
 .first-time__body {
     margin: 0;
     font-size: 0.82rem;
     line-height: 1.5;
-    color: #475569;
+    color: var(--color-text-muted);
 }
 .first-time__link {
     display: inline-flex;
@@ -725,7 +742,7 @@ const disclosureHtml = computed(() => {
     min-height: 44px;   /* objetivo de toque con guantes (UI.md §3) */
     font-size: 0.875rem;
     font-weight: 600;
-    color: #0A6ED1;
+    color: var(--state-info-text);
     text-decoration: none;
 }
 .first-time__link:hover { text-decoration: underline; }
@@ -735,7 +752,7 @@ const disclosureHtml = computed(() => {
     display: flex;
     align-items: center;
     gap: 0.85rem;
-    color: #6A6D70;
+    color: var(--color-text-muted);
     font-size: 0.78rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -746,7 +763,7 @@ const disclosureHtml = computed(() => {
     content: "";
     flex: 1;
     height: 1px;
-    background: #e5e7eb;
+    background: var(--color-border);
 }
 
 /* Google button — matches original Blade: white bg, soft border, hover lift */
@@ -757,19 +774,23 @@ const disclosureHtml = computed(() => {
     gap: 0.65rem;
     height: 50px;
     border-radius: 10px;
-    background: #fff;
-    color: #1f2937;
-    border: 1px solid #e5e7eb;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
     font-weight: 500;
     text-decoration: none;
     transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
     width: 100%;
 }
 .google-btn:hover {
-    background: #f8fafc;
+    background: var(--color-surface-alt);
+    /* El borde del hover no tiene token: --color-border-strong es mas claro
+       que este y el boton no acusaba el paso del raton. */
     border-color: #cbd5e1;
     transform: translateY(-1px);
 }
+/* El rojo de Google es de Google: no cambia con nuestro tema ni con el esquema
+   que elija el usuario, asi que no es candidato a token. */
 .google-btn :deep(.anticon) { color: #ea4335; font-size: 1.15rem; }
 
 /* Locale — chip pill style, like the original */
@@ -782,31 +803,31 @@ const disclosureHtml = computed(() => {
     min-width: 130px;
 }
 .locale-row :deep(.ant-select-selector) {
-    background: #f1f5f9 !important;
+    background: var(--color-surface-hover) !important;
     border: 0 !important;
     border-radius: 999px !important;
     padding: 4px 14px !important;
     height: 32px !important;
     font-size: 0.8rem !important;
-    color: #475569 !important;
+    color: var(--color-text-muted) !important;
 }
 
 /* Disclosure */
 .disclosure {
     font-size: 0.72rem;
-    color: #94a3b8;
+    color: var(--color-text-dim);
     margin-top: 1rem;
     line-height: 1.5;
     text-align: center;
 }
-.disclosure a { color: #0A6ED1; text-decoration: none; font-weight: 500; }
+.disclosure a { color: var(--color-primary); text-decoration: none; font-weight: 500; }
 .disclosure a:hover { text-decoration: underline; }
 
 /* Footer */
 .login-footer {
     text-align: center;
     padding: 1rem 1rem calc(env(safe-area-inset-bottom, 0px) + 1.25rem);
-    color: #9ca3af;
+    color: var(--color-text-dim);
     font-size: 0.7rem;
 }
 .login-footer p { margin: 0; font-weight: 500; }
@@ -841,71 +862,51 @@ const disclosureHtml = computed(() => {
 .mb-3 { margin-bottom: 12px; }
 </style>
 
-<!-- Dark mode overrides (NOT scoped) -->
+<!-- Ajustes de tema oscuro (sin scope).
+     Aqui solo queda lo que el token no resuelve por si mismo. Todo lo que
+     arriba ya es un token —fondos, textos, bordes, la pastilla de aviso— se
+     ha borrado de este bloque: repetirlo en oscuro era justo lo que hacia que
+     el color viviera en dos sitios. -->
 <style>
-html[data-theme="dark"] .login-grid { background: #1a1f24; }
-html[data-theme="dark"] .login-main { background: #1a1f24; }
-
-/* Mobile sheet — needs darker bg + adjusted shadow */
+/* La sombra de la hoja movil no tiene token, y en oscuro tiene que ser mas
+   marcada para que la hoja se despegue del fondo. */
 @media (max-width: 767.98px) {
     html[data-theme="dark"] .login-form-wrap {
-        background: #1a1f24 !important;
         box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4) !important;
     }
 }
 
-html[data-theme="dark"] .login-form__header h1 { color: #e5e6e7; }
-html[data-theme="dark"] .login-form__header p  { color: #a8aaae; }
-html[data-theme="dark"] .field-label           { color: #cbd5e1; }
-
+/* En oscuro el campo va sobre la superficie alterna, un punto mas clara que la
+   tarjeta: con la misma, el input desaparecia dentro del formulario. */
 html[data-theme="dark"] .login-form .ant-input-affix-wrapper,
 html[data-theme="dark"] .login-form .ant-input {
-    background: #2c3034 !important;
-    border-color: #3f4448 !important;
-    color: #e5e6e7 !important;
+    background: var(--color-surface-alt) !important;
+    border-color: var(--color-border) !important;
 }
+/* El azul principal no se aclara en oscuro —cada esquema lo mantiene—, asi que
+   el borde de foco tira del acento, que si esta pensado para fondo oscuro. */
 html[data-theme="dark"] .login-form .ant-input-affix-wrapper:hover,
 html[data-theme="dark"] .login-form .ant-input:hover {
-    border-color: #4db6e8 !important;
+    border-color: var(--color-primary-accent) !important;
 }
 html[data-theme="dark"] .login-form .ant-input-affix-wrapper-focused,
 html[data-theme="dark"] .login-form .ant-input-affix-wrapper:focus-within {
-    border-color: #4db6e8 !important;
+    border-color: var(--color-primary-accent) !important;
     box-shadow: 0 0 0 3px rgba(77, 182, 232, 0.18) !important;
 }
+/* Los grises de DENTRO del campo (icono de prefijo y placeholder) son una
+   escala propia del formulario y no tienen token: van mas apagados que el
+   texto apagado, o el placeholder compite con lo que el usuario escribe. */
 html[data-theme="dark"] .login-form .ant-input-prefix       { color: #7c8390; }
 html[data-theme="dark"] .login-form .ant-input::placeholder { color: #6b7785; }
 
-html[data-theme="dark"] .pass-toggle:hover { background: #313a44; color: #4db6e8; }
+html[data-theme="dark"] .pass-toggle:hover { color: var(--color-primary-accent); }
 
-html[data-theme="dark"] .first-time {
-    background: #202a35;
-    border-color: #2f3d4c;
-    border-left-color: #4db6e8;
-}
-html[data-theme="dark"] .first-time__title { color: #e5e6e7; }
-html[data-theme="dark"] .first-time__body  { color: #a8aaae; }
-html[data-theme="dark"] .first-time__link  { color: #4db6e8; }
-
-html[data-theme="dark"] .divider          { color: #6b7785; }
-html[data-theme="dark"] .divider::before,
-html[data-theme="dark"] .divider::after   { background: #3f4448; }
-
-html[data-theme="dark"] .google-btn {
-    background: #2c3034;
-    color: #e5e6e7;
-    border-color: #3f4448;
-}
+/* El boton de Google se aclara respecto a la tarjeta por el mismo motivo que
+   los inputs: es un control, no fondo. */
+html[data-theme="dark"] .google-btn { background: var(--color-surface-alt); }
 html[data-theme="dark"] .google-btn:hover {
-    background: #313a44;
-    border-color: #4db6e8;
+    background: var(--color-surface-hover);
+    border-color: var(--color-primary-accent);
 }
-
-html[data-theme="dark"] .locale-row .ant-select-selector {
-    background: #313a44 !important;
-    color: #cbd5e1 !important;
-}
-
-html[data-theme="dark"] .disclosure   { color: #7c8390; }
-html[data-theme="dark"] .login-footer { color: #6b7785; }
 </style>

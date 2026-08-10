@@ -15,6 +15,7 @@ defineOptions({ layout: AppLayout });
 const props = defineProps({
     documentType: { type: Object, default: null },
     countryOptions:   { type: Array,  default: () => [] },
+    scopeOptions:     { type: Array,  default: () => [] },
     defaultCountryId: { type: [Number, String], default: null },
 });
 
@@ -28,6 +29,11 @@ const editSubtitle = computed(() => props.documentType?.name
 
 const form = useForm({
     country_id: props.documentType?.country_id ?? props.defaultCountryId ?? null,
+    // Creando, se propone «persona»: es lo que el catálogo llevaba haciendo
+    // desde siempre y lo que se da de alta nueve de cada diez veces. Editando
+    // manda lo guardado — sin esto, tocar el RUC para corregirle una tilde lo
+    // devolvía al ámbito de persona y desaparecía del alta de empresas.
+    scope: props.documentType?.scope ?? 'person',
     code: props.documentType?.code ?? '',
     name: props.documentType?.name ?? '',
     min_length: props.documentType?.min_length ?? null,
@@ -96,6 +102,28 @@ const submit = () => {
                         :filter-option="filterOption"
                         :placeholder="$t('global.select')"
                         autofocus
+                    />
+                </FormItem>
+
+                <!-- A quién pertenece el documento, justo después del país y
+                     antes de la sigla. El orden no es estético: el país y el
+                     ámbito son lo que decide todo lo que viene debajo — «RUC»
+                     con once cifras solo tiene sentido si antes se dijo Perú y
+                     empresa. Este campo faltaba entero en la pantalla, así que
+                     todo lo dado de alta a mano nacía como documento de persona
+                     y al abrir una empresa de Chile el selector salía vacío. -->
+                <FormItem
+                    :label="$t('document_types.scope')"
+                    :tooltip="$t('document_types.scope_help')"
+                    required
+                    :validate-status="form.errors.scope ? 'error' : ''"
+                    :help="form.errors.scope"
+                >
+                    <Select
+                        v-model:value="form.scope"
+                        size="large"
+                        :options="scopeOptions"
+                        :placeholder="$t('global.select')"
                     />
                 </FormItem>
 

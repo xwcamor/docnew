@@ -81,6 +81,12 @@ class DocumentTypeController extends Controller
             ]),
             'filters' => [
                 'name'         => array_values($terminos),
+                // El catalogo trae mezclados los documentos de persona y los de
+                // empresa, y quien viene a dar de alta el RUT de Chile solo
+                // quiere ver los de empresa. Se devuelve tal cual llego —sin
+                // valor por defecto— para que «sin filtro» siga significando
+                // los dos ambitos a la vez.
+                'scope'        => $request->get('scope', null) ?: null,
                 'is_active'    => $request->filled('is_active')
                     ? filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN)
                     : null,
@@ -143,6 +149,7 @@ class DocumentTypeController extends Controller
         return inertia('DocumentTypes/Form', [
             'documentType' => null,
             'countryOptions'   => $this->countryOptions(),
+            'scopeOptions'     => $this->scopeOptions(),
             'defaultCountryId' => $request->user()?->country_id,
         ]);
     }
@@ -172,6 +179,7 @@ class DocumentTypeController extends Controller
         return inertia('DocumentTypes/Form', [
             'documentType' => $this->payload($documentType, service: $service),
             'countryOptions'   => $this->countryOptions(),
+            'scopeOptions'     => $this->scopeOptions(),
             'defaultCountryId' => $request->user()?->country_id,
         ]);
     }
@@ -404,6 +412,11 @@ class DocumentTypeController extends Controller
         $base = [
             'id'          => $m->id,
             'slug'        => $m->slug,
+            // A quien pertenece el documento. Sin esto en el payload, el
+            // formulario de edicion no podia ni enseñar el ambito guardado, y
+            // cada vez que alguien tocaba una fila de empresa la devolvia al
+            // valor por defecto de la columna.
+            'scope'       => $m->scope,
             'code'        => $m->code,
             'name'        => $m->name,
             'min_length'  => $m->min_length,
@@ -429,6 +442,21 @@ class DocumentTypeController extends Controller
         }
 
         return $base;
+    }
+
+    /**
+     * A quien pertenece el documento, como opciones del selector.
+     *
+     * Las dos etiquetas se traducen aqui y no se escriben en el Vue porque son
+     * las mismas que usan el listado y la ficha: una sola clave de idioma para
+     * las tres pantallas, o acaban diciendo tres cosas distintas.
+     */
+    protected function scopeOptions(): array
+    {
+        return [
+            ['value' => DocumentType::PERSONA, 'label' => __('document_types.scope_person')],
+            ['value' => DocumentType::EMPRESA, 'label' => __('document_types.scope_company')],
+        ];
     }
 
     /** Paises activos como opciones del selector. */

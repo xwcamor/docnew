@@ -13,7 +13,7 @@ import RecordHistory from '@/Components/Common/RecordHistory.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useDateFormat } from '@/Composables/useDateFormat';
 import { useI18n } from '@/Plugins/i18n';
-import { documentTypeCharsLabel, documentTypeLengthLabel } from './config/length';
+import { documentTypeCharsLabel, documentTypeLengthLabel, documentTypeScopeLabel } from './config/length';
 
 defineOptions({ layout: AppLayout });
 
@@ -38,6 +38,11 @@ const lengthLabel = computed(() => documentTypeLengthLabel(t, props.documentType
 // «Solo números». Sin esto la ficha decía cuántos caracteres admite el número
 // pero no cuáles, que es lo que impide que entre un celular en un DNI.
 const charsLabel = computed(() => documentTypeCharsLabel(t, props.documentType));
+
+// «Persona» o «Empresa». Es lo que explica en qué selector aparece esta fila, y
+// por tanto la primera cosa que hay que mirar cuando alguien avisa de que el
+// alta de una empresa no le ofrece ningún tipo de documento.
+const scopeLabel = computed(() => documentTypeScopeLabel(t, props.documentType));
 
 const fmt = (d) => formatDateTimeFull(d);
 </script>
@@ -115,6 +120,14 @@ const fmt = (d) => formatDateTimeFull(d);
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('document_types.code') }}</span>
                             <span class="spec-cell__value">{{ documentType.code }}</span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('document_types.scope') }}</span>
+                            <span class="spec-cell__value">
+                                <Tag :color="documentType.scope === 'company' ? 'gold' : 'blue'" :bordered="false">
+                                    {{ scopeLabel }}
+                                </Tag>
+                            </span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('document_types.name') }}</span>

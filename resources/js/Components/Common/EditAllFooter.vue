@@ -20,52 +20,15 @@ defineEmits(['discard', 'save']);
 </script>
 
 <template>
-    <div class="edit-all-footer">
-        <span v-if="statusText" class="edit-all-footer__status">{{ statusText }}</span>
-        <span class="edit-all-footer__actions">
-            <Button :disabled="discardDisabled || submitting" @click="$emit('discard')">
-                <UndoOutlined /> {{ discardLabel }}
-            </Button>
+    <div class="sap-actionbar">
+        <span v-if="statusText" class="sap-actionbar__info">{{ statusText }}</span>
+        <span class="sap-actionbar__actions">
             <Button type="primary" :loading="submitting" :disabled="saveDisabled" @click="$emit('save')">
                 <SaveOutlined /> {{ saveLabel }}
+            </Button>
+            <Button :disabled="discardDisabled || submitting" @click="$emit('discard')">
+                <UndoOutlined /> {{ discardLabel }}
             </Button>
         </span>
     </div>
 </template>
-
-<style scoped>
-/* Franja flotante: pegada al fondo, full-bleed dentro de .sap-form (padding 24).
-   Acción primaria (Guardar) a la derecha (row-reverse). */
-.edit-all-footer {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    position: sticky;
-    bottom: 0;
-    z-index: 5;
-    /* Los dos margenes que la mantienen abajo; hacen falta LOS DOS:
-         · `auto` arriba, porque `.sap-form` es flex en columna con alto minimo
-           de pantalla: con pocas filas la pagina no scrollea, `sticky` no
-           tiene de que engancharse y la barra se quedaba a media pantalla.
-         · Negativo abajo, porque cuando SI scrollea `sticky` no puede salirse
-           de su caja y al final aterrizaba por encima del borde, con una
-           franja gris debajo. Aqui hay dos paddings que salvar —los 24px de
-           `.sap-form` y los 24px del contenedor—, de ahi el -48.
-       Es el mismo par que ya llevaba `.form-footer--floating`. */
-    margin: auto -24px -48px;
-    padding: 10px 24px 14px;
-    background: var(--color-surface, #fff);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.06);
-    border-top: 1px solid var(--color-border-soft, #eceff2);
-}
-/* Estado a la izquierda; acciones (Descartar/Guardar) a la derecha. */
-.edit-all-footer__status { color: var(--color-text-muted, #6A6D70); font-size: 0.84rem; }
-.edit-all-footer__actions { display: inline-flex; gap: 12px; margin-left: auto; }
-@media (max-width: 768px) {
-    /* Aqui los dos paddings son de 16. */
-    .edit-all-footer { margin: auto -16px -32px; padding: 10px 16px 14px; flex-wrap: wrap; }
-    .edit-all-footer__status { flex: 1 1 100%; }
-    .edit-all-footer__actions { width: 100%; }
-    .edit-all-footer__actions :deep(.ant-btn) { flex: 1 1 auto; }
-}
-</style>

@@ -13,6 +13,13 @@ class StoreDocumentTypeRequest extends FormRequest
 
     protected $attributeNamespace = 'document_types';
 
+    // El error del ambito tiene que decir «Ámbito», que es lo que se lee en el
+    // formulario, y no «scope»: el campo es nuevo y la palabra en ingles no
+    // significa nada para quien esta dando de alta el RUT de Chile.
+    protected $attributeOverrides = [
+        'scope' => 'document_types.scope',
+    ];
+
     public function authorize(): bool
     {
         // La ruta ya pasa por permission:document_types.create — aqui solo se validan
@@ -43,6 +50,18 @@ class StoreDocumentTypeRequest extends FormRequest
     {
         return [
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
+            // A QUIEN pertenece el documento. Sin este campo en la pantalla,
+            // todo lo que se daba de alta a mano nacia con el valor por defecto
+            // de la columna —persona— y no habia forma de crear el documento
+            // fiscal de un pais nuevo: al abrir una empresa y elegir Chile, el
+            // selector de tipo de documento salia vacio y ahi se acababa el
+            // alta. Es obligatorio y sin valor por defecto a proposito: quien
+            // crea la fila sabe si esta dando de alta el DNI o el RUT, y
+            // adivinarlo por el en su lugar es lo que produjo el fallo.
+            'scope' => ['required', Rule::in([
+                \App\Models\DocumentType::PERSONA,
+                \App\Models\DocumentType::EMPRESA,
+            ])],
             // Al dar de alta, el tipo nace en el workspace de quien lo crea (o
             // global, si lo crea un super): ahi es donde se busca el repetido.
             'code' => ['required', 'string', 'max:20',
@@ -84,6 +103,16 @@ class StoreDocumentTypeRequest extends FormRequest
      *    guarda el TEXTO de la sigla, no la clave ajena, y una persona dada de
      *    alta como «dni» no la encuentra quien busca por «DNI».
      *
+     * Y desde que el catalogo sirve tambien a las empresas, un tercero:
+     *
+     * 3. **El ambito.** La sigla solo choca DENTRO de su ambito. El «RUC» de
+     *    empresa y un hipotetico «RUC» de persona son dos filas distintas que
+     *    no se ven nunca juntas: cada selector pide su `scope` y ninguno de los
+     *    dos ofrece el del otro, asi que no hay ambigüedad posible al elegir.
+     *    Sin esta condicion, dar de alta el documento fiscal de un pais que
+     *    reutiliza una sigla ya usada para personas —o al reves— se rechazaba
+     *    nombrando una fila que ni siquiera sale en ese desplegable.
+     *
      * Ojo: el indice unico de la tabla —`(country_id, code, deleted_at)`— NO
      * cubre esto. Con `deleted_at` en nulo el motor considera cada tupla
      * distinta, asi que entre filas vivas no impide nada. Esta validacion es la
@@ -103,6 +132,11 @@ class StoreDocumentTypeRequest extends FormRequest
             $q = DB::table('document_types')
                 ->whereNull('deleted_at')
                 ->where('country_id', $this->input('country_id'))
+                // Dentro del mismo ambito y no en toda la tabla: el selector de
+                // la ficha de la persona y el de la empresa piden cada uno el
+                // suyo, asi que dos filas con la misma sigla y distinto ambito
+                // no se cruzan en ninguna pantalla.
+                ->where('scope', $this->input('scope', \App\Models\DocumentType::PERSONA))
                 // Los propios y los globales: lo mismo que ve el selector.
                 ->where(function ($w) use ($tenantId) {
                     $w->whereNull('tenant_id');
@@ -131,6 +165,10 @@ class StoreDocumentTypeRequest extends FormRequest
     {
         return [
             'code.required' => __('document_types.code_required'),
+            // «El campo ámbito es obligatorio» no dice nada; lo que hay que
+            // decidir es si el documento es de una persona o de una empresa, y
+            // asi se pregunta.
+            'scope.required' => __('document_types.scope_required'),
             // El mensaje generico de `gte` habla de «mayor o igual que 12».
             // Aqui el error real es otro y se dice con esas palabras: el maximo
             // no puede quedar por debajo del minimo.

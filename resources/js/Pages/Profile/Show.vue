@@ -359,7 +359,7 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
                             </DescriptionsItem>
                         </Descriptions>
 
-                        <div class="form-footer">
+                        <div class="card-actions">
                             <Button
                                 type="primary"
                                 size="large"
@@ -483,7 +483,7 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
                                 </Input.Password>
                             </FormItem>
 
-                            <div class="form-footer">
+                            <div class="card-actions">
                                 <Button
                                     type="primary"
                                     size="large"
@@ -583,14 +583,16 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
     gap: 18px;
     margin: -24px -24px 20px;
     padding: 18px 24px;
+    /* Degradado de dos tramos: el oscuro no tiene token y tokenizar solo el
+       primero lo partiria, asi que se queda a mano. */
     background: linear-gradient(135deg, #0A6ED1 0%, #064C92 100%);
-    color: #fff;
+    color: var(--color-text-on-dark);
     border-radius: 0;
     box-shadow: none;
 }
 .profile-hero__info { flex: 1; min-width: 0; }
 .profile-hero h1 {
-    color: #fff;
+    color: var(--color-text-on-dark);
     font-size: 1.4rem;
     font-weight: 600;
     margin: 0 0 4px 0;
@@ -612,7 +614,7 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 .profile-hero__tags :deep(.ant-tag) {
     background: rgba(255, 255, 255, 0.15);
     border: 0;
-    color: #fff;
+    color: var(--color-text-on-dark);
 }
 
 .profile-card { border-radius: 8px; }
@@ -620,16 +622,16 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 .profile-form { /* sin max-width — los FormItem usan Row/Col internos si necesitan limitar */ }
 
 .form-hint {
-    color: #94a3b8;
+    color: var(--color-text-dim);
     font-size: 0.75rem;
     margin-top: 4px;
     display: block;
 }
 
-.form-footer {
+.card-actions {
     margin-top: 24px;
     padding-top: 16px;
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--color-border-soft);
 }
 
 .profile-desc { margin-top: 16px; }
@@ -638,12 +640,12 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 .prefs-section .section-title {
     font-size: 1rem;
     font-weight: 600;
-    color: #1f2937;
+    color: var(--color-text);
     margin: 0 0 4px 0;
 }
 .password-section .section-subtitle,
 .prefs-section .section-subtitle {
-    color: #6A6D70;
+    color: var(--color-text-muted);
     font-size: 0.8125rem;
     margin: 0 0 16px 0;
 }
@@ -652,18 +654,24 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 
 /* Avatar editable */
 .profile-hero__avatar { position: relative; cursor: pointer; flex-shrink: 0; }
-.profile-hero__cam { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; background: #0A6ED1; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid #fff; }
+.profile-hero__cam { position: absolute; right: -2px; bottom: -2px; width: 26px; height: 26px; border-radius: 50%; background: var(--color-primary); color: var(--color-text-on-dark); display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid var(--color-surface); }
+/* El hover es el azul principal oscurecido a mano; no hay token de «primary
+   un punto mas oscuro» y derivarlo aqui seria inventarse uno. */
 .profile-hero__avatar:hover .profile-hero__cam { background: #085CAF; }
 
-/* Firma manuscrita */
-.sig-block { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--color-border, #e5e7eb); }
+/* Firma manuscrita.
+   El lienzo y la vista previa se quedan BLANCOS a mano en los dos temas: lo
+   que se dibuja encima es tinta oscura y se guarda como imagen. Con
+   --color-surface el lienzo se volveria oscuro en tema oscuro y la firma
+   desapareceria mientras se traza. */
+.sig-block { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--color-border); }
 .sig-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 7px; }
-.sig-preview { border: 1px dashed var(--color-border, #d0d5da); border-radius: 8px; padding: 10px 16px; display: inline-block; margin: 6px 0 12px; background: #fff; }
+.sig-preview { border: 1px dashed var(--color-border); border-radius: 8px; padding: 10px 16px; display: inline-block; margin: 6px 0 12px; background: #fff; }
 .sig-preview img { max-height: 64px; max-width: 240px; display: block; }
-.sig-canvas { width: 100%; height: 180px; border: 1px dashed var(--color-border, #d0d5da); border-radius: 8px; background: #fff; touch-action: none; cursor: crosshair; display: block; }
+.sig-canvas { width: 100%; height: 180px; border: 1px dashed var(--color-border); border-radius: 8px; background: #fff; touch-action: none; cursor: crosshair; display: block; }
 .sig-canvas__actions { display: flex; justify-content: space-between; margin-top: 12px; }
 .privacy-actions { display: flex; flex-wrap: wrap; gap: 10px; }
-.sig-autosign { display: flex; align-items: flex-start; gap: 12px; margin-top: 18px; padding: 12px 14px; border: 1px solid var(--color-border, #e5e7eb); border-radius: 8px; background: var(--color-surface-alt, #fafbfc); }
+.sig-autosign { display: flex; align-items: flex-start; gap: 12px; margin-top: 18px; padding: 12px 14px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-alt); }
 
 @media (max-width: 768px) {
     /* En móvil el padding de .sap-show es 16 → el bleed también. */
@@ -681,7 +689,7 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
     display: block;
     font-size: 0.85rem;
     font-weight: 600;
-    color: var(--color-text-strong, #334155);
+    color: var(--color-text-strong);
     margin-bottom: 8px;
 }
 .scheme-dot {
@@ -696,19 +704,19 @@ const formatDate = (d) => d ? dayjs(d).format('YYYY-MM-DD') : '—';
 .appearance-row :deep(.ant-radio-button-wrapper) { margin-bottom: 6px; }
 </style>
 
+<!-- Ajustes de tema oscuro (sin scope).
+     Solo queda el hero. Los textos y el borde del separador que habia aqui
+     repetian en oscuro lo que arriba ya es un token. -->
 <style>
 /* Hero a BORDE COMPLETO (franja cuadrada, como el resto de fichas): bleed
    sobre el padding de .sap-show y sin esquinas redondeadas. El comentario
-   estaba metido DENTRO del selector, partiéndolo en dos líneas ilegibles. */
+   estaba metido DENTRO del selector, partiéndolo en dos líneas ilegibles.
+   El degradado se queda a mano: son dos tramos y el oscuro no tiene token;
+   tokenizar solo el primero lo partiria por la mitad. */
 html[data-theme="dark"] .profile-hero {
     margin: -24px -24px 20px;
     border-radius: 0;
     background: linear-gradient(135deg, #354A5F 0%, #1a2530 100%);
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
-html[data-theme="dark"] .form-footer { border-top-color: #3f4448; }
-html[data-theme="dark"] .password-section .section-title,
-html[data-theme="dark"] .prefs-section .section-title { color: #e5e6e7; }
-html[data-theme="dark"] .password-section .section-subtitle,
-html[data-theme="dark"] .prefs-section .section-subtitle { color: #a8aaae; }
 </style>

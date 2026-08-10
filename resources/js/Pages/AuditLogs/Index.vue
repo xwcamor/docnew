@@ -374,20 +374,20 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
 /* Tokens del tema, no hex claros: esta pantalla se ve tambien en oscuro y los
    #F8FAFC/#32363A dejaban cabecera blanca con texto casi blanco. */
 .grid-card :deep(.ant-table-thead > tr > th) {
-    background: var(--color-surface-alt, #F8FAFC);
-    color: var(--color-text-strong, #334155);
+    background: var(--color-surface-alt);
+    color: var(--color-text-strong);
     font-weight: 600;
     font-size: 0.8125rem;
 }
 .grid-card :deep(.ant-table-tbody > tr) { cursor: pointer; }
-.grid-card :deep(.ant-table-tbody > tr:hover > td) { background: var(--color-surface-hover, #F5F9FE) !important; }
+.grid-card :deep(.ant-table-tbody > tr:hover > td) { background: var(--color-surface-hover) !important; }
 
-.user-name  { font-weight: 500; color: var(--color-text-strong, #32363A); font-size: 0.875rem; }
-.user-email { color: var(--color-text-muted, #6A6D70); font-size: 0.75rem; }
-.url-cell   { color: var(--color-primary, #0A6ED1); font-size: 0.8125rem; font-family: ui-monospace, monospace; }
-.url-detail { font-size: 0.75rem; color: var(--color-primary, #0A6ED1); word-break: break-all; }
-.ua         { font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); word-break: break-all; }
-.text-muted { color: var(--color-text-muted, #9aa0a6); font-style: italic; }
+.user-name  { font-weight: 500; color: var(--color-text-strong); font-size: 0.875rem; }
+.user-email { color: var(--color-text-muted); font-size: 0.75rem; }
+.url-cell   { color: var(--color-primary); font-size: 0.8125rem; font-family: ui-monospace, monospace; }
+.url-detail { font-size: 0.75rem; color: var(--color-primary); word-break: break-all; }
+.ua         { font-size: 0.75rem; color: var(--color-text-muted); word-break: break-all; }
+.text-muted { color: var(--color-text-muted); font-style: italic; }
 
 .json-block {
     margin-top: 18px;
@@ -396,14 +396,15 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
     margin: 0 0 6px 0;
     font-size: 0.875rem;
     font-weight: 600;
-    color: var(--color-text-strong, #32363A);
+    color: var(--color-text-strong);
 }
 .json-block pre {
     margin: 0;
     padding: 12px;
-    background: var(--color-surface-alt, #F8FAFC);
-    border: 1px solid var(--color-border, #E5E5E5);
+    background: var(--color-surface-alt);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
+    color: var(--color-text);
     font-size: 0.75rem;
     overflow-x: auto;
     line-height: 1.4;
@@ -417,22 +418,8 @@ const { loading: tableLoading } = usePageLoading('/audit_logs', 'logs');
     align-items: center;
     gap: 8px;
 }
-.empty-state__icon { font-size: 56px; color: var(--color-text-muted, #b8c5d0); margin-bottom: 8px; }
-.empty-state h3 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--color-text-strong, #32363A); }
-.empty-state p { margin: 0; color: var(--color-text-muted, #6A6D70); font-size: 0.875rem; }
+.empty-state__icon { font-size: 56px; color: var(--color-text-muted); margin-bottom: 8px; }
+.empty-state h3 { margin: 0; font-size: 1rem; font-weight: 600; color: var(--color-text-strong); }
+.empty-state p { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }
 
-</style>
-
-<style>
-html[data-theme="dark"] .page-header h1 { color: #e5e6e7; }
-html[data-theme="dark"] .page-header p  { color: #a8aaae; }
-html[data-theme="dark"] .grid-card .ant-table-thead > tr > th {
-    background: #2c3034 !important;
-    color: #e5e6e7 !important;
-}
-html[data-theme="dark"] .json-block pre {
-    background: #2c3034;
-    border-color: #3f4448;
-    color: #e5e6e7;
-}
 </style>

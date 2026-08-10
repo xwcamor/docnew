@@ -63,6 +63,15 @@ watch(() => form.country_id, () => {
 const tipoElegido = computed(() =>
     docTypesForCountry.value.find((o) => o.value === form.doc_type) ?? null);
 
+// El pais elegido no tiene ningun documento de empresa en el catalogo.
+//
+// Antes esto era un desplegable vacio y nada mas: se elegia Chile, no salia
+// nada, y al guardar la empresa se quedaba con «RUC» porque ese era el valor
+// por defecto de la columna — un documento peruano en una contratista chilena,
+// sin un solo error por ninguna parte. Ahora la columna admite vacio y la
+// pantalla dice lo que pasa y donde se arregla.
+const sinCatalogo = computed(() => docTypesForCountry.value.length === 0);
+
 // Sin catálogo (país sin sembrar) se cae al tope de siempre.
 const largoMaximo = computed(() => tipoElegido.value?.max ?? 20);
 
@@ -317,15 +326,16 @@ const submit = () => {
                 <FormItem
                     :label="$t('companies.doc_type')"
                     :tooltip="$t('companies.doc_type_help')"
-                    required
+                    :required="!sinCatalogo"
                     :validate-status="form.errors.doc_type ? 'error' : ''"
-                    :help="form.errors.doc_type"
+                    :help="form.errors.doc_type || (sinCatalogo ? $t('companies.doc_type_sin_catalogo') : '')"
                 >
                     <Select
                         v-model:value="form.doc_type"
                         size="large"
+                        :disabled="sinCatalogo"
                         :options="docTypesForCountry"
-                        :placeholder="$t('global.select')"
+                        :placeholder="sinCatalogo ? $t('companies.doc_type_ninguno') : $t('global.select')"
                     />
                 </FormItem>
 

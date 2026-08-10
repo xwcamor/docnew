@@ -48,7 +48,7 @@ import {
     serializeSavedFilters, deserializeSavedFilters,
 } from './config/filters';
 import { document_typesTableColumns } from './config/columns';
-import { documentTypeLengthLabel } from './config/length';
+import { documentTypeLengthLabel, documentTypeScopeLabel } from './config/length';
 import { moduleTourSteps } from '@/Composables/moduleTourSteps';
 
 defineOptions({ layout: AppLayout });
@@ -291,6 +291,9 @@ useKeyboardShortcuts({
 // «de 7 a 8 caracteres» en vez de dos números sueltos en dos columnas.
 const lengthLabel = (record) => documentTypeLengthLabel(t, record);
 
+// «Persona» o «Empresa», nunca `person` / `company`.
+const scopeLabel = (record) => documentTypeScopeLabel(t, record);
+
 const colSel = ref(null);
 const goEdit   = (record) => router.visit(route('business_management.document_types.edit',   record.slug));
 const goDelete = (record) => router.visit(route('business_management.document_types.delete', record.slug));
@@ -462,6 +465,17 @@ const goDelete = (record) => router.visit(route('business_management.document_ty
                         <Link :href="route('business_management.document_types.show', record.slug)" class="lead__name lead__link">
                             {{ record.code }}
                         </Link>
+                    </template>
+
+                    <!-- El ámbito, en Tag como el resto de valores de catálogo
+                         de esta tabla. Con dos colores distintos se distinguen
+                         de un vistazo las dos listas que conviven aquí: la que
+                         alimenta la ficha de la persona y la que alimenta la de
+                         la empresa. -->
+                    <template v-else-if="column.key === 'scope'">
+                        <Tag :color="record.scope === 'company' ? 'gold' : 'blue'" :bordered="false">
+                            {{ scopeLabel(record) }}
+                        </Tag>
                     </template>
 
                     <template v-else-if="column.key === 'name'">

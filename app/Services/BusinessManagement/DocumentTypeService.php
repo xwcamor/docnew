@@ -60,6 +60,12 @@ class DocumentTypeService
             });
         });
 
+        // A quien pertenece el documento. El catalogo lleva los de persona y
+        // los de empresa en la misma tabla, y son dos listas que nadie consulta
+        // a la vez: quien entra a revisar por que Chile no ofrece documento a
+        // las empresas quiere ver los seis de empresa, no los cuarenta.
+        $query->when($request->filled('scope'), fn ($q) => $q->where("{$tbl}.scope", $request->scope));
+
         $query->when($request->filled('is_active'), fn ($q) => $q->where(
             "{$tbl}.is_active",
             filter_var($request->is_active, FILTER_VALIDATE_BOOLEAN),
@@ -85,7 +91,7 @@ class DocumentTypeService
         if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'], true)) {
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')
                   ->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'code', 'name', 'min_length', 'max_length', 'is_active', 'created_at', 'updated_at'], true)
+        } elseif (in_array($sort, ['id', 'code', 'scope', 'name', 'min_length', 'max_length', 'is_active', 'created_at', 'updated_at'], true)
             && in_array($direction, ['asc', 'desc'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
@@ -98,6 +104,13 @@ class DocumentTypeService
     {
         return [
             ['key' => 'code',       'label' => __('document_types.code'),       'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            // Dos valores cerrados: se ofrecen como desplegable y no como caja
+            // de texto, o el filtro solo funciona para quien sepa que por
+            // dentro se llaman «person» y «company».
+            ['key' => 'scope',      'label' => __('document_types.scope'),      'type' => 'enum',    'operators' => ['=', '!='], 'options' => [
+                ['value' => DocumentType::PERSONA, 'label' => __('document_types.scope_person')],
+                ['value' => DocumentType::EMPRESA, 'label' => __('document_types.scope_company')],
+            ]],
             ['key' => 'name',       'label' => __('document_types.name'),       'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'min_length', 'label' => __('document_types.min_length'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],
             ['key' => 'max_length', 'label' => __('document_types.max_length'), 'type' => 'number',  'operators' => ['=', '!=', '>', '<', '>=', '<=']],

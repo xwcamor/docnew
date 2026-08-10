@@ -285,7 +285,7 @@ watch(
 .notif-card { border-radius: 6px; }
 .notif-card--empty { padding: 32px 16px; text-align: center; }
 .notif-card__hint {
-    color: #6A6D70;
+    color: var(--color-text-muted);
     font-size: 0.875rem;
     margin: 8px 0 0 0;
 }
@@ -301,17 +301,17 @@ watch(
     align-items: center;
     gap: 14px;
     padding: 14px 18px;
-    border-bottom: 1px solid #F0F0F0;
+    border-bottom: 1px solid var(--color-border-soft);
     position: relative;
 }
 .notif-item:last-child { border-bottom: 0; }
-.notif-item:hover { background: #F8FAFC; }
+.notif-item:hover { background: var(--color-surface-hover); }
 .notif-item--unread::before {
     content: "";
     position: absolute;
     left: 0; top: 0; bottom: 0;
     width: 3px;
-    background: #0A6ED1;
+    background: var(--color-primary);
 }
 
 .notif-item__icon {
@@ -322,13 +322,13 @@ watch(
 .notif-item__name {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: #32363A;
+    color: var(--color-text);
     margin-bottom: 4px;
     word-break: break-word;
 }
 .notif-item__text {
     font-size: 0.85rem;
-    color: #4b5563;
+    color: var(--color-text-muted);
     margin-bottom: 5px;
     line-height: 1.45;
     word-break: break-word;
@@ -339,14 +339,14 @@ watch(
     align-items: center;
     gap: 6px;
     font-size: 0.78rem;
-    color: #6A6D70;
+    color: var(--color-text-muted);
 }
-.notif-item__date { color: #6A6D70; }
+.notif-item__date { color: var(--color-text-muted); }
 .notif-item__error {
     margin-top: 6px;
     font-size: 0.78rem;
-    color: #C8281D;
-    background: rgba(200, 40, 29, 0.06);
+    color: var(--state-bad-text);
+    background: var(--state-bad-bg);
     padding: 6px 10px;
     border-radius: 4px;
 }
@@ -377,15 +377,14 @@ watch(
 }
 </style>
 
+<!-- Ajustes de tema oscuro (sin scope).
+     Queda una sola regla. Las demas repetian en oscuro colores que arriba ya
+     son tokens, y dos de ellas —las de `.page-header`— ni siquiera pintaban
+     nada: la cabecera de esta pantalla es `.mi-title`, que ya viene resuelta
+     desde app.css. -->
 <style>
-html[data-theme="dark"] .page-header h1 { color: #e5e6e7; }
-html[data-theme="dark"] .page-header p  { color: #a8aaae; }
-html[data-theme="dark"] .notif-item { border-bottom-color: #3f4448; }
-html[data-theme="dark"] .notif-item:hover { background: #313a44; }
-html[data-theme="dark"] .notif-item__name { color: #e5e6e7; }
-html[data-theme="dark"] .notif-item__text { color: #c3c6ca; }
-html[data-theme="dark"] .notif-item__meta,
-html[data-theme="dark"] .notif-item__date { color: #a8aaae; }
-html[data-theme="dark"] .notif-item--unread::before { background: #4db6e8; }
-html[data-theme="dark"] .notif-card__hint { color: #a8aaae; }
+/* La marca de «sin leer» es lo unico que no sale del token tal cual: el azul
+   principal no se aclara en oscuro (cada esquema lo mantiene), y sobre la
+   tarjeta oscura una raya de 3px en ese azul no se ve. El acento si. */
+html[data-theme="dark"] .notif-item--unread::before { background: var(--color-primary-accent); }
 </style>

@@ -25,7 +25,3 @@ defineEmits(['cancel', 'restore']);
         </Space>
     </div>
 </template>
-
-<style scoped>
-.bulk-bar :deep(.ant-btn) { min-height: 44px; }
-</style>

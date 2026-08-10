@@ -135,6 +135,71 @@ distingue el rojo del verde, y al sol se pierde cualquier matiz.
 
 ---
 
+## 5-bis. Los colores salen de un nombre, nunca de un hex
+
+**Ninguna pantalla escribe un color a mano.** Todos están declarados una vez en
+`resources/css/app.css` y se usan por nombre. La razón no es de gusto: hay tema
+claro y tema oscuro, y cuatro esquemas de color más que el usuario elige en su
+perfil. Un `#0A6ED1` tecleado en un `.vue` se queda azul en todos ellos.
+
+### La paleta
+
+| Para qué | Token |
+| --- | --- |
+| Acción principal, enlaces, foco | `--color-primary` |
+| Texto normal / apagado / muy apagado | `--color-text` · `--color-text-muted` · `--color-text-dim` |
+| Fondo de tarjeta / alterno / hover / seleccionado | `--color-surface` · `--color-surface-alt` · `--color-surface-hover` · `--color-surface-selected` |
+| Fondo de página (gris SAP) | `--sap-page-bg` |
+| Bordes | `--color-border` · `--color-border-soft` · `--color-border-strong` |
+| Barra superior | `--color-shell-bar` |
+| Alto de esa barra | `--shell-bar-h` |
+
+### Los estados, que son tres colores cada uno
+
+Un estado se pinta como pastilla —texto, fondo y borde—, así que cada uno tiene
+sus tres tokens: `--state-{ok,warn,bad,info,off}-{text,bg,border}`.
+
+```css
+.pill--ok { color: var(--state-ok-text); background: var(--state-ok-bg); border-color: var(--state-ok-border); }
+```
+
+Los mismos nombres valen en oscuro; lo que cambia son los valores, y cambian en
+un solo sitio.
+
+> *Caso real:* no había token de «correcto». Resultado: `#1D7A44` y `#137A43`
+> tecleados 46 veces entre las páginas — **dos verdes distintos para el mismo
+> estado**, según quién escribiera la pantalla. En total había **753 colores a
+> mano en 77 ficheros**, y la mayoría eran tokens que ya existían: `#0A6ED1`
+> aparecía 73 veces teniendo `--color-primary` desde el principio.
+
+Y color **nunca solo**: cada estado lleva color *y* palabra (§5).
+
+---
+
+## 5-ter. Antes de escribir CSS, mira si ya está
+
+El sitio de una regla depende de a cuántos afecta, y equivocarse es como
+acabamos con cuatro barras de acciones distintas:
+
+| Dónde | Para qué |
+| --- | --- |
+| `resources/css/app.css` | Todo lo que comparten dos o más módulos: `.sap-index`, `.sap-form`, `.sap-show`, `.sap-actionbar`, `.mi-*`, `.ff-*`, `.pill--*` |
+| `<style scoped>` de un componente `Common/` | Lo propio de ese componente y de nadie más |
+| `<style scoped>` de una página | Sólo lo que esa pantalla no comparte con ninguna otra |
+
+Si estás a punto de copiar un bloque de CSS de otro fichero, **para**: eso es
+una clase compartida que todavía no existe. Súbela a `app.css` y úsala en los
+dos sitios.
+
+### Componentes que ya existen — úsalos
+
+`SectionHeader`, `FormFooter`, `DeleteFooter`, `EditAllFooter`,
+`ResponsiveTable`, `ColumnSelector`, `FilterBar`, `ExportDialog`,
+`ImportDialog`, `SavedViews`, `FechaHora`. Están en
+`resources/js/Components/Common/`. Ninguna pantalla escribe su propia versión.
+
+---
+
 ## 6. Nada destruye evidencia
 
 Un documento de seguridad puede acabar delante de un inspector. En DOCUFIZ:
@@ -162,16 +227,69 @@ botón que falla al pulsarlo es peor que un botón que no está.
 
 ## 8. La barra de acciones
 
-La franja blanca de Guardar/Cancelar **apoya en el borde inferior**, no flota
-donde acabe el contenido.
+Hay **una sola** franja de acciones en todo el producto, y es la misma la use
+quien la use: Guardar/Cancelar de un formulario, Eliminar de una ficha, Guardar
+todo de «Editar todo» y las acciones masivas de un índice. Se llama
+`.sap-actionbar` y vive en `resources/css/app.css`.
 
-Se consigue con `.sap-form` en columna elástica y `margin: auto` en la barra. El
-alto que se descuenta de la ventana es `var(--shell-bar-h)` — **nunca un número
-a ojo**.
+**Apoya en el borde inferior**, no flota donde acabe el contenido. El alto que
+se descuenta de la ventana es `var(--shell-bar-h)` — **nunca un número a ojo**.
 
-> *Caso real:* se descontaban 110px, «un número que no correspondía a nada». Las
-> páginas terminaban 66px antes del borde y en las listas cortas la barra de
+### Las medidas, que son las mismas para todos
+
+| | |
+| --- | --- |
+| Alto | **57px**, declarado. `min-height: 1px de borde + 10 + 32 (alto de un botón) + 14` |
+| Padding | `10px` arriba, `14px` abajo, y a los lados lo que sangre el contenedor |
+| Fondo | `var(--color-surface)` |
+| Borde | `1px solid var(--color-border-soft)` arriba, y sombra `0 -2px 10px rgba(0,0,0,.06)` |
+| `z-index` | `6` |
+| Botones | Tamaño por defecto (`middle`). **Nunca `small`**: 24px no llega al objetivo táctil |
+| Orden | La acción primaria pegada al borde derecho, las demás a su izquierda |
+| Información | «3 seleccionados», «2 cambios pendientes» → a la izquierda, en `.sap-actionbar__info` |
+
+### Cómo se sangra hasta el borde
+
+La barra va a ancho completo aunque cuelgue de un contenedor con relleno. No
+cuentes los paddings de los antepasados a mano: el contenedor los declara y la
+barra los consume.
+
+```css
+.sap-form, .sap-index { --bar-bleed-x: 24px; --bar-bleed-b: 24px; }
+.sap-form .form-body  { --bar-bleed-x: 52px; --bar-bleed-b: 48px; }  /* 24 + 28 */
+```
+
+Y los **dos** márgenes hacen falta, cada uno para un caso que el otro no cubre:
+
+- `margin-top: auto` — con poco contenido la página no scrollea, `sticky` no
+  tiene de qué engancharse y la barra se queda a media pantalla con un pastizal
+  gris debajo. El `auto` se come ese hueco.
+- `margin-bottom` negativo — cuando sí scrollea, `sticky` no puede salirse de su
+  caja y al final del scroll la barra aterriza por encima del borde y se
+  despega.
+
+Para que el `auto` tenga hueco que comerse, cada eslabón entre la página y la
+barra tiene que ser columna elástica. Lo hace `:has(.sap-actionbar)` en
+`app.css`; no hace falta tocar nada en la página.
+
+> *Caso real (1):* se descontaban 110px, «un número que no correspondía a nada».
+> Las páginas terminaban 66px antes del borde y en las listas cortas la barra de
 > selección quedaba flotando a media pantalla.
+>
+El alto **se declara, no se deduce de lo que lleve dentro**. La del formulario
+lleva dos botones y la del índice cuatro más un contador: dejándolo al contenido
+medían 57 y 49, y son pantallas que se abren una detrás de otra.
+
+> *Caso real (2):* llegó a haber **cuatro copias** de esta franja con números
+> distintos — 20px de padding arriba en dos de ellas y 10px en las otras,
+> botones `middle` en unas y `small` en otras, márgenes negativos solo en dos.
+> Y entre los propios formularios: trece llevaban el footer dentro de
+> `.form-body` y trece suelto, o sea dos anchos distintos dentro del mismo
+> módulo. Medido en el navegador: 57px de alto en el formulario y 41px en el
+> índice, en pantallas que el usuario abre una detrás de otra.
+
+**No escribas otra.** `UiStandardTest` falla si aparece un `position: sticky` con
+`bottom: 0` fuera de esta clase.
 
 ---
 

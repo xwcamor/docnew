@@ -18,9 +18,8 @@ defineEmits(['cancel', 'restore']);
             {{ count === 1 ? $t('global.selected') : $t('global.selected_plural') }}
         </span>
         <Space wrap>
-            <Button size="small" @click="$emit('cancel')">{{ $t('global.cancel') }}</Button>
+            <Button @click="$emit('cancel')">{{ $t('global.cancel') }}</Button>
             <Button
-                size="small"
                 type="primary"
                 ghost
                 :loading="submitting"

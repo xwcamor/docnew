@@ -37,7 +37,10 @@ return new class extends Migration {
         DB::table('document_types')->update(['scope' => DocumentType::PERSONA]);
 
         Schema::table('companies', function (Blueprint $table) {
-            $table->string('doc_type', 20)->default('RUC')->after('country_id');
+            // Sin valor por defecto: el RUC es peruano y esta columna es de
+            // todos los paises. Lo pone la migracion de abajo para Peru y el
+            // formulario para el resto, segun el catalogo de cada uno.
+            $table->string('doc_type', 20)->nullable()->after('country_id');
         });
 
         $peru = Country::where('iso_code', 'PE')->first();

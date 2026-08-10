@@ -11,7 +11,7 @@ return [
     'index_title'                  => 'Tipos de documento',
     'index_subtitle'               => 'Qué documento lleva cada persona: DNI, carné de extranjería, pasaporte, PTP.',
     'create_title'                 => 'Crear tipo de documento',
-    'create_subtitle'              => 'Un tipo de documento nuevo se puede elegir en la ficha de una persona en cuanto se guarda.',
+    'create_subtitle'              => 'Se podrá elegir en cuanto se guarde: en la ficha de una persona o en la de una empresa, según el ámbito.',
     'edit_title'                   => 'Editar tipo de documento',
     'delete_title'                 => 'Eliminar tipo de documento',
     'show_title'                   => 'Tipo de documento — Información',
@@ -21,6 +21,10 @@ return [
     // Campos
     'code'                         => 'Sigla',
     'code_help'                    => 'La sigla que se lee en la ficha de la persona: DNI, CE, PTP, PASAPORTE. Es el texto que queda escrito en la ficha.',
+    'scope'                        => 'Ámbito',
+    'scope_help'                   => 'A quién pertenece el documento. El de una persona (DNI, carné de extranjería, PTP, pasaporte) y el de una empresa (RUC, RUT, CUIT, NIT) salen de este mismo catálogo, pero no se mezclan: la ficha de una persona solo ofrece los de persona y la de una empresa solo los de empresa. Si eliges mal, el tipo se guarda pero no aparece donde hace falta.',
+    'scope_person'                 => 'Persona',
+    'scope_company'                => 'Empresa',
     'name'                         => 'Nombre completo',
     'name_help'                    => 'Cómo se llama el documento: «Documento Nacional de Identidad», «Carné de Extranjería». La sigla va arriba.',
     'min_length'                   => 'Mínimo de caracteres',
@@ -63,6 +67,7 @@ return [
 
     // Validación
     'code_required'                => 'El campo «Sigla» es obligatorio.',
+    'scope_required'               => 'Indica si el documento es de una persona o de una empresa.',
     'code_unique'                  => 'Ya existe otro tipo de documento con esa sigla en el mismo país.',
     'is_active_required'           => 'El campo estado es obligatorio.',
     'max_length_gte'               => 'El máximo de caracteres no puede ser menor que el mínimo.',

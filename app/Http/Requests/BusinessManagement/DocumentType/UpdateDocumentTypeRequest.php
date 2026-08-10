@@ -44,6 +44,11 @@ class UpdateDocumentTypeRequest extends StoreDocumentTypeRequest
         $documentType = $this->route('documentType');
 
         return array_merge(parent::rules(), [
+            // El ambito llega heredado del alta, y se valida igual al editar:
+            // cambiarlo mueve la fila de un selector al otro —el RUC deja de
+            // ofrecerse en la ficha de la persona y empieza a ofrecerse en la
+            // de la empresa—, asi que la sigla se vuelve a comprobar contra el
+            // ambito NUEVO y no contra el que tenia guardado.
             'code' => ['required', 'string', 'max:20',
                 // El conjunto donde se busca la repetida es el del PROPIO
                 // registro, no el de quien edita: un super tocando el tipo de

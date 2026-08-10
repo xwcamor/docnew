@@ -21,6 +21,19 @@ export const documentTypeLengthLabel = (t, record) => {
     return t('document_types.length_none');
 };
 
+/**
+ * A quién pertenece el documento: «Persona» o «Empresa».
+ *
+ * Vive aquí junto al resto de etiquetas del catálogo porque la pintan tres
+ * pantallas —el listado, la ficha y la papelera— y escrita tres veces se
+ * separa en cuanto alguien cambia una. Lo que llega del backend es `person` /
+ * `company`, que es lo que hay en la columna; eso no se enseña nunca.
+ */
+export const documentTypeScopeLabel = (t, record) => ({
+    person:  t('document_types.scope_person'),
+    company: t('document_types.scope_company'),
+}[record?.scope] ?? t('document_types.scope_person'));
+
 /** Qué admite el número: «Solo números», «Números y letras» o sin restricción. */
 export const documentTypeCharsLabel = (t, record) => ({
     digits:       t('document_types.allowed_chars_digits'),

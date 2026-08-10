@@ -26,10 +26,9 @@ defineEmits(['cancel', 'set-active', 'delete']);
             {{ count === 1 ? $t('global.selected') : $t('global.selected_plural') }}
         </span>
         <Space wrap>
-            <Button size="small" @click="$emit('cancel')">{{ $t('global.cancel') }}</Button>
+            <Button @click="$emit('cancel')">{{ $t('global.cancel') }}</Button>
             <Button
                 v-if="canEdit"
-                size="small"
                 :loading="bulkActivating"
                 @click="$emit('set-active', true)"
             >
@@ -37,7 +36,6 @@ defineEmits(['cancel', 'set-active', 'delete']);
             </Button>
             <Button
                 v-if="canEdit"
-                size="small"
                 :loading="bulkActivating"
                 @click="$emit('set-active', false)"
             >
@@ -45,7 +43,6 @@ defineEmits(['cancel', 'set-active', 'delete']);
             </Button>
             <Button
                 v-if="canDelete"
-                size="small"
                 danger
                 type="primary"
                 @click="$emit('delete')"

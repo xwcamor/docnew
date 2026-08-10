@@ -2,8 +2,11 @@
 /**
  * Barra de acciones masivas de un catálogo (activar, desactivar, eliminar).
  *
- * Los botones son `size="large"` y no `small`: en tablet, con guantes, un botón
- * de 24px no se acierta (docs/UI.md §3, objetivos de toque de 44px).
+ * Los botones van sin `size`, o sea tamaño por defecto, igual que en el resto
+ * de barras: así el alto de la franja coincide con el de los pies de formulario.
+ * El mínimo táctil de 44px que antes forzaba esta ficha con CSS propio lo pone
+ * ya `.bulk-bar` en app.css, donde hace falta —de 768px para abajo, que es la
+ * tablet en obra de docs/UI.md §3—.
  */
 import { Button, Space } from 'ant-design-vue';
 import { CheckCircleOutlined, StopOutlined, DeleteOutlined } from '@ant-design/icons-vue';
@@ -39,8 +42,3 @@ defineEmits(['cancel', 'set-active', 'delete']);
         </Space>
     </div>
 </template>
-
-<style scoped>
-/* 44px de alto mínimo en cada acción: es el objetivo de toque con guantes. */
-.bulk-bar :deep(.ant-btn) { min-height: 44px; }
-</style>

@@ -28,7 +28,9 @@ return [
     'complete_name_placeholder'=> 'Ej: Hitachi Energy Perú S.A.',
     'num_doc'                  => 'N° de documento',
     'num_doc_help'             => 'Identifica a la empresa. No se repite dentro del mismo país.',
-    'num_doc_placeholder'      => 'Ej: 20512345678',
+    // Sin ejemplo fijo: un RUC de once cifras no le sirve a quien está dando
+    // de alta una contratista chilena. La forma la dice el tipo elegido.
+    'num_doc_placeholder'      => 'Número del documento',
     // El documento de la empresa cambia de país en país: RUC en Perú y
     // Ecuador, RUT en Chile, CUIT en Argentina, NIT en Colombia, RFC en
     // México, CNPJ en Brasil. Sale del mismo catálogo que el DNI de una
@@ -43,6 +45,8 @@ return [
     'doc_type'                 => 'Tipo de documento',
     'doc_type_help'            => 'Qué documento lleva la empresa en su país. En Perú es el RUC.',
     'doc_type_invalid'         => 'Tipo de documento no válido para ese país. Admitidos: :types.',
+    'doc_type_ninguno'         => 'Sin tipos para este país',
+    'doc_type_sin_catalogo'    => 'Este país no tiene ningún documento de empresa en el catálogo. Créalo en Tipos de documento, con ámbito «Empresa». La empresa se puede guardar sin él.',
     'num_doc_too_short'        => 'Un :type tiene al menos :min caracteres.',
     'num_doc_too_long'         => 'Un :type tiene como mucho :max caracteres.',
     'num_doc_faltan'           => 'Faltan :n dígitos.',

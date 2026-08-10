@@ -241,7 +241,108 @@ class UiStandardTest extends TestCase
             . implode("\n  ", $conReserva));
     }
 
+    /**
+     * Una sola barra de acciones, no cinco.
+     *
+     * Llego a haber cuatro copias de la misma franja con numeros distintos —20
+     * de padding arriba en unas y 10 en otras, botones `middle` en unas y
+     * `small` en otras— asi que cambiaba de alto entre el formulario y el
+     * indice, que son pantallas que se abren una detras de otra. Medido en el
+     * navegador: 57px contra 41px.
+     *
+     * Se caza aqui porque el sintoma —«la barra se ve distinta»— solo lo ve
+     * quien abre las dos pantallas seguidas y se fija.
+     */
+    public function test_la_barra_de_acciones_es_una_sola(): void
+    {
+        // Los unicos que tienen permiso: la clase compartida vive en app.css y
+        // estos son casos que no son la barra del pie.
+        $permitidos = [
+            'Components/Common/RotatePortraitOverlay.vue',  // aviso de girar el movil
+            'Components/GlobalSearch.vue',                  // paleta de busqueda
+            // La navegacion en modo inferior. No es una barra de acciones: es
+            // el menu de la aplicacion anclado abajo en vez de arriba, y va
+            // `fixed` a la ventana entera, no `sticky` dentro de una pagina.
+            'Layouts/AppLayout.vue',
+        ];
+
+        $reinventadas = [];
+
+        foreach ($this->archivosVue() as $archivo) {
+            $corto = str_replace(resource_path('js') . '/', '', $archivo);
+
+            if (in_array($corto, $permitidos, true)) {
+                continue;
+            }
+
+            $estilos = $this->bloqueDeEstilos(file_get_contents($archivo));
+
+            if ($estilos === '') {
+                continue;
+            }
+
+            // `position: sticky` o `fixed` pegado abajo = otra barra de pie.
+            if (preg_match('/position:\s*(sticky|fixed)[^}]*bottom:\s*0/s', $estilos)
+                || preg_match('/bottom:\s*0[^}]*position:\s*(sticky|fixed)/s', $estilos)) {
+                $reinventadas[] = $corto;
+            }
+        }
+
+        $this->assertSame([], $reinventadas,
+            "Barras de pie escritas a mano en vez de usar `.sap-actionbar` (ver docs/UI.md §8).\n"
+            . "Cada una acaba con su propio alto y su propio ancho:\n  "
+            . implode("\n  ", $reinventadas));
+    }
+
+    /**
+     * Ningun color tecleado a mano en una pantalla.
+     *
+     * Hay tema claro, tema oscuro y cuatro esquemas mas que el usuario elige en
+     * su perfil. Un `#0A6ED1` escrito en un `.vue` se queda azul en los seis.
+     *
+     * El recuento arranco en 753 hexadecimales repartidos por 77 ficheros, y la
+     * mayoria eran tokens que YA existian: `#0A6ED1` aparecia 73 veces teniendo
+     * `--color-primary` desde el primer dia. Van 566. El tope de abajo es un
+     * cepo, no una meta: solo puede bajar, y se baja cuando se limpia un lote. Si tu cambio lo sube, es que has tecleado un color
+     * que ya tiene nombre — mira docs/UI.md §5-bis.
+     */
+    public function test_los_colores_de_las_pantallas_salen_de_un_token(): void
+    {
+        $tope = 566;
+        $cuantos = 0;
+        $porFichero = [];
+
+        foreach ($this->archivosVue() as $archivo) {
+            if (! str_contains($archivo, '/Pages/')) {
+                continue;
+            }
+
+            $n = preg_match_all('/#[0-9A-Fa-f]{6}\b/', file_get_contents($archivo));
+
+            if ($n > 0) {
+                $cuantos += $n;
+                $porFichero[str_replace(resource_path('js/Pages') . '/', '', $archivo)] = $n;
+            }
+        }
+
+        arsort($porFichero);
+        $peores = array_slice($porFichero, 0, 8, true);
+        $detalle = implode("\n  ", array_map(fn ($f, $n) => "{$n}\t{$f}", array_keys($peores), $peores));
+
+        $this->assertLessThanOrEqual($tope, $cuantos,
+            "Hay {$cuantos} colores escritos a mano en las pantallas y el tope es {$tope}.\n"
+            . "Usa los tokens de docs/UI.md §5-bis. Los ficheros con mas:\n  " . $detalle);
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
+
+    /** El contenido de los bloques `<style>` de un .vue, o cadena vacia. */
+    private function bloqueDeEstilos(string $fuente): string
+    {
+        preg_match_all('/<style[^>]*>(.*?)<\/style>/s', $fuente, $m);
+
+        return implode("\n", $m[1] ?? []);
+    }
 
     /** Claves de un archivo de idioma, aplanadas: 'a.b.c'. */
     private function claves(array $arr, string $prefijo = ''): array
