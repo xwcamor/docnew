@@ -29,6 +29,63 @@ class TipoDeDocumentoPorPaisTest extends CatalogTestCase
     /** India: existe en `countries` y no tiene ni un tipo sembrado. */
     private const INDIA = 77;
 
+    /**
+     * Latinoamerica entera —las Americas de habla española, portuguesa y
+     * francesa— con el documento de casa y el de la empresa de cada pais.
+     *
+     * Esta escrita aqui y no leida del seeder a proposito: si la prueba
+     * preguntara por lo mismo que siembra, borrar un pais del seeder tambien lo
+     * borraria de la prueba y no fallaria nada. La lista es la exigencia, y el
+     * seeder tiene que cumplirla.
+     *
+     * Faltaban siete —Ecuador, Bolivia, Paraguay, Guatemala, Cuba, Haiti y
+     * Puerto Rico— y de los que estaban, diecisiete no tenian ni un tipo de
+     * documento. Un pais en el desplegable sin tipos que ofrecer es una ficha
+     * que no se puede guardar, que es el fallo que se estaba arreglando.
+     *
+     * Jamaica, Barbados y Trinidad no salen: son Caribe anglofono, no
+     * Latinoamerica. Estan en `countries` porque llegaron con clientes reales
+     * del sistema anterior, y ahi se quedan.
+     */
+    private const LATINOAMERICA = [
+        'PE' => ['DNI',  'RUC'],
+        'VE' => ['CI',   'RIF'],
+        'EC' => ['CI',   'RUC'],
+        'BO' => ['CI',   'NIT'],
+        'PY' => ['CI',   'RUC'],
+        'BR' => ['CPF',  'CNPJ'],
+        'CL' => ['RUN',  'RUT'],
+        'AR' => ['DNI',  'CUIT'],
+        'UY' => ['CI',   'RUT'],
+        'CO' => ['CC',   'NIT'],
+        'MX' => ['CURP', 'RFC'],
+        'GT' => ['DPI',  'NIT'],
+        'SV' => ['DUI',  'NIT'],
+        'HN' => ['DNI',  'RTN'],
+        'NI' => ['CI',   'RUC'],
+        'CR' => ['CI',   'CJ'],
+        'PA' => ['CIP',  'RUC'],
+        'CU' => ['CI',   'NIT'],
+        'DO' => ['CED',  'RNC'],
+        'HT' => ['CIN',  'NIF'],
+        'PR' => ['LIC',  'EIN'],
+    ];
+
+    /**
+     * Los paises que ya estaban, con el id con el que estaban.
+     *
+     * Ampliar el catalogo es añadir filas al final, nunca reordenar: de estos
+     * ids cuelgan 3 722 planes de trabajo, unas 4 000 personas y los tipos de
+     * documento ya sembrados. Renumerar aqui es cambiarle el pais a datos reales
+     * sin que nadie los toque, y no se veria hasta que alguien abriera una ficha
+     * vieja.
+     */
+    private const IDS_QUE_NO_SE_MUEVEN = [
+        1 => 'PE', 2 => 'VE', 3 => 'BR', 4 => 'US', 5 => 'CL', 6 => 'AR', 7 => 'CO', 8 => 'MX',
+        16 => 'PA', 17 => 'DO', 18 => 'NI', 19 => 'JM', 20 => 'BB', 21 => 'TT',
+        22 => 'UY', 23 => 'SV', 24 => 'HN', 25 => 'CR', 26 => 'IN',
+    ];
+
     protected function moduleKey(): string
     {
         return 'people';
@@ -241,5 +298,161 @@ class TipoDeDocumentoPorPaisTest extends CatalogTestCase
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('people', ['id' => $persona->id, 'lastname' => 'Sharma Gupta']);
+    }
+
+    // ── El catalogo completo, tal y como lo deja `setup:project --datos` ──────
+
+    /**
+     * Los catalogos maestros, en el mismo orden en que los llama el seeder
+     * grande: sin idiomas no hay locales, sin locales ni regiones no hay paises.
+     *
+     * Se borra antes la India de pega que monta el `setUp`: lleva el mismo ISO
+     * que la India de verdad del catalogo, y dos paises vivos no pueden
+     * compartir ISO.
+     */
+    private function sembrarLosPaises(): void
+    {
+        DB::table('countries')->where('id', self::INDIA)->delete();
+
+        $this->seed(\Database\Seeders\LanguagesSeeder::class);
+        $this->seed(\Database\Seeders\RegionsSeeder::class);
+        $this->seed(\Database\Seeders\LocalesSeeder::class);
+        $this->seed(\Database\Seeders\CountriesSeeder::class);
+    }
+
+    /** No falta ni un pais de Latinoamerica en el catalogo. */
+    public function test_latinoamerica_entera_esta_en_el_catalogo_de_paises(): void
+    {
+        $this->sembrarLosPaises();
+
+        $sembrados = DB::table('countries')->whereNull('deleted_at')->pluck('name', 'iso_code');
+
+        foreach (array_keys(self::LATINOAMERICA) as $iso) {
+            $this->assertArrayHasKey(
+                $iso,
+                $sembrados->all(),
+                "{$iso} no está en el catálogo de países, así que no se puede elegir ni tener documentos.",
+            );
+        }
+    }
+
+    /** Y los que ya estaban siguen donde estaban. */
+    public function test_los_ids_de_los_paises_que_ya_estaban_no_se_mueven(): void
+    {
+        $this->sembrarLosPaises();
+
+        foreach (self::IDS_QUE_NO_SE_MUEVEN as $id => $iso) {
+            $this->assertSame(
+                $iso,
+                DB::table('countries')->where('id', $id)->value('iso_code'),
+                "El id {$id} dejó de ser {$iso}: los planes y las personas que apuntan ahí cambiaron de país solos.",
+            );
+        }
+    }
+
+    /**
+     * Cada pais de Latinoamerica sale del sembrado con lo suyo: el documento del
+     * que es de casa, el del que viene de fuera y el de la empresa.
+     *
+     * Y ninguno se queda sin decir cuanto mide su numero ni que caracteres
+     * admite: una fila asi no valida nada, deja pasar un numero de celular
+     * tecleado en el campo del documento.
+     */
+    public function test_cada_pais_de_latinoamerica_tiene_su_documento_de_persona_y_de_empresa(): void
+    {
+        $this->sembrarLosPaises();
+        DocumentType::query()->forceDelete();
+        $this->seed(\Database\Seeders\DocumentTypesSeeder::class);
+
+        $paises = DB::table('countries')->pluck('id', 'iso_code');
+
+        foreach (self::LATINOAMERICA as $iso => [$deCasa, $deEmpresa]) {
+            $tipos = DocumentType::withoutGlobalScopes()->where('country_id', $paises[$iso])->get();
+
+            $personas = $tipos->where('scope', DocumentType::PERSONA);
+            $empresas = $tipos->where('scope', DocumentType::EMPRESA);
+
+            $this->assertTrue(
+                $personas->where('code', $deCasa)->where('for_foreigners', false)->isNotEmpty(),
+                "A {$iso} le falta {$deCasa}, que es el documento del que es de allí.",
+            );
+
+            // Uno y solo uno es el de casa: de ahi sale `Person::is_foreigner`
+            // desde que se borro la nacionalidad, y con dos no se sabria cual
+            // manda.
+            $this->assertCount(
+                1,
+                $personas->where('for_foreigners', false),
+                "{$iso} no tiene exactamente un documento de los de casa: " . $personas->pluck('code')->implode(', '),
+            );
+
+            $this->assertTrue(
+                $personas->where('for_foreigners', true)->isNotEmpty(),
+                "A {$iso} no le queda ningún documento para quien viene de fuera.",
+            );
+
+            $this->assertTrue(
+                $empresas->where('code', $deEmpresa)->isNotEmpty(),
+                "A {$iso} le falta {$deEmpresa}: sus empresas no se podrían dar de alta.",
+            );
+
+            foreach ($tipos as $tipo) {
+                $this->assertNotNull($tipo->min_length, "{$iso}/{$tipo->code} no dice cuánto mide su número.");
+                $this->assertNotNull($tipo->max_length, "{$iso}/{$tipo->code} no dice cuánto mide su número.");
+                $this->assertContains(
+                    $tipo->allowed_chars,
+                    [DocumentType::SOLO_CIFRAS, DocumentType::CIFRAS_Y_LETRAS],
+                    "{$iso}/{$tipo->code} no dice qué caracteres admite.",
+                );
+                $this->assertLessThanOrEqual(
+                    $tipo->max_length,
+                    $tipo->min_length,
+                    "{$iso}/{$tipo->code} pide un mínimo mayor que su máximo: no lo cumple ningún número.",
+                );
+            }
+        }
+    }
+
+    /**
+     * Sembrar el mundo entero dos veces no duplica ni una fila.
+     *
+     * `setup:project --datos` es el unico comando que se corre aqui y siembra
+     * cada vez que se corre. Con veintiun paises y sus tres o cuatro tipos cada
+     * uno, un duplicado no se ve a ojo: se ve en el desplegable, con el DNI
+     * repetido dos veces.
+     */
+    public function test_sembrar_latinoamerica_dos_veces_no_duplica_ni_una_fila(): void
+    {
+        $this->sembrarLosPaises();
+        DocumentType::query()->forceDelete();
+
+        $this->seed(\Database\Seeders\DocumentTypesSeeder::class);
+        $tiposTrasLaPrimera  = DocumentType::withoutGlobalScopes()->count();
+        $paisesTrasLaPrimera = DB::table('countries')->whereNull('deleted_at')->count();
+
+        $this->sembrarLosPaises();
+        $this->seed(\Database\Seeders\DocumentTypesSeeder::class);
+
+        $this->assertSame(
+            $tiposTrasLaPrimera,
+            DocumentType::withoutGlobalScopes()->count(),
+            'Sembrar dos veces duplicó tipos de documento.',
+        );
+        $this->assertSame(
+            $paisesTrasLaPrimera,
+            DB::table('countries')->whereNull('deleted_at')->count(),
+            'Sembrar dos veces duplicó países.',
+        );
+
+        // Y ninguna pareja pais + ambito + codigo aparece dos veces, que es la
+        // forma en que se duplicaria sin que cambiara el total si algo mas
+        // desapareciera a la vez.
+        $repetidos = DocumentType::withoutGlobalScopes()
+            ->selectRaw('country_id, scope, code, COUNT(*) as veces')
+            ->groupBy('country_id', 'scope', 'code')
+            ->havingRaw('COUNT(*) > 1')
+            ->get();
+
+        $this->assertEmpty($repetidos, 'Hay tipos repetidos dentro del mismo país: ' . $repetidos->pluck('code')->implode(', '));
     }
 }

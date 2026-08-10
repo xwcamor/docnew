@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * LocalesSeeder — catálogo maestro de dialectos regionales (12 locales reales).
+ * LocalesSeeder — catálogo maestro de dialectos regionales (13 locales reales).
  *
  * Idempotente: updateOrInsert por id, re-runable sin duplicar.
  * language_id es NOT NULL — los IDs siguen los que define LanguagesSeeder.
@@ -33,6 +33,11 @@ class LocalesSeeder extends Seeder
             ['id' => 10, 'language_id' => 4,  'code' => 'fr_FR', 'name' => 'Français (France)'],
             ['id' => 11, 'language_id' => 5,  'code' => 'de_DE', 'name' => 'Deutsch (Deutschland)'],
             ['id' => 12, 'language_id' => 6,  'code' => 'it_IT', 'name' => 'Italiano (Italia)'],
+            // Haití. Es el único país de Latinoamérica que no habla español ni
+            // portugués, y `countries.default_locale_id` es lo que decide en qué
+            // idioma sale el PDF del trabajo hecho allí: sin este locale habría
+            // que apuntarlo a fr_FR, que es el francés de otro sitio.
+            ['id' => 13, 'language_id' => 4,  'code' => 'fr_HT', 'name' => 'Français (Haïti)'],
         ];
 
         foreach ($locales as $l) {

@@ -7,12 +7,32 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
- * CountriesSeeder — catálogo geográfico (26 países reales, incl. los de los
+ * CountriesSeeder — catálogo geográfico (33 países reales, incl. los de los
  * clientes del sistema viejo: Centroamérica, Caribe, India).
  *
  * Idempotente: updateOrInsert por id, re-runable sin duplicar.
  * region_id y default_locale_id son NOT NULL — los IDs siguen los seeders
  * de Regions y Locales (ojo si cambian de orden).
+ *
+ * Los ids de las filas que ya estaban NO se mueven nunca. No es una manía de
+ * orden: hay 3 722 planes de trabajo, unas 4 000 personas y todo el catálogo de
+ * tipos de documento colgando de esos números, y renumerar aquí es cambiarle el
+ * país a datos reales sin tocarlos. Un país nuevo se añade al final, con el
+ * siguiente id libre, aunque quede fuera de sitio en la lista.
+ *
+ * Del 27 al 33 entró lo que faltaba de Latinoamérica. La lista salió mal desde
+ * el principio porque se fue armando con los países de los clientes que había,
+ * y así se quedaron fuera Ecuador, Bolivia y Paraguay —vecinos de Perú, de donde
+ * viene media cuadrilla— junto a Guatemala, Cuba, Haití y Puerto Rico. Con el
+ * país fuera del catálogo no hay tipos de documento que ofrecer, y sin tipos la
+ * ficha de una persona no se puede dar de alta.
+ *
+ * Latinoamérica se toma como lo que es: la América de habla española, portuguesa
+ * y francesa. Por eso entra Haití y no entran Guyana, Surinam ni Belice, que son
+ * anglófona y neerlandesa. Jamaica, Barbados y Trinidad tampoco lo son y sin
+ * embargo están: llegaron con clientes reales del sistema anterior y quitarlas
+ * dejaría huérfanos sus datos. Puerto Rico entra por lengua y por obra, aunque
+ * sea territorio de Estados Unidos.
  *
  * Region map:
  *   1 = América del Sur, 2 = América del Norte, 3 = América Central/Caribe,
@@ -20,7 +40,7 @@ use Illuminate\Support\Str;
  *   10 = Sudeste Asiático
  *
  * Locale map (LocalesSeeder):
- *   1 = es_PE, 2 = es_VE, 3 = pt_BR, 4 = en_US, 5 = es_CL
+ *   1 = es_PE, 2 = es_VE, 3 = pt_BR, 4 = en_US, 5 = es_CL, 13 = fr_HT
  */
 class CountriesSeeder extends Seeder
 {
@@ -54,6 +74,18 @@ class CountriesSeeder extends Seeder
             ['id' => 24, 'region_id' => 3,  'default_locale_id' => 1, 'name' => 'Honduras',              'iso_code' => 'HN', 'currency' => 'HNL', 'timezone' => 'America/Tegucigalpa'],
             ['id' => 25, 'region_id' => 3,  'default_locale_id' => 1, 'name' => 'Costa Rica',            'iso_code' => 'CR', 'currency' => 'CRC', 'timezone' => 'America/Costa_Rica'],
             ['id' => 26, 'region_id' => 5,  'default_locale_id' => 4, 'name' => 'India',                 'iso_code' => 'IN', 'currency' => 'INR', 'timezone' => 'Asia/Kolkata'],
+            // Lo que le faltaba a Latinoamérica. Van del 27 en adelante porque
+            // los ids de arriba están comprometidos con datos ya guardados.
+            ['id' => 27, 'region_id' => 1,  'default_locale_id' => 1,  'name' => 'Ecuador',      'iso_code' => 'EC', 'currency' => 'USD', 'timezone' => 'America/Guayaquil'],
+            ['id' => 28, 'region_id' => 1,  'default_locale_id' => 1,  'name' => 'Bolivia',      'iso_code' => 'BO', 'currency' => 'BOB', 'timezone' => 'America/La_Paz'],
+            ['id' => 29, 'region_id' => 1,  'default_locale_id' => 1,  'name' => 'Paraguay',     'iso_code' => 'PY', 'currency' => 'PYG', 'timezone' => 'America/Asuncion'],
+            ['id' => 30, 'region_id' => 3,  'default_locale_id' => 1,  'name' => 'Guatemala',    'iso_code' => 'GT', 'currency' => 'GTQ', 'timezone' => 'America/Guatemala'],
+            ['id' => 31, 'region_id' => 3,  'default_locale_id' => 1,  'name' => 'Cuba',         'iso_code' => 'CU', 'currency' => 'CUP', 'timezone' => 'America/Havana'],
+            // El único de la lista que no habla español: el locale 13 es fr_HT,
+            // y se sembró para esto. Ponerle fr_FR habría dado un documento
+            // firmado en un francés que no es el suyo.
+            ['id' => 32, 'region_id' => 3,  'default_locale_id' => 13, 'name' => 'Haití',        'iso_code' => 'HT', 'currency' => 'HTG', 'timezone' => 'America/Port-au-Prince'],
+            ['id' => 33, 'region_id' => 3,  'default_locale_id' => 1,  'name' => 'Puerto Rico',  'iso_code' => 'PR', 'currency' => 'USD', 'timezone' => 'America/Puerto_Rico'],
         ];
 
         foreach ($countries as $c) {
