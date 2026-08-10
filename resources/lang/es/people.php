@@ -73,6 +73,12 @@ return [
     'roles'                => 'Roles en obra',
     'roles_help'           => 'Qué firma en obra. Un supervisor sólo aparece en el selector de aprobadores del plan si lo tiene marcado aquí.',
     'roles_placeholder'    => 'Trabajador, Supervisor, Supervisor HSE…',
+    // El campo se deshabilita en vez de esconderse, y aquí va el motivo: sin
+    // esto, quien abría el alta con una contratista elegida no veía los roles
+    // por ninguna parte y tenía que adivinar de qué dependían.
+    'roles_solo_los_mios'  => 'Solo para la gente de tu empresa',
+    'roles_elige_empresa'  => 'Elige antes la empresa: los roles en obra solo se piden para la gente de la tuya.',
+    'roles_no_es_mi_empresa' => 'Esta persona trabaja para una contratista, y quien autoriza un plan es del que contrata. Los roles en obra se piden solo para la gente de tu empresa, la que está marcada en Ajustes → Mi empresa.',
     'companies'            => 'Empresas',
     'companies_count'      => 'N° de empresas',
     // Etiquetas del aviso de borrado: «3 firmas dependen de este registro».
@@ -137,6 +143,7 @@ return [
     'num_doc_cifras_y_letras'  => 'Un :type lleva solo números y letras.',
     'num_doc_sin_espacios'     => 'El número de documento no lleva espacios.',
     'num_doc_unique'             => 'Ya existe una persona con este documento en el mismo país.',
+    'roles_solo_de_mi_empresa'   => 'Los roles en obra solo se le ponen a la gente de tu empresa: quien autoriza un plan es del que contrata.',
     'doc_type_invalid'           => 'Tipo de documento no válido para ese país. Admitidos: :types.',
     'doc_type_ninguno'           => 'Sin tipos para este país',
     'doc_type_sin_catalogo'      => 'Este país no tiene ningún documento de persona en el catálogo. Créalo en Tipos de documento, con ámbito «Persona».',

@@ -73,6 +73,12 @@ return [
     'roles'                => 'Site roles',
     'roles_help'           => 'What they sign on site. A supervisor only shows up in the plan approver picker if it is ticked here.',
     'roles_placeholder'    => 'Worker, Supervisor, HSE Supervisor…',
+    // The field is disabled rather than hidden, and this says why: hiding it
+    // left anyone who opened the form with a contractor selected unable to see
+    // the roles at all, with no way to tell what they depended on.
+    'roles_solo_los_mios'  => 'Only for your own company',
+    'roles_elige_empresa'  => 'Pick the company first: site roles are only asked for your own people.',
+    'roles_no_es_mi_empresa' => 'This person works for a contractor, and whoever authorises a plan belongs to the hiring company. Site roles are only asked for your own people — the company set under Settings → My company.',
     'companies'            => 'Companies',
     'companies_count'      => 'Company count',
     // Labels for the delete warning: «3 signatures depend on this record».
@@ -137,6 +143,7 @@ return [
     'num_doc_cifras_y_letras'  => 'A :type has digits and letters only.',
     'num_doc_sin_espacios'     => 'The document number has no spaces.',
     'num_doc_unique'             => 'A person with this document already exists in the same country.',
+    'roles_solo_de_mi_empresa'   => 'Site roles are only given to your own people: whoever authorises a plan belongs to the hiring company.',
     'doc_type_invalid'           => 'Document type not valid for that country. Allowed: :types.',
     'doc_type_ninguno'           => 'No types for this country',
     'doc_type_sin_catalogo'      => 'This country has no person document in the catalogue. Create one under Document types, with scope «Person».',

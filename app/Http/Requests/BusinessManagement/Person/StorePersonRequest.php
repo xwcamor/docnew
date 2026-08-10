@@ -3,13 +3,13 @@
 namespace App\Http\Requests\BusinessManagement\Person;
 
 use App\Http\Requests\Concerns\DerivesAttributesFromLang;
-use App\Models\PersonRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class StorePersonRequest extends FormRequest
 {
     use DerivesAttributesFromLang;
+    use ReglasDeLosRoles;
     use ReglasDelDocumento;
 
     protected $attributeNamespace = 'people';
@@ -54,14 +54,7 @@ class StorePersonRequest extends FormRequest
             // Qué firma en obra. Sin esto no había forma de dar de alta a un
             // supervisor: el selector de aprobadores del plan exige el rol y
             // ninguna pantalla lo ponía (ver WorkPlanSetupController).
-            'roles'       => ['sometimes', 'array'],
-            // Del catalogo, no de una lista escrita aqui. Estaban los tres
-            // codigos clavados mientras `approver_roles` era una pantalla que
-            // admitia filas nuevas: se podia crear la regla «Jefe de Izaje» y
-            // ninguna persona podia tener nunca ese rol, asi que el plan
-            // quedaba con una firma que nadie iba a firmar.
-            'roles.*'     => ['string', Rule::exists('approver_roles', 'code')
-                ->where('is_active', true)->whereNull('deleted_at')],
+            ...$this->reglasDeLosRoles(),
             'country_id'     => ['required', 'integer', Rule::exists('countries', 'id')],
             'birthdate'      => ['nullable', 'date', 'before:today'],
             'is_active'      => ['sometimes', 'boolean'],

@@ -3,13 +3,13 @@
 namespace App\Http\Requests\BusinessManagement\Person;
 
 use App\Http\Requests\Concerns\DerivesAttributesFromLang;
-use App\Models\PersonRole;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class UpdatePersonRequest extends FormRequest
 {
     use DerivesAttributesFromLang;
+    use ReglasDeLosRoles;
     use ReglasDelDocumento;
 
     protected $attributeNamespace = 'people';
@@ -57,10 +57,7 @@ class UpdatePersonRequest extends FormRequest
             // (ver PersonService::guardarVinculo), no en la persona.
             'company_id'  => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
             'position_id' => ['required', 'integer', Rule::exists('positions', 'id')->whereNull('deleted_at')],
-            'roles'       => ['sometimes', 'array'],
-            // Del catalogo, no de una lista escrita aqui: ver StorePersonRequest.
-            'roles.*'     => ['string', Rule::exists('approver_roles', 'code')
-                ->where('is_active', true)->whereNull('deleted_at')],
+            ...$this->reglasDeLosRoles(),
             'country_id'     => ['required', 'integer', Rule::exists('countries', 'id')],
             'birthdate'      => ['nullable', 'date', 'before:today'],
             'is_active'      => ['sometimes', 'boolean'],

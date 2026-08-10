@@ -9,8 +9,11 @@ import { IdcardOutlined, LockOutlined, SafetyCertificateOutlined, LoadingOutline
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import FormFooter from '@/Components/Common/FormFooter.vue';
+import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
+
+const { t } = useI18n();
 
 const props = defineProps({
     person:             { type: Object, default: null },
@@ -64,6 +67,24 @@ const form = useForm({
 // esconder el campo y que nadie pueda dar de alta a un supervisor.
 const esDelWorkspace = computed(() =>
     props.ownCompanyId === null || form.company_id === props.ownCompanyId);
+
+// Y por qué no, dicho en la pantalla. Son dos motivos distintos y conviene
+// separarlos: sin empresa elegida todavía no se sabe, y con una contratista
+// elegida la respuesta es que no le toca.
+const porQueNoHayRoles = computed(() => {
+    if (esDelWorkspace.value) return '';
+
+    return form.company_id
+        ? t('people.roles_no_es_mi_empresa')
+        : t('people.roles_elige_empresa');
+});
+
+// Al pasar a una contratista, los roles que hubiera marcados se caen: si el
+// campo se queda deshabilitado con «Supervisor» dentro, se guarda un supervisor
+// de la contratista, que es justo lo que este campo existe para evitar.
+watch(esDelWorkspace, (puede) => {
+    if (! puede && form.roles.length) form.roles = [];
+});
 
 // Los tipos del país elegido y de nadie más. Antes, si ese país no tenía
 // ninguno sembrado, se caía a la lista de siempre —DNI, CE, PASAPORTE—, que son
@@ -467,20 +488,28 @@ const submit = () => {
                 <!-- Solo para la gente del propio workspace. A un electricista
                      de una contratista no se le pregunta qué aprueba, porque no
                      va a aprobar nada: quien autoriza un plan es del que
-                     contrata. La empresa propia se marca en Ajustes. -->
+                     contrata. La empresa propia se marca en Ajustes.
+
+                     El campo se DESACTIVA, no se esconde. Escondiéndolo, quien
+                     abría el alta con una contratista elegida no veía los roles
+                     por ninguna parte y no tenía forma de saber que dependían de
+                     la empresa: había que adivinar el truco. Desactivado y con el
+                     motivo debajo se lee de una vez. -->
                 <FormItem
-                    v-if="esDelWorkspace"
                     :label="$t('people.roles')"
                     :tooltip="$t('people.roles_help')"
                     :validate-status="form.errors.roles ? 'error' : ''"
-                    :help="form.errors.roles"
+                    :help="form.errors.roles || porQueNoHayRoles"
                 >
                     <Select
                         v-model:value="form.roles"
                         mode="multiple"
                         size="large"
+                        :disabled="!esDelWorkspace"
                         :options="roleOptions"
-                        :placeholder="$t('people.roles_placeholder')"
+                        :placeholder="esDelWorkspace
+                            ? $t('people.roles_placeholder')
+                            : $t('people.roles_solo_los_mios')"
                     />
                 </FormItem>
 
