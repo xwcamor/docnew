@@ -138,6 +138,12 @@ return [
     'name_duplicate_in_batch'    => 'Duplicate document in the same batch.',
     'is_active_required'         => 'The status field is required.',
     'import_super_blocked'       => 'A super without an assigned workspace cannot import (document matching could update records from another workspace).',
+    // The spreadsheet asks for the same as the form: without a company the
+    // person cannot join any plan, and without a position nobody knows what
+    // they do on site.
+    'import_company_position_required' => 'Creating a person requires the company and the position (columns company and position).',
+    'import_role_unknown'        => 'Unknown site role: ":value". Allowed: :roles.',
+    'import_padded_zero'         => 'The leading zero Excel ate was put back: :value.',
 
     // Edit All
     'edit_all_title'    => 'People — Edit All',

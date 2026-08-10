@@ -178,10 +178,21 @@ class PersonDocumentLengthTest extends CatalogTestCase
     {
         $this->actingAs($this->admin());
 
+        // El alta exige empresa y cargo desde que el import dejo de crear
+        // personas sin vinculo (ver PeopleImportTest): sin ellos fallarian las
+        // tres filas y el test no probaria lo que dice probar.
+        \App\Models\Company::firstOrCreate(
+            ['num_doc' => '20100000001'],
+            $this->base() + ['name' => 'Contratista', 'complete_name' => 'Contratista SAC'],
+        );
+        \App\Models\Position::firstOrCreate(['code' => 'Técnico'], $this->base() + ['is_signature_approver' => false]);
+
+        $dondeTrabaja = ['company' => '20100000001', 'position' => 'Técnico'];
+
         $import = $this->importar([
-            ['doc_type' => 'DNI', 'num_doc' => '43673535',  'name' => 'Edison', 'lastname' => 'Rosales Capcha'],
-            ['doc_type' => 'DNI', 'num_doc' => '11111',     'name' => 'Falso',  'lastname' => 'Inventado'],
-            ['doc_type' => 'DNI', 'num_doc' => '45871237',  'name' => 'Ana',    'lastname' => 'Quispe'],
+            ['doc_type' => 'DNI', 'num_doc' => '43673535',  'name' => 'Edison', 'lastname' => 'Rosales Capcha'] + $dondeTrabaja,
+            ['doc_type' => 'DNI', 'num_doc' => '11111',     'name' => 'Falso',  'lastname' => 'Inventado'] + $dondeTrabaja,
+            ['doc_type' => 'DNI', 'num_doc' => '45871237',  'name' => 'Ana',    'lastname' => 'Quispe'] + $dondeTrabaja,
         ]);
 
         $this->assertCount(1, $import->errors);

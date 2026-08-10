@@ -138,6 +138,11 @@ return [
     'name_duplicate_in_batch'    => 'Documento duplicado dentro del mismo batch.',
     'is_active_required'         => 'El campo estado es obligatorio.',
     'import_super_blocked'       => 'Un super sin workspace asignado no puede importar (el match por documento podría actualizar registros de otro workspace).',
+    // El Excel exige lo mismo que el formulario: sin empresa la persona no
+    // entra en ningún plan y sin cargo no se sabe qué hace en obra.
+    'import_company_position_required' => 'Para dar de alta hacen falta la empresa y el cargo (columnas company y position).',
+    'import_role_unknown'        => 'Rol en obra desconocido: ":value". Admitidos: :roles.',
+    'import_padded_zero'         => 'Se le devolvió el cero de delante que Excel se comió: :value.',
 
     // Edit All
     'edit_all_title'    => 'Personas — Editar todo',

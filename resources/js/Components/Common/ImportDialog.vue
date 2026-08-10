@@ -328,7 +328,15 @@ const summaryHasChanges = computed(() => {
                     :scroll="{ y: 240 }"
                 >
                     <template #bodyCell="{ column, record }">
-                        <template v-if="column.key === 'is_active'">
+                        <!-- Un aviso de la fila: algo que el importador cambió
+                             por su cuenta y que quien confirma tiene derecho a
+                             ver antes de aceptar — p. ej. el cero de delante
+                             que Excel se comió en un DNI. -->
+                        <template v-if="column.key === 'name'">
+                            <div>{{ record.name }}</div>
+                            <div v-if="record.notice" class="preview-notice">{{ record.notice }}</div>
+                        </template>
+                        <template v-else-if="column.key === 'is_active'">
                             <Tag :color="record.is_active ? 'success' : 'default'" :bordered="false">
                                 {{ record.is_active ? $t('global.yes') : $t('global.no') }}
                             </Tag>
@@ -495,6 +503,8 @@ const summaryHasChanges = computed(() => {
 
 /* Preview tables */
 .preview-block { margin-top: 14px; }
+.preview-notice { font-size: 12px; color: #8c6d1f; margin-top: 2px; }
+html[data-theme="dark"] .import-dialog .preview-notice { color: #d4b34a; }
 .preview-block__title {
     font-size: 0.875rem;
     font-weight: 600;
