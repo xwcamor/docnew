@@ -54,10 +54,28 @@ class FormSubmissionController extends Controller
 
         return inertia('FieldWork/FormFill', [
             'submission' => $entrega->only(['slug', 'status', 'template_version']),
+            // El formato, la seccion y el campo llevan su nombre en columnas
+            // (`name_es`/`name_en`, `label_es`/`label_en`) y el accesor `label`
+            // elige por el idioma en curso. Se arma a mano en vez de mandar el
+            // modelo entero porque un accesor no viaja solo en el JSON, y sin
+            // el la pantalla se quedaba en la cadena de respaldo: cabecera
+            // «AST», tarjetas sin titulo y etiquetas humanizadas del codigo.
             'template'   => [
-                'code' => $form_template->code,
-                'kind' => $form_template->kind,
-                'sections' => $form_template->sections()->with('fields')->get(),
+                'code'  => $form_template->code,
+                'label' => $form_template->label,
+                'kind'  => $form_template->kind,
+                'sections' => $form_template->sections()->with('fields')->get()->map(fn ($seccion) => [
+                    'id'     => $seccion->id,
+                    'label'  => $seccion->label,
+                    'fields' => $seccion->fields->map(fn ($campo) => [
+                        'id'          => $campo->id,
+                        'code'        => $campo->code,
+                        'label'       => $campo->label,
+                        'field_type'  => $campo->field_type,
+                        'is_required' => (bool) $campo->is_required,
+                        'config'      => $campo->config ?? [],
+                    ])->values(),
+                ])->values(),
             ],
             'answers' => $entrega->answers()->get(),
             'missing' => $this->formatos->faltantes($entrega),

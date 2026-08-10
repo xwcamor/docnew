@@ -396,18 +396,29 @@ de llenado.
    —`[{ "title": …, "image": …, "items": [...] }]`— cubriría los 5 bloques del
    PTF y las 8 categorías del EPP de una vez (§5.2).
 
-3. **Que la pantalla lea las columnas de nombre nuevas.** Ahora mismo
-   `FormFill.vue` hace `campo.config?.label ?? humanizar(campo.code)` y
-   `SectionHeader :title="template.code"`. El seeder escribe **también**
-   `config.label` en castellano justo por eso, para que las etiquetas se lean
-   bien hoy sin tocar esos ficheros. Cuando el front lea `label` / `name_es` /
-   `name_en` (o lo que el controlador exponga), ese duplicado se puede quitar:
-   está marcado con un comentario en `FormTemplatesSeeder::sembrarCampo()`.
+3. **Que la pantalla lea las columnas de nombre nuevas — hecho.**
+   `FormSubmissionController::open()` arma el payload a mano y mete el accesor
+   `label` del formato, de cada sección y de cada campo; un accesor no viaja
+   solo en el JSON de Inertia, que era por lo que la pantalla se quedaba en la
+   cadena de respaldo aunque los nombres estuvieran guardados. `FormFill.vue`
+   lee `template.label`, pinta el título de la tarjeta con `s.label` y la
+   etiqueta con `campo.label`, cayendo al código humanizado si no hay ninguna.
+   El duplicado `config.label` del seeder **se quitó**. Lo que sí se conserva es
+   el respaldo del accesor: hay campos guardados con la etiqueta dentro de
+   `config` y se siguen leyendo (`FormFillNombresTest`).
 
-4. **Que el editor sepa rellenar los nombres.** El formulario de alta de un
-   formato debería pedir nombre en los dos idiomas para la plantilla, para cada
-   sección y para cada campo. Las columnas ya están y son nullable, así que nada
-   se rompe mientras tanto; simplemente no se pueden escribir desde la pantalla.
+4. **Que el editor sepa rellenar los nombres — hecho para secciones y campos.**
+   `FormTemplates/Structure.vue` pide título en los dos idiomas por sección y
+   etiqueta en los dos idiomas por campo, y `FormTemplateStructureService` los
+   escribe en sus columnas. Un campo que traía la etiqueta en `config.label` la
+   muda a `label_es` la primera vez que se guarda desde la pantalla, y el JSON
+   se limpia: dos copias del mismo texto acaban divergiendo.
+
+   **Queda la cabecera del propio formato**: `FormTemplates/Form.vue` sigue
+   pidiendo un solo `name`, y `name_es` / `name_en` sólo se rellenan al sembrar.
+   `FormTemplate::getLabelAttribute()` cae a `name`, así que nada se ve mal;
+   simplemente un formato creado desde la pantalla se lee igual en los dos
+   idiomas.
 
 5. **`work_type_form_templates` sin sembrar** (§3), a la espera de que existan
    tipos de trabajo.
@@ -432,6 +443,7 @@ Las piezas:
 | `database/seeders/data/formatos-v1.json` | Los catálogos de la v1 |
 | `database/migrations/2026_08_10_120000_add_bilingual_names_to_form_engine.php` | Las columnas de nombre |
 | `tests/Feature/FieldWork/FormatosSembradosTest.php` | 12 pruebas |
+| `tests/Feature/FieldWork/FormFillNombresTest.php` | Que la pantalla de llenado lea esos nombres |
 
 **Es idempotente, y con matiz.** Si una plantilla ya existe **con campos**, no se
 toca la estructura: puede tener entregas firmadas colgando y el cliente ha podido

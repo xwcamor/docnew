@@ -74,8 +74,16 @@ Object.entries(porCampo).forEach(([id, lista]) => {
 const archivo = ref(null);
 const guardando = ref(false);
 
-/** El code del campo es su etiqueta: viene del formato, no de la interfaz. */
-const etiqueta = (campo) => campo.config?.label ?? humanizar(campo.code);
+/**
+ * La etiqueta del campo viene del formato, no de la interfaz: la trae el
+ * servidor ya resuelta al idioma en curso (`FormField::getLabelAttribute()`,
+ * sobre `label_es`/`label_en`).
+ *
+ * El respaldo se queda porque un campo creado antes de que existieran esas
+ * columnas —o desde el editor sin rellenarlas— no tiene ninguna: entonces se
+ * humaniza el codigo, que es como se leia hasta ahora.
+ */
+const etiqueta = (campo) => campo.label || humanizar(campo.code);
 
 function guardar() {
     const respuestas = [];
@@ -132,7 +140,7 @@ function confirmar() {
 
 <template>
     <div class="mi-console">
-        <SectionHeader :title="template.code"
+        <SectionHeader :title="template.label || template.code"
                        :subtitle="`${$t('field_work.version')} ${submission.template_version} · ${$t(`field_work.status.${submission.status}`)}`" />
 
         <a-alert v-if="soloLectura" type="success" show-icon class="mb-4"
@@ -148,7 +156,12 @@ function confirmar() {
             <a-button type="primary" class="ml-2" @click="subir">{{ $t('field_work.attach') }}</a-button>
         </a-card>
 
-        <a-card v-for="s in template.sections" :key="s.id" size="small" class="mb-4">
+        <!-- El titulo del bloque, cuando lo tiene. En el papel el AST lleva
+             «Permisos», «Objetivos» y «Trabajos a realizar», y aqui salian tres
+             tarjetas iguales sin nada que las distinguiera. El EPP y el IHM son
+             una sola tabla sin cabecera: esos siguen sin titulo, y esta bien. -->
+        <a-card v-for="s in template.sections" :key="s.id" size="small" class="mb-4"
+                :title="s.label || null">
             <div v-for="c in s.fields" :key="c.id" class="ff-block">
                 <label class="ff-block__label">
                     {{ etiqueta(c) }}<span v-if="c.is_required" class="ff-block__req"> *</span>

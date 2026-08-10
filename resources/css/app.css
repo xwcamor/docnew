@@ -1554,6 +1554,17 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 }
 .ff-block__req { color: var(--color-danger, #BB0000); }
 
+/* El control ocupa el ancho del bloque.
+ *
+ * Un `a-select` vacio mide lo que mide su contenido, o sea nada: el desplegable
+ * de un `multiselect` sin nada elegido salia como una cajita de veinte pixeles
+ * al lado de la etiqueta, y habia que acertarle para abrirlo. Con guantes y una
+ * tablet en la mano eso no se acierta. Igual el numero y la fecha, que venian
+ * mas estrechos que el resto de campos sin ninguna razon. */
+.ff-block .ant-select,
+.ff-block .ant-picker,
+.ff-block .ant-input-number { width: 100%; }
+
 /* Barra de acciones: pegada al pie, con el pulgar a mano. */
 .ff-actions {
     position: sticky; bottom: 0; z-index: 6;

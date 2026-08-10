@@ -582,6 +582,13 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         // se queda en borrador para siempre y ningun plan lo puede usar.
         Route::post('form_templates/{formTemplate}/publish',   [FormTemplateController::class, 'publish'])->name('form_templates.publish');
         Route::post('form_templates/{formTemplate}/unpublish', [FormTemplateController::class, 'unpublish'])->name('form_templates.unpublish');
+        // Secciones y campos: definir el formato sin tocar codigo, que era lo
+        // unico que le faltaba al modulo. Va con `.edit` porque para quien usa
+        // la pantalla esto es editar el documento — y la version nueva tambien,
+        // que es la unica forma de cambiar uno que ya se firmo.
+        Route::get('form_templates/{formTemplate}/structure',    [FormTemplateController::class, 'structure'])->name('form_templates.structure');
+        Route::put('form_templates/{formTemplate}/structure',    [FormTemplateController::class, 'structureUpdate'])->name('form_templates.structure_update');
+        Route::post('form_templates/{formTemplate}/new_version', [FormTemplateController::class, 'newVersion'])->name('form_templates.new_version');
         Route::put('form_templates/{formTemplate}',      [FormTemplateController::class, 'update'])->name('form_templates.update');
     });
     Route::middleware('permission:form_templates.delete')->group(function () {

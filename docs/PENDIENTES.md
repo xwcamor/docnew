@@ -141,8 +141,12 @@ o sea que contando se podía confirmar la entrega de otro. Corregido y con prueb
     otro, así que sale una nota con su hash. Si eso no vale, hace falta fusionar PDFs aparte.
 14. **`form_templates.pdf_template`** (plantilla propia para formatos con diseño fijo por ley) existe
     en la base pero no se usa: todos salen con el mismo diseño genérico.
-15. **Editor de formatos desde la interfaz**: el servicio está (`FormTemplateBuilder`), falta la
-    pantalla para crear un formato sin tocar código.
+15. **Editor de formatos desde la interfaz** — hecho. `FormTemplates/Structure.vue` define
+    secciones y campos (tipo, código, obligatoriedad, configuración propia de cada tipo y título
+    en los dos idiomas) sin tocar código. Un formato publicado o ya llenado no se reestructura:
+    se saca una versión nueva. Lo que queda del motor está en `docs/FORMATOS.md §7` — catálogos
+    de `config` bilingües, agrupar los items de un campo compuesto, y `name_es`/`name_en` del
+    propio formato en su formulario de alta.
 16. **Probar la cámara en una tablet real.** No es verificable desde aquí, y es lo único del flujo
     que nadie ha visto funcionar sobre el hardware de obra.
 

@@ -4,8 +4,8 @@ import { Head } from '@inertiajs/vue3';
 import {
     Card, Tag, Space, Alert, Button, Popconfirm, Tooltip,
 } from 'ant-design-vue';
-import { router } from '@inertiajs/vue3';
-import { FileOutlined } from '@ant-design/icons-vue';
+import { Link, router } from '@inertiajs/vue3';
+import { FileOutlined, UnorderedListOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -32,8 +32,7 @@ const esBorrador = computed(() => props.formTemplate.status !== 'published');
 
 // Un documento «con campos» y sin ninguno no se puede publicar: el constructor
 // lo rechaza. El botón sale deshabilitado y dice por qué, en vez de fallar al
-// pulsarlo. Mientras no exista la pantalla para definir campos (PENDIENTES #15),
-// el camino que sí funciona es «sólo foto del papel».
+// pulsarlo. La salida está a un clic: «Secciones y campos», aquí al lado.
 const noSePuedePublicar = computed(() =>
     esBorrador.value
     && props.formTemplate.kind !== 'upload_only'
@@ -95,6 +94,19 @@ const fmt = (d) => formatDateTimeFull(d);
                      la pantalla se quedaba en borrador para siempre y ningún
                      plan podía usarlo. -->
                 <template v-if="can('form_templates.edit') && !isDeleted">
+                    <!-- Definir qué se pregunta en obra. Es lo que hace útil al
+                         documento y no había forma de llegar: el motor estaba
+                         entero y sin pantalla, así que un documento creado aquí
+                         nacía sin campos y no se podía publicar nunca. -->
+                    <Tooltip :title="$t('form_templates.structure_open_hint')">
+                        <Link :href="route('business_management.form_templates.structure', formTemplate.slug)">
+                            <Button>
+                                <UnorderedListOutlined />
+                                {{ $t('form_templates.structure') }}
+                            </Button>
+                        </Link>
+                    </Tooltip>
+
                     <!-- Sin campos definidos no se puede publicar: deshabilitado
                          y con el motivo, que un botón que falla al pulsarlo es
                          peor que un botón que no está. -->

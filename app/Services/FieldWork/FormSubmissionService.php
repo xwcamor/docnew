@@ -181,13 +181,21 @@ class FormSubmissionService
         return $entrega->fresh();
     }
 
-    /** Que le falta a la entrega para poder cerrarse. */
+    /**
+     * Que le falta a la entrega para poder cerrarse, dicho como se lee.
+     *
+     * Devuelve la ETIQUETA del campo, no su codigo. La lista sale en un aviso
+     * amarillo delante de quien esta rellenando el formato en obra, y
+     * «matriz_de_riesgo» no es algo que nadie tenga que descifrar. Se decia el
+     * codigo porque hasta ahora no habia otra cosa que decir: los campos no
+     * tenian etiqueta guardada y la pantalla la sacaba de humanizar el codigo.
+     */
     public function faltantes(FormSubmission $entrega): array
     {
         $plantilla = $entrega->formTemplate;
 
         if ($plantilla->kind === FormTemplate::UPLOAD_ONLY) {
-            return $entrega->attachments()->exists() ? [] : ['archivo del formato'];
+            return $entrega->attachments()->exists() ? [] : [__('field_work.missing_attachment')];
         }
 
         // Solo cuentan las respuestas que dicen algo. Una fila con las cinco
@@ -203,11 +211,11 @@ class FormSubmissionService
             ->where('is_required', true)
             ->get()
             ->reject(fn ($campo) => in_array($campo->id, $respondidos, true))
-            ->pluck('code')
+            ->map(fn ($campo) => $campo->label)
             ->all();
 
         if ($plantilla->kind === FormTemplate::HYBRID && ! $entrega->attachments()->exists()) {
-            $faltantes[] = 'archivo del formato';
+            $faltantes[] = __('field_work.missing_attachment');
         }
 
         return $faltantes;

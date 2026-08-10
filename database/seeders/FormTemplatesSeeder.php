@@ -147,14 +147,13 @@ class FormTemplatesSeeder extends Seeder
 
     protected function sembrarCampo(FormSection $seccion, int $orden, array $campo): void
     {
+        // `config` es lo que el tipo necesita para pintarse y nada mas. Aqui se
+        // duplicaba ademas la etiqueta en `config.label`, y no era por
+        // descuido: la pantalla de llenado leia `campo.config?.label` porque no
+        // conocia las columnas nuevas. Ya lee el accesor `label`, asi que el
+        // duplicado se fue: dos copias del mismo texto acaban divergiendo en
+        // cuanto alguien edita una desde el editor de campos.
         $config = $campo['config'] ?? [];
-
-        // `config.label` duplica `label_es`, y no es por descuido: la pantalla
-        // de llenado lee `campo.config?.label ?? humanizar(code)` y todavia no
-        // conoce las columnas nuevas. Sin esta linea el AST se abriria con
-        // «Epp por trabajador» de etiqueta. Se puede quitar el dia que la
-        // pantalla lea `label`.
-        $config['label'] = $campo['label_es'];
 
         FormField::updateOrCreate(
             ['form_section_id' => $seccion->id, 'code' => $campo['code']],

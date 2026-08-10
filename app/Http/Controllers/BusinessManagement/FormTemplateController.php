@@ -12,16 +12,21 @@ use App\Http\Requests\BusinessManagement\FormTemplate\ForceDeleteFormTemplateReq
 use App\Http\Requests\BusinessManagement\FormTemplate\ImportFormTemplateRequest;
 use App\Http\Requests\BusinessManagement\FormTemplate\StoreFormTemplateRequest;
 use App\Http\Requests\BusinessManagement\FormTemplate\UpdateFormTemplateRequest;
+use App\Http\Requests\BusinessManagement\FormTemplate\UpdateFormTemplateStructureRequest;
 use App\Http\Resources\AuditLogResource;
 use App\Jobs\BusinessManagement\FormTemplates\GenerateFormTemplatesCsvJob;
 use App\Jobs\BusinessManagement\FormTemplates\GenerateFormTemplatesExcelJob;
 use App\Jobs\BusinessManagement\FormTemplates\GenerateFormTemplatesPdfJob;
 use App\Jobs\BusinessManagement\FormTemplates\GenerateFormTemplatesWordJob;
 use App\Models\AuditLog;
+use App\Models\FormField;
 use App\Models\FormTemplate;
 use App\Services\BusinessManagement\FormTemplateService;
+use App\Services\BusinessManagement\FormTemplateStructureService;
+use App\Services\FieldWork\FormTemplateBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Lang;
 
 class FormTemplateController extends Controller
 {
@@ -253,6 +258,238 @@ class FormTemplateController extends Controller
         $formTemplate->update(['status' => 'draft']);
 
         return back()->with('success', __('form_templates.unpublished'));
+    }
+
+    // ── Secciones y campos ───────────────────────────────────────────────
+    // Lo que faltaba para que un formato se pudiera definir sin tocar codigo.
+    // El motor (`form_templates` → `form_sections` → `form_fields`) estaba
+    // entero desde el principio y el unico camino para llenarlo era el comando
+    // `docufiz:migrate-formats`: o sea, los cuatro que trajo la v1 y nada mas.
+
+    /**
+     * El editor de la estructura.
+     *
+     * Se abre siempre, tambien cuando no se puede tocar: quien entra a mirar
+     * como esta hecho un AST publicado tiene derecho a verlo, y el motivo por
+     * el que no se deja cambiar se dice en la pantalla en vez de cerrarle la
+     * puerta con un 403 (docs/UI.md §6).
+     */
+    public function structure(FormTemplate $formTemplate, FormTemplateStructureService $estructura)
+    {
+        abort_if($formTemplate->is_locked, 403, __('locks.cannot_edit_locked'));
+
+        $formTemplate->load(['sections.fields']);
+
+        return inertia('FormTemplates/Structure', [
+            'formTemplate' => [
+                'id'      => $formTemplate->id,
+                'slug'    => $formTemplate->slug,
+                'name'    => $formTemplate->name,
+                // El nombre en el idioma en curso, que es el que hay que leer
+                // en la cabecera: `name` es el de por defecto y se queda para
+                // los filtros y las pantallas ya escritas.
+                'label'   => $formTemplate->label,
+                'code'    => $formTemplate->code,
+                'kind'    => $formTemplate->kind,
+                'status'  => $formTemplate->status,
+                'version' => $formTemplate->version,
+            ],
+            // El nombre de la seccion y la etiqueta del campo van en columnas
+            // —`name_es`/`name_en`, `label_es`/`label_en`— y no en
+            // `resources/lang`: un formato lo define el cliente desde aqui, y
+            // lo que el escriba no puede vivir en el repositorio. Es el mismo
+            // criterio de `approver_roles`.
+            'sections' => $formTemplate->sections->map(fn ($s) => [
+                'id'       => $s->id,
+                'position' => $s->position,
+                'name_es'  => $s->name_es,
+                'name_en'  => $s->name_en,
+                'fields'   => $s->fields->map(fn ($c) => [
+                    'id'          => $c->id,
+                    'code'        => $c->code,
+                    // Los campos anteriores a la columna llevan su etiqueta en
+                    // `config.label`. Se sube aqui para que el editor la
+                    // enseñe y la guarde ya en su sitio: si no, abrir y
+                    // guardar un formato viejo lo dejaria sin etiqueta.
+                    'label_es'    => $c->label_es ?? ($c->config['label'] ?? null),
+                    'label_en'    => $c->label_en,
+                    'field_type'  => $c->field_type,
+                    'is_required' => (bool) $c->is_required,
+                    'position'    => $c->position,
+                    'config'      => $c->config ?? [],
+                ])->values(),
+            ])->values(),
+            // La lista de tipos SALE DEL SERVIDOR, nunca escrita a mano en el
+            // Vue: `FormField::TIPOS` es la unica lista de verdad y crece
+            // segun se van portando formatos de la v1. Con una copia en el
+            // front, un tipo nuevo existiria en la base y no en la pantalla.
+            'fieldTypes'    => $this->catalogoDeTipos(),
+            'editable'      => $estructura->esEditable($formTemplate),
+            'lockedReason'  => $estructura->motivoBloqueo($formTemplate),
+            'submissions'   => $estructura->entregas($formTemplate),
+            'nextVersion'   => $formTemplate->version + 1,
+        ]);
+    }
+
+    /**
+     * Guardar: llega el arbol entero y se sincroniza de una vez.
+     *
+     * De una vez y no cambio a cambio, que es lo que hace el resto de los
+     * formularios del producto. Aqui pesa mas todavia: mover un campo de sitio
+     * son dos escrituras y media docena de posiciones renumeradas, y con
+     * guardado incremental una tablet que pierde la señal a mitad deja el
+     * documento con dos campos en la posicion 3.
+     */
+    public function structureUpdate(
+        UpdateFormTemplateStructureRequest $request,
+        FormTemplate $formTemplate,
+        FormTemplateStructureService $estructura,
+    ): RedirectResponse {
+        try {
+            $estructura->sincronizar($formTemplate, $request->validated()['sections']);
+        } catch (\DomainException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('business_management.form_templates.structure', $formTemplate->slug)
+            ->with('success', __('form_templates.structure_saved'));
+    }
+
+    /**
+     * Version nueva a partir de una que ya es evidencia.
+     *
+     * Es la unica forma de cambiar un formato que ya se firmo: se copia la
+     * estructura en un borrador con la version siguiente y el original no se
+     * toca. `template_version` de la entrega existe justo para esto — cada
+     * documento llenado recuerda con que version se lleno.
+     *
+     * Va con `form_templates.edit` y no con `.create` a proposito: para quien
+     * usa la pantalla esto es *editar* un formato publicado, no dar de alta uno
+     * distinto. El limite de registros del plan si se comprueba, porque una
+     * fila nueva es una fila nueva.
+     */
+    public function newVersion(Request $request, FormTemplate $formTemplate, FormTemplateBuilder $constructor): RedirectResponse
+    {
+        abort_if($formTemplate->is_locked, 403, __('locks.cannot_edit_locked'));
+
+        $tenant = $request->user()?->tenant;
+        if ($tenant) {
+            $max = $tenant->maxRecordsPerModule();
+            if ($max > 0 && FormTemplate::count() >= $max) {
+                return back()->with('error', __('plans.limit_records_reached', ['max' => $max]));
+            }
+        }
+
+        try {
+            $nueva = $constructor->nuevaVersion($formTemplate);
+        } catch (\Throwable $e) {
+            \Log::error('FormTemplate nuevaVersion failed', ['error' => $e->getMessage()]);
+
+            return back()->with('error', __('form_templates.new_version_failed'));
+        }
+
+        return redirect()
+            ->route('business_management.form_templates.structure', $nueva->slug)
+            ->with('success', __('form_templates.new_version_created', ['version' => $nueva->version]));
+    }
+
+    /**
+     * Claves de configuracion que cada tipo admite ADEMAS de las que exige.
+     *
+     * Las obligatorias las declara `FormTemplateBuilder::TIPOS`, que es quien
+     * sabe que necesita cada tipo para poder pintarse. Estas son las que los
+     * componentes de llenado leen si estan y se apañan si no: las respuestas
+     * posibles de un checklist (EPP dice Conforme/No conforme, IHM dice
+     * Cumple/No cumple), los catalogos de la matriz de riesgo, las columnas de
+     * correccion que solo aparecen cuando algo sale no conforme.
+     *
+     * Sin esto el editor solo dejaria configurar el minimo, y un EPP sin sus
+     * respuestas propias sale en la tablet con las de otro formato.
+     */
+    protected const CONFIG_OPCIONAL = [
+        'person_checklist' => ['answers', 'extra'],
+        'tool_checklist'   => ['tools', 'answers', 'extra'],
+        'risk_matrix'      => ['activities', 'dangers', 'risks', 'controls'],
+        'question_bank'    => ['answers'],
+    ];
+
+    /**
+     * Los tipos de campo tal y como los pinta el editor.
+     *
+     * Se recorre `FormField::TIPOS` —la lista canonica— y para cada uno se
+     * arma que se le puede configurar. Un tipo que aparezca ahi y que nadie
+     * haya declarado en el constructor sale igual, con su etiqueta y su
+     * obligatoriedad: se puede usar desde el primer minuto aunque todavia no
+     * tenga configuracion propia.
+     */
+    protected function catalogoDeTipos(): array
+    {
+        $tipos = [];
+
+        foreach (FormField::TIPOS as $tipo) {
+            $obligatorias = FormTemplateBuilder::TIPOS[$tipo] ?? [];
+            $exige        = in_array($tipo, FormTemplateBuilder::CONFIG_OBLIGATORIA, true);
+
+            // La etiqueta del campo NO va aqui: vive en `label_es`/`label_en`,
+            // que son columnas. Estuvo un rato en `config.label` porque no
+            // habia donde ponerla, y un texto que se lee en pantalla dentro de
+            // un JSON de configuracion no se puede ni filtrar ni traducir.
+            $claves = array_values(array_unique(array_merge(
+                $obligatorias,
+                static::CONFIG_OPCIONAL[$tipo] ?? [],
+            )));
+
+            $tipos[] = [
+                'value'  => $tipo,
+                'label'  => $this->etiquetaDeTipo($tipo),
+                'config' => array_map(fn ($clave) => [
+                    'key'      => $clave,
+                    'label'    => $this->etiquetaDeClave($clave),
+                    'control'  => $this->controlDeClave($clave),
+                    'required' => $exige && in_array($clave, $obligatorias, true),
+                ], $claves),
+            ];
+        }
+
+        return $tipos;
+    }
+
+    /** Nombre legible del tipo; si nadie lo tradujo todavia, su propia clave. */
+    protected function etiquetaDeTipo(string $tipo): string
+    {
+        return Lang::has("form_templates.field_types.{$tipo}")
+            ? __("form_templates.field_types.{$tipo}")
+            : $tipo;
+    }
+
+    /** Igual para las claves de configuracion. */
+    protected function etiquetaDeClave(string $clave): string
+    {
+        return Lang::has("form_templates.field_config_keys.{$clave}")
+            ? __("form_templates.field_config_keys.{$clave}")
+            : $clave;
+    }
+
+    /**
+     * Con que control se edita cada clave de configuracion.
+     *
+     * Se deduce del nombre, no de una tabla, y por eso una clave nueva ya trae
+     * su control puesto. El caso por defecto es la lista de textos porque
+     * `catalogo()` —lo que usan los campos compuestos al pintarse— lee todas
+     * las claves como listas: opciones, columnas, preguntas, herramientas.
+     */
+    protected function controlDeClave(string $clave): string
+    {
+        if (in_array($clave, ['min', 'max', 'decimals', 'max_files'], true)) {
+            return 'number';
+        }
+
+        if (in_array($clave, ['label', 'help'], true)) {
+            return 'text';
+        }
+
+        return 'list';
     }
 
     /** Paises activos como opciones del selector, igual que en los catalogos. */

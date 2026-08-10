@@ -46,6 +46,10 @@ return [
     // Pantalla de llenado de un formato del plan.
     'version'         => 'Versión',
     'missing'         => 'Falta completar',
+    // Lo que falta se nombra por su etiqueta, no por el código del campo: el
+    // aviso lo lee quien está rellenando el formato en obra. El adjunto no es
+    // un campo y no tiene etiqueta, así que la suya va escrita aquí.
+    'missing_attachment' => 'el archivo del formato',
     'readonly_notice' => 'Este formato ya está confirmado: se puede consultar, pero no modificar.',
     'document'        => 'Documento',
     'attach'          => 'Adjuntar',

@@ -47,6 +47,10 @@ return [
     // Pantalla de llenado de un formato del plan.
     'version'         => 'Version',
     'missing'         => 'Still missing',
+    // What is missing is named by its label, not by the field code: this
+    // warning is read by whoever is filling the form in on site. The
+    // attachment is not a field and has no label, so its wording lives here.
+    'missing_attachment' => 'the form file',
     'readonly_notice' => 'This form is already confirmed: it can be viewed, but not changed.',
     'document'        => 'Document',
     'attach'          => 'Attach',

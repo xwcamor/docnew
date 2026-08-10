@@ -33,8 +33,7 @@ const form = useForm({
     // Cómo se llena. La columna existía y no había forma de elegirla desde la
     // pantalla: todo nacía «con campos», y un documento con campos y sin
     // ninguno no se puede publicar — o sea, nada de lo creado aquí llegaba a un
-    // plan. Todavía no hay pantalla para definir campos (PENDIENTES #15), así
-    // que «sólo foto del papel» es hoy el único camino completo.
+    // plan. Los campos se definen luego, en «Secciones y campos» desde la ficha.
     kind:       props.formTemplate?.kind ?? 'structured',
     is_active:  props.formTemplate?.is_active ?? true,
 });

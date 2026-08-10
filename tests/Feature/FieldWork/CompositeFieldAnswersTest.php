@@ -119,7 +119,9 @@ class CompositeFieldAnswersTest extends TestCase
             ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => null],
         ]);
 
-        $this->assertContains('matriz_de_riesgo', $servicio->faltantes($entrega));
+        // `faltantes()` nombra el campo por su ETIQUETA, no por su codigo: la
+        // lista sale en un aviso delante de quien rellena el formato en obra.
+        $this->assertContains('Matriz de riesgo', $servicio->faltantes($entrega));
 
         $this->expectException(\InvalidArgumentException::class);
         $servicio->confirmar($entrega);
@@ -140,7 +142,7 @@ class CompositeFieldAnswersTest extends TestCase
             'row_index'          => 0,
         ]);
 
-        $this->assertContains('matriz_de_riesgo', $servicio->faltantes($entrega));
+        $this->assertContains('Matriz de riesgo', $servicio->faltantes($entrega));
     }
 
     public function test_el_epp_guarda_una_fila_por_trabajador_con_su_correccion(): void
@@ -241,7 +243,7 @@ class CompositeFieldAnswersTest extends TestCase
         [$entrega] = $this->entregaAst();
         $servicio = app(FormSubmissionService::class);
 
-        $this->assertSame(['matriz_de_riesgo'], $servicio->faltantes($entrega));
+        $this->assertSame(['Matriz de riesgo'], $servicio->faltantes($entrega));
 
         $servicio->responder($entrega, [
             ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $this->filaRiesgo('c2', 'p3', 6, 'alto')],
