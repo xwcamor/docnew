@@ -10,6 +10,27 @@
 */
 return [
     /**
+     * Cual de las empresas del catalogo es la del propio workspace, por su
+     * NUMERO DE DOCUMENTO.
+     *
+     * Se marca en Ajustes → Mi empresa, y de eso depende a quien se le pregunta
+     * que aprueba: los roles en obra son de la gente de la empresa que contrata,
+     * no de las contratistas. Pero `setup:project --datos` rehace la base entera,
+     * asi que ese ajuste habia que volver a ponerlo a mano cada vez. Puesto aqui,
+     * la carga lo deja marcado sola.
+     *
+     * Va el DOCUMENTO y no el id a proposito: el id cambia con cada base —el de
+     * desarrollo no es el de produccion, y `migrate:fresh` lo mueve— mientras que
+     * el RUC de una empresa es el mismo en todas partes. Es la misma razon por la
+     * que las empresas se buscan por documento al migrarlas.
+     *
+     * Vacio, no se marca nada y se sigue preguntando en la pantalla. Esto es un
+     * ajuste de la INSTALACION, no del producto: el nombre de un cliente no se
+     * escribe en el codigo.
+     */
+    'own_doc' => env('WORKSPACE_COMPANY_DOC'),
+
+    /**
      * Bulk operations — umbral por encima del cual la operacion se
      * dispatcha a queue en lugar de ejecutar inline.
      */

@@ -105,6 +105,41 @@ class Tenant extends Model
         return $this->belongsTo(\App\Models\Company::class);
     }
 
+    /**
+     * Deja marcada la empresa propia si la instalacion dice cual es.
+     *
+     * `setup:project --datos` rehace la base entera, asi que «Mi empresa» —que
+     * se pone en Ajustes— desaparecia en cada carga y habia que volver a
+     * ponerla. Con `WORKSPACE_COMPANY_DOC` en el `.env`, la carga la deja
+     * marcada sola.
+     *
+     * Se busca por DOCUMENTO, no por id: el id cambia con cada base y el RUC no.
+     *
+     * Y solo si esta sin marcar. Lo que se elige en la pantalla manda sobre lo
+     * que dice un fichero de configuracion: al reves, cambiar de empresa desde
+     * Ajustes duraria hasta la siguiente carga y nadie entenderia por que.
+     */
+    public function marcarSuEmpresaSiLaInstalacionLaDice(): ?\App\Models\Company
+    {
+        $documento = trim((string) config('companies.own_doc'));
+
+        if ($documento === '' || $this->company_id) {
+            return $this->company;
+        }
+
+        $empresa = \App\Models\Company::withoutGlobalScopes()
+            ->where('tenant_id', $this->id)
+            ->where('num_doc', $documento)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if ($empresa) {
+            $this->forceFill(['company_id' => $empresa->id])->save();
+        }
+
+        return $empresa;
+    }
+
     public function subscriptions(): HasMany
     {
         return $this->hasMany(Subscription::class)->orderByDesc('starts_at');

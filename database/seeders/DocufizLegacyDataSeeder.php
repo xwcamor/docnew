@@ -89,6 +89,10 @@ class DocufizLegacyDataSeeder extends Seeder
             $porRuc[$f['num_doc']] = $empresa->id;
         }
 
+        // Igual que en el migrador: la empresa del propio workspace se marca en
+        // cuanto existe, no a mano en Ajustes, porque la carga rehace la base.
+        \App\Models\Tenant::find($base['tenant_id'] ?? 1)?->marcarSuEmpresaSiLaInstalacionLaDice();
+
         $this->command->info(sprintf('Empresas: %d', count($porRuc)));
 
         return $porRuc;

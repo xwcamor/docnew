@@ -221,6 +221,19 @@ class MigrateLegacyDataCommand extends Command
             $empresa->save();
         }
 
+        // Cual de todas es la del propio workspace. Se marca aqui, en cuanto
+        // existen, y no en Ajustes a mano: `setup:project --datos` rehace la
+        // base, asi que ese ajuste se perdia en cada carga — y sin el, el
+        // selector de aprobadores del plan ofrece el padron entero en vez de
+        // solo la gente de la empresa que contrata.
+        $propia = \App\Models\Tenant::find($this->tenantId)?->marcarSuEmpresaSiLaInstalacionLaDice();
+
+        if ($propia) {
+            $this->line("  Mi empresa: {$propia->name} ({$propia->num_doc}).");
+        } elseif (trim((string) config('companies.own_doc')) !== '') {
+            $this->warn('  WORKSPACE_COMPANY_DOC apunta a un documento que no está entre las empresas migradas.');
+        }
+
         $this->linea('empresas', $viejas->count(), Company::whereNotNull('legacy_id')->count(),
             "{$creadas} nuevas, {$actualizadas} actualizadas");
     }
