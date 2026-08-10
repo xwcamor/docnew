@@ -282,7 +282,7 @@ class WorkPlanController extends Controller
         $asignados = $workPlan->people()
             ->with([
                 'person:id,slug,name,lastname,num_doc,doc_type,nationality_id,country_id',
-                'person.nationality:id,code',
+                'person.nationality:id,name',
                 'person.country:id,name',
                 // El cargo de la persona EN LA EMPRESA DEL PLAN: la misma
                 // persona puede ser técnico en una contratista y supervisor en

@@ -484,7 +484,6 @@ const selectedKey = computed(() => {
         ['workstations',       '/workstations'],
         ['work_areas',         '/work_areas'],
         ['positions',          '/positions'],
-        ['nationalities',      '/nationalities'],
         ['document_types',     '/document_types'],
         ['work_types',         '/work_types'],
         ['dashboard',      '/dashboard_management/dashboards'],
@@ -737,11 +736,6 @@ const menuStructure = computed(() => [
                 key: 'positions', label: t('sidebar.positions'), icon: SolutionOutlined,
                 href: route('business_management.positions.index'), inertia: true,
                 visible: () => can('positions.view'),
-            },
-            {
-                key: 'nationalities', label: t('sidebar.nationalities'), icon: GlobalOutlined,
-                href: route('business_management.nationalities.index'), inertia: true,
-                visible: () => can('nationalities.view'),
             },
             {
                 key: 'document_types', label: t('sidebar.document_types'), icon: IdcardOutlined,

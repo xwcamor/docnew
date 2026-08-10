@@ -306,7 +306,17 @@ class Person extends Model
     }
 
     public function country() { return $this->belongsTo(Country::class); }
-    public function nationality() { return $this->belongsTo(Nationality::class); }
+
+    /**
+     * De donde es.
+     *
+     * Apunta a `countries`, no a un catalogo aparte: una nacionalidad ES un
+     * pais. Habia dos tablas para lo mismo y de ahi salio un susto — el tipo de
+     * documento se deducia comparando el TEXTO de las dos, asi que con la fila
+     * sembrada como «Peruana» los 224 peruanos habrian salido con carne de
+     * extranjeria. Comparando numeros eso ya no puede pasar.
+     */
+    public function nationality() { return $this->belongsTo(Country::class, 'nationality_id'); }
 
     /**
      * Su nacionalidad, **solo si no es la del pais donde trabaja**.
@@ -316,23 +326,20 @@ class Person extends Model
      * repetida 380 veces, y el ojo deja de verla. Lo que hay que ver es el que
      * viene de fuera —11 de 391— porque lleva carne de extranjeria en vez de
      * DNI, y eso es justo lo que se comprueba en la puerta.
-     *
-     * Se compara el nombre del pais con el de la nacionalidad («Peru» /
-     * «Peru»), sin tildes, porque el catalogo de nacionalidades de la v1 es
-     * plano y no apunta a `countries`.
      */
     public function getForeignNationalityAttribute(): ?string
     {
-        $codigo = $this->nationality?->code;
-
-        if ($codigo === null || $codigo === '') {
+        if ($this->nationality_id === null || $this->nationality_id === $this->country_id) {
             return null;
         }
 
-        $limpio = fn (string $t) => mb_strtolower(preg_replace('/\p{Mn}/u',
-            '', \Normalizer::normalize($t, \Normalizer::FORM_D) ?: $t) ?? $t);
+        return $this->nationality?->name;
+    }
 
-        return $limpio($codigo) === $limpio((string) $this->country?->name) ? null : $codigo;
+    /** ¿Es extranjero donde trabaja? Lo que decide si lleva DNI o carne. */
+    public function getIsForeignerAttribute(): bool
+    {
+        return $this->nationality_id !== null && $this->nationality_id !== $this->country_id;
     }
     public function companyLinks() { return $this->hasMany(PersonCompanyLink::class); }
     public function companies() { return $this->belongsToMany(Company::class, 'person_company_links'); }

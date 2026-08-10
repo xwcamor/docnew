@@ -63,7 +63,7 @@ return [
     'country'              => 'Country',
     'country_help'         => 'Country of the document. Together with the number it defines the person uniqueness.',
     'nationality'          => 'Nationality',
-    'nationality_help'     => 'Declared nationality, when it differs from the document country.',
+    'nationality_help'     => 'Where they are from. If it does not match the document country, the person is flagged as a foreigner in the plan — which is what gets checked at the gate, because they carry a foreigner card and not a DNI.',
     'birthdate'            => 'Date of birth',
     'birthdate_help'       => 'Optional. Used in personnel reports.',
     'roles'                => 'Site roles',

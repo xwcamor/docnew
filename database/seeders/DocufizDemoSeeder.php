@@ -10,7 +10,6 @@ use App\Models\FormField;
 use App\Models\FormSection;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
-use App\Models\Nationality;
 use App\Models\Person;
 use App\Models\PersonBiometric;
 use App\Models\PersonCompanyLink;
@@ -53,10 +52,6 @@ class DocufizDemoSeeder extends Seeder
         $base = ['tenant_id' => $tenant->id, 'created_by' => $user->id];
 
         // ── Catalogos de obra ────────────────────────────────────────────
-        $nacionalidad = Nationality::create($base + [
-            'slug' => Str::random(22), 'country_id' => $country->id, 'code' => 'PE',
-        ]);
-
         $cargoObrero = Position::create($base + [
             'slug' => Str::random(22), 'country_id' => $country->id,
             'code' => 'OPERARIO', 'is_signature_approver' => false,
@@ -232,7 +227,8 @@ class DocufizDemoSeeder extends Seeder
     {
         return Person::create($base + [
             'slug' => Str::random(22), 'country_id' => $country->id,
-            'nationality_id' => $nacionalidad->id, 'doc_type' => 'DNI',
+            // La nacionalidad ES un pais: no hay catalogo aparte.
+            'nationality_id' => $country->id, 'doc_type' => 'DNI',
             'num_doc' => $numDoc, 'name' => $nombre, 'lastname' => $apellidos,
         ]);
     }

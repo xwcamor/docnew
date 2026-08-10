@@ -63,7 +63,7 @@ class UpdatePersonRequest extends FormRequest
                 PersonRole::WORKER, PersonRole::SUPERVISOR, PersonRole::HSE_SUPERVISOR,
             ])],
             'country_id'     => ['required', 'integer', Rule::exists('countries', 'id')],
-            'nationality_id' => ['nullable', 'integer', Rule::exists('nationalities', 'id')->whereNull('deleted_at')],
+            'nationality_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'birthdate'      => ['nullable', 'date', 'before:today'],
             'is_active'      => ['sometimes', 'boolean'],
         ];

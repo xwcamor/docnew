@@ -4,7 +4,6 @@ namespace Tests\Feature\BusinessManagement;
 
 use App\Models\Company;
 use App\Models\DocumentType;
-use App\Models\Nationality;
 use App\Models\Person;
 use App\Models\PersonRole;
 use App\Models\Position;
@@ -63,9 +62,14 @@ class PeopleCrudTest extends CatalogTestCase
         );
     }
 
-    private function nacionalidad(): Nationality
+    /** Una nacionalidad es un PAIS: no hay catalogo aparte. */
+    private function nacionalidad(): \App\Models\Country
     {
-        return Nationality::firstOrCreate(['code' => 'Venezuela'], $this->base());
+        return \App\Models\Country::firstOrCreate(
+            ['iso_code' => 'VE'],
+            ['slug' => \Illuminate\Support\Str::random(22), 'region_id' => 999, 'name' => 'Venezuela',
+             'currency' => 'VES', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true],
+        );
     }
 
     private function persona(string $numDoc = '47019236'): Person

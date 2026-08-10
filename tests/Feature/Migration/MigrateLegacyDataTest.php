@@ -30,7 +30,13 @@ class MigrateLegacyDataTest extends TestCase
         DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_PE', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
         DB::table('regions')->insertOrIgnore([['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]]);
-        DB::table('countries')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        // Los paises que hacen falta. Venezuela no es decorado: la nacionalidad
+        // de una persona ES un pais, y sin el, el extranjero del volcado se
+        // quedaria sin ella y saldria con DNI en vez de con carne.
+        DB::table('countries')->insertOrIgnore([
+            ['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Venezuela', 'iso_code' => 'VE', 'currency' => 'VES', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()],
+        ]);
         DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
 
         // Los roles a los que la migracion mapea los perfiles de la v1.
@@ -297,12 +303,12 @@ class MigrateLegacyDataTest extends TestCase
     {
         $this->migrarTodo();
 
-        $this->assertSame(2, DB::table('nationalities')->whereNotNull('legacy_id')->count());
-
         $peruano = DB::table('people')->where('num_doc', '10000001')->first();
         $extranjero = DB::table('people')->where('num_doc', '10000002')->first();
 
-        $nombre = fn ($id) => DB::table('nationalities')->where('id', $id)->value('code');
+        // La nacionalidad apunta a `countries`: es un pais, no un catalogo
+        // aparte. Las de la v1 se emparejan por nombre sin tildes.
+        $nombre = fn ($id) => DB::table('countries')->where('id', $id)->value('name');
 
         $this->assertSame('Peru', $nombre($peruano->nationality_id));
         $this->assertSame('Venezuela', $nombre($extranjero->nationality_id));

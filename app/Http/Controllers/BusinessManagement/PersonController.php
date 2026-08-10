@@ -162,10 +162,9 @@ class PersonController extends Controller
             'docTypesByCountry' => $this->docTypesByCountry(),
             'roleOptions'       => $this->roleOptions(),
             'companyOptions'    => $this->companyOptions(),
-            'nationalityOptions' => \App\Models\Nationality::query()->where('is_active', true)->orderBy('code')
-                ->get(['id', 'code'])
-                ->map(fn ($n) => ['value' => $n->id, 'label' => $n->code])
-                ->all(),
+            // La nacionalidad ES un pais: misma lista que el de arriba. Habia
+            // un catalogo aparte con cuatro filas y un modulo CRUD detras.
+            'nationalityOptions' => $this->countryOptions(),
             // El cargo: Técnico, Supervisor, Mecánico, Eléctrico. En el sistema
             // anterior `workers.position_id` es NOT NULL —los 372 trabajadores
             // traen cargo— y aquí el campo no existía ni en el formulario.
@@ -363,7 +362,7 @@ class PersonController extends Controller
     {
         $person->load([
             'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
-            'country:id,name,iso_code', 'nationality:id,code',
+            'country:id,name,iso_code', 'nationality:id,name,iso_code',
             'roles', 'companyLinks.company:id,name', 'companyLinks.position:id,code',
             'currentPhoto', 'currentSignature',
         ])->loadCount([
@@ -455,7 +454,7 @@ class PersonController extends Controller
 
         // El vinculo con su empresa y su cargo: el formulario los edita, asi
         // que tienen que llegar cargados o saldrian siempre en blanco.
-        $person->load(['country:id,name,iso_code', 'nationality:id,code', 'roles', 'companyLinks.position:id,code']);
+        $person->load(['country:id,name,iso_code', 'nationality:id,name,iso_code', 'roles', 'companyLinks.position:id,code']);
 
         return inertia('People/Form', [
             'person'           => $this->payload($person),
@@ -781,7 +780,7 @@ class PersonController extends Controller
                 : null,
             'nationality_id' => $m->nationality_id,
             'nationality'    => $m->relationLoaded('nationality') && $m->nationality
-                ? ['id' => $m->nationality->id, 'code' => $m->nationality->code]
+                ? ['id' => $m->nationality->id, 'code' => $m->nationality->name]
                 : null,
             // Solo si es distinta del pais donde trabaja: es lo que hay que
             // mirar en la puerta, porque lleva carne de extranjeria y no DNI.

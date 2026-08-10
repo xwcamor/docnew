@@ -60,7 +60,9 @@ class StorePersonRequest extends FormRequest
                 PersonRole::WORKER, PersonRole::SUPERVISOR, PersonRole::HSE_SUPERVISOR,
             ])],
             'country_id'     => ['required', 'integer', Rule::exists('countries', 'id')],
-            'nationality_id' => ['nullable', 'integer', Rule::exists('nationalities', 'id')->whereNull('deleted_at')],
+            // La nacionalidad es un pais: no habia razon para tener dos
+            // catalogos de lo mismo, y compararlos por texto casi cuesta caro.
+            'nationality_id' => ['nullable', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
             'birthdate'      => ['nullable', 'date', 'before:today'],
             'is_active'      => ['sometimes', 'boolean'],
         ];

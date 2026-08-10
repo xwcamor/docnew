@@ -65,6 +65,5 @@ return [
     'workstations'       => 'Workstations',
     'work_areas'         => 'Areas',
     'positions'          => 'Positions',
-    'nationalities'      => 'Nationalities',
     'document_types'     => 'Document types',
 ];

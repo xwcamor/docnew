@@ -63,7 +63,7 @@ return [
     'country'              => 'País',
     'country_help'         => 'País del documento. Junto con el número define la unicidad de la persona.',
     'nationality'          => 'Nacionalidad',
-    'nationality_help'     => 'Nacionalidad declarada, si difiere del país del documento.',
+    'nationality_help'     => 'De dónde es. Si no coincide con el país del documento, la persona sale marcada como extranjera en el plan — que es lo que se comprueba en la puerta, porque lleva carné y no DNI.',
     'birthdate'            => 'Fecha de nacimiento',
     'birthdate_help'       => 'Opcional. Se usa para los reportes de personal.',
     'roles'                => 'Roles en obra',

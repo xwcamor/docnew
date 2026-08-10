@@ -1100,50 +1100,62 @@ class MigrateLegacyDataCommand extends Command
      */
     protected function tipoDeDocumento(?int $nacionalidadId): string
     {
+        // Sin nacionalidad no se deduce nada: se deja el DNI de siempre.
         if ($nacionalidadId === null) {
             return 'DNI';
         }
 
-        $codigo = \App\Models\Nationality::withTrashed()->whereKey($nacionalidadId)->value('code');
-
-        return $this->esDelPaisDeTrabajo((string) $codigo) ? 'DNI' : 'CE';
-    }
-
-    /** ¿La nacionalidad es la del pais donde se trabaja? */
-    protected function esDelPaisDeTrabajo(string $codigo): bool
-    {
-        $pais = \App\Models\Country::whereKey($this->countryId)->value('name');
-
-        $limpio = fn (string $t) => mb_strtolower(preg_replace('/\p{Mn}/u',
-            '', \Normalizer::normalize($t, \Normalizer::FORM_D) ?: $t) ?? $t);
-
-        return $limpio($codigo) === $limpio((string) $pais);
+        // Comparando IDS y no textos. Antes se comparaba el nombre de la
+        // nacionalidad con el del pais —«Peru» contra «Peru»— y bastaba con que
+        // la fila se hubiera sembrado como «Peruana» para que los 224 peruanos
+        // salieran con carne de extranjeria. Ahora la nacionalidad ES un pais.
+        return $nacionalidadId === $this->countryId ? 'DNI' : 'CE';
     }
 
     /**
-     * Nacionalidades. Se habia quedado sin migrar entera.
+     * Las nacionalidades de la v1, emparejadas con el catalogo de PAISES.
      *
      * En la v1 `workers.nationality_id` es NOT NULL: los 391 trabajadores traen
      * una, y la ficha del plan la enseñaba con una banderita al lado del
-     * nombre. Aqui la tabla estaba vacia y la columna de la persona en nulo.
-     *
-     * El reparto real de esos 391: 380 Peru, 9 Venezuela, 1 Chile, 1 Argentina.
+     * nombre. El reparto real: 380 Peru, 9 Venezuela, 1 Chile, 1 Argentina.
      * Son once personas, pero son once que llevan carne de extranjeria en vez
-     * de DNI, y eso es justo lo que el supervisor necesita saber en la puerta.
+     * de DNI, y eso es justo lo que el supervisor comprueba en la puerta.
      *
-     * @return array<int, int> legacy_id => nationalities.id
+     * Aqui NO se crea nada: una nacionalidad es un pais y `countries` ya los
+     * tiene los 26. Se empareja por nombre sin tildes ni mayusculas —«Perú» con
+     * «Peru»— y como respaldo por las tres primeras letras, que distinguen de
+     * sobra entre 26. Lo que no cuadre se queda fuera: la nacionalidad es
+     * opcional e inventarla seria peor que no tenerla.
+     *
+     * @return array<int, int> legacy_id => countries.id
      */
     protected function catalogoNacionalidades($viejo): array
     {
-        return $this->catalogo($viejo, 'nationalities', fn ($f) => \App\Models\Nationality::withTrashed()
-            ->where('country_id', $this->countryId)
-            ->whereRaw('lower(code) = ?', [mb_strtolower($f->name)])
-            ->first(),
-            fn ($f) => [
-                'country_id' => $this->countryId,
-                'code'       => $f->name,
-                'is_active'  => (bool) $f->is_active,
-            ]);
+        $limpio = fn (?string $t) => mb_strtolower(preg_replace('/[^a-z]/i', '',
+            preg_replace('/\p{Mn}/u', '', \Normalizer::normalize((string) $t, \Normalizer::FORM_D) ?: (string) $t) ?? ''));
+
+        $paises = \App\Models\Country::all(['id', 'name']);
+        $mapa = [];
+        $sinPareja = [];
+
+        foreach ($viejo->table('nationalities')->get(['id', 'name']) as $fila) {
+            $buscado = $limpio($fila->name);
+
+            if ($buscado === '') {
+                continue;
+            }
+
+            $pais = $paises->first(fn ($p) => $limpio($p->name) === $buscado)
+                ?? $paises->first(fn ($p) => str_starts_with($limpio($p->name), substr($buscado, 0, 3)));
+
+            $pais ? $mapa[$fila->id] = $pais->id : $sinPareja[] = $fila->name;
+        }
+
+        if ($sinPareja !== []) {
+            $this->warn('  Nacionalidades sin pais equivalente (se dejan en blanco): ' . implode(', ', $sinPareja));
+        }
+
+        return $mapa;
     }
 
     /** @return array<int, int> legacy_id => workstations.id */
@@ -1258,7 +1270,6 @@ class MigrateLegacyDataCommand extends Command
             'workstations'   => Workstation::class,
             'approval_rules' => ApprovalRule::class,
             'positions'      => \App\Models\Position::class,
-            'nationalities'  => \App\Models\Nationality::class,
         ][$tabla];
 
         $mapa = [];
@@ -1266,10 +1277,8 @@ class MigrateLegacyDataCommand extends Command
         $consulta = $viejo->table($tabla)->orderBy('id');
 
         // Los catalogos de la v1 son multipais; aqui solo se trae el que usan
-        // los planes. Workstations cuelga de la sede, y `nationalities` alli es
-        // una tabla plana sin pais —«Peru», «Venezuela»— porque no dice donde se
-        // trabaja sino de donde es la persona.
-        if (! in_array($tabla, ['workstations', 'nationalities'], true)) {
+        // los planes. Workstations cuelga de la sede y no del pais.
+        if ($tabla !== 'workstations') {
             $consulta->where('country_id', self::PAIS_LEGACY);
         }
 

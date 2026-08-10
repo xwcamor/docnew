@@ -12,7 +12,6 @@ use App\Http\Controllers\BusinessManagement\WorkLocationController;
 use App\Http\Controllers\BusinessManagement\WorkstationController;
 use App\Http\Controllers\BusinessManagement\WorkAreaController;
 use App\Http\Controllers\BusinessManagement\PositionController;
-use App\Http\Controllers\BusinessManagement\NationalityController;
 use App\Http\Controllers\BusinessManagement\DocumentTypeController;
 use App\Http\Controllers\BusinessManagement\PersonController;
 use App\Http\Controllers\BusinessManagement\CompanyController;
@@ -1063,65 +1062,6 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('positions/{position}/lock',   [PositionController::class, 'lock'])->name('positions.lock');
         Route::post('positions/{position}/unlock', [PositionController::class, 'unlock'])->name('positions.unlock');
-    });
-
-    // ── Nationalities ── La nacionalidad que se anota en la ficha de cada persona.
-    // Sin exportar ni importar: es un catalogo de un puñado de filas que se
-    // teclea una vez. Sin duplicar: clonar un nombre que tiene que ser unico
-    // dentro de su ambito no ahorra nada.
-
-    // 1) Papelera + restaurar (solo super)
-    Route::middleware('role:super')->group(function () {
-        Route::get('nationalities/trash',           [NationalityController::class, 'trash'])->name('nationalities.trash');
-        Route::post('nationalities/bulk_restore',   [NationalityController::class, 'bulkRestore'])->name('nationalities.bulk_restore');
-        Route::post('nationalities/{slug}/restore', [NationalityController::class, 'restore'])->name('nationalities.restore');
-        Route::get('nationalities/{slug}/restore',  fn () => redirect()->route('business_management.nationalities.trash'));
-    });
-
-    // 2) Masivas
-    Route::middleware(['permission:nationalities.delete', 'plan_feature:bulk_operations', 'throttle:10,1'])->group(function () {
-        Route::post('nationalities/bulk_delete',     [NationalityController::class, 'bulkDelete'])->name('nationalities.bulk_delete');
-        Route::post('nationalities/bulk_set_active', [NationalityController::class, 'bulkSetActive'])->name('nationalities.bulk_set_active');
-    });
-
-    // Deshacer el ultimo borrado (ventana de 60s)
-    Route::middleware('permission:nationalities.delete')->group(function () {
-        Route::post('nationalities/undo_last_delete', [NationalityController::class, 'undoLastDelete'])->name('nationalities.undo_last_delete');
-    });
-
-    // Desactivar desde el aviso de "esta en uso" — es la salida que se le ofrece
-    // al usuario cuando el borrado se rechaza, y por eso va con edit.
-    Route::middleware('permission:nationalities.edit')->group(function () {
-        Route::post('nationalities/{nationality}/deactivate', [NationalityController::class, 'deactivate'])->name('nationalities.deactivate');
-    });
-
-    // 3) CRUD — rutas de path fijo ANTES de las que llevan {nationality}.
-    Route::middleware('permission:nationalities.create')->group(function () {
-        Route::get('nationalities/create', [NationalityController::class, 'create'])->name('nationalities.create');
-        Route::post('nationalities',       [NationalityController::class, 'store'])->name('nationalities.store');
-    });
-
-    Route::middleware('permission:nationalities.view')->group(function () {
-        Route::get('nationalities',          [NationalityController::class, 'index'])->name('nationalities.index');
-        Route::get('nationalities/{nationality}',  [NationalityController::class, 'show'])->name('nationalities.show');
-    });
-
-    Route::middleware('permission:nationalities.edit')->group(function () {
-        Route::get('nationalities/{nationality}/edit', [NationalityController::class, 'edit'])->name('nationalities.edit');
-        Route::put('nationalities/{nationality}',      [NationalityController::class, 'update'])->name('nationalities.update');
-    });
-
-    Route::middleware('permission:nationalities.delete')->group(function () {
-        Route::get('nationalities/{nationality}/delete',        [NationalityController::class, 'delete'])->name('nationalities.delete');
-        Route::delete('nationalities/{nationality}/deleteSave', [NationalityController::class, 'deleteSave'])->name('nationalities.deleteSave');
-    });
-
-    // Bloquear/desbloquear (Lockable) — solo super|admin. El candado protege lo
-    // que cuelga del catalogo: renombrar una fila alcanza a todos los planes
-    // que la citan, cerrados incluidos.
-    Route::middleware('role:super|admin')->group(function () {
-        Route::post('nationalities/{nationality}/lock',   [NationalityController::class, 'lock'])->name('nationalities.lock');
-        Route::post('nationalities/{nationality}/unlock', [NationalityController::class, 'unlock'])->name('nationalities.unlock');
     });
 
     // 1) Papelera + restaurar (solo super)
