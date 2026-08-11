@@ -593,10 +593,18 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                          terminado está cerrado, y que ya no se pueda tocar lo
                          dice la columna de acciones, donde sale el candado en
                          lugar de Editar y Eliminar. -->
+                    <!-- Tres estados, no dos. «Reabierto» tambien esta en
+                         curso, pero no por lo mismo que un pendiente: ya estuvo
+                         terminado y alguien lo abrio para corregirlo. Sin
+                         distinguirlo, el plan reabierto de la semana pasada se
+                         pierde entre los pendientes del dia — y es justo el que
+                         alguien tiene que acordarse de volver a cerrar. -->
                     <template v-else-if="column.key === 'status'">
-                        <span class="pill" :class="record.is_done ? 'pill--ok' : 'pill--warn'">
+                        <span class="pill" :class="record.reopened_at ? 'pill--info' : (record.is_done ? 'pill--ok' : 'pill--warn')">
                             <span class="pill__dot" />
-                            {{ record.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
+                            {{ record.reopened_at
+                                ? $t('work_plans.state_reopened')
+                                : (record.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending')) }}
                         </span>
                     </template>
 
@@ -718,6 +726,13 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
 .pill--ok  .pill__dot { background: #1d7a44; box-shadow: 0 0 0 3px rgba(29,122,68,0.12); }
 .pill--off { color: #6a6d70; background: var(--color-surface-alt, #f3f4f6); border-color: var(--color-border, #e5e7eb); }
 .pill--off .pill__dot { background: #9aa0a6; }
+/* Reabierto: azul informativo. Estuvo terminado y alguien lo abrio para
+   corregirlo — no es el ambar del pendiente normal, porque no es el mismo
+   trabajo: este ya se hizo una vez y hay que acordarse de volver a cerrarlo.
+   Con tokens, no con hex: los de al lado son deuda de antes del estandar. */
+.pill--info { color: var(--state-info-text); background: var(--state-info-bg); border-color: var(--state-info-border); }
+.pill--info .pill__dot { background: var(--state-info-text); box-shadow: 0 0 0 3px var(--state-info-bg); }
+
 /* Pendiente: ámbar. Un plan sin terminar no es un error, es trabajo en curso. */
 .pill--warn { color: #8a5a00; background: rgba(224,150,0,0.10); border-color: rgba(224,150,0,0.22); }
 .pill--warn .pill__dot { background: #e09600; box-shadow: 0 0 0 3px rgba(224,150,0,0.12); }

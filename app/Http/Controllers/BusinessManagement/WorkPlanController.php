@@ -930,6 +930,11 @@ class WorkPlanController extends Controller
             'is_locked'  => $m->is_locked,
             'locked_at'  => $m->locked_at,
             'is_closed'  => (bool) $m->is_closed,
+            // Reabierto: en curso, pero no porque le falte algo — porque
+            // alguien lo abrio para corregirlo. El listado lo distingue del
+            // pendiente normal, que si no un plan que ya estuvo terminado se
+            // pierde entre los del dia.
+            'reopened_at' => $m->reopened_at,
             'lock_scope' => $m->lock_scope,
             'is_favorite' => (bool) ($m->is_favorite ?? false),
             'created_at' => $m->created_at,
