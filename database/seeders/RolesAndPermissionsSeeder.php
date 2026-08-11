@@ -218,6 +218,26 @@ class RolesAndPermissionsSeeder extends Seeder
             }
         }
 
-        $this->command?->info('Permissions: ' . Permission::count() . '. Roles: ' . Role::count() . '.');
+        // Que pasada es esta, dicho en el log.
+        //
+        // Este sembrador corre DOS VECES a proposito —la primera crea permisos
+        // y roles, la segunda los asigna cuando UsersSeeder ya ha creado a la
+        // gente— pero las dos imprimian exactamente la misma linea, «Permissions:
+        // 133. Roles: 7.», sin nada que las distinguiera. Quien instala ve el
+        // mismo sembrador con el mismo resultado dos veces seguidas y lo unico
+        // que puede pensar es que algo se esta ejecutando de mas.
+        //
+        // Se distinguen por si habia usuarios a los que asignar, que es
+        // literalmente lo que cambia entre una pasada y la otra.
+        $yaHayUsuarios = User::withoutGlobalScopes()->whereIn('email', array_keys($assignments))->exists();
+
+        $this->command?->info(sprintf(
+            'Permisos: %d. Roles: %d. (%s)',
+            Permission::count(),
+            Role::count(),
+            $yaHayUsuarios
+                ? 'segunda pasada: roles ya asignados a los usuarios'
+                : 'primera pasada: se definen permisos y roles; los usuarios todavia no existen',
+        ));
     }
 }

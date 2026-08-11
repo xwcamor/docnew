@@ -96,12 +96,18 @@ class SetupProjectCommand extends Command
             return false;
         }
 
-        // Las plantillas primero: cada AST llenado necesita su plantilla a la
-        // que colgarse. Lo hacia el seeder, y al dejar de migrar ahi hay que
-        // hacerlo aqui. (`migrate-data todo` las crearia igualmente, pero
-        // explicito se lee mejor y el orden queda a la vista.)
-        $this->call('docufiz:migrate-formats');
-
+        // Las plantillas NO se llaman desde aqui.
+        //
+        // Estaban, con el argumento de que «explicito se lee mejor y el orden
+        // queda a la vista». El efecto era el contrario: `migrate-data todo`
+        // las prepara igualmente (`prepararFormatos()`), asi que el bloque
+        // salia DOS VECES en la salida —las mismas cuatro lineas de «ya existe,
+        // se omite» y la misma tabla de cuatro filas— y quien miraba el log no
+        // podia saber si se estaba importando dos veces o si se habia colgado.
+        //
+        // No duplicaba trabajo (es idempotente) pero si duplicaba la duda, que
+        // en un corte de datos es igual de caro. Manda `migrate-data`, que es
+        // quien tiene la dependencia y quien se para si falla.
         $argumentos = ['paso' => 'todo'];
 
         if ($this->option('desde')) {
