@@ -593,48 +593,56 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
             :key="grupo.desde"
             class="ff-group"
         >
+            <!-- La franja de color es UNA fila, como la pidio el dueño:
+                 «Actividad N», el avance y el nivel a la izquierda, «Quitar
+                 esta actividad» a la derecha. -->
             <header class="ff-group__head">
-                <div class="ff-group__top">
-                    <span class="ff-group__tag">
-                        {{ $t('field_work.risk_matrix.activity_n', { n: g + 1 }) }}
-                    </span>
+                <span class="ff-group__tag">
+                    {{ $t('field_work.risk_matrix.activity_n', { n: g + 1 }) }}
+                </span>
 
-                    <span class="ff-count">
-                        {{ $t('field_work.progress.hazards_rated', {
-                            done: evaluadasDe(grupo), total: grupo.indices.length,
-                        }) }}
-                    </span>
+                <span class="ff-count">
+                    {{ $t('field_work.progress.hazards_rated', {
+                        done: evaluadasDe(grupo), total: grupo.indices.length,
+                    }) }}
+                </span>
 
-                    <!-- Color y PALABRA, nunca solo color (docs/UI.md §5). -->
-                    <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${nivelPeor(grupo)}`">
-                        {{ $t(`field_work.risk_matrix.level_${nivelPeor(grupo)}`) }}
-                    </span>
-                    <span v-else class="ff-risk is-none">
-                        {{ $t('field_work.risk_matrix.no_risk') }}
-                    </span>
+                <!-- Color y PALABRA, nunca solo color (docs/UI.md §5). -->
+                <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${nivelPeor(grupo)}`">
+                    {{ $t(`field_work.risk_matrix.level_${nivelPeor(grupo)}`) }}
+                </span>
+                <span v-else class="ff-risk is-none">
+                    {{ $t('field_work.risk_matrix.no_risk') }}
+                </span>
 
-                    <!-- En la captura de la v1 el boton rojo va aqui, arriba a
-                         la derecha del bloque — no en el pie, donde estaba. Es
-                         lo unico que borra mas de lo que se ve, asi que
-                         pregunta con la cuenta. -->
-                    <Popconfirm
-                        v-if="!readonly"
-                        :title="$tc('field_work.risk_matrix.remove_activity_confirm', grupo.indices.length)"
-                        :ok-text="$t('field_work.risk_matrix.remove_activity')"
-                        :cancel-text="$t('global.cancel')"
-                        @confirm="quitarActividad(grupo)"
-                    >
-                        <Button class="ff-group__del" danger>
-                            <template #icon><DeleteOutlined /></template>
-                            {{ $t('field_work.risk_matrix.remove_activity') }}
-                        </Button>
-                    </Popconfirm>
-                </div>
+                <!-- En la captura de la v1 el boton rojo va aqui, arriba a
+                     la derecha del bloque — no en el pie, donde estaba. Es
+                     lo unico que borra mas de lo que se ve, asi que
+                     pregunta con la cuenta. -->
+                <Popconfirm
+                    v-if="!readonly"
+                    :title="$tc('field_work.risk_matrix.remove_activity_confirm', grupo.indices.length)"
+                    :ok-text="$t('field_work.risk_matrix.remove_activity')"
+                    :cancel-text="$t('global.cancel')"
+                    @confirm="quitarActividad(grupo)"
+                >
+                    <Button class="ff-group__del" danger>
+                        <template #icon><DeleteOutlined /></template>
+                        {{ $t('field_work.risk_matrix.remove_activity') }}
+                    </Button>
+                </Popconfirm>
+            </header>
 
-                <div class="ff-group__name">
-                    <label class="ff-label">
-                        {{ $t('field_work.risk_matrix.activity') }}<span class="ff-block__req"> *</span>
-                    </label>
+            <!-- El nombre de la actividad, DEBAJO de la franja y con la
+                 etiqueta EN LA MISMA FILA que el texto (tambien peticion del
+                 dueño: etiqueta arriba y textarea abajo gastaba una linea).
+                 En angosto la fila parte sola y vuelven a quedar una encima
+                 de la otra. -->
+            <div class="ff-group__name">
+                <label class="ff-label">
+                    {{ $t('field_work.risk_matrix.activity') }}<span class="ff-block__req"> *</span>
+                </label>
+                <div class="ff-group__texto">
                     <CatalogSelect
                         :value="grupo.actividad" :options="actividades" :readonly="readonly"
                         :placeholder="$t('field_work.risk_matrix.search')"
@@ -644,7 +652,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                         {{ $t('field_work.risk_matrix.activity_hint') }}
                     </p>
                 </div>
-            </header>
+            </div>
 
             <!-- MODO TABLA: la de la captura, una fila por peligro y TODAS a
                  la vista. El «+» azul de la cabecera de Peligro añade fila a
