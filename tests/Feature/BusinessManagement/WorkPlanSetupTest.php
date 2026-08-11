@@ -66,6 +66,9 @@ class WorkPlanSetupTest extends TestCase
         foreach ([
             'work_plans.view', 'work_plans.edit', 'work_plans.create',
             'form_submissions.view', 'form_submissions.edit', 'form_submissions.sign', 'form_submissions.export',
+            // Dar de alta a alguien desde la ficha del plan sigue siendo del
+            // modulo de personas: la ficha es donde se hace, no de quien es.
+            'people.create',
         ] as $p) {
             Permission::firstOrCreate(['name' => $p, 'guard_name' => 'web']);
         }
@@ -125,6 +128,96 @@ class WorkPlanSetupTest extends TestCase
         ]);
 
         $this->assertSame(1, $plan->people()->where('person_id', $persona->id)->count());
+    }
+
+    /**
+     * Dar de alta a quien no estaba, sin salir de la ficha.
+     *
+     * En la puerta se escanea un documento que no esta registrado —el peon que
+     * entra hoy por primera vez— y hasta ahora eso obligaba a irse al modulo de
+     * Personas, rellenar la ficha entera y volver. Con la cuadrilla esperando.
+     *
+     * Se piden cuatro datos; **la empresa y el pais los pone el servidor desde
+     * el plan**, y eso es lo que fija esta prueba: si se rompe, la persona nace
+     * sin empresa o con el pais de otro sitio y nadie se entera hasta que
+     * alguien abre su ficha.
+     */
+    public function test_se_da_de_alta_a_un_trabajador_desde_la_ficha_y_entra_al_plan(): void
+    {
+        $plan = $this->plan();
+        $cargo = \App\Models\Position::firstOrCreate(['code' => 'TECNICO'], $this->base());
+
+        $alta = $this->supervisor();
+        $alta->givePermissionTo('people.create');
+
+        $this->actingAs($alta)
+            ->post(route('business_management.work_plans.crew.person', $plan->slug), [
+                'name' => 'Ana', 'lastname' => 'Quispe',
+                'num_doc' => '40 999-111', 'doc_type' => 'DNI',
+                'position_id' => $cargo->id,
+            ]);
+
+        // El documento se guarda sin espacios ni guiones, igual que en el alta
+        // normal: asi lo encuentra el buscador la proxima vez.
+        $persona = Person::where('num_doc', '40999111')->first();
+
+        $this->assertNotNull($persona, 'no se creo la persona');
+        $this->assertSame(1, $plan->people()->where('person_id', $persona->id)->count(),
+            'se creo la persona pero no entro al plan');
+
+        $this->assertSame($plan->country_id, $persona->country_id);
+        $this->assertSame($plan->company_id, $persona->companyLinks()->first()?->company_id,
+            'la empresa sale del plan: es la contratista que ejecuta el trabajo');
+    }
+
+    /** Un documento repetido se dice en su campo, no revienta por el indice unico. */
+    public function test_dar_de_alta_un_documento_repetido_avisa_en_el_campo(): void
+    {
+        $plan = $this->plan();
+        $cargo = \App\Models\Position::firstOrCreate(['code' => 'TECNICO'], $this->base());
+        $this->persona('Juan', 'Perez', '40000001');
+
+        $alta = $this->supervisor();
+        $alta->givePermissionTo('people.create');
+
+        $this->actingAs($alta)
+            ->post(route('business_management.work_plans.crew.person', $plan->slug), [
+                'name' => 'Otro', 'lastname' => 'Distinto',
+                'num_doc' => '40000001', 'doc_type' => 'DNI',
+                'position_id' => $cargo->id,
+            ])
+            ->assertSessionHasErrors('num_doc');
+
+        $this->assertSame(0, $plan->people()->count());
+    }
+
+    /**
+     * Crear una persona es del modulo de personas, aunque se haga desde el plan.
+     *
+     * La ruta cuelga de `work_plans.edit` porque vive en la ficha, y eso sin mas
+     * seria una puerta de atras al padron: quien puede armar un plan daria de
+     * alta gente sin tener el permiso que hace falta para darla de alta.
+     */
+    public function test_armar_el_plan_no_alcanza_para_dar_de_alta_a_nadie(): void
+    {
+        $plan = $this->plan();
+        $cargo = \App\Models\Position::firstOrCreate(['code' => 'TECNICO'], $this->base());
+
+        // Este supervisor tiene `work_plans.edit` y NO `people.create`.
+        $this->actingAs($this->supervisor())
+            ->post(route('business_management.work_plans.crew.person', $plan->slug), [
+                'name' => 'Ana', 'lastname' => 'Quispe',
+                'num_doc' => '40999222', 'doc_type' => 'DNI',
+                'position_id' => $cargo->id,
+            ])
+            // El proyecto no devuelve la pagina de 403 a un usuario con sesion:
+            // lo manda al panel con un aviso (ver bootstrap/app.php). Lo que se
+            // comprueba aqui es que NO acaba en la ficha, que es donde vuelven
+            // las acciones que si se permiten.
+            ->assertRedirect(route('dashboard_management.dashboards.index'));
+
+        $this->assertNull(Person::where('num_doc', '40999222')->first(),
+            'se creo la persona sin tener permiso para crear personas');
     }
 
     /** El indice unico existe, pero el usuario merece un mensaje y no un error 500. */

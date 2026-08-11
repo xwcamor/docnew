@@ -548,6 +548,25 @@ class WorkPlanController extends Controller
                     'is_required' => (bool) $r->is_required,
                 ])
                 ->all(),
+
+            // Lo que hace falta para dar de alta a alguien sin salir de la
+            // ficha: el cargo y el tipo de documento. Nada mas — la empresa y
+            // el pais salen del plan.
+            //
+            // Los tipos son los DEL PAIS DEL PLAN, no una lista fija: dar de
+            // alta a un trabajador de una obra en Chile ofreciendo «DNI» es el
+            // fallo que ya se corrigio en el formulario de personas.
+            'positions' => \App\Models\Position::query()
+                ->where('is_active', true)
+                ->where(fn ($q) => $q->where('country_id', $workPlan->country_id)->orWhereNull('country_id'))
+                ->orderBy('code')
+                ->get(['id', 'code'])
+                ->map(fn ($p) => ['value' => $p->id, 'label' => $p->code])
+                ->all(),
+            'docTypes' => \App\Models\DocumentType::delPais($workPlan->country_id)
+                ->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])
+                ->values()
+                ->all(),
         ];
     }
 

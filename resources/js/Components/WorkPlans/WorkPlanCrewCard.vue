@@ -1,11 +1,13 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { router, useForm } from '@inertiajs/vue3';
 import {
-    Alert, Card, Tag, Button, Input, Popconfirm, Tooltip, Popover,
+    Alert, Card, Tag, Button, Input, InputGroup, Popconfirm, Tooltip, Popover,
+    Modal, Form, FormItem, Select,
 } from 'ant-design-vue';
 import {
     TeamOutlined, DeleteOutlined, EditOutlined, IdcardOutlined, LoadingOutlined, CameraOutlined,
+    UserAddOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
@@ -29,6 +31,11 @@ const props = defineProps({
     crew:     { type: Array,  default: () => [] },
     canEdit:  { type: Boolean, default: false },
     canSign:  { type: Boolean, default: false },
+    /** Cargos y tipos de documento del país del plan, para el alta rápida. */
+    positions: { type: Array, default: () => [] },
+    docTypes:  { type: Array, default: () => [] },
+    /** Dar de alta es del módulo de personas, no del plan. */
+    canCreatePerson: { type: Boolean, default: false },
 });
 
 const { t } = useI18n();
@@ -139,6 +146,41 @@ const quitar = (fila) => {
 // llegar a un listado y tener que volver a buscar a quien acabas de elegir.
 const firmar = (fila) => router.get(
     route('field_work.signatures.show', props.planSlug), { target: fila.slug });
+
+// ── Dar de alta a quien no estaba ────────────────────────────────────────────
+//
+// El aviso decía «da de alta al trabajador primero» y ahí se acababa: había que
+// irse al módulo de Personas, rellenar la ficha entera, volver al plan,
+// buscarlo otra vez y volver a teclear el documento. Con la cuadrilla esperando
+// en la puerta.
+//
+// Se piden cuatro datos y no la ficha completa: **la empresa y el país los pone
+// el servidor desde el plan**. La empresa del plan es la contratista que
+// ejecuta el trabajo, que es para quien trabaja esa persona; el país es donde
+// se está trabajando. Ofrecerlos aquí sería ofrecer equivocarse.
+
+const alta = useForm({ name: '', lastname: '', num_doc: '', doc_type: null, position_id: null });
+const abriendoAlta = ref(false);
+
+const abrirAlta = () => {
+    alta.reset();
+    alta.clearErrors();
+    alta.num_doc = documento.value;
+    // Con un solo tipo de documento en el país no hay nada que elegir.
+    alta.doc_type = props.docTypes.length === 1 ? props.docTypes[0].value : null;
+    abriendoAlta.value = true;
+};
+
+const guardarAlta = () => {
+    alta.post(route('business_management.work_plans.crew.person', props.planSlug), {
+        preserveScroll: true,
+        onSuccess: () => {
+            abriendoAlta.value = false;
+            documento.value = '';
+            aviso.value = '';
+        },
+    });
+};
 </script>
 
 <template>
@@ -256,7 +298,84 @@ const firmar = (fila) => router.get(
             <p class="wp-add__hint" :class="{ 'is-bad': aviso === $t('work_plans.crew_no_results') }">
                 {{ aviso || $tc('work_plans.crew_search_hint', minimo, { count: minimo }) }}
             </p>
+
+            <!-- Y si no está registrado, se da de alta aquí mismo.
+                 El botón sale sólo cuando el servidor ya ha dicho que ese
+                 documento no existe: antes de eso no hay nada que crear y sería
+                 un botón invitando a duplicar a alguien que sí está. -->
+            <Button
+                v-if="canCreatePerson && aviso === $t('work_plans.crew_no_results')"
+                type="primary"
+                size="large"
+                block
+                class="wp-add__alta"
+                @click="abrirAlta"
+            >
+                <template #icon><UserAddOutlined /></template>
+                {{ $t('work_plans.crew_create_person') }}
+            </Button>
         </div>
+
+        <!-- Cuatro campos, no la ficha entera. -->
+        <Modal
+            v-model:open="abriendoAlta"
+            :title="$t('work_plans.crew_create_person_title')"
+            :ok-text="$t('work_plans.crew_create_person_ok')"
+            :cancel-text="$t('global.cancel')"
+            :confirm-loading="alta.processing"
+            @ok="guardarAlta"
+        >
+            <p class="wp-alta__hint">{{ $t('work_plans.crew_create_person_help') }}</p>
+
+            <Form layout="vertical" @submit.prevent="guardarAlta">
+                <FormItem
+                    :label="$t('people.num_doc')"
+                    :validate-status="alta.errors.num_doc ? 'error' : ''"
+                    :help="alta.errors.num_doc"
+                >
+                    <InputGroup compact class="wp-alta__doc">
+                        <Select
+                            v-model:value="alta.doc_type"
+                            :options="docTypes"
+                            :placeholder="$t('people.doc_type')"
+                            class="wp-alta__doc-type"
+                        />
+                        <Input v-model:value="alta.num_doc" inputmode="numeric" :maxlength="20" class="wp-alta__doc-num" />
+                    </InputGroup>
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.name')"
+                    :validate-status="alta.errors.name ? 'error' : ''"
+                    :help="alta.errors.name"
+                >
+                    <Input v-model:value="alta.name" size="large" autocomplete="off" />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.lastname')"
+                    :validate-status="alta.errors.lastname ? 'error' : ''"
+                    :help="alta.errors.lastname"
+                >
+                    <Input v-model:value="alta.lastname" size="large" autocomplete="off" />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('people.position')"
+                    :validate-status="alta.errors.position_id ? 'error' : ''"
+                    :help="alta.errors.position_id"
+                >
+                    <Select
+                        v-model:value="alta.position_id"
+                        :options="positions"
+                        show-search
+                        option-filter-prop="label"
+                        size="large"
+                        style="width: 100%"
+                    />
+                </FormItem>
+            </Form>
+        </Modal>
 
     </Card>
 </template>
@@ -269,6 +388,16 @@ const firmar = (fila) => router.get(
 .wp-add { margin-top: 14px; }
 .wp-add__hint { margin: 6px 2px 0; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 .wp-add__hint.is-bad { color: var(--color-error, #BB0000); }
+.wp-add__alta { margin-top: 10px; }
+
+/* El alta rápida. El documento va en una línea: el tipo manda poco espacio y el
+   número mucho, que es como se lee. */
+.wp-alta__hint { margin: 0 0 16px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+.wp-alta__doc { display: flex; width: 100%; }
+.wp-alta__doc-type { flex: 0 0 40%; }
+.wp-alta__doc-num  { flex: 1 1 auto; }
+.wp-alta__doc :deep(.ant-select-selector),
+.wp-alta__doc :deep(.ant-input) { min-height: 40px; }
 
 /* La lista no pone nada: cada fila es WorkPlanBoardRow, que es la misma en las
    tres columnas del tablero. */

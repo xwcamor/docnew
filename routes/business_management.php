@@ -494,6 +494,7 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('permission:work_plans.edit')->group(function () {
         Route::get('work_plans/{workPlan}/crew/candidates',              [WorkPlanSetupController::class, 'personCandidates'])->name('work_plans.crew.candidates');
         Route::post('work_plans/{workPlan}/crew',                        [WorkPlanSetupController::class, 'addPerson'])->name('work_plans.crew.store');
+        Route::post('work_plans/{workPlan}/crew/person',                 [WorkPlanSetupController::class, 'storePerson'])->name('work_plans.crew.person');
         Route::delete('work_plans/{workPlan}/crew/{workPlanPerson:slug}', [WorkPlanSetupController::class, 'removePerson'])->name('work_plans.crew.destroy')->withoutScopedBindings();
 
         Route::post('work_plans/{workPlan}/forms',                  [WorkPlanSetupController::class, 'addForm'])->name('work_plans.forms.store');

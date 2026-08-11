@@ -10,6 +10,7 @@ use App\Models\Person;
 use App\Models\WorkPlan;
 use App\Models\WorkPlanApproval;
 use App\Models\WorkPlanPerson;
+use App\Services\BusinessManagement\PersonService;
 use App\Services\BusinessManagement\WorkPlanSetupService;
 use App\Support\LikeQuery;
 use Illuminate\Http\JsonResponse;
@@ -178,6 +179,68 @@ class WorkPlanSetupController extends Controller
 
         return $this->run($workPlan, fn () => $this->armado->addPerson($workPlan, $persona),
             __('work_plans.crew_added', ['name' => $persona->full_name]));
+    }
+
+    /**
+     * Dar de alta a alguien que no estaba, sin salir de la ficha.
+     *
+     * En la puerta se escanea un documento y a veces no esta registrado: es el
+     * peon que entra hoy por primera vez. Hasta ahora el aviso decia «da de alta
+     * al trabajador primero», y eso significaba irse al modulo de Personas,
+     * rellenar la ficha entera, volver al plan, buscarlo otra vez y volver a
+     * teclear el documento. Con la cuadrilla esperando en la puerta.
+     *
+     * Aqui se piden solo los cuatro datos que el plan no sabe: nombre,
+     * apellidos, tipo de documento y cargo. **La empresa y el pais salen del
+     * plan**, y no es un atajo — la empresa del plan es la contratista que
+     * ejecuta el trabajo, que es justo para quien trabaja esa persona, y el pais
+     * es donde se esta trabajando. Ofrecerlos a mano seria ofrecer equivocarse.
+     *
+     * Se crea y se mete al plan en el mismo gesto: nadie da de alta a alguien
+     * desde aqui para dejarlo fuera de la cuadrilla.
+     */
+    public function storePerson(Request $request, WorkPlan $workPlan): RedirectResponse
+    {
+        // La ruta cuelga de `work_plans.edit`, pero esto crea una PERSONA: el
+        // permiso que manda es el del modulo de personas. Sin esto, cualquiera
+        // que pueda armar un plan daria de alta gente en el padron por la
+        // puerta de atras.
+        abort_unless($request->user()?->can('people.create'), 403);
+
+        $datos = $request->validate([
+            'name'        => ['required', 'string', 'max:255'],
+            'lastname'    => ['required', 'string', 'max:255'],
+            'num_doc'     => ['required', 'string', 'max:20'],
+            'doc_type'    => ['required', 'string', 'max:20'],
+            'position_id' => ['required', 'integer', 'exists:positions,id'],
+        ]);
+
+        // Sin espacios ni guiones, igual que StorePersonRequest: asi se compara
+        // y asi lo encuentra el buscador del documento la proxima vez.
+        $datos['num_doc'] = preg_replace('/[\s-]/', '', $datos['num_doc']);
+
+        // Que no exista ya, dicho en el campo donde se escribio y no como un
+        // 500. Puede pasar por dos supervisores en la misma puerta, o porque la
+        // persona esta de baja y por eso el buscador no la ofrecia.
+        $repetido = Person::withTrashed()
+            ->where('num_doc', $datos['num_doc'])
+            ->where('doc_type', $datos['doc_type'])
+            ->first();
+
+        if ($repetido) {
+            return back()->withErrors(['num_doc' => __('work_plans.crew_person_exists', [
+                'name' => $repetido->list_name,
+            ])]);
+        }
+
+        $persona = app(PersonService::class)->create($datos + [
+            'company_id' => $workPlan->company_id,
+            'country_id' => $workPlan->country_id,
+            'is_active'  => true,
+        ]);
+
+        return $this->run($workPlan, fn () => $this->armado->addPerson($workPlan, $persona),
+            __('work_plans.crew_person_created', ['name' => $persona->full_name]));
     }
 
     public function removePerson(WorkPlan $workPlan, WorkPlanPerson $workPlanPerson): RedirectResponse

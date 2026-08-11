@@ -578,6 +578,9 @@ const irAlRepresentante = () => {
                             :crew="crew"
                             :can-edit="canSetup"
                             :can-sign="fieldWork.canSign"
+                            :positions="setupOptions.positions ?? []"
+                            :doc-types="setupOptions.docTypes ?? []"
+                            :can-create-person="canSetup && can('people.create')"
                         />
                     </div>
 
