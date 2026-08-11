@@ -300,6 +300,47 @@ dos sitios.
 
 ---
 
+## 5-quater. O hay icono, o no hay hueco
+
+Un icono que falta **no da error**. Vue no encuentra el componente, pinta un
+elemento desconocido que no ocupa nada y sigue; en producción ni siquiera avisa
+por consola. Lo que ve el usuario es el sitio del símbolo en blanco, y sólo lo
+descubre quien abra esa pantalla concreta.
+
+Las dos formas de dejar un hueco, que son las dos que ya pasaron:
+
+| Cómo se cuela | Qué se ve |
+| --- | --- |
+| El icono se escribe en el template y **nadie lo importa** en ese archivo | Nada donde iba el símbolo |
+| La cabecera compartida **dibuja el recuadro** y la pantalla no pasa el slot `#icon` | Un cuadrado de color de 40×40 y nada dentro |
+
+Reglas:
+
+- **Todo icono se importa en el archivo que lo pinta**, y con un nombre que el
+  paquete publique de verdad — `@ant-design/icons-vue` no trae todos los que uno
+  se imagina (no hay `SunOutlined` ni `MoonOutlined`, por ejemplo). Se comprueba
+  contra `node_modules`, no de memoria.
+- **Un mapa de iconos siempre tiene salida por defecto.** `{ ok: …, bad: … }` al
+  que le llega otra clave devuelve `undefined`, y eso se pinta vacío.
+- **Un recuadro que reserva sitio para un icono se pinta sólo si hay icono**
+  (`v-if="$slots.icon"`). Así la pantalla que se olvida del slot se queda sin
+  icono, que es menos malo que quedarse con el cuadrado.
+- Y aun así, **toda cabecera pasa el suyo**: `SectionHeader`, `CatalogPageHeader`
+  y `CatalogEmptyState` van con `<template #icon>`, y es el mismo icono con el
+  que ese módulo sale en el menú lateral. Un concepto, un icono.
+- Un icono decorativo lleva `aria-hidden`; si es lo único que hay dentro de un
+  botón, el botón necesita `aria-label`.
+
+> *Caso real:* «en todos los formatos le has puesto un icono vacío». Dos
+> papeleras usaban `<SearchOutlined />` sin importarlo —el mismo copiar y pegar
+> en automatizaciones y en planes— y las tres pantallas de trabajo en obra
+> llamaban a `SectionHeader` sin el slot, así que salía el cuadrado tintado en
+> blanco encima del título.
+
+`UiStandardTest` lo comprueba: los nombres, los imports y la guarda del recuadro.
+
+---
+
 ## 6. Nada destruye evidencia
 
 Un documento de seguridad puede acabar delante de un inspector. En DOCUFIZ:
@@ -404,6 +445,8 @@ medían 57 y 49, y son pantallas que se abren una detrás de otra.
 - [ ] A 1024×768 no hay scroll horizontal; a 768 se apila
 - [ ] Los objetivos de toque llegan a 44 px
 - [ ] Cada estado tiene color **y** palabra
+- [ ] Cada icono está importado en su archivo y ningún recuadro de icono sale
+      vacío
 - [ ] Lo que no se puede hacer sale deshabilitado y explica por qué
 - [ ] **Comprobado en un navegador de verdad, con datos reales** — no sólo
       `npm run build`

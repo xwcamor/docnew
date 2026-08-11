@@ -1675,6 +1675,55 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
    de tamaño al seleccionarla y las de al lado no se muevan. */
 .ff-chipnav.is-active { outline: 3px solid var(--color-primary, #0A6ED1); outline-offset: -3px; }
 
+/* ── Actividad = bloque que agrupa a sus peligros (AST y PTF) ────────────────
+   Un AST no es una lista de peligros: es una lista de actividades y, dentro de
+   cada una, sus peligros. En la v1 eso es un `card` por actividad con su tabla
+   dentro (`_f1_document_activity_fields.html.erb`), y aqui es este bloque con
+   las tarjetas de peligro dentro.
+
+   La cabecera NO es un boton de plegado como la de la fila: lleva dentro el
+   selector de la actividad, y un desplegable dentro de un boton no se puede
+   usar. La actividad tampoco se pliega — es el titulo de lo que hay debajo. */
+.ff-group {
+    border: 1px solid var(--color-border-strong, #cbd5e1);
+    border-radius: 14px;
+    background: var(--color-surface, #fff);
+    margin-bottom: 18px;
+    overflow: hidden;
+    scroll-margin-top: calc(var(--shell-bar-h) + 12px);
+}
+.ff-group__head {
+    padding: 12px;
+    background: var(--color-surface-alt, #f8fafc);
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+.ff-group__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+/* «Actividad 1»: el mismo numero que lleva el papel, para poder hablar de ella
+   por telefono sin leer el nombre entero. */
+.ff-group__tag {
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border-radius: 8px;
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    background: var(--color-primary-soft, #eaf3fc); color: var(--color-primary, #0A6ED1);
+}
+.ff-group__name .ff-cardhint { margin: 6px 0 0; }
+/* El desplegable «grande» de Ant mide 40 px y aqui el minimo son 44: son los
+   controles que mas se tocan del AST y se tocan con guantes. */
+.ff-group__name .ant-select-selector,
+.ff-cell .ant-select-selector { min-height: 44px; align-items: center; }
+/* Las tarjetas de peligro respiran dentro de su actividad, y la ultima no deja
+   un hueco muerto contra el pie. */
+.ff-group__body { padding: 12px 12px 0; }
+.ff-group__body > .ff-row:last-child { margin-bottom: 0; }
+.ff-group__foot {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px;
+}
+.ff-group__foot .ant-btn { min-height: 44px; }
+/* Quitar la actividad se lleva sus peligros por delante, asi que no comparte
+   sitio con «Añadir peligro»: se va al otro extremo del pie. */
+.ff-group__del { margin-left: auto; }
+
 /* ── Fila = tarjeta plegable (trabajador, herramienta o peligro) ─────────── */
 .ff-row {
     border: 1px solid var(--color-border, #e5e7eb);
@@ -1932,9 +1981,45 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
     .ff-row__foot { flex-direction: column; align-items: stretch; }
     .ff-row__foot .ant-btn { width: 100%; }
     .ff-row__next { margin-left: 0; }
+    /* Lo mismo en el pie de la actividad: «Añadir peligro» y «Quitar esta
+       actividad» a ancho completo, cada una en su linea, para no acertar la
+       que no era con guantes. */
+    .ff-group__foot { flex-direction: column; align-items: stretch; }
+    .ff-group__foot .ant-btn { width: 100%; }
+    .ff-group__del { margin-left: 0; }
     .ff-nav__all { width: 100%; }
     .ff-actions { margin: 16px -14px -14px; }
+    /* Llenando hay TRES acciones —confirmar, guardar y salir—, una mas que
+       cualquier otro formulario, y la rejilla de dos columnas de la barra
+       compartida las parte siempre en dos filas: 125 px de pie en una tablet en
+       VERTICAL, donde la misma tablet en horizontal mide 69. Medido en el
+       navegador.
+
+       Una tablet en vertical tiene sitio de sobra para las tres —231 px cada
+       una, y la mas ancha, «Confirmar formato», mide 170—, asi que de 600 px
+       para arriba se pasa a tres columnas y el pie vuelve a medir 69.
+
+       Por debajo de 600 no caben dos: en un movil de 390 la rejilla de dos deja
+       columnas de 163 px y «Confirmar formato» y «Guardar cambios» miden 182 y
+       174, o sea que el segundo boton se salia de la franja y se veia cortado
+       por el borde de la pantalla. Ahi cada accion se lleva su linea entera,
+       que es ademas lo que dice el estandar para pantalla estrecha (docs/UI.md
+       §3) y lo que mejor se acierta con guantes. El pie sube a 181 px, y es un
+       movil: la pantalla para la que esto se construye es la tablet.
+
+       Las dos cosas SOLO cuando hay tres acciones (`:has`): en solo lectura hay
+       dos —o una— y esas caben en la rejilla de siempre; con tres columnas se
+       irian a la izquierda dejando un tercio de franja vacio, y apiladas
+       ocuparian el doble de alto para nada.
+
+       No es otra barra: es la rejilla que la compartida ya declara para
+       pantalla estrecha, con las columnas que pide un pie de tres acciones. */
     .ff-actions .ant-btn { flex: 1 1 0; }
+    .ff-actions .sap-actionbar__actions:has(> :nth-child(3)) { grid-template-columns: 1fr; }
+
+    @media (min-width: 600px) {
+        .ff-actions .sap-actionbar__actions:has(> :nth-child(3)) { grid-template-columns: repeat(3, 1fr); }
+    }
     /* La fila de trabajadores se apila: nombre arriba, estado y boton debajo,
        a ancho completo para poder pulsarlos con guantes.
 

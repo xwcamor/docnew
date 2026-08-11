@@ -25,7 +25,9 @@ defineEmits(['clear-filters']);
 
 <template>
     <div class="empty-state">
-        <div class="empty-state__icon"><slot name="icon" /></div>
+        <!-- Sin slot no hay glifo de 56px, sólo su hueco: el bloque se pinta
+             únicamente cuando hay algo que enseñar (igual que SectionHeader). -->
+        <div v-if="$slots.icon" class="empty-state__icon"><slot name="icon" /></div>
         <h3>{{ hasFilters ? $t('global.no_results') : $t('global.no_records') }}</h3>
         <p>{{ hasFilters ? $t('global.try_adjust_filters') : $t(`${module}.empty_hint`) }}</p>
         <Space wrap>

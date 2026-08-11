@@ -3,6 +3,9 @@ import { ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
+// El mismo icono con el que las firmas salen en el menú lateral: un concepto,
+// un icono en toda la aplicación.
+import { SafetyOutlined } from '@ant-design/icons-vue';
 
 defineProps({ events: Object });
 defineOptions({ layout: AppLayout });
@@ -21,7 +24,9 @@ function resolver(evento, aceptada) {
     <div class="mi-console">
         <SectionHeader
             :title="$t('sidebar.signature_events')"
-            subtitle="Firmas que se capturaron sin reconocimiento y esperan revision" />
+            subtitle="Firmas que se capturaron sin reconocimiento y esperan revision">
+            <template #icon><SafetyOutlined /></template>
+        </SectionHeader>
 
         <a-empty v-if="!events.data.length" description="No hay firmas pendientes" />
 

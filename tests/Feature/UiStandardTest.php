@@ -539,6 +539,214 @@ class UiStandardTest extends TestCase
             . implode("\n  ", array_unique($encontradas)));
     }
 
+    /**
+     * Ningun icono se queda en un hueco.
+     *
+     * Un `<SearchOutlined />` que nadie importo no revienta: Vue no encuentra el
+     * componente, pinta un elemento desconocido —vacio— y sigue. En produccion
+     * ni siquiera avisa por consola. Lo que queda es el hueco donde iba la lupa,
+     * y solo lo ve quien abre esa pantalla concreta. Paso en dos papeleras a la
+     * vez, la de automatizaciones y la de planes, con el mismo copiar y pegar.
+     *
+     * Y el nombre tiene que existir DE VERDAD: `@ant-design/icons-vue` no
+     * publica todos los glifos que uno se imagina —no hay `SunOutlined` ni
+     * `MoonOutlined`, por ejemplo—, asi que la lista se saca del paquete
+     * instalado y no de la memoria de nadie.
+     */
+    public function test_todo_icono_que_se_pinta_esta_importado_y_existe(): void
+    {
+        $delPaquete = $this->iconosDelPaquete();
+
+        if ($delPaquete === []) {
+            $this->markTestSkipped('Sin node_modules: no hay contra que comprobar los nombres de icono.');
+        }
+
+        $problemas = [];
+
+        foreach ($this->archivosDelFront() as $archivo) {
+            $corto = str_replace(resource_path('js') . '/', '', $archivo);
+            $fuente = file_get_contents($archivo);
+            $esVue = str_ends_with($archivo, '.vue');
+
+            $script = $esVue ? $this->bloqueDeScript($fuente) : $fuente;
+            // Los imports se leen con las cadenas intactas: el nombre del
+            // paquete ES una cadena, y vaciarlas antes deja `from ''`.
+            $codigo = $this->sinComentarios($script);
+
+            // 1. Lo que el fichero importa del paquete de iconos.
+            $importados = [];
+
+            preg_match_all("/import\s*\{([^}]*)\}\s*from\s*['\"]@ant-design\/icons-vue['\"]/", $codigo, $bloques);
+
+            foreach ($bloques[1] as $bloque) {
+                foreach (explode(',', $bloque) as $trozo) {
+                    $trozo = trim($trozo);
+
+                    if ($trozo === '') {
+                        continue;
+                    }
+
+                    // `X as Y`: el nombre que se pinta es Y, el que tiene que
+                    // existir en el paquete es X.
+                    $partes = preg_split('/\s+as\s+/', $trozo);
+                    $original = trim($partes[0]);
+                    $importados[] = trim($partes[1] ?? $partes[0]);
+
+                    if (! in_array($original, $delPaquete, true)) {
+                        $problemas[] = "{$corto} → importa {$original}, que no existe en @ant-design/icons-vue";
+                    }
+                }
+            }
+
+            // 2. Lo que el fichero define o trae de otro sitio. Un icono puede
+            //    venir envuelto en un componente propio, y eso vale.
+            $propios = $this->identificadoresPropios($codigo);
+
+            // 3. Lo que se pinta. En el `.vue` cuentan las etiquetas del
+            //    template —`<SearchOutlined />`— y en el codigo los usos como
+            //    valor —`{ icon: SearchOutlined }`—, que acaban igual de vacios.
+            $usados = [];
+
+            if ($esVue) {
+                preg_match_all('/<([A-Z][A-Za-z0-9]*(?:Outlined|Filled|TwoTone))[\s\/>]/',
+                    $this->bloqueDePlantilla($fuente), $etiquetas);
+                $usados = $etiquetas[1];
+            }
+
+            preg_match_all('/\b([A-Z][A-Za-z0-9]*(?:Outlined|Filled|TwoTone))\b/',
+                $this->sinCadenas($codigo), $enCodigo);
+            $usados = array_merge($usados, $enCodigo[1]);
+
+            foreach (array_unique($usados) as $icono) {
+                if (in_array($icono, $importados, true) || in_array($icono, $propios, true)) {
+                    continue;
+                }
+
+                $problemas[] = "{$corto} → pinta {$icono} y no lo importa";
+            }
+        }
+
+        $this->assertSame([], array_values(array_unique($problemas)),
+            "Iconos que se van a quedar en un hueco (ver docs/UI.md §9):\n  "
+            . implode("\n  ", array_unique($problemas)));
+    }
+
+    /**
+     * Ningun recuadro de icono se pinta sin icono dentro.
+     *
+     * Las cabeceras compartidas dibujan el hueco del icono ELLAS —un cuadrado de
+     * 40x40 con su tinte, un glifo de 56px en el estado vacio— y lo rellenan con
+     * el slot `#icon`. La pantalla que se olvida del slot no se queda sin icono:
+     * se queda con el cuadrado de color y nada dentro, que el usuario lee como
+     * un icono que no cargo. Y no hay error, ni aviso, ni nada que lo delate
+     * leyendo el diff: el slot que falta no se menciona en ninguna parte.
+     *
+     * Se comprueba en el componente y no en las sesenta pantallas que lo usan,
+     * porque es ahi donde se arregla de una vez: el recuadro con `v-if` no puede
+     * salir vacio lo llame quien lo llame.
+     *
+     * Paso con las tres pantallas de trabajo en obra a la vez —los formatos del
+     * plan, el llenado de un formato y la revision de firmas—, que se
+     * escribieron sin el slot y salian con el cuadrado en blanco.
+     */
+    public function test_ningun_recuadro_de_icono_se_pinta_sin_icono_dentro(): void
+    {
+        // Los que reservan el hueco en su propio CSS. Si aparece otro componente
+        // con un `.algo__icon` y un `<slot name="icon" />` dentro, va aqui.
+        $conHueco = [
+            'Components/Common/SectionHeader.vue',
+            'Components/Catalog/CatalogPageHeader.vue',
+            'Components/Catalog/CatalogEmptyState.vue',
+        ];
+
+        $sinGuarda = [];
+
+        foreach ($conHueco as $corto) {
+            $ruta = resource_path("js/{$corto}");
+
+            $this->assertFileExists($ruta);
+
+            $plantilla = $this->bloqueDePlantilla(file_get_contents($ruta));
+
+            // El elemento que envuelve al `<slot name="icon">`: desde el `<` que
+            // lo abre hasta el slot. Si en medio no hay `$slots.icon`, ese
+            // envoltorio se pinta tambien cuando nadie pasa icono.
+            if (! preg_match('/<[a-zA-Z][^<>]*>\s*<slot\s+name="icon"/s', $plantilla, $m)) {
+                $sinGuarda[] = "{$corto}: no se encontro el envoltorio del slot #icon";
+
+                continue;
+            }
+
+            if (! str_contains($m[0], '$slots.icon')) {
+                $sinGuarda[] = "{$corto}: " . trim(preg_replace('/\s+/', ' ', $m[0]));
+            }
+        }
+
+        $this->assertSame([], $sinGuarda,
+            "Recuadros de icono que se pintan aunque la pantalla no pase el slot.\n"
+            . "Ponles `v-if=\"\$slots.icon\"`, o saldran como un cuadrado de color vacio:\n  "
+            . implode("\n  ", $sinGuarda));
+    }
+
+    /**
+     * Toda cabecera pasa su icono.
+     *
+     * La guarda del recuadro (prueba de arriba) evita el cuadrado en blanco,
+     * pero no es la meta: la meta es que la pantalla tenga icono, como lo tienen
+     * las otras sesenta. Una cabecera sin el suyo se ve rara en cuanto se abre
+     * detras de cualquier otra, y ademas es el sintoma de que ese modulo se
+     * escribio a mano en vez de copiar el patron.
+     *
+     * Esto no se ve buscando imports —el slot que falta no aparece en ninguna
+     * busqueda— ni leyendo el diff del modulo: hay que mirar cada llamada.
+     */
+    public function test_toda_cabecera_pasa_su_icono(): void
+    {
+        $conHueco = ['SectionHeader', 'CatalogPageHeader', 'CatalogEmptyState'];
+
+        // Deuda, no permiso. Es un cepo como el de los hexadecimales: solo puede
+        // menguar. Cuando la pantalla reciba su icono, la linea se borra de aqui
+        // y nadie puede anadir otra sin explicar por que.
+        //
+        // Vacia: la ultima que quedaba era la pantalla de llenado de un formato,
+        // y ya pasa su `FileOutlined` —el mismo del menu lateral y el de la lista
+        // de formatos del plan, que es de donde se llega—.
+        $pendientes = [];
+
+        $sinIcono = [];
+
+        foreach ($this->archivosVue() as $archivo) {
+            // Solo el template: el `<script>` de EntityShowActions documenta su
+            // uso con un `<SectionHeader>` de ejemplo, y un ejemplo no pinta.
+            $plantilla = $this->bloqueDePlantilla(file_get_contents($archivo));
+
+            foreach ($conHueco as $componente) {
+                $patron = '/<' . $componente . '\b[^>]*?(?:\/>|>(?:(?!<\/?' . $componente . '\b).)*<\/' . $componente . '>)/s';
+
+                preg_match_all($patron, $plantilla, $usos);
+
+                foreach ($usos[0] as $uso) {
+                    if (str_contains($uso, '#icon') || str_contains($uso, 'v-slot:icon')) {
+                        continue;
+                    }
+
+                    $sinIcono[] = str_replace(resource_path('js') . '/', '', $archivo) . " → <{$componente}>";
+                }
+            }
+        }
+
+        $nuevos = array_values(array_diff(array_unique($sinIcono), $pendientes));
+
+        $this->assertSame([], $nuevos,
+            "Cabeceras a las que no se les pasa el slot #icon (ver docs/UI.md §5-quater):\n  "
+            . implode("\n  ", $nuevos));
+
+        // Y al reves: una pendiente que ya se arreglo tiene que salir de la
+        // lista, o el cepo deja de apretar sin que nadie se entere.
+        $this->assertSame([], array_values(array_diff($pendientes, $sinIcono)),
+            'Pantallas listadas como pendientes que ya pasan su icono: quitalas de $pendientes.');
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     /** El contenido de los bloques `<style>` de un .vue, o cadena vacia. */
@@ -547,6 +755,125 @@ class UiStandardTest extends TestCase
         preg_match_all('/<style[^>]*>(.*?)<\/style>/s', $fuente, $m);
 
         return implode("\n", $m[1] ?? []);
+    }
+
+    /** El contenido de los bloques `<script>` de un .vue, o cadena vacia. */
+    private function bloqueDeScript(string $fuente): string
+    {
+        preg_match_all('/<script[^>]*>(.*?)<\/script>/s', $fuente, $m);
+
+        return implode("\n", $m[1] ?? []);
+    }
+
+    /**
+     * Lo que un .vue pinta: todo menos `<script>`, `<style>` y los comentarios.
+     *
+     * No se recorta por el `<template>` de fuera: dentro hay `<template #icon>`
+     * anidados y quedarse con el primer cierre deja media pantalla sin mirar.
+     */
+    private function bloqueDePlantilla(string $fuente): string
+    {
+        $plantilla = preg_replace('/<script[^>]*>.*?<\/script>/s', '', $fuente);
+        $plantilla = preg_replace('/<style[^>]*>.*?<\/style>/s', '', $plantilla);
+
+        return preg_replace('/<!--.*?-->/s', '', $plantilla);
+    }
+
+    /** Codigo JavaScript sin comentarios. */
+    private function sinComentarios(string $script): string
+    {
+        $codigo = preg_replace('#/\*.*?\*/#s', '', $script);
+
+        // La guarda del `:` deja pasar los `https://` sin comerse la linea.
+        return preg_replace('#(^|[^:\'"/\\\\])//[^\n]*#m', '$1', $codigo);
+    }
+
+    /**
+     * Codigo JavaScript con las cadenas vaciadas.
+     *
+     * `{ value: 'CrownOutlined' }` es el nombre del icono guardado en la base de
+     * datos, no un componente: mirarlo como si lo fuera acusa de "no importado"
+     * al catalogo que precisamente lo resuelve.
+     */
+    private function sinCadenas(string $codigo): string
+    {
+        return preg_replace(
+            ['/\'(?:[^\'\\\\\n]|\\\\.)*\'/', '/"(?:[^"\\\\\n]|\\\\.)*"/', '/`(?:[^`\\\\]|\\\\.)*`/s'],
+            "''",
+            $codigo,
+        );
+    }
+
+    /** Nombres que el fichero declara o importa de cualquier otro sitio. */
+    private function identificadoresPropios(string $codigo): array
+    {
+        $nombres = [];
+
+        preg_match_all('/\b(?:const|let|var|function|class)\s+([A-Za-z0-9_$]+)/', $codigo, $m);
+        $nombres = array_merge($nombres, $m[1]);
+
+        // `import Algo from '...'` y `import Algo, { ... } from '...'`.
+        preg_match_all('/import\s+([A-Za-z0-9_$]+)\s*(?:,|from)/', $codigo, $m);
+        $nombres = array_merge($nombres, $m[1]);
+
+        // `import { A, B as C } from '...'` de cualquier paquete.
+        preg_match_all('/import\s*\{([^}]*)\}\s*from/', $codigo, $m);
+
+        foreach ($m[1] as $bloque) {
+            foreach (explode(',', $bloque) as $trozo) {
+                $trozo = trim($trozo);
+
+                if ($trozo === '') {
+                    continue;
+                }
+
+                $partes = preg_split('/\s+as\s+/', $trozo);
+                $nombres[] = trim($partes[1] ?? $partes[0]);
+            }
+        }
+
+        return $nombres;
+    }
+
+    /**
+     * Los iconos que publica de verdad la version instalada del paquete.
+     *
+     * Se leen del disco a proposito: la lista de memoria siempre tiene alguno
+     * que suena bien y no existe.
+     *
+     * @return string[]
+     */
+    private function iconosDelPaquete(): array
+    {
+        $carpeta = base_path('node_modules/@ant-design/icons-vue/es/icons');
+
+        if (! is_dir($carpeta)) {
+            return [];
+        }
+
+        return array_map(
+            fn ($ruta) => basename($ruta, '.js'),
+            glob("{$carpeta}/*.js") ?: [],
+        );
+    }
+
+    /**
+     * Todo lo que se compila al front: los `.vue` y los `.js` que los alimentan.
+     *
+     * @return string[]
+     */
+    private function archivosDelFront(): array
+    {
+        $salida = [];
+        $it = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(resource_path('js')));
+
+        foreach ($it as $archivo) {
+            if ($archivo->isFile() && in_array($archivo->getExtension(), ['vue', 'js'], true)) {
+                $salida[] = $archivo->getPathname();
+            }
+        }
+
+        return $salida;
     }
 
     /** Claves de un archivo de idioma, aplanadas: 'a.b.c'. */

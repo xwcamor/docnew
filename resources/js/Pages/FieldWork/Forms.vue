@@ -2,7 +2,9 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import { Link } from '@inertiajs/vue3';
-import { FilePdfOutlined } from '@ant-design/icons-vue';
+// FileOutlined es el icono con el que el formato sale en el menú lateral y en
+// todas sus pantallas: un concepto, un icono en toda la aplicación.
+import { FileOutlined, FilePdfOutlined } from '@ant-design/icons-vue';
 
 defineProps({ plan: Object, templates: Array, canExport: { type: Boolean, default: false } });
 defineOptions({ layout: AppLayout });
@@ -19,7 +21,9 @@ const conPdf = (item) => item.submission && item.status === 'confirmed';
 
 <template>
     <div class="mi-console">
-        <SectionHeader title="Formatos del plan" :subtitle="plan.code" />
+        <SectionHeader title="Formatos del plan" :subtitle="plan.code">
+            <template #icon><FileOutlined /></template>
+        </SectionHeader>
 
         <a-list :data-source="templates" item-layout="horizontal" bordered>
             <template #renderItem="{ item }">

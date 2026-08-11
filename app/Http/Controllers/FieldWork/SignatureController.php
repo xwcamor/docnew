@@ -165,6 +165,11 @@ class SignatureController extends Controller
             // `signed_by_IA`.
             'signature'     => ['nullable', 'string'],
             'replace_signature' => ['nullable', 'boolean'],
+            // El reto de vida —girar la cabeza, asentir— lo corre el navegador
+            // y el servidor no lo puede recomprobar: al descriptor que llega no
+            // se le nota si hubo gesto o si era una foto en una pantalla. Ver
+            // mas abajo por que aceptar esto no abre ningun agujero.
+            'liveness_failed' => ['nullable', 'boolean'],
             'latitude'      => ['nullable', 'numeric', 'between:-90,90'],
             'longitude'     => ['nullable', 'numeric', 'between:-180,180'],
             'device_id'     => ['nullable', 'string', 'max:255'],
@@ -235,17 +240,44 @@ class SignatureController extends Controller
                 + ['override_by' => $request->user()->id],
         );
 
+        // El gesto de vida fallido deja la firma pendiente de revision.
+        //
+        // La cara coincidio, asi que `firmar()` la da por reconocida: mide la
+        // distancia entre descriptores y ahi no hay ni rastro del gesto. Pero
+        // una cara que coincide sin gesto es exactamente lo que da una foto
+        // puesta delante del objetivo, que es contra lo que existe el reto. Que
+        // eso saliera «verificada» y no pasara por la bandeja del supervisor
+        // hacia del reto un adorno.
+        //
+        // Fiarse del cliente aqui no abre nada: **solo puede empeorar** el
+        // resultado. Una peticion hecha a mano diciendo `liveness_failed=false`
+        // no consigue nada que no consiguiera ya callandose, y diciendo `true`
+        // lo unico que logra es mandar su propia firma a revision.
+        if ($request->boolean('liveness_failed') && ! $evento->pending_review) {
+            $evento->forceFill(['pending_review' => true])->save();
+        }
+
+        // Los dos textos salen de `resources/lang`, no escritos aqui.
+        //
+        // El resto de este controlador los lleva en castellano dentro de la
+        // llamada —`__('Firma revisada.')`— y esos son deuda vieja, pero estos
+        // dos no se suman a ella: el de arriba es lo que lee alguien que cree
+        // que ya firmo y todavia no vale su firma, y esa frase tiene que
+        // poderse decir en los dos idiomas y llevar sus tildes.
         $mensaje = $evento->pending_review
-            ? __('Firma registrada. Queda pendiente de revision del supervisor.')
-            : __('Firma verificada.');
+            ? __('field_work.sign.left_pending')
+            : __('field_work.sign.verified');
 
         // La firma limpia se anuncia en el plan: la pantalla se va alli sola y
         // el aviso viaja en la sesion, que la visita de Inertia recoge.
         //
-        // La que queda pendiente de revision NO: esa se queda en la pantalla de
-        // firma para que se lea antes de seguir. Y ademas solo hay canal
-        // `success` y `error` (ver HandleInertiaRequests), asi que un
-        // `warning` se perderia sin que nadie lo notara.
+        // La que queda pendiente de revision NO: esa **detiene** la pantalla de
+        // firma y se lee alli, con su boton para volver. Es la unica que lo
+        // hace, y es a proposito: la persona cree que ya firmo y en realidad su
+        // firma no vale hasta que la mire un supervisor. Por flash no vale —
+        // solo hay canal `success` y `error` (ver HandleInertiaRequests), los
+        // dos son avisos que se desvanecen solos y ninguno de los dos colores
+        // dice «pendiente» (docs/UI.md §5).
         if (! $evento->pending_review) {
             $request->session()->flash('success', $mensaje);
         }

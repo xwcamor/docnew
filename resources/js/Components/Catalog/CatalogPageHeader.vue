@@ -14,7 +14,10 @@ defineProps({
 
 <template>
     <div class="page-header__title">
-        <div class="page-header__icon">
+        <!-- Mismo criterio que SectionHeader: el recuadro es de relleno sólido,
+             así que sin glifo dentro queda un cuadrado azul de 40x40 y nada
+             más. Se pinta sólo cuando hay slot que meter. -->
+        <div v-if="$slots.icon" class="page-header__icon">
             <slot name="icon" />
         </div>
         <div class="page-header__heading">

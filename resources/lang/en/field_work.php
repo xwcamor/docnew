@@ -24,6 +24,9 @@ return [
         'enroll_done'        => 'Face registered. Now sign.',
         'nobody_found'       => 'Nobody was detected in front of the camera. Nothing was recorded.',
         'challenge_failed'   => 'The face matches but the gesture was not completed. The signature is recorded and left pending supervisor review.',
+        // Same, without knowing why: the signature was stored with its photo and
+        // does not count until a supervisor looks at it. See the note in `es`.
+        'pending_review'     => 'The signature is recorded, but the face could not be verified. A supervisor will review it.',
         'failed'             => 'Could not complete the signature.',
         // Drawn signature. Captured once and reused, as in v1.
         'has_signature_on_file' => 'Signature already on file',
@@ -35,11 +38,15 @@ return [
         'replace'            => 'Update my signature',
         'clear'              => 'Clear',
         'take_photo_and_sign'=> 'Take photo and sign',
+        // Only shown when the signature is left pending review: a clean one goes
+        // back to the plan on its own. `back_to_plan_in` («Back to the plan… :n»)
+        // lived here too — the button countdown. It went with it. See `es`.
         'back_to_plan'       => 'Back to the plan',
-        'back_to_plan_in'    => 'Back to the plan… :n',
         'no_target'          => 'No idea who is signing',
         'no_target_hint'     => 'Go back to the plan and press Sign on that person’s row.',
         'signature_required' => ':name has no signature on file: it has to be drawn before signing the plan.',
+        'left_pending'       => 'Signature recorded. It is left pending supervisor review.',
+        'verified'           => 'Signature verified.',
         'turn_head'          => 'Turn your head to one side',
         'nod_head'           => 'Nod your head',
         'back_center'        => 'Now look straight ahead again',
@@ -64,9 +71,19 @@ return [
     'plan_closed'     => 'The plan is closed: its forms are no longer editable.',
     'document'        => 'Document',
     'attach'          => 'Attach',
-    'save'            => 'Save',
+    // Plain «Save» said neither what was saved nor what happened next, and next
+    // to «Confirm form» it read as the step before closing the document. Ver la
+    // nota en `es`.
+    'save'            => 'Save changes',
     'confirm'         => 'Confirm form',
     'mark_all'        => 'Mark all',
+
+    // The way out of the footer, the same in both states. Ver la nota en `es`.
+    'back_to_plan'    => 'Back to the plan',
+    'leave_title'     => 'Leave without saving?',
+    'leave_help'      => 'Anything you typed since the last save is lost. What you already saved stays.',
+    'leave_discard'   => 'Leave without saving',
+    'leave_stay'      => 'Stay here',
 
     // Avance de un campo compuesto: el índice de filas y las cabeceras
     // plegadas del EPP, el IHM y la matriz de riesgo. Ver la nota en `es`.
@@ -107,7 +124,9 @@ return [
         'observation'             => 'Remark',
     ],
 
-    // AST y PTF: actividad → peligro → control → severidad × probabilidad.
+    // AST y PTF: el documento es una lista de ACTIVIDADES y, dentro de cada
+    // una, sus peligros — peligro → riesgo → control → probabilidad →
+    // severidad → nivel. Ése es el orden de las columnas de la v1.
     'risk_matrix' => [
         'activity'     => 'Activity',
         'danger'       => 'Hazard',
@@ -115,10 +134,20 @@ return [
         'control'      => 'Control',
         'severity'     => 'Severity',
         'probability'  => 'Probability',
+        // Sexta columna de la tabla vieja. No se teclea: sale de la matriz.
+        'level'        => 'Level',
         'search'       => 'Search the catalogue',
         'add_row'      => 'Add hazard',
         'remove_row'   => 'Remove this row',
-        'empty'        => 'No hazards yet. Add the first one.',
+        // Cabecera de cada bloque, como el «Actividad 1» del formato de papel.
+        'activity_n'    => 'Activity :n',
+        'activity_hint' => 'Name the activity: it is the heading of the hazards below it.',
+        'add_activity'  => 'Add activity',
+        'remove_activity' => 'Remove this activity',
+        // Quitar la actividad se lleva sus peligros por delante, así que se
+        // dice cuántos son antes de hacerlo.
+        'remove_activity_confirm' => '{0} Remove this activity?|{1} Remove this activity and its hazard?|[2,*] Remove this activity and its :count hazards?',
+        'empty'        => 'No activities yet. Add the first one.',
         'row_incomplete' => 'This hazard is missing: :fields. A rated hazard is declared in full: what can happen, what it leads to and what control is in place.',
         'no_risk'      => 'Not assessed',
         'level_alto'   => 'High risk',

@@ -20,8 +20,15 @@ defineProps({
             <BackLink v-if="backHref" :href="backHref" />
             <!-- Tinte suave + glifo en el color (NO relleno sólido): un cuadrado
                  relleno del primario con icono blanco usa el mismo lenguaje
-                 visual que los botones primarios y parece clickeable. -->
+                 visual que los botones primarios y parece clickeable.
+
+                 El recuadro sólo se pinta si hay glifo que meter dentro. Sin el
+                 `v-if`, la pantalla que se olvida del slot no se queda sin
+                 icono: se queda con el cuadrado de color y nada dentro, que se
+                 lee como un icono que no cargó. Pasó en las tres pantallas de
+                 trabajo en obra a la vez. -->
             <div
+                v-if="$slots.icon"
                 class="section-header__icon"
                 :style="{ background: `color-mix(in srgb, ${iconBg} 12%, transparent)`, color: iconBg }"
             >

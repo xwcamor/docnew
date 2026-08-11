@@ -1,6 +1,13 @@
 <script setup>
 import { computed, reactive, ref } from 'vue';
 import { Modal } from 'ant-design-vue';
+// `FileOutlined` es el icono con el que un formato sale en el menú lateral y en
+// la lista de formatos del plan: un concepto, un icono en toda la aplicación.
+// Sin él la cabecera de esta pantalla —que se abre justo desde esa lista— era la
+// única de la aplicación sin marca a la izquierda. Antes era peor: `SectionHeader`
+// pintaba el recuadro de color aunque no le pasaran nada, así que aquí salía un
+// cuadrado azul vacío que se lee como un icono que no cargó.
+import { ArrowLeftOutlined, FileOutlined } from '@ant-design/icons-vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -16,8 +23,11 @@ const props = defineProps({
     template: Object,
     answers: Array,
     missing: Array,
+    // El plan del que cuelga el formato: es a donde vuelve la salida del pie.
+    plan: Object,
     people: { type: Array, default: () => [] },
     canReopen: { type: Boolean, default: false },
+    canViewPlan: { type: Boolean, default: false },
 });
 
 defineOptions({ layout: AppLayout });
@@ -78,6 +88,21 @@ Object.entries(porCampo).forEach(([id, lista]) => {
 
 const archivo = ref(null);
 const guardando = ref(false);
+
+/**
+ * Foto de lo que hay tecleado, para saber si queda algo sin guardar.
+ *
+ * Se compara con la de la ultima vez que el servidor dijo que si. No se mira
+ * campo a campo: da igual QUE cambio, lo unico que se decide con esto es si al
+ * salir hay que avisar o no.
+ *
+ * Sirve `JSON.stringify` sobre el reactivo porque el orden de `campos` es
+ * siempre el mismo —viene de la plantilla, no de un objeto— y los valores son
+ * texto, numeros, listas o las filas de un compuesto, todo serializable.
+ */
+const huella = () => JSON.stringify(campos.map((c) => valores[c.id] ?? null));
+
+let guardado = huella();
 
 /**
  * La etiqueta del campo viene del formato, no de la interfaz: la trae el
@@ -153,7 +178,10 @@ function guardar(alTerminar = null) {
 
     router.post(route('field_work.forms.answer', props.submission.slug), { answers: respuestas }, {
         preserveScroll: true,
-        onSuccess: () => seguir?.(),
+        // La foto se renueva SOLO cuando el servidor ha dicho que si: si el
+        // guardado falla, lo tecleado sigue siendo trabajo pendiente y salir
+        // tiene que seguir avisando.
+        onSuccess: () => { guardado = huella(); seguir?.(); },
         onFinish: () => { guardando.value = false; },
     });
 }
@@ -185,6 +213,53 @@ function confirmar() {
 }
 
 /**
+ * La salida: de aqui se vuelve a la ficha del plan, que es de donde se viene.
+ *
+ * No la habia. Se abria un formato y las unicas puertas eran «Confirmar» —que
+ * cierra el documento— y, en uno ya confirmado, «Volver a editar» —que lo
+ * reabre—. Las dos escriben en la base: entrar a MIRAR un formato y salirse sin
+ * tocar nada no se podia, y en obra eso acaba en «le doy a confirmar a ver que
+ * pasa». Se colo porque la pantalla se penso solo para el que llena, y la abren
+ * tambien el supervisor y el auditor.
+ *
+ * Dice «Volver al plan» y no «Cancelar» a proposito. Cancelar significa deshacer
+ * lo hecho, y aqui no se deshace nada: lo que ya se guardo esta guardado y sigue
+ * estandolo —nada destruye evidencia, docs/UI.md §6—. Nombrar el destino es
+ * ademas lo que hace la pantalla de firma para este mismo viaje, y es el mismo
+ * boton con el mismo icono.
+ */
+const volverA = computed(() => (props.canViewPlan
+    ? route('business_management.work_plans.show', props.plan.slug)
+    : route('field_work.forms.index', props.plan.slug)));
+
+/**
+ * Se avisa SOLO si de verdad hay algo tecleado sin guardar.
+ *
+ * Preguntar siempre es peor que no preguntar: con guantes y prisa, un aviso que
+ * sale las veinte veces se contesta sin leerlo, y la vez que importa —la matriz
+ * de riesgo recien rellenada— se contesta igual de rapido. Un aviso que solo
+ * aparece cuando hay algo que perder se lee.
+ *
+ * Y se avisa, en vez de guardar solo al salir, porque salir no es guardar:
+ * quien se equivoca de formato y se sale no quiere dejar rastro de su error en
+ * un documento que puede acabar delante de un inspector.
+ */
+function salir() {
+    if (huella() === guardado) { router.get(volverA.value); return; }
+
+    Modal.confirm({
+        title: t('field_work.leave_title'),
+        content: t('field_work.leave_help'),
+        // La accion peligrosa es la que se marca; la segura es la que se pulsa
+        // sin querer al tocar fuera.
+        okText: t('field_work.leave_discard'),
+        okType: 'danger',
+        cancelText: t('field_work.leave_stay'),
+        onOk: () => router.get(volverA.value),
+    });
+}
+
+/**
  * Volver a abrir un formato confirmado.
  *
  * Se pregunta antes porque no es «editar»: deshace el cierre de un documento y
@@ -207,7 +282,9 @@ function reabrir() {
 <template>
     <div class="mi-console">
         <SectionHeader :title="template.label || template.code"
-                       :subtitle="`${$t('field_work.version')} ${submission.template_version} · ${$t(`field_work.status.${submission.status}`)}`" />
+                       :subtitle="`${$t('field_work.version')} ${submission.template_version} · ${$t(`field_work.status.${submission.status}`)}`">
+            <template #icon><FileOutlined /></template>
+        </SectionHeader>
 
         <a-alert v-if="soloLectura" type="success" show-icon class="mb-4"
                  :message="$t('field_work.readonly_notice')" />
@@ -278,15 +355,30 @@ function reabrir() {
                  del ratón como primer argumento, que aquí es la continuación
                  que se llama al terminar — y un MouseEvent no se puede llamar. -->
             <a-button size="large" :loading="guardando" @click="guardar()">{{ $t('field_work.save') }}</a-button>
+            <!-- La salida, la última del DOM y por tanto la más a la izquierda:
+                 la primaria va pegada al borde derecho (docs/UI.md §8). -->
+            <a-button size="large" @click="salir">
+                <template #icon><ArrowLeftOutlined /></template>
+                {{ $t('field_work.back_to_plan') }}
+            </a-button>
         </div>
     </div>
 
     <!-- Confirmado, pero no en piedra: corregir un dato mal tecleado se hace
          desde aquí, en el mismo sitio donde estaba «Confirmar», y no es un
-         atajo — reabre el formato y lo anota en el historial. -->
-    <div v-else-if="canReopen" class="sap-actionbar ff-actions">
+         atajo — reabre el formato y lo anota en el historial.
+         La barra ya NO cuelga de `canReopen`: quien solo mira —el auditor, o
+         cualquiera con el plan cerrado— se quedaba sin pie y sin salida, que es
+         justo el caso en el que hace más falta, porque no hay nada más que
+         hacer en esta pantalla. Ahora lo que depende del permiso es el botón de
+         reabrir, no la franja entera. -->
+    <div v-else class="sap-actionbar ff-actions">
         <div class="sap-actionbar__actions">
-            <a-button size="large" @click="reabrir">{{ $t('field_work.reopen') }}</a-button>
+            <a-button v-if="canReopen" size="large" @click="reabrir">{{ $t('field_work.reopen') }}</a-button>
+            <a-button size="large" @click="salir">
+                <template #icon><ArrowLeftOutlined /></template>
+                {{ $t('field_work.back_to_plan') }}
+            </a-button>
         </div>
     </div>
 </template>

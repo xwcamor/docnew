@@ -5,7 +5,7 @@ import {
     Button, Card, Space, Tooltip, Popconfirm, Empty, Tag, Modal, Alert, Input,
 } from 'ant-design-vue';
 import {
-    DeleteOutlined, UndoOutlined, FireOutlined, ExclamationCircleFilled,
+    DeleteOutlined, UndoOutlined, SearchOutlined, FireOutlined, ExclamationCircleFilled,
 } from '@ant-design/icons-vue';
 import { resolveIconComponent, resolveColor } from '@/Utils/planAppearance';
 import dayjs from 'dayjs';

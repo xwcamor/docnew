@@ -54,6 +54,20 @@ class FormSubmissionController extends Controller
 
         return inertia('FieldWork/FormFill', [
             'submission' => $entrega->only(['slug', 'status', 'template_version']),
+            // El plan del que cuelga el formato. Hace falta para poder SALIR:
+            // la pantalla se abria y no habia manera de volverse sin confirmar
+            // ni reabrir, y el slug de la entrega no sirve para reconstruir el
+            // del plan. El codigo va para poder nombrarlo si algun dia hace
+            // falta; hoy solo se usa el slug.
+            'plan' => $work_plan->only(['slug', 'code']),
+            // A donde lleva esa salida. La ficha del plan pide `work_plans.view`
+            // y esta pantalla solo pide `form_submissions.view`: los perfiles
+            // sembrados tienen los dos, pero un rol a medida puede no tenerlos,
+            // y entonces el boton de volver seria un 403. Un boton que solo
+            // puede fallar es peor que no tenerlo (docs/UI.md §6), asi que
+            // cuando no se puede ver el plan se vuelve a la lista de formatos,
+            // que pide justo el permiso con el que se llego hasta aqui.
+            'canViewPlan' => (bool) $request->user()?->can('work_plans.view'),
             // Un formato confirmado se puede volver a abrir para corregirlo,
             // pero solo lo hace quien puede llenarlo —esta pantalla la abre
             // tambien el auditor, que solo mira— y solo mientras el plan siga

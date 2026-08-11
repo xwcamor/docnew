@@ -2,17 +2,39 @@
 /**
  * Matriz de riesgo (AST y PTF).
  *
- * En el sistema anterior esto eran tres tablas encadenadas y una tabla de 7
- * columnas en pantalla: actividad → peligro → control → severidad →
- * probabilidad → riesgo. En una tablet de 10" esa tabla obliga a scroll
- * horizontal, asi que aqui cada fila es una tarjeta.
+ * Un AST no es una lista de peligros: es una lista de ACTIVIDADES y, dentro de
+ * cada una, sus peligros. Asi esta el papel, asi esta la v1 —`f1_document_activities`
+ * tiene muchos `f1_document_dangers`, y `_f1_document_activity_fields.html.erb`
+ * pinta un bloque por actividad con su tabla de peligros dentro— y asi sale el
+ * PDF (`show_pdf_page1.erb`: una fila por actividad con la lista de sus peligros).
  *
- * Y plegable, con el mismo indice que el EPP y el IHM: un AST de verdad trae
- * diez o quince peligros, cada uno con seis desplegables, y desplegados son
- * otra columna infinita. Lo que se quiere ver de un vistazo es cuantos peligros
- * quedan sin evaluar y cuantos salieron altos, no los desplegables.
+ * QUE ESTABA MAL: aqui se pintaba una lista PLANA de filas, cada una titulada
+ * «Actividad → Peligro». La actividad se repetia en cada tarjeta —seis tarjetas
+ * diciendo «Bobinado de baja tension fase V» seis veces— y la agrupacion, que es
+ * la estructura del documento, no existia. Se colo porque el dato SI es plano:
+ * cada peligro es una respuesta con su `row_index`, y se pinto la forma de
+ * guardado en vez de la forma del documento.
  *
- * FORMA DEL VALOR que emite (una respuesta por fila, con su `row`):
+ * La agrupacion es SOLO DE PRESENTACION. El valor guardado no cambia: se agrupa
+ * al pintar por el campo `actividad`, y renombrar una actividad reescribe ese
+ * campo en las filas de su grupo. Hay 3 657 AST migrados con esta forma.
+ *
+ * Se agrupa por TRAMOS SEGUIDOS de la misma actividad, no por el texto suelto:
+ * el orden de las filas es el orden del documento y dos actividades distintas
+ * pueden llamarse igual. Reordenar al pintar cambiaria el AST sin que nadie lo
+ * pidiera.
+ *
+ * Y NO se vuelve a la tabla ancha de la v1: seis columnas obligan a scroll
+ * horizontal en una tablet de 10". Cada peligro sigue siendo una tarjeta
+ * plegable, con el mismo indice que el EPP y el IHM, porque un AST de verdad
+ * trae diez o quince peligros y desplegados son una columna infinita. Lo que
+ * cambia es que ahora las tarjetas viven DENTRO de su actividad.
+ *
+ * ORDEN DE LAS COLUMNAS, el de la v1: peligro, riesgo, control, probabilidad,
+ * severidad, nivel. Aqui la probabilidad iba DESPUES de la severidad; en la
+ * tabla vieja va antes, y el AST se rellena leyendo de izquierda a derecha.
+ *
+ * FORMA DEL VALOR que emite (una respuesta por peligro, con su `row`):
  *
  *   { actividad, peligro, riesgo, control, severidad, probabilidad,
  *     valor_riesgo, nivel }
@@ -29,8 +51,8 @@
  * `severidad` y `probabilidad` son obligatorias porque es lo que exige
  * FormSubmissionService::validarValor() para este tipo. El resto acompaña.
  */
-import { computed } from 'vue';
-import { Button } from 'ant-design-vue';
+import { computed, nextTick } from 'vue';
+import { Button, Popconfirm } from 'ant-design-vue';
 import { DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons-vue';
 import CatalogSelect from './CatalogSelect.vue';
 import RowNavigator from './RowNavigator.vue';
@@ -58,8 +80,12 @@ const probabilidades = computed(() => catalogo(config.value, 'probabilities', 'p
 
 const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
 
+const prefijo = `riesgo-${props.field?.id ?? 'x'}`;
+
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo, cerrar } =
-    usePlegado(`riesgo-${props.field?.id ?? 'x'}`);
+    usePlegado(prefijo);
+
+const idActividad = (g) => `${prefijo}-actividad-${g}`;
 
 /**
  * El riesgo sale de la tabla, no de una multiplicacion.
@@ -118,9 +144,9 @@ function conRiesgo(fila) {
     return { ...fila, valor_riesgo: riesgo, nivel: nivelRiesgo(riesgo) };
 }
 
-function filaVacia() {
+function filaVacia(actividad = null) {
     return {
-        actividad: null, peligro: null, riesgo: null, control: null,
+        actividad, peligro: null, riesgo: null, control: null,
         severidad: null, probabilidad: null, valor_riesgo: null, nivel: null,
     };
 }
@@ -131,16 +157,95 @@ function cambiar(indice, clave, valor) {
     ));
 }
 
-/** El peligro recien añadido se abre solo: esta vacio y hay que llenarlo. */
-function agregar() {
+/**
+ * Las actividades del documento, cada una con las posiciones de sus peligros.
+ *
+ * Un tramo se corta cuando cambia el texto de `actividad`, asi que el grupo es
+ * un trozo contiguo del array y las posiciones que guarda son las de verdad:
+ * las que viajan como `row` a `form_answers`. Nada de esto se guarda.
+ */
+const grupos = computed(() => {
+    const lista = [];
+
+    filas.value.forEach((fila, i) => {
+        const nombre = fila?.actividad ?? null;
+        const ultimo = lista.at(-1);
+
+        if (ultimo && ultimo.actividad === nombre) {
+            ultimo.indices.push(i);
+
+            return;
+        }
+
+        lista.push({ actividad: nombre, desde: i, indices: [i] });
+    });
+
+    return lista;
+});
+
+/** Renombrar la actividad la renombra en TODAS sus filas: el dato sigue plano. */
+function renombrarActividad(grupo, valor) {
+    const dentro = new Set(grupo.indices);
+
+    emit('update:value', filas.value.map(
+        (fila, i) => (dentro.has(i) ? { ...fila, actividad: valor } : fila),
+    ));
+}
+
+/**
+ * El peligro nuevo entra DETRAS del ultimo de su actividad, no al final de la
+ * lista: si entrara al final rompería el tramo y la actividad saldria partida
+ * en dos bloques con el mismo nombre.
+ */
+function agregarPeligro(grupo) {
+    const posicion = grupo.indices.at(-1) + 1;
+    const nuevas = [...filas.value];
+
+    nuevas.splice(posicion, 0, filaVacia(grupo.actividad));
+
+    emit('update:value', nuevas);
+    abrir(posicion);
+}
+
+/**
+ * Una actividad nueva es una fila con la actividad sin poner y sin peligro.
+ *
+ * Es exactamente lo que guarda la v1 —`F1DocumentActivity` sin `f1_document_dangers`—
+ * y lo que trae la migracion para las actividades sin peligros, asi que no hay
+ * una forma nueva de dato: es la fila de siempre a medio llenar.
+ */
+function agregarActividad() {
+    const nueva = filas.value.length;
+
     emit('update:value', [...filas.value, filaVacia()]);
-    abrir(filas.value.length);
+    abrir(nueva);
+
+    // La vista va a la CABECERA de la actividad y no a su peligro: lo primero
+    // que hay que poner es el nombre de la actividad, y vive arriba del todo.
+    // Va despues de `abrir()` a proposito, para ganarle el desplazamiento.
+    nextTick().then(() => {
+        document.getElementById(idActividad(grupos.value.length - 1))
+            ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
 }
 
 /** Se pliega todo al borrar: la fila abierta se guarda por posicion y al
  *  quitar la 2 de cuatro la que era 3 pasa a ser 2. Ver el IHM. */
 function quitar(indice) {
     emit('update:value', filas.value.filter((_, i) => i !== indice));
+    cerrar();
+}
+
+/**
+ * Quitar la actividad se lleva sus peligros por delante, como el
+ * `link_to_remove_association` de la v1 sobre `f1_document_activities`. Por eso
+ * pregunta y por eso dice cuantos peligros se va a llevar: es lo unico de esta
+ * pantalla que borra mas de lo que se ve en el boton.
+ */
+function quitarActividad(grupo) {
+    const dentro = new Set(grupo.indices);
+
+    emit('update:value', filas.value.filter((_, i) => ! dentro.has(i)));
     cerrar();
 }
 
@@ -174,16 +279,71 @@ const estados = computed(() => filas.value.map((fila) => {
         : { clave: 'off', texto: t('field_work.risk_matrix.no_risk') };
 }));
 
-/** Actividad → peligro, que es como se lee una fila del AST de papel. */
-function titulo(fila, i) {
-    const partes = [fila?.actividad, fila?.peligro].filter(Boolean);
+/**
+ * La banda PEOR de una actividad, que es lo que se lee de un vistazo: un AST se
+ * abre para saber que actividad trae el peligro alto, no para contar peligros.
+ *
+ * El orden lo dan las bandas de la plantilla, que vienen de peor a mejor
+ * (`config.levels`); no se escribe aqui una segunda lista de niveles.
+ */
+const ordenNiveles = computed(() => {
+    const bandas = config.value.levels;
 
-    return partes.length ? partes.join(' → ') : t('field_work.progress.hazard', { n: i + 1 });
+    return Array.isArray(bandas) && bandas.length
+        ? bandas.map((b) => b.clave)
+        : ['alto', 'medio', 'bajo'];
+});
+
+function nivelPeor(grupo) {
+    let peor = null;
+    let posicion = Infinity;
+
+    for (const i of grupo.indices) {
+        const nivel = nivelDe(filas.value[i]);
+
+        if (! nivel) continue;
+
+        const suya = ordenNiveles.value.indexOf(nivel);
+        const orden = suya === -1 ? ordenNiveles.value.length : suya;
+
+        if (orden < posicion) {
+            posicion = orden;
+            peor = nivel;
+        }
+    }
+
+    return peor;
 }
+
+/** Cuantos peligros de la actividad estan evaluados, para su cabecera. */
+const evaluadasDe = (grupo) => grupo.indices.filter((i) => nivelDe(filas.value[i])).length;
+
+/**
+ * En el indice manda el peligro, que es lo que distingue una pastilla de otra.
+ *
+ * Decia «Actividad → Peligro» y la pastilla mide 186 px: con la actividad
+ * delante, «Bobinado de baja tension fase V — Puente grua» y «... — Escalera de
+ * plataforma» salian las dos cortadas en «Bobinado de baja tension fase V …» y
+ * el indice dejaba de servir para lo unico que sirve, que es saber a que fila
+ * saltas. La actividad ya la dice la cabecera de su bloque.
+ *
+ * Si la fila todavia no tiene peligro pero si actividad —la actividad recien
+ * creada, y las que la v1 guardaba sin peligros— se enseña la actividad, que es
+ * lo unico que hay.
+ */
+const tituloIndice = (fila, i) => fila?.peligro || fila?.actividad
+    || t('field_work.progress.hazard', { n: i + 1 });
+
+/**
+ * Dentro de la tarjeta manda el peligro a secas: la actividad ya esta escrita
+ * una vez en la cabecera del grupo, y repetirla en cada tarjeta era justamente
+ * lo que se venia a arreglar.
+ */
+const tituloPeligro = (fila, i) => fila?.peligro || t('field_work.progress.hazard', { n: i + 1 });
 
 const resumenFilas = computed(() => filas.value.map((fila, i) => ({
     key: i,
-    label: titulo(fila, i),
+    label: tituloIndice(fila, i),
     state: estados.value[i].clave,
     stateText: estados.value[i].texto,
 })));
@@ -211,109 +371,197 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
             @toggle-all="alternarTodo"
         />
 
-        <article
-            v-for="(fila, i) in filas"
-            :id="idFila(i)"
-            :key="i"
-            class="ff-row"
-            :class="{ 'is-open': estaAbierta(i) }"
+        <!-- Un bloque por actividad, y dentro sus peligros. La cabecera NO es
+             un boton de plegado como la del peligro: lleva dentro el selector
+             de la actividad, y un desplegable dentro de un boton no se puede
+             usar. La actividad tampoco se pliega — es el titulo de lo que hay
+             debajo, no una fila mas. -->
+        <section
+            v-for="(grupo, g) in grupos"
+            :id="idActividad(g)"
+            :key="grupo.desde"
+            class="ff-group"
         >
-            <button
-                type="button"
-                class="ff-row__head ff-row__head--toggle"
-                :aria-expanded="estaAbierta(i)"
-                :aria-controls="`${idFila(i)}-cuerpo`"
-                @click="alternar(i)"
-            >
-                <component :is="estaAbierta(i) ? DownOutlined : RightOutlined" class="ff-row__chev" />
+            <header class="ff-group__head">
+                <div class="ff-group__top">
+                    <span class="ff-group__tag">
+                        {{ $t('field_work.risk_matrix.activity_n', { n: g + 1 }) }}
+                    </span>
 
-                <span class="ff-row__num">{{ i + 1 }}</span>
+                    <span class="ff-count">
+                        {{ $t('field_work.progress.hazards_rated', {
+                            done: evaluadasDe(grupo), total: grupo.indices.length,
+                        }) }}
+                    </span>
 
-                <span class="ff-row__title">{{ titulo(fila, i) }}</span>
-
-                <span v-if="nivelDe(fila)" class="ff-risk" :class="`is-${nivelDe(fila)}`">
-                    {{ $t(`field_work.risk_matrix.level_${nivelDe(fila)}`) }} · {{ fila.valor_riesgo }}
-                </span>
-                <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
-            </button>
-
-            <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
-                <div class="ff-row__body">
-                    <div class="ff-cell">
-                        <label class="ff-label">{{ $t('field_work.risk_matrix.activity') }}</label>
-                        <CatalogSelect
-                            :value="fila.actividad" :options="actividades" :readonly="readonly"
-                            :placeholder="$t('field_work.risk_matrix.search')"
-                            @update:value="cambiar(i, 'actividad', $event)" />
-                    </div>
-
-                    <div class="ff-cell">
-                        <label class="ff-label">{{ $t('field_work.risk_matrix.danger') }}</label>
-                        <CatalogSelect
-                            :value="fila.peligro" :options="peligros" :readonly="readonly"
-                            :placeholder="$t('field_work.risk_matrix.search')"
-                            @update:value="cambiar(i, 'peligro', $event)" />
-                    </div>
-
-                    <div class="ff-cell">
-                        <label class="ff-label">{{ $t('field_work.risk_matrix.risk') }}</label>
-                        <CatalogSelect
-                            :value="fila.riesgo" :options="riesgos" :readonly="readonly"
-                            :placeholder="$t('field_work.risk_matrix.search')"
-                            @update:value="cambiar(i, 'riesgo', $event)" />
-                    </div>
-
-                    <div class="ff-cell ff-cell--wide">
-                        <label class="ff-label">{{ $t('field_work.risk_matrix.control') }}</label>
-                        <CatalogSelect
-                            :value="fila.control" :options="controles" :readonly="readonly"
-                            :placeholder="$t('field_work.risk_matrix.search')"
-                            @update:value="cambiar(i, 'control', $event)" />
-                    </div>
-
-                    <div class="ff-cell">
-                        <label class="ff-label">{{ $t('field_work.risk_matrix.severity') }}</label>
-                        <div class="ff-chips">
-                            <span v-if="readonly" class="ff-readonly">{{ fila.severidad || '—' }}</span>
-                            <button
-                                v-for="s in (readonly ? [] : severidades)" :key="s" type="button"
-                                class="ff-chip" :class="{ 'is-on': fila.severidad === s }"
-                                :aria-pressed="fila.severidad === s"
-                                @click="cambiar(i, 'severidad', s)">{{ s }}</button>
-                        </div>
-                    </div>
-
-                    <div class="ff-cell">
-                        <label class="ff-label">{{ $t('field_work.risk_matrix.probability') }}</label>
-                        <div class="ff-chips">
-                            <span v-if="readonly" class="ff-readonly">{{ fila.probabilidad || '—' }}</span>
-                            <button
-                                v-for="p in (readonly ? [] : probabilidades)" :key="p" type="button"
-                                class="ff-chip" :class="{ 'is-on': fila.probabilidad === p }"
-                                :aria-pressed="fila.probabilidad === p"
-                                @click="cambiar(i, 'probabilidad', p)">{{ p }}</button>
-                        </div>
-                    </div>
+                    <!-- Color y PALABRA, nunca solo color (docs/UI.md §5). -->
+                    <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${nivelPeor(grupo)}`">
+                        {{ $t(`field_work.risk_matrix.level_${nivelPeor(grupo)}`) }}
+                    </span>
+                    <span v-else class="ff-risk is-none">
+                        {{ $t('field_work.risk_matrix.no_risk') }}
+                    </span>
                 </div>
 
-                <footer v-if="!readonly" class="ff-row__foot">
-                    <Button
-                        class="ff-row__del"
-                        danger
-                        size="large"
-                        :title="$t('field_work.risk_matrix.remove_row')"
-                        @click="quitar(i)"
-                    >
-                        <template #icon><DeleteOutlined /></template>
-                        {{ $t('field_work.risk_matrix.remove_row') }}
-                    </Button>
-                </footer>
-            </div>
-        </article>
+                <div class="ff-group__name">
+                    <label class="ff-label">
+                        {{ $t('field_work.risk_matrix.activity') }}<span class="ff-block__req"> *</span>
+                    </label>
+                    <CatalogSelect
+                        :value="grupo.actividad" :options="actividades" :readonly="readonly"
+                        :placeholder="$t('field_work.risk_matrix.search')"
+                        @update:value="renombrarActividad(grupo, $event)" />
 
-        <Button v-if="!readonly" class="ff-add" size="large" block @click="agregar">
+                    <p v-if="!readonly && !grupo.actividad" class="ff-cardhint">
+                        {{ $t('field_work.risk_matrix.activity_hint') }}
+                    </p>
+                </div>
+            </header>
+
+            <div class="ff-group__body">
+                <article
+                    v-for="i in grupo.indices"
+                    :id="idFila(i)"
+                    :key="i"
+                    class="ff-row"
+                    :class="{ 'is-open': estaAbierta(i) }"
+                >
+                    <button
+                        type="button"
+                        class="ff-row__head ff-row__head--toggle"
+                        :aria-expanded="estaAbierta(i)"
+                        :aria-controls="`${idFila(i)}-cuerpo`"
+                        @click="alternar(i)"
+                    >
+                        <component :is="estaAbierta(i) ? DownOutlined : RightOutlined" class="ff-row__chev" />
+
+                        <span class="ff-row__num">{{ i + 1 }}</span>
+
+                        <span class="ff-row__title">{{ tituloPeligro(filas[i], i) }}</span>
+
+                        <span v-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
+                            {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
+                        </span>
+                        <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
+                    </button>
+
+                    <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
+                        <!-- El orden es el de la tabla de la v1: peligro, riesgo,
+                             control, probabilidad, severidad y nivel. -->
+                        <div class="ff-row__body">
+                            <div class="ff-cell">
+                                <label class="ff-label">
+                                    {{ $t('field_work.risk_matrix.danger') }}<span class="ff-block__req"> *</span>
+                                </label>
+                                <CatalogSelect
+                                    :value="filas[i].peligro" :options="peligros" :readonly="readonly"
+                                    :placeholder="$t('field_work.risk_matrix.search')"
+                                    @update:value="cambiar(i, 'peligro', $event)" />
+                            </div>
+
+                            <div class="ff-cell">
+                                <label class="ff-label">
+                                    {{ $t('field_work.risk_matrix.risk') }}<span class="ff-block__req"> *</span>
+                                </label>
+                                <CatalogSelect
+                                    :value="filas[i].riesgo" :options="riesgos" :readonly="readonly"
+                                    :placeholder="$t('field_work.risk_matrix.search')"
+                                    @update:value="cambiar(i, 'riesgo', $event)" />
+                            </div>
+
+                            <div class="ff-cell ff-cell--wide">
+                                <label class="ff-label">
+                                    {{ $t('field_work.risk_matrix.control') }}<span class="ff-block__req"> *</span>
+                                </label>
+                                <CatalogSelect
+                                    :value="filas[i].control" :options="controles" :readonly="readonly"
+                                    :placeholder="$t('field_work.risk_matrix.search')"
+                                    @update:value="cambiar(i, 'control', $event)" />
+                            </div>
+
+                            <div class="ff-cell">
+                                <label class="ff-label">
+                                    {{ $t('field_work.risk_matrix.probability') }}<span class="ff-block__req"> *</span>
+                                </label>
+                                <div class="ff-chips">
+                                    <span v-if="readonly" class="ff-readonly">{{ filas[i].probabilidad || '—' }}</span>
+                                    <button
+                                        v-for="p in (readonly ? [] : probabilidades)" :key="p" type="button"
+                                        class="ff-chip" :class="{ 'is-on': filas[i].probabilidad === p }"
+                                        :aria-pressed="filas[i].probabilidad === p"
+                                        @click="cambiar(i, 'probabilidad', p)">{{ p }}</button>
+                                </div>
+                            </div>
+
+                            <div class="ff-cell">
+                                <label class="ff-label">
+                                    {{ $t('field_work.risk_matrix.severity') }}<span class="ff-block__req"> *</span>
+                                </label>
+                                <div class="ff-chips">
+                                    <span v-if="readonly" class="ff-readonly">{{ filas[i].severidad || '—' }}</span>
+                                    <button
+                                        v-for="s in (readonly ? [] : severidades)" :key="s" type="button"
+                                        class="ff-chip" :class="{ 'is-on': filas[i].severidad === s }"
+                                        :aria-pressed="filas[i].severidad === s"
+                                        @click="cambiar(i, 'severidad', s)">{{ s }}</button>
+                                </div>
+                            </div>
+
+                            <!-- El nivel es la sexta columna de la v1 y no se
+                                 teclea: sale del valor de la matriz y de las
+                                 bandas de la plantilla. El asterisco es el de la
+                                 tabla vieja — un peligro sin nivel es un peligro
+                                 sin evaluar, y eso no cierra el documento. -->
+                            <div class="ff-cell">
+                                <label class="ff-label">
+                                    {{ $t('field_work.risk_matrix.level') }}<span class="ff-block__req"> *</span>
+                                </label>
+                                <span v-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
+                                    {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
+                                </span>
+                                <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
+                            </div>
+                        </div>
+
+                        <footer v-if="!readonly" class="ff-row__foot">
+                            <Button
+                                class="ff-row__del"
+                                danger
+                                size="large"
+                                :title="$t('field_work.risk_matrix.remove_row')"
+                                @click="quitar(i)"
+                            >
+                                <template #icon><DeleteOutlined /></template>
+                                {{ $t('field_work.risk_matrix.remove_row') }}
+                            </Button>
+                        </footer>
+                    </div>
+                </article>
+            </div>
+
+            <footer v-if="!readonly" class="ff-group__foot">
+                <Button size="large" @click="agregarPeligro(grupo)">
+                    <template #icon><PlusOutlined /></template>
+                    {{ $t('field_work.risk_matrix.add_row') }}
+                </Button>
+
+                <Popconfirm
+                    :title="$tc('field_work.risk_matrix.remove_activity_confirm', grupo.indices.length)"
+                    :ok-text="$t('field_work.risk_matrix.remove_activity')"
+                    :cancel-text="$t('global.cancel')"
+                    @confirm="quitarActividad(grupo)"
+                >
+                    <Button class="ff-group__del" danger size="large">
+                        <template #icon><DeleteOutlined /></template>
+                        {{ $t('field_work.risk_matrix.remove_activity') }}
+                    </Button>
+                </Popconfirm>
+            </footer>
+        </section>
+
+        <Button v-if="!readonly" class="ff-add" size="large" block @click="agregarActividad">
             <template #icon><PlusOutlined /></template>
-            {{ $t('field_work.risk_matrix.add_row') }}
+            {{ $t('field_work.risk_matrix.add_activity') }}
         </Button>
     </div>
 </template>

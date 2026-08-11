@@ -23,6 +23,10 @@ return [
         'enroll_done'        => 'Cara registrada. Ahora firma.',
         'nobody_found'       => 'No se detectó a nadie frente a la cámara. No se registró nada.',
         'challenge_failed'   => 'La cara coincide pero no se completó el gesto. La firma queda registrada y pendiente de revisión del supervisor.',
+        // Lo mismo pero sin saber por qué: la firma se guardó con su foto y no
+        // vale hasta que la mire un supervisor. Dice qué pasa con la firma, no
+        // qué falló la cámara: eso ya no lo puede arreglar quien lo lee.
+        'pending_review'     => 'La firma queda registrada, pero no se pudo verificar la cara. La revisará el supervisor.',
         'failed'             => 'No se pudo completar la firma.',
         // Firma trazada. Se pide una vez y se reutiliza, como en la v1.
         'has_signature_on_file' => 'Ya tiene su firma registrada',
@@ -34,11 +38,17 @@ return [
         'replace'            => 'Actualizar mi firma',
         'clear'              => 'Borrar',
         'take_photo_and_sign'=> 'Tomar foto y firmar',
+        // Sólo sale cuando la firma quedó pendiente de revisión: la limpia se va
+        // al plan sola. Aquí vivía también `back_to_plan_in` («Volviendo al
+        // plan… :n»), la cuenta atrás del botón. Se quitó con ella: contaba un
+        // detalle del funcionamiento que a nadie le sirve y cambiaba el texto
+        // del botón cada segundo mientras se apuntaba con el dedo.
         'back_to_plan'       => 'Volver al plan',
-        'back_to_plan_in'    => 'Volviendo al plan… :n',
         'no_target'          => 'No se sabe a quién firmar',
         'no_target_hint'     => 'Vuelve al plan y pulsa Firmar en la fila de la persona.',
         'signature_required' => ':name no tiene firma registrada: hay que trazarla antes de firmar el plan.',
+        'left_pending'       => 'Firma registrada. Queda pendiente de revisión del supervisor.',
+        'verified'           => 'Firma verificada.',
         'turn_head'          => 'Gira la cabeza hacia un lado',
         'nod_head'           => 'Asiente con la cabeza',
         'back_center'        => 'Ahora vuelve a mirar al frente',
@@ -63,9 +73,24 @@ return [
     'plan_closed'     => 'El plan está cerrado: sus formatos ya no se tocan.',
     'document'        => 'Documento',
     'attach'          => 'Adjuntar',
-    'save'            => 'Guardar',
+    // «Guardar» a secas no dice qué se guarda ni qué pasa después, y en una
+    // barra donde al lado está «Confirmar formato» se leía como el paso previo
+    // a cerrar el documento. Guarda los cambios y se sigue llenando.
+    'save'            => 'Guardar cambios',
     'confirm'         => 'Confirmar formato',
     'mark_all'        => 'Marcar todo',
+
+    // La salida del pie, la misma en los dos estados: llenando y mirando un
+    // formato ya confirmado. Nombra el destino en vez de decir «Cancelar»,
+    // que significa deshacer, y aquí no se deshace nada: lo que ya se guardó se
+    // queda. Es el texto que usa la pantalla de firma para este mismo viaje.
+    'back_to_plan'    => 'Volver al plan',
+    // Sólo salta si hay algo tecleado sin guardar. Dice qué se pierde y qué no,
+    // que es lo que hace falta saber para contestar.
+    'leave_title'     => '¿Salir sin guardar?',
+    'leave_help'      => 'Lo que escribiste desde la última vez que guardaste se pierde. Lo que ya guardaste sigue ahí.',
+    'leave_discard'   => 'Salir sin guardar',
+    'leave_stay'      => 'Seguir aquí',
 
     // Avance de un campo compuesto: el índice de filas y las cabeceras
     // plegadas del EPP, el IHM y la matriz de riesgo.
@@ -113,7 +138,9 @@ return [
         'observation'             => 'Observación',
     ],
 
-    // AST y PTF: actividad → peligro → control → severidad × probabilidad.
+    // AST y PTF: el documento es una lista de ACTIVIDADES y, dentro de cada
+    // una, sus peligros — peligro → riesgo → control → probabilidad →
+    // severidad → nivel. Ése es el orden de las columnas de la v1.
     'risk_matrix' => [
         'activity'     => 'Actividad',
         'danger'       => 'Peligro',
@@ -121,10 +148,20 @@ return [
         'control'      => 'Control',
         'severity'     => 'Severidad',
         'probability'  => 'Probabilidad',
+        // Sexta columna de la tabla vieja. No se teclea: sale de la matriz.
+        'level'        => 'Nivel',
         'search'       => 'Buscar en el catálogo',
         'add_row'      => 'Añadir peligro',
         'remove_row'   => 'Quitar esta fila',
-        'empty'        => 'Todavía no hay peligros. Añade el primero.',
+        // Cabecera de cada bloque, como el «Actividad 1» del formato de papel.
+        'activity_n'    => 'Actividad :n',
+        'activity_hint' => 'Ponle nombre a la actividad: es el título de los peligros que van debajo.',
+        'add_activity'  => 'Añadir actividad',
+        'remove_activity' => 'Quitar esta actividad',
+        // Quitar la actividad se lleva sus peligros por delante, así que se
+        // dice cuántos son antes de hacerlo.
+        'remove_activity_confirm' => '{0} ¿Quitar esta actividad?|{1} ¿Quitar esta actividad y su peligro?|[2,*] ¿Quitar esta actividad y sus :count peligros?',
+        'empty'        => 'Todavía no hay actividades. Añade la primera.',
         'row_incomplete' => 'Al peligro le falta: :fields. Un peligro evaluado se declara entero: qué puede pasar, qué consecuencia tiene y qué control se puso.',
         'no_risk'      => 'Sin evaluar',
         'level_alto'   => 'Riesgo alto',
