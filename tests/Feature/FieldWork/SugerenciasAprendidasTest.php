@@ -138,6 +138,56 @@ class SugerenciasAprendidasTest extends TestCase
     }
 
     /**
+     * La herramienta del IHM aprende igual que los textos de la matriz.
+     *
+     * En la v1 tambien era un textarea libre con autocompletado
+     * (`ihm-tool-autocomplete` en `_f4_document_tool_fields.html.erb`): el
+     * mismo trato que actividad, peligro, riesgo y control.
+     */
+    public function test_la_herramienta_del_ihm_tambien_aprende(): void
+    {
+        [$plan, $plantilla] = $this->escenario();
+
+        $base = ['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1];
+
+        $ihm = FormTemplate::create($base + [
+            'slug' => Str::random(22), 'code' => 'IHM', 'kind' => FormTemplate::STRUCTURED,
+            'status' => 'published', 'version' => 1, 'requires_signature' => false, 'published_at' => now(),
+        ]);
+
+        $seccion = FormSection::create($base + [
+            'slug' => Str::random(22), 'form_template_id' => $ihm->id,
+            'code' => 'general', 'position' => 1,
+        ]);
+
+        FormField::create($base + [
+            'slug' => Str::random(22), 'form_template_id' => $ihm->id,
+            'form_section_id' => $seccion->id, 'code' => 'herramientas',
+            'label_es' => 'Inspección de herramientas', 'label_en' => 'Tool inspection',
+            'field_type' => 'tool_checklist', 'is_required' => true, 'position' => 1,
+            'config' => ['tools' => ['Tecle'], 'items' => ['Estado general'], 'answers' => ['Cumple', 'No cumple']],
+        ]);
+
+        $entrega = FormSubmission::create($base + [
+            'slug' => Str::random(22),
+            'work_plan_id' => $plan->id, 'form_template_id' => $ihm->id,
+            'template_version' => 1, 'status' => 'confirmed', 'submitted_at' => now(),
+        ]);
+
+        $campo = FormField::where('form_section_id', $seccion->id)->firstOrFail();
+
+        FormAnswer::create([
+            'form_submission_id' => $entrega->id, 'form_field_id' => $campo->id,
+            'row_index' => 0, 'value_json' => [['tool' => 'Esmeril angular 4.5"', 'items' => []]],
+        ]);
+
+        $this->abrir($plan, $ihm)
+            ->assertInertia(fn (AssertableInertia $pagina) => $pagina
+                ->where('template.sections.0.fields.0.config.tools', ['Tecle', 'Esmeril angular 4.5"'])
+            );
+    }
+
+    /**
      * El aprendizaje viaja en la pagina, no en la plantilla: el catalogo
      * guardado queda exactamente como el administrador lo dejo.
      */

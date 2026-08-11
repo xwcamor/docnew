@@ -37,11 +37,21 @@ const props = defineProps({
      */
     minTime: { type: String, default: null },
     placeholder: { type: String, default: undefined },
+    /**
+     * El día que el calendario ENSEÑA cuando el valor está vacío, `YYYY-MM-DD`.
+     *
+     * Para la fecha de fin del plan: el dueño pidió que salga la fecha de hoy
+     * ya puesta y que el usuario solo ponga la hora. El valor real sigue vacío
+     * hasta que se toca algo — teclear la hora compone «día enseñado + hora»,
+     * que es el gesto pedido. Si se guarda sin tocar nada, no se guarda fecha:
+     * un día que nadie eligió no es un dato.
+     */
+    defaultDay: { type: String, default: null },
 });
 
 const emit = defineEmits(['update:value', 'change']);
 
-const fecha = computed(() => (props.value ? String(props.value).slice(0, 10) : null));
+const fecha = computed(() => (props.value ? String(props.value).slice(0, 10) : props.defaultDay));
 const hora  = computed(() => (props.value ? String(props.value).slice(11, 16) : ''));
 
 /** La hora de ahora, redondeada a los 5 minutos: nadie apunta las 12:26. */

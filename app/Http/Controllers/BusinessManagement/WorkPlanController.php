@@ -614,7 +614,42 @@ class WorkPlanController extends Controller
         return inertia('WorkPlans/Form', [
             'workPlan' => null,
             ...$this->catalogOptions(),
+            'descriptionSuggestions' => $this->descripcionesUsadas(),
         ]);
+    }
+
+    /**
+     * Las descripciones de trabajo ya escritas, las más repetidas primero.
+     *
+     * El mismo aprendizaje que los textos libres del AST, pedido por el dueño
+     * para este campo: en la v1 la descripción autocompletaba desde el
+     * catálogo `jobs` (`search_jobs`), que alguien tenía que mantener. Aquí el
+     * catálogo es lo que la gente ya escribió en otros planes — incluidos los
+     * migrados, que traen dentro aquellos textos del catálogo viejo. Nada se
+     * persiste: se calcula al abrir el formulario.
+     *
+     * El tope es generoso a proposito: la base migrada trae miles de planes
+     * con descripciones que se repiten poco, y con 50 el buscador del campo
+     * se quedaba ciego para todo lo que no fuera lo mas comun. 200 textos son
+     * unas decenas de KB en la pagina: barato para lo que resuelve.
+     *
+     * @return array<int, string>
+     */
+    protected function descripcionesUsadas(int $tope = 200): array
+    {
+        return WorkPlan::query()
+            ->whereNotNull('description')
+            ->where('description', '!=', '')
+            ->selectRaw('description, count(*) as veces')
+            ->groupBy('description')
+            ->orderByDesc('veces')
+            ->limit($tope)
+            ->pluck('description')
+            ->map(fn ($d) => trim((string) $d))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
     }
 
     public function store(StoreWorkPlanRequest $request, WorkPlanService $service): RedirectResponse
@@ -674,6 +709,7 @@ class WorkPlanController extends Controller
         return inertia('WorkPlans/Form', [
             'workPlan' => $this->payload($workPlan),
             ...$this->catalogOptions(),
+            'descriptionSuggestions' => $this->descripcionesUsadas(),
         ]);
     }
 

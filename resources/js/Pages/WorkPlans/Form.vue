@@ -2,9 +2,10 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Form, FormItem, Input, Textarea, Alert, Row, Col, Select,
+    Form, FormItem, Input, Textarea, Alert, Row, Col, Select, AutoComplete,
 } from 'ant-design-vue';
 import { ScheduleOutlined } from '@ant-design/icons-vue';
+import dayjs from 'dayjs';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -20,9 +21,24 @@ const props = defineProps({
     workLocationOptions: { type: Array,  default: () => [] },
     workAreaOptions:     { type: Array,  default: () => [] },
     workstationOptions:  { type: Array,  default: () => [] },
+    /** Descripciones ya usadas en otros planes, las más repetidas primero. */
+    descriptionSuggestions: { type: Array, default: () => [] },
 });
 
 const isEdit = computed(() => !!props.workPlan);
+
+/**
+ * Con una sola sede (o una sola área) no hay nada que elegir: sale puesta.
+ * Solo al crear — al editar el valor guardado manda, aunque sea nulo.
+ */
+const unicaOpcion = (opciones) => (opciones.length === 1 ? opciones[0].value : null);
+
+/** La hora de ahora a los 5 minutos, como propone FechaHora: nadie apunta las 12:26. */
+const ahora = () => {
+    const d = dayjs();
+
+    return d.minute(Math.floor(d.minute() / 5) * 5).format('YYYY-MM-DD HH:mm');
+};
 
 /*
  * Por qué la rejilla parte en `lg` (≥992) y no en `md` (≥768).
@@ -43,10 +59,15 @@ const form = useForm({
     description:      props.workPlan?.description ?? '',
     company_id:       props.workPlan?.company_id ?? null,
     work_type_id:     props.workPlan?.work_type_id ?? null,
-    work_location_id: props.workPlan?.work_location_id ?? null,
+    // Única sede/área → ya seleccionada (petición del dueño): elegir entre
+    // una sola opción es un clic que no decide nada. SOLO al crear: al editar
+    // manda lo guardado, aunque sea un área vacía de un plan viejo.
+    work_location_id: props.workPlan ? (props.workPlan.work_location_id ?? null) : unicaOpcion(props.workLocationOptions),
     workstation_id:   props.workPlan?.workstation_id ?? null,
-    work_area_id:     props.workPlan?.work_area_id ?? null,
-    date_start:       props.workPlan?.date_start ?? null,
+    work_area_id:     props.workPlan ? (props.workPlan.work_area_id ?? null) : unicaOpcion(props.workAreaOptions),
+    // El plan se crea cuando el trabajo empieza: la fecha y hora de AHORA van
+    // puestas de fábrica (petición del dueño). Se ven y se cambian.
+    date_start:       props.workPlan ? (props.workPlan.date_start ?? null) : ahora(),
     date_end:         props.workPlan?.date_end ?? null,
 });
 
@@ -137,7 +158,14 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <!-- Media fila: es un numero de orden de seis digitos, no una frase. -->
+                <!-- Orden de servicio y Descripción comparten Row y rejilla de
+                     etiquetas: la OS es media fila (es un número, no una
+                     frase) y la descripción va a lo ancho, pero sus etiquetas
+                     terminan en la MISMA vertical en todos los anchos — la OS
+                     usa 8 de las 24 columnas de su media fila (un tercio de la
+                     mitad = 1/6) y la descripción 4 de sus 24 enteras (el
+                     mismo 1/6). Antes cada una usaba una rejilla distinta y
+                     los campos arrancaban descuadrados (queja del dueño). -->
                 <Row :gutter="[20, 0]" class="form-grid">
                     <Col :xs="24" :lg="12">
                         <FormItem
@@ -156,23 +184,39 @@ const submit = () => {
                             />
                         </FormItem>
                     </Col>
+                    <Col :xs="24">
+                        <FormItem
+                            :label-col="{ xs: 24, sm: 8, lg: 4 }"
+                            :wrapper-col="{ xs: 24, sm: 16, lg: 20 }"
+                            :label="$t('work_plans.description')"
+                            :tooltip="$t('work_plans.description_help')"
+                            required
+                            :validate-status="form.errors.description ? 'error' : ''"
+                            :help="form.errors.description"
+                        >
+                            <!-- Texto libre con memoria, como los peligros del
+                                 AST: sugiere las descripciones ya usadas en
+                                 otros planes (las más repetidas primero) y lo
+                                 elegido se puede seguir editando. En la v1 era
+                                 el autocompletado del catálogo `jobs`; aquí el
+                                 catálogo es lo que la gente escribe. -->
+                            <AutoComplete
+                                class="descripcion-libre"
+                                :value="form.description"
+                                :options="descriptionSuggestions.map((d) => ({ value: d }))"
+                                :filter-option="(texto, opcion) => String(opcion.value).toLowerCase().includes(String(texto).toLowerCase())"
+                                @update:value="form.description = $event"
+                            >
+                                <Textarea
+                                    :rows="3"
+                                    :maxlength="5000"
+                                    show-count
+                                    :placeholder="$t('work_plans.description_placeholder')"
+                                />
+                            </AutoComplete>
+                        </FormItem>
+                    </Col>
                 </Row>
-
-                <FormItem
-                    :label="$t('work_plans.description')"
-                    :tooltip="$t('work_plans.description_help')"
-                    required
-                    :validate-status="form.errors.description ? 'error' : ''"
-                    :help="form.errors.description"
-                >
-                    <Textarea
-                        v-model:value="form.description"
-                        :rows="3"
-                        :maxlength="5000"
-                        show-count
-                        :placeholder="$t('work_plans.description_placeholder')"
-                    />
-                </FormItem>
 
                 <h2 class="form-section-title">{{ $t('work_plans.section_work') }}</h2>
 
@@ -323,11 +367,18 @@ const submit = () => {
                             <!-- Todo lo anterior al inicio queda fuera: los
                                  días en gris y la hora corregida si se elige
                                  una anterior. No se puede dejar un fin
-                                 imposible y enterarse al guardar. -->
+                                 imposible y enterarse al guardar.
+
+                                 El calendario ENSEÑA hoy de fábrica (petición
+                                 del dueño): el caso normal es que el trabajo
+                                 termina el mismo día y solo hay que poner la
+                                 hora. Teclear la hora compone «hoy + hora»;
+                                 sin tocar nada, no se guarda fecha. -->
                             <FechaHora
                                 v-model:value="form.date_end"
                                 :disabled-date="finDeshabilitado"
                                 :min-time="form.date_start"
+                                :default-day="isEdit ? null : dia(form.date_start)"
                             />
                         </FormItem>
                     </Col>

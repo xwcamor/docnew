@@ -118,6 +118,31 @@ class WorkPlanSetupTest extends TestCase
         $respuesta->assertRedirect(route('business_management.work_plans.show', $plan->slug));
     }
 
+    /**
+     * El formulario trae las descripciones ya usadas, las más repetidas primero.
+     *
+     * El mismo aprendizaje que los textos libres del AST, pedido por el dueño
+     * para la descripción del trabajo: en la v1 autocompletaba desde el
+     * catálogo `jobs`, que alguien tenía que mantener; aquí el catálogo es lo
+     * que la gente ya escribió en otros planes.
+     */
+    public function test_el_formulario_sugiere_las_descripciones_ya_usadas(): void
+    {
+        $usuario = $this->supervisor();
+        $usuario->givePermissionTo('work_plans.create');
+
+        $this->plan('PE26-0808-0001')->update(['description' => 'Bobinado de baja tensión']);
+        $this->plan('PE26-0808-0002')->update(['description' => 'Cambio de rodamientos']);
+        $this->plan('PE26-0808-0003')->update(['description' => 'Bobinado de baja tensión']);
+
+        $this->actingAs($usuario)
+            ->get(route('business_management.work_plans.create'))
+            ->assertInertia(fn ($pagina) => $pagina
+                ->component('WorkPlans/Form')
+                ->where('descriptionSuggestions', ['Bobinado de baja tensión', 'Cambio de rodamientos'])
+            );
+    }
+
     // ── Cuadrilla ────────────────────────────────────────────────────────────
 
     public function test_el_supervisor_asigna_un_trabajador_al_plan(): void
