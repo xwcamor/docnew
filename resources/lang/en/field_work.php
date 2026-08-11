@@ -59,7 +59,17 @@ return [
     // warning is read by whoever is filling the form in on site. The
     // attachment is not a field and has no label, so its wording lives here.
     'missing_attachment' => 'the form file',
-    'missing_required' => 'Still to fill in: :fields. Fill it in and hit Confirm again.',
+    // Said by the server when someone tries to confirm through the API with
+    // the form half done. It no longer names any button: «hit Confirm again»
+    // talked about a button that is gone — saving and confirming are one
+    // «Save changes» now. Ver la nota en `es`.
+    'missing_required' => 'Still to fill in: :fields.',
+    // The friendly notice under the list of missing fields. Saving half-done
+    // work is not an error. Ver la nota en `es`.
+    'missing_help'    => 'What you saved is already saved and the form stays in draft. Fill in what is missing and press Save changes again.',
+    // The word next to the label of a missing field: red never goes alone
+    // (docs/UI.md §5).
+    'field_missing'   => 'Not filled in',
     'readonly_notice' => 'This form is already confirmed. To change anything it has to be reopened, and that is recorded.',
     'reopen'          => 'Edit again',
     'reopen_title'    => 'Reopen this form?',
@@ -71,11 +81,16 @@ return [
     'plan_closed'     => 'The plan is closed: its forms are no longer editable.',
     'document'        => 'Document',
     'attach'          => 'Attach',
-    // Plain «Save» said neither what was saved nor what happened next, and next
-    // to «Confirm form» it read as the step before closing the document. Ver la
-    // nota en `es`.
+    // The ONLY action button in the footer: saving tries to confirm in the
+    // same gesture and the server decides. The `confirm` key left with the
+    // second button. Ver la nota en `es`.
     'save'            => 'Save changes',
-    'confirm'         => 'Confirm form',
+    // The two endings of that button, told by the server.
+    'saved_partial'   => 'Changes saved.',
+    'saved_confirmed' => 'Form saved and confirmed.',
+    // Flashes that used to live hardcoded in the controller. Ver la nota en `es`.
+    'attached_flash'  => 'Document attached.',
+    'confirmed_flash' => 'Form confirmed.',
     'mark_all'        => 'Mark all',
 
     // The way out of the footer, the same in both states. Ver la nota en `es`.
@@ -105,6 +120,15 @@ return [
         'index_people'  => 'Workers in this form',
         'index_tools'   => 'Tools in this form',
         'index_hazards' => 'Hazards in this form',
+        // El banco de preguntas no tiene índice: su avance es esta línea.
+        // Ver la nota en `es`.
+        'questions_done' => ':done of :total questions answered',
+        // Lo que dice un campo compuesto obligatorio que un guardado dejó
+        // pendiente (prop `faltante`). Ver la nota en `es`.
+        'required_hazards'   => '{0} Required: add an activity and rate its hazards.|{1} Required: 1 hazard still to rate.|[2,*] Required: :count hazards still to rate.',
+        'required_people'    => '{1} Required: 1 worker still to complete.|[2,*] Required: :count workers still to complete.',
+        'required_tools'     => '{0} Required: add at least one tool.|{1} Required: 1 tool still to complete.|[2,*] Required: :count tools still to complete.',
+        'required_questions' => '{1} Required: 1 question still to answer.|[2,*] Required: :count questions still to answer.',
     ],
 
     'status' => [
@@ -149,13 +173,16 @@ return [
         'remove_activity_confirm' => '{0} Remove this activity?|{1} Remove this activity and its hazard?|[2,*] Remove this activity and its :count hazards?',
         'empty'        => 'No activities yet. Add the first one.',
         'row_incomplete' => 'This hazard is missing: :fields. A rated hazard is declared in full: what can happen, what it leads to and what control is in place.',
+        // La regla del servidor dicha fila a fila y antes de guardar. Ver `es`.
+        'row_missing'  => 'Missing: :fields',
+        'incomplete'   => 'Incomplete',
         'no_risk'      => 'Not assessed',
         'level_alto'   => 'High risk',
         'level_medio'  => 'Medium risk',
         'level_bajo'   => 'Low risk',
     ],
 
-    // EPP: una fila por trabajador de la cuadrilla.
+    // EPP: una fila por trabajador del plan.
     'person_checklist' => [
         'no_people' => 'This work plan has no workers assigned: add them before filling this form.',
     ],

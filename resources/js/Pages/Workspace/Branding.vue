@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Card, Input, Textarea, Button, Form, FormItem, Alert, Select, SelectOption, Tag, Switch } from 'ant-design-vue';
+import { Input, Textarea, Button, Form, FormItem, Alert, Select, SelectOption, Tag, Switch } from 'ant-design-vue';
 import { BankOutlined, PlusOutlined, DeleteOutlined, ArrowUpOutlined, ArrowDownOutlined, CameraOutlined, ShopOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -88,7 +88,11 @@ const onLogoPicked = (e) => {
 
         <input ref="logoInput" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" @change="onLogoPicked">
 
-        <Card class="form-card" :bodyStyle="{ padding: '24px 28px' }">
+        <!-- `.form-body`, no una Card: la barra del pie sangra hasta los bordes con
+             los `--bar-bleed-*` que app.css declara para `.form-body`; metida en una
+             tarjeta salia 28px corta por lado y despegada 24px del fondo, el
+             «descuadrado» del alta de usuario (docs/UI.md §8). -->
+        <div class="form-body">
             <Alert
                 v-if="form.recentlySuccessful"
                 type="success"
@@ -227,7 +231,7 @@ const onLogoPicked = (e) => {
                     floating
                 />
             </Form>
-        </Card>
+        </div>
     </div>
 </template>
 

@@ -35,7 +35,7 @@ import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
 import {
-    catalogo, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
+    catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -43,6 +43,8 @@ const props = defineProps({
     field:    { type: Object, required: true },
     value:    { type: Array, default: () => [] },
     readonly: { type: Boolean, default: false },
+    /** El servidor dijo que este campo sigue faltando tras intentar guardar. */
+    faltante: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:value']);
@@ -118,6 +120,13 @@ const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length
 
 const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [])));
 
+/** Como en el EPP: con `faltante`, la herramienta a medias pasa a rojo en el
+ *  indice y en su tarjeta a la vez, pero SOLO el color — la palabra sigue
+ *  saliendo del estado real. Ver `claveExigida` en respuestas.js. */
+const claves = computed(() => estados.value.map(
+    (e) => claveExigida(e, props.faltante && ! props.readonly),
+));
+
 /** Sin nombre todavia, la herramienta se llama por su numero. */
 const titulo = (fila, i) => fila.tool || t('field_work.progress.row', { n: i + 1 });
 
@@ -127,13 +136,16 @@ const textos = computed(() => estados.value.map((e) => textoEstado(t, e)));
 const resumenFilas = computed(() => filas.value.map((fila, i) => ({
     key: i,
     label: titulo(fila, i),
-    state: estados.value[i].clave,
+    state: claves.value[i],
     stateText: textos.value[i],
 })));
 
 const hechos = computed(() => estados.value.reduce((n, e) => n + e.hechos, 0));
 const totales = computed(() => estados.value.reduce((n, e) => n + e.total, 0));
 const completas = computed(() => estados.value.filter((e) => e.total > 0 && e.faltan === 0).length);
+
+/** Las herramientas que el aviso de `faltante` nombra: las que tienen hueco. */
+const pendientes = computed(() => estados.value.filter((e) => e.faltan > 0).length);
 
 function siguientePendiente(indice) {
     const n = filas.value.length;
@@ -150,7 +162,15 @@ function siguientePendiente(indice) {
 
 <template>
     <div class="ff-field">
-        <p v-if="!filas.length" class="ff-empty">{{ $t('field_work.tool_checklist.empty') }}</p>
+        <!-- El guardado dejo el campo pendiente. Con la lista vacia el caso
+             {0} dice lo unico que se puede hacer: añadir una herramienta. -->
+        <p v-if="faltante && !readonly && (pendientes || !filas.length)" class="ff-missing" role="alert">
+            {{ $tc('field_work.progress.required_tools', filas.length ? pendientes : 0) }}
+        </p>
+
+        <p v-if="!filas.length" class="ff-empty" :class="{ 'is-missing': faltante && !readonly }">
+            {{ $t('field_work.tool_checklist.empty') }}
+        </p>
 
         <RowNavigator
             v-if="filas.length > 1"
@@ -170,7 +190,7 @@ function siguientePendiente(indice) {
             :id="idFila(i)"
             :key="i"
             class="ff-row"
-            :class="{ 'is-open': estaAbierta(i) }"
+            :class="{ 'is-open': estaAbierta(i), 'is-missing': faltante && !readonly && estados[i].faltan > 0 }"
         >
             <button
                 type="button"
@@ -187,7 +207,7 @@ function siguientePendiente(indice) {
 
                 <span class="ff-count" :class="{ 'is-done': estados[i].clave === 'ok' }">{{ avance(fila) }}</span>
 
-                <span class="ff-state" :class="`is-${estados[i].clave}`">{{ textos[i] }}</span>
+                <span class="ff-state" :class="`is-${claves[i]}`">{{ textos[i] }}</span>
             </button>
 
             <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">

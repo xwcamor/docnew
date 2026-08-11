@@ -1437,6 +1437,26 @@ html[data-theme="dark"] .lift:hover {
 .sap-form, .sap-index { --bar-bleed-x: 24px; --bar-bleed-b: 24px; }
 .sap-form .form-body  { --bar-bleed-x: 52px; --bar-bleed-b: 48px; }
 
+/* La pagina que cuelga la barra DIRECTAMENTE del `.content` del layout — la de
+   llenado de formato, cuya raiz son varios nodos hermanos sin `.sap-form` —
+   no tenia columna elastica: el `.content` ya estira al alto de la ventana
+   (lo hace el propio layout de Ant), pero al no ser flex el `margin-top: auto`
+   de la barra no tenia hueco que comerse, y con la pagina mas corta que la
+   ventana (zoom out al maximo) la franja se quedaba pegada al ultimo campo,
+   a media pantalla, en vez de apoyar en el borde. Con scroll no se notaba
+   —`sticky` si funcionaba—, por eso sobrevivio: solo lo ve quien abre un
+   formato corto o hace zoom out. Con scroll el unico sintoma era el sangrado,
+   y ese se arregla debajo declarando el de `.content`. */
+.below-shell .content:has(> .sap-actionbar) { display: flex; flex-direction: column; }
+/* Y el sangrado lo declara el contenedor, como manda la regla: `.content` padea
+   24 (16 por debajo de 992, ver AppLayout), y la barra que cuelga directa de el
+   consume exactamente eso. Las paginas `.sap-form`/`.sap-index` lo re-declaran
+   mas arriba, asi que esto no las toca. */
+.below-shell .content { --bar-bleed-x: 24px; --bar-bleed-b: 24px; }
+@media (max-width: 991px) {
+    .below-shell .content { --bar-bleed-x: 16px; --bar-bleed-b: 16px; }
+}
+
 .sap-actionbar,
 .bulk-bar {
     display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -2037,4 +2057,148 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
    vistazo. En la tablet en vertical si caben dos, y ahi se dejan. */
 @media (max-width: 520px) {
     .ff-nav__chips { grid-template-columns: 1fr; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Campos que un intento de guardar dejó pendientes (prefijo .ff-falta)
+
+   FormFill.vue: con el botón único —«Guardar cambios» guarda y confirma en el
+   mismo gesto— un guardado que se queda a medias vuelve con la lista de
+   faltantes, y cada campo pendiente se marca aquí. Solo tras un intento: el
+   rojo nunca sale sobre un formato recién abierto y vacío.
+
+   El rojo sale de los tokens de estado (--state-bad-*), nunca de un hex
+   (docs/UI.md §5-bis), y jamás va solo: la palabra la pone
+   `.ff-falta__palabra` junto a la etiqueta (docs/UI.md §5).
+
+   Los bordes usan el combinador de hijo directo (>) a propósito: dentro de un
+   campo compuesto (matriz de riesgo, EPP, IHM, banco de preguntas) también
+   hay inputs de Ant, y su marcado lo pinta el propio componente con la prop
+   `faltante` — esta regla no puede meterse en su casa.
+   ═══════════════════════════════════════════════════════════════ */
+.ff-falta .ff-block__label { color: var(--state-bad-text); }
+
+/* La palabra del estado, como pastilla: texto, fondo y borde (docs/UI.md §5). */
+.ff-falta__palabra {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--state-bad-text);
+    background: var(--state-bad-bg);
+    border: 1px solid var(--state-bad-border);
+}
+
+/* El borde del control de un campo SIMPLE (texto, número, fecha, select…).
+
+   `.ff-block.ff-falta` y no `.ff-falta` a secas: los estilos de Ant se
+   inyectan en tiempo de ejecución DESPUÉS de esta hoja, y su regla del borde
+   (`:where(.css-…).ant-select:not(…) .ant-select-selector`) empata en
+   especificidad con una sola clase por nivel — empatada, ganaba la suya por
+   venir después y el borde se quedaba gris (medido en el navegador). La clase
+   doblada desempata sin `!important`, igual que hace `.ff-cell.is-missing`.
+
+   Y el color es `--state-bad-text`, no `--state-bad-border`: el token de
+   borde acompaña a un fondo teñido y es casi transparente — en el canto de un
+   input, al sol, no se ve. Misma elección que `.ff-cell.is-missing`. */
+.ff-block.ff-falta > .ant-input,
+.ff-block.ff-falta > .ant-input-affix-wrapper,
+.ff-block.ff-falta > .ant-input-number,
+.ff-block.ff-falta > .ant-picker,
+.ff-block.ff-falta > .ant-select > .ant-select-selector,
+.ff-block.ff-falta > .ant-checkbox-wrapper .ant-checkbox-inner {
+    border-color: var(--state-bad-text);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Lo que falta DENTRO de un campo compuesto, y la tarjeta de peligro en rejilla
+   (matriz de riesgo, EPP, IHM y banco de preguntas)
+
+   Sección hermana de `.ff-falta` (justo arriba): aquélla marca el campo SIMPLE
+   desde FormFill; ésta es lo que los cuatro compuestos pintan por dentro
+   cuando les llega la prop `faltante`, o cuando una fila de la matriz se
+   empezó a puntuar y quedó a medias (el espejo de `exigirPeligroEntero`).
+   No un rojo genérico sobre el bloque entero: el titular con la cuenta
+   (`.ff-missing`), y en rojo SOLO las filas y celdas con hueco, que es lo
+   único accionable. Palabra siempre junto al color (docs/UI.md §5), tokens
+   `--state-bad-*` y nunca un hex (§5-bis).
+   ═══════════════════════════════════════════════════════════════ */
+
+/* El titular: qué falta y cuánto. Encima del índice, donde arranca el campo. */
+.ff-missing {
+    margin: 0 0 12px;
+    padding: 10px 14px;
+    border: 1px solid var(--state-bad-border);
+    border-radius: 10px;
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: var(--state-bad-text);
+    background: var(--state-bad-bg);
+}
+
+/* La misma nota pegada a la fila a medias de la matriz, dentro de su tarjeta:
+   nombra las columnas que faltan ANTES de que el servidor rechace el guardado. */
+.ff-missing--row { margin: 12px 12px 0; }
+
+/* «Incompleto» en la cabecera de una fila de la matriz a medias. Es la
+   anatomía de `.ff-state`/`.ff-risk` —pastilla con texto, fondo y borde— pero
+   siempre en rojo: no es un nivel de riesgo ni un avance, es un bloqueo. */
+.ff-incomplete {
+    flex-shrink: 0;
+    display: inline-flex; align-items: center;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--state-bad-text);
+    background: var(--state-bad-bg);
+    border: 1px solid var(--state-bad-border);
+}
+
+/* La tarjeta señalada: borde y cabecera teñidos. Va DESPUÉS de `.ff-row.is-open`
+   en este archivo a propósito: abierta y con hueco, gana el rojo. */
+.ff-row.is-missing { border-color: var(--state-bad-border); }
+.ff-row.is-missing > .ff-row__head { background: var(--state-bad-bg); }
+
+/* La celda concreta de la matriz a la que le falta su valor: etiqueta en rojo
+   y el borde del desplegable también. Tres clases para ganarle a la regla de
+   dos con la que Ant pinta su borde, sin `!important`. */
+.ff-cell.is-missing .ff-label { color: var(--state-bad-text); }
+.ff-cell.is-missing .ant-select .ant-select-selector { border-color: var(--state-bad-text); }
+.ff-cell.is-missing .ff-chips .ff-chip:not(.is-on) { border-color: var(--state-bad-border); }
+
+/* La pregunta sin responder del banco, cuando el guardado dejó el campo
+   pendiente: filete rojo al canto y fondo teñido, fila a fila. */
+.ff-item.is-missing {
+    background: var(--state-bad-bg);
+    box-shadow: inset 3px 0 0 var(--state-bad-text);
+}
+
+/* El vacío obligatorio: mismo cajón punteado, pero dice que no puede quedarse así. */
+.ff-empty.is-missing {
+    border-color: var(--state-bad-border);
+    color: var(--state-bad-text);
+}
+
+/* ── La tarjeta de peligro del AST, en rejilla y no en columna ────────────────
+   Los seis campos apilados medían 610px en la tablet en vertical (448 en el
+   escritorio, medidos en el navegador), y un AST trae diez o quince peligros:
+   añadir uno era abrir un churro. La rejilla pone la fila de la v1 en dos
+   líneas de tres —peligro, riesgo, control / probabilidad, severidad, nivel—,
+   que es el papel leído de izquierda a derecha, sin resucitar la tabla ancha
+   con scroll horizontal que el comentario del componente veta.
+
+   OJO con el orden en este archivo: la base de `.ff-row__body` y su media
+   query de apilado (max-width: 900px) viven más arriba; estas reglas van
+   después a propósito para que el modificador gane a igual especificidad.
+   A 768 (tablet en vertical) caben dos columnas de ~330px —el desplegable más
+   los cinco chips de c1..c5 entran de sobra—; solo un móvil apila. */
+.ff-row__body--matriz { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+@media (max-width: 1080px) {
+    .ff-row__body--matriz { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 560px) {
+    .ff-row__body--matriz { grid-template-columns: 1fr; }
 }

@@ -15,7 +15,7 @@
  * v-model = el texto del motivo (form.deleted_description). @submit al enviar.
  */
 import { computed } from 'vue';
-import { Card, Form, FormItem, Input, Alert } from 'ant-design-vue';
+import { Form, FormItem, Input, Alert } from 'ant-design-vue';
 import { DeleteOutlined } from '@ant-design/icons-vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import DeleteFooter from '@/Components/Common/DeleteFooter.vue';
@@ -50,7 +50,11 @@ const deleteDisabled = computed(() =>
             <template #icon><DeleteOutlined /></template>
         </SectionHeader>
 
-        <Card class="delete-card" :bodyStyle="{ padding: '24px 28px' }">
+        <!-- `.form-body`, no una Card: la barra del pie (DeleteFooter) sangra hasta
+             los bordes con los `--bar-bleed-*` que app.css declara para `.form-body`;
+             metida en una tarjeta salia 28px corta por lado y despegada 24px del
+             fondo en TODAS las papeleras a la vez (docs/UI.md §8). -->
+        <div class="form-body">
             <Alert type="warning" show-icon class="del-mb">
                 <template #message>{{ $t('global.delete_confirm_title') }}</template>
                 <template #description>{{ $t('global.delete_confirm_body') }}</template>
@@ -91,12 +95,11 @@ const deleteDisabled = computed(() =>
                     floating
                 />
             </Form>
-        </Card>
+        </div>
     </div>
 </template>
 
 <style scoped>
-.delete-card { border-radius: 6px; }
 .record-summary {
     display: flex;
     flex-direction: column;

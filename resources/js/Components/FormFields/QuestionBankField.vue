@@ -20,6 +20,8 @@ const props = defineProps({
     field:    { type: Object, required: true },
     value:    { type: Array, default: () => [] },
     readonly: { type: Boolean, default: false },
+    /** El servidor dijo que este campo sigue faltando tras intentar guardar. */
+    faltante: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:value']);
@@ -47,16 +49,34 @@ function responder(question, respuesta) {
 }
 
 const contestadas = computed(() => respondidos(filas.value.map((f) => ({ answer: f.answer }))));
+
+const sinContestar = (f) => f.answer === null || f.answer === undefined || f.answer === '';
+
+/** Las preguntas que el aviso de `faltante` nombra: las que siguen en blanco. */
+const pendientes = computed(() => filas.value.length - contestadas.value);
 </script>
 
 <template>
     <div class="ff-field">
+        <!-- El guardado dejo el campo pendiente: en rojo y con la cuenta.
+             Las preguntas concretas quedan marcadas fila a fila, abajo. -->
+        <p v-if="faltante && !readonly && pendientes" class="ff-missing" role="alert">
+            {{ $tc('field_work.progress.required_questions', pendientes) }}
+        </p>
+
+        <!-- Con sustantivo, como el resto de compuestos: «3/25» a secas no
+             decia 3 de 25 QUE, y es el unico avance que tiene este campo. -->
         <p class="ff-count ff-count--head" :class="{ 'is-done': contestadas === filas.length }">
-            {{ contestadas }}/{{ filas.length }}
+            {{ $t('field_work.progress.questions_done', { done: contestadas, total: filas.length }) }}
         </p>
 
         <ul class="ff-items ff-items--questions">
-            <li v-for="f in filas" :key="f.question" class="ff-item">
+            <li
+                v-for="f in filas"
+                :key="f.question"
+                class="ff-item"
+                :class="{ 'is-missing': faltante && !readonly && sinContestar(f) }"
+            >
                 <span class="ff-item__name">{{ f.question }}</span>
                 <AnswerToggle
                     :value="f.answer" :answers="respuestas" :readonly="readonly" :label="f.question"

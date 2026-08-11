@@ -22,7 +22,17 @@ const props = defineProps({
     submission: Object,
     template: Object,
     answers: Array,
+    // Lo que falta para poder confirmar, dos veces: `missing` trae las
+    // ETIQUETAS y es para el aviso —se lee—; `missingCodes` trae los CODIGOS y
+    // es para encontrar cada campo pendiente y marcarlo en rojo. Las dos
+    // llegan frescas tras cada guardado que se quedó a medias, porque el
+    // servidor vuelve a esta misma pantalla y recalcula sus props.
     missing: Array,
+    missingCodes: { type: Array, default: () => [] },
+    // Si ya hubo un intento de guardar antes de abrir la pantalla. El marcado
+    // rojo solo se enciende tras un intento: pintar de rojo un formato recién
+    // abierto y vacío es gritarle a quien todavía no ha hecho nada.
+    attempted: { type: Boolean, default: false },
     // El plan del que cuelga el formato: es a donde vuelve la salida del pie.
     plan: Object,
     people: { type: Array, default: () => [] },
@@ -88,6 +98,27 @@ Object.entries(porCampo).forEach(([id, lista]) => {
 
 const archivo = ref(null);
 const guardando = ref(false);
+
+/**
+ * Si ya se intentó guardar, aquí o antes de abrir la pantalla.
+ *
+ * Es lo que enciende el marcado rojo de los campos que faltan. Arranca del
+ * servidor (`attempted`) y se enciende también al terminar un guardado que se
+ * quedó a medias: así el rojo aparece cuando un intento dejó faltantes, y
+ * nunca mientras alguien teclea por primera vez en un formato vacío.
+ */
+const intento = ref(props.attempted);
+
+/**
+ * Si el campo quedó pendiente en el último intento de guardar.
+ *
+ * Se busca por CODIGO y no por etiqueta: la etiqueta depende del idioma y
+ * puede repetirse. En los compuestos el marcado lo pinta el propio componente
+ * (prop `faltante`); en los simples lo pinta esta pantalla (`.ff-falta`).
+ */
+const faltaCampo = (campo) => intento.value
+    && ! soloLectura.value
+    && props.missingCodes.includes(campo.code);
 
 /**
  * Foto de lo que hay tecleado, para saber si queda algo sin guardar.
@@ -165,23 +196,33 @@ function respuestasDeLaPantalla() {
     return respuestas;
 }
 
-function guardar(alTerminar = null) {
-    // Enganchado como `@click="guardar"` llegaria aqui el evento del raton en
-    // vez de una funcion. Se comprueba en vez de confiar: cuesta una linea y el
-    // fallo seria que «Guardar» deja de guardar sin decir nada.
-    const seguir = typeof alTerminar === 'function' ? alTerminar : null;
-    const respuestas = respuestasDeLaPantalla();
-
-    if (! respuestas.length) { seguir?.(); return; }
-
+/**
+ * El único botón de acción: guarda y, si con eso el formato queda completo, el
+ * servidor lo confirma y manda a la ficha del plan.
+ *
+ * Eran dos botones —«Confirmar formato» y «Guardar cambios»— y el dueño del
+ * producto lo dijo tal cual: nadie guarda para después volver a confirmar. El
+ * que decide es el servidor (`answer` en el controlador): si no falta nada,
+ * confirma y redirige; si falta algo, lo guardado se queda guardado, el
+ * formato sigue en borrador y esta pantalla vuelve con la lista fresca de
+ * faltantes en sus props. Por eso aquí ya no se llama a `confirm`.
+ *
+ * Se manda TAMBIEN con la pantalla vacía: en la HOJA X —el formato que es
+ * solo la foto del papel— no hay nada que teclear y aun así este botón tiene
+ * que poder confirmar una vez adjuntado el archivo. Antes había un atajo que
+ * ni llamaba al servidor si no había respuestas, y con él la HOJA X no se
+ * podía cerrar.
+ */
+function guardar() {
     guardando.value = true;
 
-    router.post(route('field_work.forms.answer', props.submission.slug), { answers: respuestas }, {
+    router.post(route('field_work.forms.answer', props.submission.slug), { answers: respuestasDeLaPantalla() }, {
         preserveScroll: true,
         // La foto se renueva SOLO cuando el servidor ha dicho que si: si el
         // guardado falla, lo tecleado sigue siendo trabajo pendiente y salir
-        // tiene que seguir avisando.
-        onSuccess: () => { guardado = huella(); seguir?.(); },
+        // tiene que seguir avisando. Y desde este momento ya hubo un intento:
+        // si el servidor devolvio faltantes, ahora si se marcan en rojo.
+        onSuccess: () => { guardado = huella(); intento.value = true; },
         onFinish: () => { guardando.value = false; },
     });
 }
@@ -193,23 +234,6 @@ function subir() {
     datos.append('file', archivo.value);
 
     router.post(route('field_work.forms.attach', props.submission.slug), datos, { preserveScroll: true });
-}
-
-/**
- * Confirmar guarda primero lo que hay en pantalla, y despues cierra.
- *
- * No lo hacia, y ese era el fallo: se rellenaba la matriz de riesgo, se pulsaba
- * «Confirmar» sin pasar por «Guardar», y el servidor —que mira la base de datos,
- * no la pantalla— contestaba que faltaba la matriz de riesgo. Con el campo
- * relleno delante. Y ademas reventaba con un error 500.
- *
- * Guardar antes de cerrar es lo unico que tiene sentido en una tablet: en obra
- * se rellena y se cierra, y nadie tiene por que saber que son dos pasos.
- */
-function confirmar() {
-    guardar(() => router.post(
-        route('field_work.forms.confirm', props.submission.slug), {}, { preserveScroll: true },
-    ));
 }
 
 /**
@@ -289,8 +313,13 @@ function reabrir() {
         <a-alert v-if="soloLectura" type="success" show-icon class="mb-4"
                  :message="$t('field_work.readonly_notice')" />
 
-        <a-alert v-else-if="missing.length" type="warning" show-icon class="mb-4"
-                 :message="`${$t('field_work.missing')}: ${missing.join(', ')}`" />
+        <!-- Guardar a medias es lo NORMAL en obra: el aviso es informativo
+             —ámbar, no rojo— y dice primero que el trabajo no se perdió. Solo
+             sale tras un intento de guardar (`intento`), no sobre un formato
+             recién abierto y vacío. -->
+        <a-alert v-else-if="intento && missing.length" type="warning" show-icon class="mb-4"
+                 :message="`${$t('field_work.missing')}: ${missing.join(', ')}`"
+                 :description="$t('field_work.missing_help')" />
 
         <!-- La HOJA X: el formato es el papel, solo se le toma la foto -->
         <a-card v-if="template.kind !== 'structured' && !soloLectura"
@@ -305,18 +334,27 @@ function reabrir() {
              una sola tabla sin cabecera: esos siguen sin titulo, y esta bien. -->
         <a-card v-for="s in template.sections" :key="s.id" size="small" class="mb-4"
                 :title="s.label || null">
-            <div v-for="c in s.fields" :key="c.id" class="ff-block">
+            <!-- `.ff-falta` marca en rojo el campo que un intento de guardar
+                 dejó pendiente: etiqueta, borde del control y la palabra del
+                 estado — el color nunca va solo (docs/UI.md §5). -->
+            <div v-for="c in s.fields" :key="c.id" class="ff-block" :class="{ 'ff-falta': faltaCampo(c) }">
                 <label class="ff-block__label">
                     {{ etiqueta(c) }}<span v-if="c.is_required" class="ff-block__req"> *</span>
+                    <span v-if="faltaCampo(c)" class="ff-falta__palabra">{{ $t('field_work.field_missing') }}</span>
                 </label>
 
-                <!-- Compuestos: reproducen lo que antes era un formato entero -->
+                <!-- Compuestos: reproducen lo que antes era un formato entero.
+                     El marcado de faltante lo pintan ellos por dentro con la
+                     prop `faltante`; si un componente todavía no la conoce,
+                     Vue la ignora y no pasa nada — la etiqueta de arriba ya
+                     dice el estado. -->
                 <component
                     v-if="COMPUESTOS[c.field_type]"
                     :is="COMPUESTOS[c.field_type]"
                     :field="c"
                     :value="valores[c.id]"
                     :readonly="soloLectura"
+                    :faltante="faltaCampo(c)"
                     :people="c.field_type === 'person_checklist' ? people : undefined"
                     @update:value="valores[c.id] = $event"
                 />
@@ -350,11 +388,12 @@ function reabrir() {
          clavado— igual que el hueco del borde inferior de la tablet. -->
     <div v-if="!soloLectura" class="sap-actionbar ff-actions">
         <div class="sap-actionbar__actions">
-            <a-button type="primary" size="large" @click="confirmar">{{ $t('field_work.confirm') }}</a-button>
-            <!-- `guardar()` con paréntesis: sin ellos, Vue le pasa el evento
-                 del ratón como primer argumento, que aquí es la continuación
-                 que se llama al terminar — y un MouseEvent no se puede llamar. -->
-            <a-button size="large" :loading="guardando" @click="guardar()">{{ $t('field_work.save') }}</a-button>
+            <!-- UNA sola acción. Eran dos —«Confirmar formato» y «Guardar
+                 cambios»— y con dos se perdía tiempo eligiendo: nadie guarda
+                 para después volver a confirmar. Este botón guarda y el
+                 servidor confirma solo si no falta nada; si falta, lo guardado
+                 se queda y la pantalla dice qué queda. -->
+            <a-button type="primary" size="large" :loading="guardando" @click="guardar">{{ $t('field_work.save') }}</a-button>
             <!-- La salida, la última del DOM y por tanto la más a la izquierda:
                  la primaria va pegada al borde derecho (docs/UI.md §8). -->
             <a-button size="large" @click="salir">

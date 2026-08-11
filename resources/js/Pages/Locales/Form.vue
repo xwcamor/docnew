@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
+    Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
 } from 'ant-design-vue';
 import { ReadOutlined } from '@ant-design/icons-vue';
 
@@ -47,7 +47,11 @@ const submit = () => {
             <template #icon><ReadOutlined /></template>
         </SectionHeader>
 
-        <Card class="form-card" :bodyStyle="{ padding: '24px 28px' }">
+        <!-- `.form-body`, no una Card: la barra del pie sangra hasta los bordes con
+             los `--bar-bleed-*` que app.css declara para `.form-body`; metida en una
+             tarjeta salia 28px corta por lado y despegada 24px del fondo, el
+             «descuadrado» del alta de usuario (docs/UI.md §8). -->
+        <div class="form-body">
             <Form layout="horizontal" :label-col="{ xs: 24, sm: 8, md: 6 }" :wrapper-col="{ xs: 24, sm: 16, md: 13 }" label-align="right" :colon="true" @submit.prevent="submit">
 
                 <Alert
@@ -154,7 +158,7 @@ const submit = () => {
                     floating
                 />
             </Form>
-        </Card>
+        </div>
     </div>
 </template>
 

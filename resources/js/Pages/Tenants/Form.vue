@@ -312,7 +312,10 @@ const submit = () => {
 </template>
 
 <style scoped>
-.form-page { width: 100%; max-width: none; }
+/* Sin `width: 100%` en `.form-page`: `.sap-form` se ensancha con margenes
+   negativos (-24px por lado) y un ancho clavado al 100% del contenedor se queda
+   corto justo esos 48px — la pagina y su barra del pie terminaban 48px antes
+   del borde derecho (docs/UI.md §8). El ancho auto ya hace lo correcto. */
 .section-title {
     display: flex; align-items: center; gap: 8px;
     font-size: 0.9375rem; font-weight: 600; color: var(--color-text-strong);

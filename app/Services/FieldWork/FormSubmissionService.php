@@ -152,6 +152,15 @@ class FormSubmissionService
      */
     public function confirmar(FormSubmission $entrega): FormSubmission
     {
+        // Idempotente, como `reabrir()`: confirmar lo que ya esta confirmado no
+        // hace nada. Antes tiraba `confirmed_reopen_first`, y con el guardado
+        // que confirma solo (`answer` en el controlador) eso convertia en error
+        // una carrera inocente: dos toques seguidos al mismo boton, o un
+        // `confirm` que llega despues de que el guardado ya cerrara el formato.
+        if ($entrega->status === 'confirmed') {
+            return $entrega;
+        }
+
         $this->exigirQueSePuedaEscribir($entrega);
 
         $faltantes = $this->faltantes($entrega);
@@ -271,10 +280,28 @@ class FormSubmissionService
      */
     public function faltantes(FormSubmission $entrega): array
     {
+        return array_column($this->faltantesDetallados($entrega), 'label');
+    }
+
+    /**
+     * Lo mismo, pero con el CODIGO de cada campo ademas de la etiqueta.
+     *
+     * La etiqueta es para leerla; el codigo es para que la pantalla encuentre
+     * el campo y lo marque en rojo tras un guardado que quedo a medias. La
+     * etiqueta no sirve de ancla: depende del idioma y hasta puede repetirse
+     * entre dos campos. El adjunto que falta no es un campo y va con codigo
+     * nulo: se nombra en el aviso, pero no hay nada que marcar.
+     *
+     * @return array<int, array{code: ?string, label: string}>
+     */
+    public function faltantesDetallados(FormSubmission $entrega): array
+    {
         $plantilla = $entrega->formTemplate;
 
+        $adjunto = ['code' => null, 'label' => __('field_work.missing_attachment')];
+
         if ($plantilla->kind === FormTemplate::UPLOAD_ONLY) {
-            return $entrega->attachments()->exists() ? [] : [__('field_work.missing_attachment')];
+            return $entrega->attachments()->exists() ? [] : [$adjunto];
         }
 
         // Solo cuentan las respuestas que dicen algo. Una fila con las cinco
@@ -290,11 +317,12 @@ class FormSubmissionService
             ->where('is_required', true)
             ->get()
             ->reject(fn ($campo) => in_array($campo->id, $respondidos, true))
-            ->map(fn ($campo) => $campo->label)
+            ->map(fn ($campo) => ['code' => $campo->code, 'label' => $campo->label])
+            ->values()
             ->all();
 
         if ($plantilla->kind === FormTemplate::HYBRID && ! $entrega->attachments()->exists()) {
-            $faltantes[] = __('field_work.missing_attachment');
+            $faltantes[] = $adjunto;
         }
 
         return $faltantes;

@@ -73,6 +73,26 @@ export function estadoChecklist(items = []) {
     return { clave: 'ok', faltan: 0, hechos, total };
 }
 
+/**
+ * El COLOR de una fila cuando el servidor dijo que el campo entero sigue
+ * faltando (la prop `faltante` que baja de FormFill tras un guardado a medias).
+ *
+ * Una fila a medias pasa de aviso (naranja) a bloqueo (rojo): es exactamente
+ * lo que impide cerrar el formato, y el usuario lo descubria recien en el
+ * aviso del guardado, lejos de la fila.
+ *
+ * Devuelve SOLO la clave del tono, nunca el estado entero, y no es un
+ * capricho: la primera version reescribia `clave` dentro del estado, el texto
+ * se derivaba despues con `textoEstado()` y un trabajador sin empezar salia
+ * como «No conforme» — una mentira en un documento de seguridad. La palabra
+ * sale siempre del estado real («Sin empezar», «Faltan 3», que ya dicen lo
+ * concreto); esto solo decide el color que la acompaña (docs/UI.md §5). Las
+ * filas completas no se tocan: un rojo generico sobre todo no señala nada.
+ */
+export function claveExigida(estado, faltante) {
+    return faltante && estado.faltan > 0 ? 'bad' : estado.clave;
+}
+
 /** El estado en palabra, que es lo que acompaña al color (docs/UI.md §5). */
 export function textoEstado(t, estado) {
     if (estado.clave === 'off')  return t('field_work.progress.not_started');

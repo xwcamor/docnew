@@ -160,6 +160,32 @@ class FormFillSalidaTest extends TestCase
         $this->assertSame('Save changes', $this->texto('en', 'save'));
     }
 
+    /**
+     * UNA sola accion en el pie, y es la primaria.
+     *
+     * Eran dos botones —«Confirmar formato» primario y «Guardar cambios»
+     * secundario— y el dueño del producto lo dijo tal cual: nadie guarda para
+     * despues volver a confirmar. Ahora «Guardar cambios» es el unico boton de
+     * accion, en azul de accion principal, y el servidor decide si con lo
+     * guardado el formato queda confirmado o sigue en borrador.
+     */
+    public function test_el_pie_de_llenado_tiene_una_sola_accion_y_es_guardar(): void
+    {
+        $pantalla = $this->pantalla();
+
+        $this->assertStringContainsString(
+            '<a-button type="primary" size="large" :loading="guardando" @click="guardar">{{ $t(\'field_work.save\') }}</a-button>',
+            $pantalla,
+            'El unico boton de accion es «Guardar cambios», primario (azul) y con su estado de carga.',
+        );
+
+        $this->assertStringNotContainsString("field_work.confirm'", $pantalla,
+            'El boton «Confirmar formato» volvio: la confirmacion la decide el servidor al guardar.');
+
+        $this->assertStringNotContainsString('forms.confirm', $pantalla,
+            'La pantalla ya no llama al endpoint de confirmar: guardar y confirmar son un solo gesto.');
+    }
+
     /** Los textos de la salida existen en los dos idiomas (docs/UI.md §7). */
     public function test_los_textos_de_la_salida_estan_en_los_dos_idiomas(): void
     {
@@ -186,7 +212,7 @@ class FormFillSalidaTest extends TestCase
         $this->assertStringContainsString('if (huella() === guardado) { router.get(volverA.value); return; }', $pantalla,
             'Sin cambios pendientes se sale directo: un aviso que sale siempre deja de avisar.');
 
-        $this->assertStringContainsString('onSuccess: () => { guardado = huella(); seguir?.(); }', $pantalla,
+        $this->assertStringContainsString('onSuccess: () => { guardado = huella(); intento.value = true; }', $pantalla,
             'La foto de lo guardado solo se renueva cuando el servidor ha dicho que si.');
     }
 

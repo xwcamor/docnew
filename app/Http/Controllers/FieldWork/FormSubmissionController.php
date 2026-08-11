@@ -52,6 +52,8 @@ class FormSubmissionController extends Controller
     {
         $entrega = $this->formatos->abrir($work_plan, $form_template, $request->user()->id);
 
+        $faltantes = $this->formatos->faltantesDetallados($entrega);
+
         return inertia('FieldWork/FormFill', [
             'submission' => $entrega->only(['slug', 'status', 'template_version']),
             // El plan del que cuelga el formato. Hace falta para poder SALIR:
@@ -99,7 +101,19 @@ class FormSubmissionController extends Controller
                 ])->values(),
             ],
             'answers' => $entrega->answers()->get(),
-            'missing' => $this->formatos->faltantes($entrega),
+            // Lo que falta, dos veces y para dos lectores distintos: las
+            // etiquetas van al aviso (se leen) y los codigos a la pantalla,
+            // que con ellos marca en rojo cada campo pendiente. El adjunto
+            // que falta no es un campo: sale en las etiquetas y no en los
+            // codigos, porque no hay widget que marcar.
+            'missing' => array_column($faltantes, 'label'),
+            'missingCodes' => array_values(array_filter(array_column($faltantes, 'code'))),
+            // Si ya hubo un intento de guardar. El marcado rojo de los campos
+            // que faltan solo se enciende despues de intentar guardar: pintar
+            // de rojo un formato recien abierto y vacio es reñir a quien
+            // todavia no hizo nada. Con el guardado unico, guardar ES intentar
+            // confirmar, asi que «hay algo guardado» equivale a «hubo intento».
+            'attempted' => $entrega->answers()->exists() || $entrega->attachments()->exists(),
             // Los trabajadores del plan: el checklist de EPP es una fila por
             // trabajador, y esa lista no vive en la plantilla sino en el plan.
             // Es el `sync_f3_document_workers` de la v1, resuelto al pintar en
@@ -117,10 +131,32 @@ class FormSubmissionController extends Controller
         ]);
     }
 
+    /**
+     * Guarda lo tecleado y, si con eso el formato queda completo, lo confirma.
+     *
+     * Es UN solo boton en pantalla —«Guardar cambios»— porque eran dos y el
+     * dueño del producto lo dijo tal cual: nadie guarda para despues volver a
+     * confirmar. El cliente ya no llama a `confirm`; manda las respuestas y el
+     * servidor decide:
+     *
+     * - Completo → se confirma y se va a la ficha del plan. Quedarse mirando
+     *   un formato ya cerrado no le sirve a nadie.
+     * - Faltan campos → lo guardado SE QUEDA guardado (en obra se llena por
+     *   partes), el formato sigue en borrador y se vuelve a la pantalla, que
+     *   recibe la lista fresca de faltantes por sus props y la pinta como
+     *   aviso. Guardar a medias es lo normal, no un error: por eso aqui no se
+     *   llama a `confirmar()` a ciegas —que lanza `DomainException` y el
+     *   handler global la pinta como flash rojo— sino que se pregunta primero
+     *   que falta.
+     */
     public function answer(Request $request, FormSubmission $form_submission)
     {
         $datos = $request->validate([
-            'answers'          => ['required', 'array'],
+            // `present` y no `required`: una lista vacia es legitima. El caso
+            // real es la HOJA X —el formato que es solo la foto del papel—
+            // donde no hay nada que teclear y aun asi «Guardar cambios» tiene
+            // que poder confirmar el formato una vez adjuntado el archivo.
+            'answers'          => ['present', 'array'],
             'answers.*.code'   => ['required', 'string'],
             'answers.*.row'    => ['nullable', 'integer', 'min:0'],
             // `value` TIENE que estar declarada, aunque no se le exija nada.
@@ -144,7 +180,21 @@ class FormSubmissionController extends Controller
 
         $this->formatos->responder($form_submission, $datos['answers']);
 
-        return back()->with('success', __('Respuestas guardadas.'));
+        if ($this->formatos->faltantes($form_submission) !== []) {
+            return back()->with('success', __('field_work.saved_partial'));
+        }
+
+        $this->formatos->confirmar($form_submission);
+
+        // El mismo criterio que la salida del pie (`canViewPlan` en `open()`):
+        // a la ficha del plan solo se manda a quien puede abrirla; si no, a la
+        // lista de formatos, que pide el permiso con el que se llego aqui.
+        $plan = $form_submission->workPlan;
+
+        return redirect()->to($request->user()?->can('work_plans.view')
+            ? route('business_management.work_plans.show', $plan->slug)
+            : route('field_work.forms.index', $plan->slug))
+            ->with('success', __('field_work.saved_confirmed'));
     }
 
     /** El caso "HOJA X": subir la foto del papel. */
@@ -163,15 +213,25 @@ class FormSubmissionController extends Controller
             $request->integer('form_field_id') ?: null,
         );
 
-        return back()->with('success', __('Documento adjuntado.'));
+        // Antes decia «Documento adjuntado.» escrito aqui dentro: texto de
+        // interfaz a pelo en el controlador, que en ingles salia en castellano.
+        return back()->with('success', __('field_work.attached_flash'));
     }
 
-    /** Cierra el formato. El servidor comprueba que no falte nada. */
+    /**
+     * Cierra el formato. El servidor comprueba que no falte nada.
+     *
+     * La pantalla ya no llama aqui —«Guardar cambios» guarda y confirma en
+     * `answer()`—, pero la ruta se queda: es la puerta para confirmar sin
+     * pasar por la pantalla (integraciones, pruebas) y su candado —la
+     * `DomainException` con los faltantes— sigue siendo la garantia de que un
+     * formato incompleto no se cierra por mucho que se le pida.
+     */
     public function confirm(FormSubmission $form_submission)
     {
         $this->formatos->confirmar($form_submission);
 
-        return back()->with('success', __('Formato confirmado.'));
+        return back()->with('success', __('field_work.confirmed_flash'));
     }
 
     /** Lo abre de nuevo para corregirlo. Queda en el historial quien lo hizo. */

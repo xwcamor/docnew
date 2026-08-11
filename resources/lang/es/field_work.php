@@ -61,7 +61,18 @@ return [
     // aviso lo lee quien está rellenando el formato en obra. El adjunto no es
     // un campo y no tiene etiqueta, así que la suya va escrita aquí.
     'missing_attachment' => 'el archivo del formato',
-    'missing_required' => 'Todavía falta por llenar: :fields. Rellénalo y vuelve a darle a Confirmar.',
+    // Lo dice el servidor si alguien intenta confirmar por la puerta de la API
+    // con el formato a medias. Ya no nombra ningún botón: «vuelve a darle a
+    // Confirmar» hablaba de un botón que ya no existe — hoy guardar y
+    // confirmar son un solo «Guardar cambios».
+    'missing_required' => 'Todavía falta por llenar: :fields.',
+    // El aviso amable bajo la lista de faltantes. Guardar a medias no es un
+    // error —en obra se llena por partes—, así que primero dice que el trabajo
+    // no se perdió y después qué queda.
+    'missing_help'    => 'Lo que guardaste ya está guardado y el formato sigue en borrador. Completa lo que falta y vuelve a pulsar Guardar cambios.',
+    // La palabra del estado junto a la etiqueta del campo que falta: el rojo
+    // nunca va solo (docs/UI.md §5).
+    'field_missing'   => 'Sin llenar',
     'readonly_notice' => 'Este formato ya está confirmado. Para cambiar algo hay que volver a abrirlo, y queda anotado quién lo hizo.',
     'reopen'          => 'Volver a editar',
     'reopen_title'    => '¿Volver a abrir este formato?',
@@ -73,11 +84,19 @@ return [
     'plan_closed'     => 'El plan está cerrado: sus formatos ya no se tocan.',
     'document'        => 'Documento',
     'attach'          => 'Adjuntar',
-    // «Guardar» a secas no dice qué se guarda ni qué pasa después, y en una
-    // barra donde al lado está «Confirmar formato» se leía como el paso previo
-    // a cerrar el documento. Guarda los cambios y se sigue llenando.
+    // El ÚNICO botón de acción del pie. Eran dos —«Confirmar formato» y
+    // «Guardar cambios»— y el dueño del producto lo dijo tal cual: nadie
+    // guarda para después volver a confirmar. Ahora guardar intenta confirmar
+    // en el mismo gesto y el servidor decide; la clave `confirm` se fue con el
+    // botón.
     'save'            => 'Guardar cambios',
-    'confirm'         => 'Confirmar formato',
+    // Los dos finales de ese botón, contados por el servidor.
+    'saved_partial'   => 'Cambios guardados.',
+    'saved_confirmed' => 'Formato guardado y confirmado.',
+    // Flashes que vivían escritos a pelo en el controlador («Documento
+    // adjuntado.», «Formato confirmado.»): en inglés salían en castellano.
+    'attached_flash'  => 'Documento adjuntado.',
+    'confirmed_flash' => 'Formato confirmado.',
     'mark_all'        => 'Marcar todo',
 
     // La salida del pie, la misma en los dos estados: llenando y mirando un
@@ -119,6 +138,19 @@ return [
         'index_people'  => 'Trabajadores del formato',
         'index_tools'   => 'Herramientas del formato',
         'index_hazards' => 'Peligros del formato',
+        // El banco de preguntas no tiene índice de filas: su avance es esta
+        // línea. Decía «3/25» a secas — un quebrado sin sustantivo no dice
+        // 3 de 25 QUÉ, y los demás campos compuestos sí lo dicen.
+        'questions_done' => ':done de :total preguntas respondidas',
+        // Lo que dice un campo compuesto obligatorio cuando un guardado lo
+        // dejó pendiente (la prop `faltante` del contrato con FormFill).
+        // No un rojo genérico sobre el bloque: la cuenta de lo concreto que
+        // falta, que es lo único accionable. La palabra acompaña al color
+        // (docs/UI.md §5).
+        'required_hazards'   => '{0} Obligatorio: añade una actividad y evalúa sus peligros.|{1} Obligatorio: falta 1 peligro por evaluar.|[2,*] Obligatorio: faltan :count peligros por evaluar.',
+        'required_people'    => '{1} Obligatorio: falta completar 1 trabajador.|[2,*] Obligatorio: falta completar :count trabajadores.',
+        'required_tools'     => '{0} Obligatorio: añade al menos una herramienta.|{1} Obligatorio: falta completar 1 herramienta.|[2,*] Obligatorio: faltan :count herramientas por completar.',
+        'required_questions' => '{1} Obligatorio: falta responder 1 pregunta.|[2,*] Obligatorio: faltan :count preguntas por responder.',
     ],
 
     'status' => [
@@ -163,13 +195,23 @@ return [
         'remove_activity_confirm' => '{0} ¿Quitar esta actividad?|{1} ¿Quitar esta actividad y su peligro?|[2,*] ¿Quitar esta actividad y sus :count peligros?',
         'empty'        => 'Todavía no hay actividades. Añade la primera.',
         'row_incomplete' => 'Al peligro le falta: :fields. Un peligro evaluado se declara entero: qué puede pasar, qué consecuencia tiene y qué control se puso.',
+        // La misma regla del servidor (`exigirPeligroEntero`), dicha fila a
+        // fila y ANTES de guardar: el usuario descubría el peligro a medias
+        // recién en el aviso del guardado, lejos de la fila del problema.
+        // `row_incomplete` es la frase larga del servidor; aquí manda la
+        // corta, pegada a la fila, con las columnas que faltan por su nombre.
+        'row_missing'  => 'Falta: :fields',
+        // La palabra de la pastilla roja en la cabecera y en el índice: una
+        // fila empezada a puntuar y sin terminar. No es «Sin evaluar» —eso es
+        // una fila legítima que nadie tocó— ni un nivel: es un bloqueo.
+        'incomplete'   => 'Incompleto',
         'no_risk'      => 'Sin evaluar',
         'level_alto'   => 'Riesgo alto',
         'level_medio'  => 'Riesgo medio',
         'level_bajo'   => 'Riesgo bajo',
     ],
 
-    // EPP: una fila por trabajador de la cuadrilla.
+    // EPP: una fila por trabajador del plan.
     'person_checklist' => [
         'no_people' => 'El plan no tiene trabajadores asignados: añádelos para poder llenar este formato.',
     ],

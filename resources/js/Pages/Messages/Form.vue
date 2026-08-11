@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { computed, watch } from 'vue';
+import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Button, Input, Select, SelectOption, Switch, DatePicker,
-    Radio, RadioGroup, Form, FormItem, Space, Alert,
+    Button, Input, Select, SelectOption, Switch, DatePicker,
+    Radio, RadioGroup, Form, FormItem, Alert,
 } from 'ant-design-vue';
-import { MessageOutlined, SaveOutlined, SendOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue';
+import { MessageOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons-vue';
 import dayjs from 'dayjs';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import RichTextEditor from '@/Components/Common/RichTextEditor.vue';
+import SectionHeader from '@/Components/Common/SectionHeader.vue';
+import FormFooter from '@/Components/Common/FormFooter.vue';
 import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
@@ -73,18 +75,20 @@ const isPublished = computed(() => !!props.message?.published_at);
 <template>
     <Head :title="isEdit ? t('messages.edit_message') : t('messages.new_message')" />
 
-    <div class="message-form">
-        <Card>
-            <div class="page-header">
-                <div class="page-header__title">
-                    <Link :href="route('communication.messages.index')">
-                        <Button type="text"><template #icon><ArrowLeftOutlined /></template></Button>
-                    </Link>
-                    <MessageOutlined class="page-header__icon" />
-                    <h1>{{ isEdit ? t('messages.edit_message') : t('messages.new_message') }}</h1>
-                </div>
-            </div>
+    <!-- `.sap-form` + `.form-body`, como el resto de formularios: esta pantalla
+         era la unica sin la barra de acciones compartida — los botones iban
+         sueltos al final de una Card, asi que ni sangraban hasta los bordes ni
+         apoyaban en el borde inferior como en todos los demas modulos
+         (docs/UI.md §8). -->
+    <div class="form-page sap-form message-form">
+        <SectionHeader
+            :back-href="route('communication.messages.index')"
+            :title="isEdit ? t('messages.edit_message') : t('messages.new_message')"
+        >
+            <template #icon><MessageOutlined /></template>
+        </SectionHeader>
 
+        <div class="form-body">
             <Alert
                 v-if="isPublished"
                 type="info"
@@ -195,39 +199,32 @@ const isPublished = computed(() => !!props.message?.published_at);
                     <Switch v-model:checked="form.is_active" />
                 </FormItem>
 
-                <Space :size="8" style="margin-top:8px">
-                    <Button type="default" :loading="form.processing" @click="submit(false)">
-                        <template #icon><SaveOutlined /></template>
-                        {{ t('messages.save_draft') }}
-                    </Button>
-                    <Button v-if="!isPublished" type="primary" :loading="form.processing" @click="submit(true)">
-                        <template #icon><SendOutlined /></template>
-                        {{ t('messages.save_and_publish') }}
-                    </Button>
-                    <Link :href="route('communication.messages.index')">
-                        <Button type="text">{{ t('global.cancel') }}</Button>
-                    </Link>
-                </Space>
+                <!-- La barra compartida, con las dos acciones propias en el slot:
+                     publicar (primaria, pegada al borde derecho) y guardar
+                     borrador. El Cancelar lo pone la propia barra. -->
+                <FormFooter :cancel-href="route('communication.messages.index')">
+                    <template #submit>
+                        <Button v-if="!isPublished" type="primary" :loading="form.processing" @click="submit(true)">
+                            <template #icon><SendOutlined /></template>
+                            {{ t('messages.save_and_publish') }}
+                        </Button>
+                        <Button :type="isPublished ? 'primary' : 'default'" :loading="form.processing" @click="submit(false)">
+                            <template #icon><SaveOutlined /></template>
+                            {{ t('messages.save_draft') }}
+                        </Button>
+                    </template>
+                </FormFooter>
             </Form>
-        </Card>
+        </div>
     </div>
 </template>
 
 <style scoped>
-.message-form { padding: 16px; width: 100%; }
-.page-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; gap:10px; flex-wrap:wrap; }
-.page-header__title { display:flex; align-items:center; gap:8px; min-width: 0; flex: 1; }
-.page-header__title h1 { font-size:1.2rem; margin:0; word-break: break-word; }
-.page-header__icon {
-    width: 40px; height: 40px; border-radius: 4px;
-    background: color-mix(in srgb, var(--color-primary) 12%, transparent); color: var(--color-primary);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-size: 1.1rem; flex-shrink: 0;
-}
-
+/* El layout de la pagina (fondo, sangrados, cabecera) lo ponen `.sap-form` y
+   `SectionHeader` desde app.css; aqui solo queda lo propio de esta pantalla. */
 @media (max-width: 767px) {
-    .message-form { padding: 8px; }
-    .page-header__title h1 { font-size: 1.05rem; }
+    /* Los selects de audiencia y el DatePicker llevan max-width en escritorio;
+       a media pantalla se estiran para que el dedo los acierte. */
     .message-form :deep(.ant-select),
     .message-form :deep(.ant-picker) { width: 100% !important; max-width: 100% !important; }
 }

@@ -378,6 +378,65 @@ class UiStandardTest extends TestCase
     }
 
     /**
+     * La barra del pie cuelga del nivel de pagina, nunca de una tarjeta o de
+     * una columna.
+     *
+     * Usar la clase compartida no basta: la barra sangra hasta los bordes
+     * consumiendo los `--bar-bleed-*` que declaran `.sap-form`, `.form-body` y
+     * el `.content` del layout, asi que metida en un envoltorio que no los
+     * declara —una `<Card>` con su `bodyStyle`, una `<Col>` de una rejilla— se
+     * queda con el sangrado de otro contenedor. Trece formularios envolvian el
+     * suyo en una Card y la franja salia 28px corta por cada lado y despegada
+     * 24px del borde inferior; era el «descuadrado y no completo» del alta de
+     * usuario, y en `DeletePage` le pasaba a todas las papeleras a la vez.
+     *
+     * Se caza aqui porque compilando no se ve nada: el fallo es geometrico y
+     * solo lo nota quien abre la pantalla al lado de una que si cumple.
+     */
+    public function test_la_barra_de_acciones_no_va_dentro_de_una_tarjeta_ni_de_una_columna(): void
+    {
+        // Lo que pinta la barra compartida: la clase y los tres componentes
+        // Common que la envuelven.
+        $marcadores = ['<FormFooter', '<DeleteFooter', '<EditAllFooter', 'sap-actionbar'];
+
+        $malAnidadas = [];
+
+        foreach ($this->archivosVue() as $archivo) {
+            // Sin comentarios: un `<Col>` citado en un comentario del template
+            // contaba como columna abierta y acusaba a SystemModules sin razon.
+            $plantilla = $this->bloqueDePlantilla(file_get_contents($archivo));
+
+            foreach ($marcadores as $marcador) {
+                $desde = 0;
+
+                while (($p = strpos($plantilla, $marcador, $desde)) !== false) {
+                    $antes = substr($plantilla, 0, $p);
+
+                    // Tarjetas y columnas abiertas y aun sin cerrar delante de
+                    // la barra. El lookahead deja fuera las auto-cerradas
+                    // (`<Card ... />`), que no envuelven nada.
+                    $abiertas = preg_match_all('/<(Card|a-card|Col|a-col)\b(?![^>]*\/>)[^>]*>/s', $antes);
+                    $cerradas = preg_match_all('/<\/(Card|a-card|Col|a-col)>/', $antes);
+
+                    if ($abiertas > $cerradas) {
+                        $malAnidadas[] = str_replace(base_path() . '/', '', $archivo) . " → {$marcador}";
+                        break;
+                    }
+
+                    $desde = $p + 1;
+                }
+            }
+        }
+
+        $this->assertSame([], array_unique($malAnidadas),
+            "Barras del pie metidas dentro de una tarjeta o una columna (ver docs/UI.md §8).\n"
+            . "Ahi el sangrado `--bar-bleed-*` no casa y la franja sale recortada y despegada\n"
+            . "del borde; la barra va al nivel de pagina, dentro de `.form-body` o del propio\n"
+            . "`.sap-form`:\n  "
+            . implode("\n  ", array_unique($malAnidadas)));
+    }
+
+    /**
      * Ningun color tecleado a mano en una pantalla.
      *
      * Hay tema claro, tema oscuro y cuatro esquemas mas que el usuario elige en

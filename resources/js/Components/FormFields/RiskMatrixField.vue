@@ -50,6 +50,29 @@
  *
  * `severidad` y `probabilidad` son obligatorias porque es lo que exige
  * FormSubmissionService::validarValor() para este tipo. El resto acompaña.
+ *
+ * LA REGLA DEL PELIGRO ENTERO SE DICE AQUI, ANTES DE GUARDAR. El servidor
+ * rechaza una fila empezada a puntuar y sin terminar (`exigirPeligroEntero`:
+ * con severidad o probabilidad puestas, las cinco casillas van o no va
+ * ninguna), pero el usuario lo descubria recien en el aviso del guardado,
+ * lejos de la fila del problema. Ahora la misma regla —calcada, no otra— se
+ * evalua fila a fila al pintar: la fila a medias sale en rojo con la palabra
+ * «Incompleto» en su cabecera y en el indice, y dentro de la tarjeta se
+ * nombran las columnas que faltan. El servidor sigue siendo el juez; esto es
+ * el espejo que avisa antes.
+ *
+ * Y cuando un guardado dejo el campo entero pendiente, FormFill lo dice con la
+ * prop `faltante` (el contrato de esa pantalla con los cuatro compuestos): el
+ * campo repite el aviso en rojo y con la cuenta de lo que falta, en su sitio.
+ *
+ * LA TARJETA ABIERTA VA EN REJILLA, NO EN COLUMNA. Los seis campos apilados
+ * median 610 px en la tablet en vertical —mas otra tanto de pie— y un AST trae
+ * diez o quince peligros: añadir uno era abrir un churro que no cabia en la
+ * pantalla. La rejilla pone la fila de la v1 en dos lineas (peligro, riesgo,
+ * control / probabilidad, severidad, nivel), que es leerla de izquierda a
+ * derecha como en el papel, sin volver a la tabla ancha con scroll horizontal
+ * que esta vetada arriba. A 768 la rejilla baja a dos columnas y solo en un
+ * movil se apila.
  */
 import { computed, nextTick } from 'vue';
 import { Button, Popconfirm } from 'ant-design-vue';
@@ -64,6 +87,8 @@ const props = defineProps({
     field:    { type: Object, required: true },
     value:    { type: Array, default: () => [] },
     readonly: { type: Boolean, default: false },
+    /** El servidor dijo que este campo sigue faltando tras intentar guardar. */
+    faltante: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:value']);
@@ -271,13 +296,65 @@ const TONO_NIVEL = { alto: 'bad', medio: 'warn', bajo: 'ok' };
  */
 const nivelDe = (fila) => fila?.nivel || nivelRiesgo(fila?.valor_riesgo);
 
+/**
+ * El espejo de `FormSubmissionService::exigirPeligroEntero()`, columna a
+ * columna: en cuanto la fila se empieza a puntuar (severidad o probabilidad),
+ * las cinco casillas van juntas. Devuelve las claves que faltan, en el orden
+ * de la tabla de la v1, para poder nombrarlas junto a la fila.
+ *
+ * Una fila sin tocar devuelve vacio a proposito: la actividad sin peligros es
+ * una fila legitima (la v1 las guardaba asi) y pintarla de rojo seria acusar
+ * a quien no ha hecho nada mal.
+ */
+const CLAVES_PELIGRO = ['peligro', 'riesgo', 'control', 'probabilidad', 'severidad'];
+
+/** El nombre de cada columna en `resources/lang`, como en el servidor. */
+const ROTULO_COLUMNA = {
+    peligro: 'danger', riesgo: 'risk', control: 'control',
+    probabilidad: 'probability', severidad: 'severity',
+};
+
+const lleno = (v) => v !== null && v !== undefined && String(v).trim() !== '';
+
+function faltasDe(fila) {
+    if (! lleno(fila?.severidad) && ! lleno(fila?.probabilidad)) return [];
+
+    return CLAVES_PELIGRO.filter((clave) => ! lleno(fila?.[clave]));
+}
+
+const faltaCelda = (fila, clave) => faltasDe(fila).includes(clave);
+
+const nombresFaltas = (fila) => faltasDe(fila)
+    .map((clave) => t(`field_work.risk_matrix.${ROTULO_COLUMNA[clave]}`))
+    .join(', ');
+
+/**
+ * La fila a medias manda sobre el nivel: aunque tenga banda calculada, si le
+ * falta el peligro o el control el guardado la va a rechazar, y eso es lo que
+ * hay que leer en el indice y en la cabecera. «Incompleto» y no «Sin evaluar»:
+ * sin evaluar es quien no empezo; esto es un bloqueo.
+ */
 const estados = computed(() => filas.value.map((fila) => {
+    if (faltasDe(fila).length) {
+        return { clave: 'bad', texto: t('field_work.risk_matrix.incomplete') };
+    }
+
     const nivel = nivelDe(fila);
 
     return nivel
         ? { clave: TONO_NIVEL[nivel] ?? 'off', texto: t(`field_work.risk_matrix.level_${nivel}`) }
         : { clave: 'off', texto: t('field_work.risk_matrix.no_risk') };
 }));
+
+/**
+ * Cuantos peligros le impiden al campo darse por respondido: los sin evaluar
+ * y los evaluados a medias. Es la cuenta del aviso de `faltante`, y se apaga
+ * sola —el aviso con ella— cuando el usuario los termina, aunque el servidor
+ * todavia no se haya enterado.
+ */
+const pendientes = computed(() => filas.value.filter(
+    (fila) => faltasDe(fila).length || ! nivelDe(fila),
+).length);
 
 /**
  * La banda PEOR de una actividad, que es lo que se lee de un vistazo: un AST se
@@ -354,7 +431,17 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
 
 <template>
     <div class="ff-field">
-        <p v-if="!filas.length" class="ff-empty">{{ $t('field_work.risk_matrix.empty') }}</p>
+        <!-- El guardado dejo el campo pendiente: se dice AQUI, en rojo y con
+             la cuenta de lo concreto que falta, no solo en el aviso de arriba
+             que se pierde al scrollear. Se apaga solo cuando ya no queda nada
+             que señalar: un «obligatorio» sobre un campo ya completo mentiria. -->
+        <p v-if="faltante && !readonly && (pendientes || !filas.length)" class="ff-missing" role="alert">
+            {{ $tc('field_work.progress.required_hazards', filas.length ? pendientes : 0) }}
+        </p>
+
+        <p v-if="!filas.length" class="ff-empty" :class="{ 'is-missing': faltante && !readonly }">
+            {{ $t('field_work.risk_matrix.empty') }}
+        </p>
 
         <RowNavigator
             v-if="filas.length > 1"
@@ -424,7 +511,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                     :id="idFila(i)"
                     :key="i"
                     class="ff-row"
-                    :class="{ 'is-open': estaAbierta(i) }"
+                    :class="{ 'is-open': estaAbierta(i), 'is-missing': faltasDe(filas[i]).length > 0 }"
                 >
                     <button
                         type="button"
@@ -439,17 +526,34 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
 
                         <span class="ff-row__title">{{ tituloPeligro(filas[i], i) }}</span>
 
-                        <span v-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
+                        <!-- La fila a medias manda: antes decia «Sin evaluar»
+                             —o hasta su nivel— y el rechazo del guardado caia
+                             por sorpresa. «Incompleto» con rojo, palabra y
+                             color juntos (docs/UI.md §5). -->
+                        <span v-if="faltasDe(filas[i]).length" class="ff-incomplete">
+                            {{ $t('field_work.risk_matrix.incomplete') }}
+                        </span>
+                        <span v-else-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
                             {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
                         </span>
                         <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
                     </button>
 
                     <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
+                        <!-- La regla del peligro entero, dicha antes de guardar
+                             y pegada a su fila: que columnas faltan, por su
+                             nombre. El servidor la repite si aun asi se guarda. -->
+                        <p v-if="!readonly && faltasDe(filas[i]).length" class="ff-missing ff-missing--row" role="alert">
+                            {{ $t('field_work.risk_matrix.row_missing', { fields: nombresFaltas(filas[i]) }) }}
+                        </p>
+
                         <!-- El orden es el de la tabla de la v1: peligro, riesgo,
-                             control, probabilidad, severidad y nivel. -->
-                        <div class="ff-row__body">
-                            <div class="ff-cell">
+                             control, probabilidad, severidad y nivel. La rejilla
+                             los pone en dos lineas de tres —la fila del papel
+                             leida de izquierda a derecha—, no en el churro
+                             vertical de antes: ver la nota de cabecera. -->
+                        <div class="ff-row__body ff-row__body--matriz">
+                            <div class="ff-cell" :class="{ 'is-missing': faltaCelda(filas[i], 'peligro') }">
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.danger') }}<span class="ff-block__req"> *</span>
                                 </label>
@@ -459,7 +563,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                     @update:value="cambiar(i, 'peligro', $event)" />
                             </div>
 
-                            <div class="ff-cell">
+                            <div class="ff-cell" :class="{ 'is-missing': faltaCelda(filas[i], 'riesgo') }">
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.risk') }}<span class="ff-block__req"> *</span>
                                 </label>
@@ -469,7 +573,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                     @update:value="cambiar(i, 'riesgo', $event)" />
                             </div>
 
-                            <div class="ff-cell ff-cell--wide">
+                            <div class="ff-cell" :class="{ 'is-missing': faltaCelda(filas[i], 'control') }">
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.control') }}<span class="ff-block__req"> *</span>
                                 </label>
@@ -479,7 +583,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                     @update:value="cambiar(i, 'control', $event)" />
                             </div>
 
-                            <div class="ff-cell">
+                            <div class="ff-cell" :class="{ 'is-missing': faltaCelda(filas[i], 'probabilidad') }">
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.probability') }}<span class="ff-block__req"> *</span>
                                 </label>
@@ -493,7 +597,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                 </div>
                             </div>
 
-                            <div class="ff-cell">
+                            <div class="ff-cell" :class="{ 'is-missing': faltaCelda(filas[i], 'severidad') }">
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.severity') }}<span class="ff-block__req"> *</span>
                                 </label>

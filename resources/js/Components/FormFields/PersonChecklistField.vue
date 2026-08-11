@@ -36,7 +36,7 @@ import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
 import {
-    catalogo, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
+    catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -46,6 +46,8 @@ const props = defineProps({
     readonly: { type: Boolean, default: false },
     /** Trabajadores del plan: una fila por cada uno. */
     people:   { type: Array, default: () => [] },
+    /** El servidor dijo que este campo sigue faltando tras intentar guardar. */
+    faltante: { type: Boolean, default: false },
 });
 
 const emit = defineEmits(['update:value']);
@@ -133,6 +135,17 @@ const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length
 const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [])));
 
 /**
+ * Con `faltante` encendido, el trabajador a medias pasa de aviso a bloqueo
+ * (rojo) en el indice Y en su tarjeta a la vez: los dos leen de aqui, asi que
+ * no pueden contar cosas distintas. Solo cambia el COLOR: la palabra sigue
+ * saliendo del estado real («Sin empezar», «Faltan 3») — ver `claveExigida`
+ * en respuestas.js y la mentira que evita.
+ */
+const claves = computed(() => estados.value.map(
+    (e) => claveExigida(e, props.faltante && ! props.readonly),
+));
+
+/**
  * El estado en palabra, precalculado.
  *
  * Se resuelve aqui y no en la plantilla porque `$t` es una propiedad global de
@@ -146,13 +159,16 @@ const textos = computed(() => estados.value.map((e) => textoEstado(t, e)));
 const resumenFilas = computed(() => filas.value.map((fila, i) => ({
     key: i,
     label: fila.person_name || t('field_work.progress.row', { n: i + 1 }),
-    state: estados.value[i].clave,
+    state: claves.value[i],
     stateText: textos.value[i],
 })));
 
 const hechos = computed(() => estados.value.reduce((n, e) => n + e.hechos, 0));
 const totales = computed(() => estados.value.reduce((n, e) => n + e.total, 0));
 const completas = computed(() => estados.value.filter((e) => e.total > 0 && e.faltan === 0).length);
+
+/** Los trabajadores que el aviso de `faltante` nombra: los que tienen hueco. */
+const pendientes = computed(() => estados.value.filter((e) => e.faltan > 0).length);
 
 /**
  * El siguiente al que le falta algo, dando la vuelta a la lista.
@@ -182,6 +198,14 @@ function siguientePendiente(indice) {
             :message="$t('field_work.person_checklist.no_people')"
         />
 
+        <!-- El guardado dejo el campo pendiente: en rojo, con la cuenta de
+             QUIENES faltan, y en su sitio — no solo en el aviso de arriba.
+             Los trabajadores concretos salen en rojo en el indice y en sus
+             tarjetas (ver `estados`); esto es el titular. -->
+        <p v-if="faltante && !readonly && pendientes" class="ff-missing" role="alert">
+            {{ $tc('field_work.progress.required_people', pendientes) }}
+        </p>
+
         <!-- Con una sola fila el indice sobra: la cabecera ya lo dice todo. -->
         <RowNavigator
             v-if="filas.length > 1"
@@ -201,7 +225,7 @@ function siguientePendiente(indice) {
             :id="idFila(i)"
             :key="fila.person_slug ?? i"
             class="ff-row"
-            :class="{ 'is-open': estaAbierta(i) }"
+            :class="{ 'is-open': estaAbierta(i), 'is-missing': faltante && !readonly && estados[i].faltan > 0 }"
         >
             <!-- La cabecera ENTERA es el boton de plegado: con guantes no se
                  acierta a una flechita de 24 px, y aqui el objetivo de toque es
@@ -219,7 +243,7 @@ function siguientePendiente(indice) {
                 <span class="ff-row__num">{{ i + 1 }}</span>
 
                 <!-- Sólo el nombre. El documento iba detrás y no hace falta:
-                     la lista es la cuadrilla de ESTE plan, media docena de
+                     la lista son los trabajadores de ESTE plan, media docena de
                      personas que el supervisor acabó de meter él mismo, así que
                      el nombre ya distingue de sobra. Y este formato se imprime y
                      se enseña — el documento de cada uno no tiene por qué salir
@@ -230,7 +254,7 @@ function siguientePendiente(indice) {
 
                 <span class="ff-count" :class="{ 'is-done': estados[i].clave === 'ok' }">{{ avance(fila) }}</span>
 
-                <span class="ff-state" :class="`is-${estados[i].clave}`">{{ textos[i] }}</span>
+                <span class="ff-state" :class="`is-${claves[i]}`">{{ textos[i] }}</span>
             </button>
 
             <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
