@@ -218,10 +218,15 @@ function siguientePendiente(indice) {
 
                 <span class="ff-row__num">{{ i + 1 }}</span>
 
-                <span class="ff-row__title">
-                    {{ fila.person_name }}
-                    <small v-if="fila.person_doc">{{ fila.person_doc }}</small>
-                </span>
+                <!-- Sólo el nombre. El documento iba detrás y no hace falta:
+                     la lista es la cuadrilla de ESTE plan, media docena de
+                     personas que el supervisor acabó de meter él mismo, así que
+                     el nombre ya distingue de sobra. Y este formato se imprime y
+                     se enseña — el documento de cada uno no tiene por qué salir
+                     repetido en veinticinco filas. Se sigue guardando en la
+                     respuesta (`person_doc`), que es lo que identifica la fila
+                     en el PDF legal y en la migración. -->
+                <span class="ff-row__title">{{ fila.person_name }}</span>
 
                 <span class="ff-count" :class="{ 'is-done': estados[i].clave === 'ok' }">{{ avance(fila) }}</span>
 

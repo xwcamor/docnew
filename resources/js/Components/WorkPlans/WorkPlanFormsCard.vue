@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { Card, Tag, Button, Switch, Tooltip } from 'ant-design-vue';
-import { FileTextOutlined, FilePdfOutlined, EditOutlined, DownloadOutlined } from '@ant-design/icons-vue';
+import { FileTextOutlined, FilePdfOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
@@ -54,16 +54,21 @@ const observaciones = computed(() => enElPlan.value.reduce((n, f) => n + (f.find
 const conPdf = (f) => f.submission && f.status === 'confirmed';
 
 /**
- * Debajo del código, sólo lo que **no** se da por supuesto.
+ * Debajo del nombre, sólo lo que **no** se da por supuesto.
  *
  * Antes ponía «Obligatorio» en las cuatro filas, y si lo son todas la palabra
  * no distingue nada: es ruido repetido cuatro veces. El interruptor bloqueado
  * ya dice que ese no se toca. Lo que sí merece una palabra es la excepción.
+ *
+ * Y ya no lleva el código. Estaba ahí con el argumento de que sirve para
+ * reconocer el formato de un vistazo, y no es cierto: el nombre completo va
+ * justo encima y dice lo mismo mejor, así que «AST» debajo de «AST (Análisis de
+ * Seguridad en el Trabajo)» sólo repetía sus propias siglas una línea más
+ * abajo. Cuatro documentos, cuatro repeticiones. Donde el código sí identifica
+ * algo —el PDF, los avisos del interruptor— se sigue diciendo.
  */
 const subtitulo = (f) => {
-    // El codigo va debajo, no arriba: sirve para reconocerlo de un vistazo pero
-    // no dice lo que es. Arriba va el nombre.
-    const partes = [f.code];
+    const partes = [];
 
     if (!f.included) partes.push(t('work_plans.forms_not_in_plan'));
     else if (!f.locked_by_work_type) partes.push(t('work_plans.forms_optional'));
@@ -112,17 +117,13 @@ const alternar = (f, valor) => {
                 {{ $tc('work_plans.forms_findings', observaciones, { count: observaciones }) }}
             </Tag>
 
-            <!-- El expediente de la jornada de golpe. Bajarlo formato por
-                 formato son cuatro clics y cuatro archivos que hay que volver a
-                 juntar; es lo que se manda al cliente o a una inspección. -->
-            <Tooltip v-if="canExport && confirmados" :title="$t('work_plans.export_zip_hint')">
-                <a :href="route('field_work.forms.zip', planSlug)">
-                    <Button size="small">
-                        <template #icon><DownloadOutlined /></template>
-                        {{ $t('work_plans.export_zip') }}
-                    </Button>
-                </a>
-            </Tooltip>
+            <!-- «Descargar todo» estaba aquí y se ha ido arriba, con las
+                 acciones del plan.
+                 Es una acción y no un estado, y era la única de la pantalla que
+                 vivía dentro de la cabecera de una tarjeta: al lado de las dos
+                 pastillas empujaba el título de «Documentos (4)» hasta dejarlo
+                 en «D…». Y además no es del formato ni de esta tarjeta — se
+                 lleva el expediente entero de la jornada, que es del plan. -->
         </template>
 
         <p v-if="!forms.length" class="ff-empty">{{ $t('work_plans.forms_empty') }}</p>

@@ -2,12 +2,12 @@
 import { computed, ref, watch } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert, Button, Segmented,
+    Card, Tag, Space, Alert, Button, Segmented, Tooltip,
 } from 'ant-design-vue';
 import {
     ScheduleOutlined, LockOutlined, ToolOutlined, FormOutlined, IdcardOutlined,
     BankOutlined, EnvironmentOutlined, CalendarOutlined, DashboardOutlined,
-    CheckCircleFilled, ExclamationCircleFilled, HourglassOutlined,
+    CheckCircleFilled, ExclamationCircleFilled, HourglassOutlined, DownloadOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -240,6 +240,12 @@ const tarjetaRepresentante = ref(null);
  */
 const hayRepresentante = computed(() => !!props.representative?.person);
 
+// Hay expediente que descargar cuando al menos un formato del plan esta cerrado:
+// el ZIP solo mete los confirmados, asi que sin ninguno bajaria vacio.
+const hayConfirmados = computed(
+    () => props.forms.some((f) => f.included && f.status === 'confirmed'),
+);
+
 const irAlRepresentante = () => {
     const nodo = tarjetaRepresentante.value;
     if (!nodo) return;
@@ -279,6 +285,24 @@ const irAlRepresentante = () => {
                 </Space>
             </template>
             <template #actions>
+                <!-- El expediente de la jornada, entero.
+                     Estaba dentro de la cabecera de la tarjeta de Documentos,
+                     el único sitio de la pantalla donde vivía una acción metida
+                     entre dos pastillas de estado — y ahí empujaba el título
+                     hasta dejarlo en «D…». Además no es de esa tarjeta: se lleva
+                     los cuatro documentos del plan, así que su sitio es al lado
+                     de las demás acciones del plan.
+                     Sale sólo cuando hay algo que bajar: sin ningún formato
+                     confirmado el ZIP saldría vacío. -->
+                <Tooltip v-if="fieldWork.canExport && hayConfirmados" :title="$t('work_plans.export_zip_hint')">
+                    <a :href="route('field_work.forms.zip', workPlan.slug)">
+                        <Button>
+                            <template #icon><DownloadOutlined /></template>
+                            {{ $t('work_plans.export_zip') }}
+                        </Button>
+                    </a>
+                </Tooltip>
+
                 <EntityShowActions
                     module="work_plans"
                     route-prefix="business_management"
