@@ -1,11 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
-import {
-    Alert, Card, Tag, Button, Select, SelectOption, Tooltip,
-} from 'ant-design-vue';
+import { Alert, Card, Tag, Button, Tooltip } from 'ant-design-vue';
 import { SolutionOutlined, EditOutlined } from '@ant-design/icons-vue';
-import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
 /**
@@ -43,12 +40,29 @@ const props = defineProps({
      * equipo entero sin firmar todavía no hay candidatos.
      */
     representative: { type: Object, default: () => ({ person: null, can_designate: false, signed_crew: 0 }) },
+    /**
+     * Los trabajadores del plan, los mismos que pinta la tarjeta de arriba.
+     *
+     * De aquí salen los candidatos, filtrando por `signed`. No se piden al
+     * servidor: son exactamente la lista que ya está en pantalla, así que
+     * pedirlos otra vez sería arriesgarse a que las dos no coincidan.
+     */
+    crew: { type: Array, default: () => [] },
     canEdit: { type: Boolean, default: false },
 });
 
-const { t } = useI18n();
-
 const persona = computed(() => props.representative?.person ?? null);
+
+/**
+ * A quién se puede designar: **los que ya firmaron, y nadie más.**
+ *
+ * Esa firma —con su foto y su hora— es la que vale como representante, así que
+ * designar a quien todavía no ha firmado dejaría al plan esperando una
+ * responsabilidad que nadie ha asumido. El servidor lo comprueba igual
+ * (`WorkPlanSetupService::designarRepresentante`); esto es para no ofrecer lo
+ * que va a rechazar.
+ */
+const candidatos = computed(() => props.crew.filter((f) => f.signed));
 
 /**
  * Falta, y se nota.
@@ -60,84 +74,47 @@ const persona = computed(() => props.representative?.person ?? null);
  */
 const falta = computed(() => ! persona.value);
 
-// Armar el plan exige permiso Y plan abierto, igual que en las otras tarjetas:
-// lo decide el servidor en `setup.can` y aquí sólo se obedece. Y además tiene
-// que haber alguien que ya haya firmado — un botón que sólo puede fallar es
-// peor que un botón que no está (docs/UI.md §6).
-const puedeDesignar = computed(() => props.canEdit && !!props.representative?.can_designate);
-
 // ── Elegir a la persona ──────────────────────────────────────────────────────
 //
-// El mismo buscador por documento que las otras dos tarjetas: se escanea o se
-// teclea el DNI y sale el nombre. Nunca un desplegable con el padrón dentro.
-// La lista la acota el servidor con `representante=1`, que devuelve sólo a los
-// de ESTE plan que ya firmaron.
+// Se elige de una lista que se ve, no de un buscador.
+//
+// Aquí había un botón «Designar» que abría un campo donde había que teclear el
+// documento. Son dos gestos y una búsqueda para escoger entre la media docena
+// de personas que están pintadas justo encima, en la tarjeta de trabajadores:
+// el candidato ya está en pantalla y hay que ir a buscarlo escribiendo su DNI.
+//
+// En trabajadores el buscador SÍ tiene sentido, porque de ahí se saca a alguien
+// de un padrón de miles y hay que identificarlo sin lista. Aquí el conjunto es
+// cerrado y pequeño —los de este plan que ya firmaron—, así que se enseña
+// entero y se pulsa. Sin botón que lo destape: lo que hay que hacer es elegir,
+// y elegir es lo que se ve.
 
-const abierto   = ref(false);
-const candidatos = ref([]);
-const buscando  = ref(false);
-const parcial   = ref(true);   // lo tecleado todavía no llega al mínimo
-const minimo    = ref(8);      // lo dice el servidor; hasta entonces, el del DNI
-const guardando = ref(false);
+const cambiando = ref(false);   // con representante ya puesto, para elegir otro
+const guardando = ref(null);    // slug de la persona que se está designando
 
-// Antirrebote: en obra se teclea con guantes y el lector manda los dígitos de
-// golpe. Sin esto cada carácter sería una consulta.
-let temporizador = null;
+// Armar el plan exige permiso Y plan abierto, igual que en las otras tarjetas:
+// lo decide el servidor en `setup.can` y aquí sólo se obedece.
+const puedeDesignar = computed(() => props.canEdit && candidatos.value.length > 0);
 
-const buscar = (texto) => {
-    clearTimeout(temporizador);
-    const q = (texto || '').trim();
+// La lista sale sola cuando falta el representante —que es lo que hay que
+// hacer— y bajo petición cuando ya hay uno y se quiere cambiar.
+const eligiendo = computed(() => puedeDesignar.value && (!persona.value || cambiando.value));
 
-    if (!q) { candidatos.value = []; parcial.value = true; return; }
+const subtitulo = (fila) => [fila.position, fila.num_doc].filter(Boolean).join(' · ');
 
-    temporizador = setTimeout(async () => {
-        buscando.value = true;
-        try {
-            const { data } = await axios.get(
-                route('business_management.work_plans.crew.candidates', props.planSlug),
-                { params: { q, representante: 1 } },
-            );
-            candidatos.value = data.people;
-            parcial.value = !!data.partial;
-            minimo.value = data.minimum ?? minimo.value;
-        } finally {
-            buscando.value = false;
-        }
-    }, 250);
-};
+const designar = (fila) => {
+    const slug = fila.person ?? fila.slug;
+    if (!slug) return;
 
-/**
- * Por qué la lista está vacía, que no es lo mismo en cada caso.
- *
- * Sin resultados no significa «no existe»: casi siempre significa que existe
- * pero todavía no ha firmado en este plan, y decirlo evita buscar un nombre
- * que no va a aparecer.
- */
-const sinResultados = computed(() => {
-    if (buscando.value) return undefined;
-    if (parcial.value) return t('work_plans.approval_assign_hint');
-
-    return t('work_plans.representative_no_results');
-});
-
-const abrir = () => {
-    abierto.value = !abierto.value;
-    candidatos.value = [];
-    parcial.value = true;
-};
-
-const designar = (personSlug) => {
-    if (!personSlug) return;
-    guardando.value = true;
+    guardando.value = slug;
     router.put(
         route('business_management.work_plans.representative', props.planSlug),
-        { person_slug: personSlug },
+        { person_slug: slug },
         {
             preserveScroll: true,
             onFinish: () => {
-                guardando.value = false;
-                abierto.value = false;
-                candidatos.value = [];
+                guardando.value = null;
+                cambiando.value = false;
             },
         },
     );
@@ -156,14 +133,7 @@ const designar = (personSlug) => {
             </Tag>
         </template>
 
-        <!-- Quién puede serlo, antes de que nadie vaya a buscar al jefe: sale
-             de los que ya firmaron y vale cualquiera del equipo.
-
-             Sólo cuando toca elegir. Con alguien ya designado no hay nada que
-             decidir y sobra; y sin ninguna firma todavía, decir «sale de los que
-             ya firmaron» delante de una lista donde nadie ha firmado confunde en
-             vez de ayudar — para ese caso está el aviso de abajo, que dice qué
-             falta primero. -->
+        <!-- Quien es, cuando ya lo hay. -->
         <ul v-if="persona" class="wp-rows">
             <WorkPlanBoardRow
                 :key="persona.slug"
@@ -172,8 +142,8 @@ const designar = (personSlug) => {
                 :subtitle="persona.position || ''"
             >
                 <template #actions>
-                    <Tooltip v-if="puedeDesignar" :title="$t('work_plans.representative_change')">
-                        <Button size="small" :loading="guardando" @click="abrir">
+                    <Tooltip v-if="puedeDesignar && !cambiando" :title="$t('work_plans.representative_change')">
+                        <Button size="small" @click="cambiando = true">
                             <template #icon><EditOutlined /></template>
                             {{ $t('work_plans.representative_change') }}
                         </Button>
@@ -182,68 +152,61 @@ const designar = (personSlug) => {
             </WorkPlanBoardRow>
         </ul>
 
-        <template v-else>
-            <!-- Dos maneras de no tenerlo, y no son la misma, así que tampoco se
-                 pintan igual.
+        <!-- Todavía no ha firmado nadie: no hay entre quién elegir, y el paso
+             que va antes es de la tarjeta de arriba. Azul informativo y sin nada
+             que pulsar — un botón que sólo puede fallar es peor que ninguno
+             (docs/UI.md §6). -->
+        <Alert
+            v-else-if="!candidatos.length"
+            type="info"
+            show-icon
+            :message="$t('work_plans.representative_needs_signature')"
+            :description="$t('work_plans.representative_needs_signature_why')"
+        />
 
-                 Falta designarlo → es lo que bloquea el flujo y va en ámbar, con
-                 el botón dentro del propio aviso: lo que hay que hacer y el sitio
-                 donde se hace, juntos.
+        <!-- Y si hay a quien designar pero esta pantalla es de sólo lectura, se
+             dice qué falta aunque no se pueda arreglar desde aquí. -->
+        <Alert
+            v-else-if="!canEdit"
+            type="warning"
+            show-icon
+            :message="$t('work_plans.representative_none')"
+            :description="$t('work_plans.representative_none_why')"
+        />
 
-                 Nadie ha firmado todavía → no es culpa de nadie ni hay nada que
-                 pulsar, es que el paso anterior va antes. En azul informativo y
-                 sin botón: uno que sólo puede fallar es peor que ninguno
-                 (docs/UI.md §6). -->
-            <Alert
-                v-if="representative.can_designate"
-                type="warning"
-                show-icon
-                :message="$t('work_plans.representative_none')"
-                :description="`${$t('work_plans.representative_none_why')} ${$t('work_plans.representative_help')}`"
-            >
-                <template #action>
-                    <Button
-                        v-if="puedeDesignar"
-                        type="primary"
-                        size="small"
-                        :loading="guardando"
-                        @click="abrir"
-                    >
-                        <template #icon><EditOutlined /></template>
-                        {{ $t('work_plans.representative_designate') }}
-                    </Button>
-                </template>
-            </Alert>
+        <!-- La lista, que es la parte que importa: los que ya firmaron, con su
+             cargo, y un botón por fila. Sale directamente, sin nada que abrir
+             primero: elegir ES lo que hay que hacer aquí. -->
+        <div v-if="eligiendo" class="wp-rep__pick">
+            <p class="wp-rep__help">
+                {{ persona ? $t('work_plans.representative_pick_other') : $t('work_plans.representative_pick') }}
+            </p>
 
-            <Alert
-                v-else
-                type="info"
-                show-icon
-                :message="$t('work_plans.representative_needs_signature')"
-                :description="$t('work_plans.representative_needs_signature_why')"
-            />
-        </template>
+            <ul class="wp-rows">
+                <WorkPlanBoardRow
+                    v-for="fila in candidatos"
+                    :key="fila.slug"
+                    :state="persona && persona.slug === fila.person ? 'done' : 'pending'"
+                    :title="fila.name"
+                    :subtitle="subtitulo(fila)"
+                >
+                    <template #actions>
+                        <Button
+                            v-if="!persona || persona.slug !== fila.person"
+                            type="primary"
+                            size="small"
+                            :loading="guardando === (fila.person ?? fila.slug)"
+                            @click="designar(fila)"
+                        >
+                            {{ $t('work_plans.representative_designate') }}
+                        </Button>
+                    </template>
+                </WorkPlanBoardRow>
+            </ul>
 
-        <!-- El buscador va en su propia línea y a todo el ancho: metido entre
-             los botones deja la columna en 200px y parte el nombre letra a
-             letra, que es lo que ya pasó en el flujo de aprobaciones. -->
-        <div v-if="puedeDesignar && abierto" class="wp-rep__pick">
-            <Select
-                show-search
-                allow-clear
-                autofocus
-                :filter-option="false"
-                :loading="buscando"
-                :placeholder="$t('work_plans.approval_assign_hint')"
-                :not-found-content="sinResultados"
-                style="width: 100%"
-                @search="buscar"
-                @change="designar"
-            >
-                <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
-                    {{ p.name }}
-                </SelectOption>
-            </Select>
+            <Button v-if="persona" size="small" type="text" class="wp-rep__cancel" @click="cambiando = false">
+                {{ $t('global.cancel') }}
+            </Button>
         </div>
     </Card>
 </template>
@@ -253,8 +216,7 @@ const designar = (personSlug) => {
    WorkPlanBoardRow, para que no vuelvan a divergir. */
 .wp-rows { list-style: none; margin: 0; padding: 0; }
 
-.wp-rep__help { margin: 0 0 12px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+.wp-rep__help { margin: 0 0 10px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 .wp-rep__pick { margin-top: 12px; }
-/* Con guantes, a pleno sol: 44px de objetivo de toque (docs/UI.md §3). */
-.wp-rep__pick :deep(.ant-select-selector) { min-height: 44px; }
+.wp-rep__cancel { margin-top: 8px; }
 </style>

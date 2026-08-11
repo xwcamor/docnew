@@ -287,6 +287,13 @@ return [
     'representative_done'     => 'Designado',
     'representative_designate' => 'Designar',
     'representative_change' => 'Cambiar',
+    // Encabeza la lista de candidatos, que ahora sale directamente en vez de
+    // detras de un boton: el conjunto es cerrado y pequeño —los de este plan
+    // que ya firmaron, pintados justo encima— asi que se enseña y se pulsa.
+    // Buscarlos tecleando el documento era mandar a alguien a buscar por DNI a
+    // media docena de personas que ya estan en pantalla.
+    'representative_pick'   => 'Elige quién responde por el equipo. Sale de los que ya firmaron y puede ser cualquiera: no hace falta que sea jefe.',
+    'representative_pick_other' => 'Elige a otro de los que ya firmaron.',
     // No es lo mismo que falte designarlo que que no haya a quien: con el
     // equipo entero sin firmar no hay candidatos, y por eso no sale el botón.
     'representative_needs_signature' => 'Todavía no ha firmado nadie',

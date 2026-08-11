@@ -133,11 +133,28 @@ const etiqueta = computed(() => cuando.value || props.label);
 </template>
 
 <style scoped>
+/**
+ * La fila se parte cuando LA FILA no cabe, no cuando la tarjeta es estrecha.
+ *
+ * Era una rejilla de tres columnas con un corte fijo —«por debajo de 460px de
+ * tarjeta, el lado derecho baja»— y ese número no puede acertar, porque cada
+ * tarjeta lleva un lado derecho distinto. Medido en el tablero, con las tres
+ * columnas a 473px: el representante pide 91px a la derecha, los trabajadores
+ * 227, el flujo 241 y los documentos **422**. Los tres primeros caben; el
+ * cuarto no, y como 473 > 460 la regla no saltaba: el nombre del formato se
+ * estrujaba hasta cero y «AST (Análisis de Seguridad en el Trabajo)» salía en
+ * vertical, una letra por línea, con el título recortado a «D…».
+ *
+ * Con flex y `wrap` no hay ancho que adivinar: el cuerpo pide 170px como mínimo
+ * y el lado derecho baja a su propia línea **sólo en la fila donde de verdad no
+ * entra**. Los documentos se parten y los trabajadores no, en la misma pantalla
+ * y sin una sola media query.
+ */
 .wp-row {
-    display: grid;
-    grid-template-columns: 22px minmax(0, 1fr) auto;
+    display: flex;
+    flex-wrap: wrap;
     gap: 10px;
-    align-items: start;
+    align-items: flex-start;
     padding: 12px 0;
     border-top: 1px solid var(--color-border-soft, #f0f0f0);
 }
@@ -145,6 +162,7 @@ const etiqueta = computed(() => cuando.value || props.label);
 
 .wp-row__mark {
     position: relative;
+    flex: 0 0 22px;
     display: flex; justify-content: center;
     padding-top: 2px;
     font-size: 15px;
@@ -162,7 +180,9 @@ const etiqueta = computed(() => cuando.value || props.label);
     background: var(--color-border, #e5e7eb);
 }
 
-.wp-row__body  { min-width: 0; }
+/* 170px es lo que hace falta para leer un nombre; por debajo de eso el lado
+   derecho se va abajo en vez de seguir estrujándolo. */
+.wp-row__body  { flex: 1 1 170px; min-width: 0; }
 /* `break-word` y no `anywhere`: con `anywhere` el navegador parte por donde le
    viene bien y «AST (Análisis de Seguridad en el Trabajo)» salía como «AST
    (Análisi / s de / Segurid / ad», una sílaba por línea. Así solo se parte la
@@ -171,20 +191,21 @@ const etiqueta = computed(() => cuando.value || props.label);
 .wp-row__sub   { display: block; margin-top: 2px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 .wp-row__why   { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); }
 
-.wp-row__side  { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-/* Ocupa de la segunda columna al final: debajo del cuerpo, alineado con él. */
-.wp-row__wide  { grid-column: 2 / -1; margin-top: 8px; }
+/* Los 32px son la marca (22) más el hueco (10): cuando el lado se va a su
+   propia línea queda alineado con el cuerpo, no pegado al borde. En la misma
+   línea no se nota — el cuerpo crece y se los come. */
+.wp-row__side  {
+    flex: 0 1 auto;
+    margin-left: 32px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end;
+}
+/* Debajo de todo y a lo ancho, alineado con el cuerpo. */
+.wp-row__wide  { flex: 0 0 calc(100% - 32px); margin-left: 32px; margin-top: 8px; }
 .wp-row__tag   { margin: 0; white-space: nowrap; }
 .wp-row__acts  { display: inline-flex; align-items: center; gap: 6px; }
 /* Con guantes, a pleno sol (docs/UI.md §3). */
 .wp-row__acts :deep(.ant-btn) { min-height: 32px; }
 
-/* En una columna estrecha —y en el tablero lo son— la etiqueta y los botones
-   bajan a su propia línea en vez de estrujar el nombre hasta partirlo por
-   letras. Es container query, no media query: la columna mide un tercio
-   aunque la ventana sea ancha. */
-@container card (max-width: 460px) {
-    .wp-row { grid-template-columns: 22px minmax(0, 1fr); }
-    .wp-row__side { grid-column: 2; justify-content: flex-start; }
-}
+/* Aquí vivía la container query de los 460px. Ya no hace falta: el `wrap` de
+   arriba hace lo mismo y lo hace bien, fila a fila, sin un ancho inventado. */
 </style>

@@ -544,6 +544,7 @@ const irAlRepresentante = () => {
                             <WorkPlanRepresentativeCard
                                 :plan-slug="workPlan.slug"
                                 :representative="representative"
+                                :crew="crew"
                                 :can-edit="canSetup"
                             />
                         </div>
@@ -590,6 +591,7 @@ const irAlRepresentante = () => {
                         <WorkPlanRepresentativeCard
                             :plan-slug="workPlan.slug"
                             :representative="representative"
+                            :crew="crew"
                             :can-edit="canSetup"
                         />
                     </div>

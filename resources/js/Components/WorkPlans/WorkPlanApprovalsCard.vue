@@ -1,10 +1,13 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
-    Alert, Card, Tag, Button, Select, SelectOption, Tooltip,
+    Alert, Card, Tag, Button, Input, Tooltip,
 } from 'ant-design-vue';
-import { SafetyCertificateOutlined, EditOutlined, SolutionOutlined } from '@ant-design/icons-vue';
+import {
+    SafetyCertificateOutlined, EditOutlined, SolutionOutlined,
+    IdcardOutlined, LoadingOutlined,
+} from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 
@@ -136,71 +139,86 @@ const etiqueta = (a) => {
 };
 
 // ── Asignar al firmante ──────────────────────────────────────────────────────
+//
+// Se escribe el documento y la persona entra sola. **Sin desplegable.**
+//
+// Aquí había un `Select` con búsqueda: se tecleaba el documento entero y
+// después había que elegir de una lista que casi siempre tenía un solo
+// elemento. Dos gestos para una decisión que ya estaba tomada al terminar de
+// teclear, y encima con guantes. Es exactamente lo que ya se quitó en la
+// tarjeta de trabajadores, y este selector se quedó atrás.
+//
+// Es el mismo mecanismo que allí: se busca al soltar la tecla, y sólo se asigna
+// con coincidencia EXACTA y única. «4001» encaja con veinte documentos y no se
+// puede adivinar cuál, así que hasta que no sea exacta no se toca nada.
 
-const abierta   = ref(null);   // slug de la aprobación que se está asignando
-const candidatos = ref([]);
-const buscando  = ref(false);
-const parcial   = ref(true);   // el texto todavía no llega al mínimo
-const minimo    = ref(8);
+// Un flujo puede tener varias filas sin asignar a la vez, y las tres llevan su
+// campo abierto. Lo escrito y el aviso van POR FILA: con un solo `ref` para
+// todas, teclear el documento del supervisor lo pintaba también en la fila del
+// HSE, como si ya estuviera puesto.
+const abierta   = ref(null);          // fila donde se está cambiando al que ya hay
+const documento = reactive({});       // slug de la aprobación → lo tecleado
+const aviso     = reactive({});       // slug de la aprobación → qué pasa con ello
+const buscando  = ref(null);
 const guardando = ref(null);
+/**
+ * Cuántos caracteres hacen falta antes de preguntar al servidor.
+ *
+ * Lo decide el servidor (`docufiz.num_doc_minimum`) y llega en la respuesta,
+ * pero la primera búsqueda ocurre ANTES de tener respuesta, así que el valor de
+ * partida tiene que quedarse CORTO a propósito: si arranca por encima del real
+ * —estaba en 8 y el servidor dice 7— un documento de siete dígitos no llega
+ * nunca a preguntarse, y como no se pregunta tampoco se aprende el 7. El campo
+ * se queda mudo para siempre. Pasarse de corto sólo cuesta una consulta que el
+ * servidor contesta con `partial` y el número bueno.
+ */
+const minimo    = ref(7);
 
 let temporizador = null;
 
-/**
- * Busca por documento. Con menos caracteres que el mínimo el servidor devuelve
- * la lista vacía a propósito — no es que no haya nadie, es que todavía no se ha
- * escrito un documento.
- */
-const buscar = (texto) => {
+const buscar = (a, texto) => {
     clearTimeout(temporizador);
-    const q = (texto || '').trim();
+    const q = String(texto ?? '').trim();
+    aviso[a.slug] = '';
 
-    if (!q) { candidatos.value = []; parcial.value = true; return; }
-
-    // Se busca **dentro del rol** que hay que firmar. El sistema anterior tenia
-    // un endpoint distinto por tipo de aprobador; aqui salia cualquiera y se
-    // podia poner al ayudante a firmar como supervisor de seguridad.
-    const rol = props.approvals.find((a) => a.slug === abierta.value)?.role;
+    if (q.length < minimo.value) return;
 
     temporizador = setTimeout(async () => {
-        buscando.value = true;
+        buscando.value = a.slug;
         try {
             const { data } = await axios.get(
                 route('business_management.work_plans.crew.candidates', props.planSlug),
-                { params: { q, role: rol } },
+                // Se busca **dentro del rol** que hay que firmar. El sistema
+                // anterior tenia un endpoint distinto por tipo de aprobador;
+                // aqui salia cualquiera y se podia poner al ayudante a firmar
+                // como supervisor de seguridad.
+                { params: { q, role: a.role } },
             );
-            candidatos.value = data.people;
-            parcial.value = !!data.partial;
+
             minimo.value = data.minimum ?? minimo.value;
+
+            if (data.exact) {
+                asignar(a, data.exact.slug);
+
+                return;
+            }
+
+            // Sin coincidencia exacta hay dos motivos distintos, y no dan el
+            // mismo consejo: o falta escribir, o esa persona no tiene el rol que
+            // esta firma exige. Lo segundo no se arregla escribiendo más.
+            aviso[a.slug] = data.people.length
+                ? t('work_plans.crew_keep_typing')
+                : t('work_plans.approval_no_one_with_role', { role: rotulo(a.role) });
         } finally {
-            buscando.value = false;
+            buscando.value = null;
         }
     }, 250);
 };
 
-// Sin resultados no significa «no existe»: puede ser que exista y no tenga el
-// rol. Decirlo evita que alguien de por hecho que hay que darlo de alta otra vez.
-const rolAbierto = computed(() => props.approvals.find((a) => a.slug === abierta.value)?.role);
-
-const sinResultados = computed(() => {
-    if (parcial.value) return t('work_plans.approval_assign_hint');
-
-    return t('work_plans.approval_no_one_with_role', { role: rotulo(rolAbierto.value) });
-});
-
-/**
- * Por qué la lista está vacía.
- *
- * Aquí ya sólo se buscan aprobadores por documento: supervisor y HSE, que no
- * salen a obra con el plan. El que sí sale —quien responde por los
- * trabajadores— se designa en su propia tarjeta y no pasa por este selector.
- */
-const sinOpciones = () => (buscando.value ? undefined : sinResultados.value);
-
 const abrir = (a) => {
     abierta.value = abierta.value === a.slug ? null : a.slug;
-    candidatos.value = [];
-    parcial.value = true;
+    documento[a.slug] = '';
+    aviso[a.slug] = '';
 };
 
 const asignar = (a, personSlug) => {
@@ -211,11 +229,8 @@ const asignar = (a, personSlug) => {
         { person_slug: personSlug },
         {
             preserveScroll: true,
-            onFinish: () => {
-                guardando.value = null;
-                abierta.value = null;
-                candidatos.value = [];
-            },
+            onSuccess: () => { documento[a.slug] = ''; aviso[a.slug] = ''; abierta.value = null; },
+            onFinish: () => { guardando.value = null; },
         },
     );
 };
@@ -284,15 +299,18 @@ const firmar = (a) => router.get(
                          que un boton que no esta (docs/UI.md §6). Lo que hay
                          que hacer lo dice el aviso de arriba, con su boton. -->
                     <template v-if="!a.signed && !bloqueada(a)">
+                        <!-- Sólo «Cambiar», y sólo cuando ya hay alguien
+                             asignado. Sin nadie, lo que hay que hacer es
+                             escribir el documento y el campo ya está abierto
+                             debajo: un botón para destapar lo que de todos
+                             modos hay que usar es un clic de más. -->
                         <Tooltip
-                            v-if="canEdit"
-                            :title="a.person
-                                ? $t('work_plans.approval_change_hint', { role: nombre(a) })
-                                : $t('work_plans.approval_assign_hint')"
+                            v-if="canEdit && a.person"
+                            :title="$t('work_plans.approval_change_hint', { role: nombre(a) })"
                         >
                             <Button size="small" :loading="guardando === a.slug" @click="abrir(a)">
                                 <template #icon><EditOutlined /></template>
-                                {{ a.person ? $t('work_plans.approval_change') : $t('work_plans.approval_assign') }}
+                                {{ $t('work_plans.approval_change') }}
                             </Button>
                         </Tooltip>
 
@@ -312,29 +330,43 @@ const firmar = (a) => router.get(
                     </template>
                 </template>
 
-                <!-- Asignar quién firma. En su propia línea porque el selector
-                     necesita el ancho entero: metido entre los botones aplastaba
-                     el título hasta partirlo letra a letra. -->
-                <template v-if="canEdit && !a.signed && !bloqueada(a) && abierta === a.slug" #wide>
+                <!-- Quién firma: se escribe el documento y entra solo, igual
+                     que en la tarjeta de trabajadores. En su propia línea
+                     porque el campo necesita el ancho entero — metido entre los
+                     botones aplastaba el título hasta partirlo letra a letra. -->
+                <template
+                    v-if="canEdit && !a.signed && !bloqueada(a) && (!a.person || abierta === a.slug)"
+                    #wide
+                >
                     <div class="wp-assign">
-                        <!-- Supervisor y HSE: buscador por documento, que es lo
-                             único que se asigna desde aquí. -->
-                        <Select
-                            show-search
+                        <Input
+                            v-model:value="documento[a.slug]"
+                            size="large"
                             allow-clear
-                            autofocus
-                            :filter-option="false"
-                            :loading="buscando"
+                            inputmode="numeric"
+                            autocomplete="off"
+                            :maxlength="20"
+                            :disabled="guardando === a.slug"
                             :placeholder="$t('work_plans.approval_assign_hint')"
-                            :not-found-content="sinOpciones()"
-                            style="width: 100%"
-                            @search="buscar($event)"
-                            @change="(v) => asignar(a, v)"
+                            @update:value="(v) => buscar(a, v)"
+                            @press-enter="buscar(a, documento[a.slug])"
                         >
-                            <SelectOption v-for="p in candidatos" :key="p.slug" :value="p.slug">
-                                {{ p.name }}
-                            </SelectOption>
-                        </Select>
+                            <template #prefix><IdcardOutlined /></template>
+                            <template v-if="buscando === a.slug || guardando === a.slug" #suffix>
+                                <LoadingOutlined />
+                            </template>
+                        </Input>
+
+                        <!-- «Sigue escribiendo» es un consejo; «nadie con ese
+                             rol» es un callejón sin salida. Se distinguen por
+                             el color, que es lo único que se mira de un texto
+                             de trece pixeles. -->
+                        <p
+                            class="wp-assign__hint"
+                            :class="{ 'is-bad': aviso[a.slug] && aviso[a.slug] !== $t('work_plans.crew_keep_typing') }"
+                        >
+                            {{ aviso[a.slug] || $tc('work_plans.crew_search_hint', minimo, { count: minimo }) }}
+                        </p>
                     </div>
                 </template>
             </WorkPlanBoardRow>

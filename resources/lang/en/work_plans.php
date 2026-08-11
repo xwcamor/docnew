@@ -277,6 +277,11 @@ return [
     'representative_done'     => 'Designated',
     'representative_designate' => 'Designate',
     'representative_change' => 'Change',
+    // Heads the candidate list, which now shows up directly instead of behind a
+    // button: the set is closed and small —the people on this plan who already
+    // signed, drawn right above— so it is shown and tapped. See the note in `es`.
+    'representative_pick'   => 'Pick who answers for the team. They come from those who already signed and it can be anyone: they do not have to be a boss.',
+    'representative_pick_other' => 'Pick someone else from those who already signed.',
     // Needing to designate somebody is not the same as having nobody to pick:
     // with the whole team unsigned there are no candidates, hence no button.
     'representative_needs_signature' => 'Nobody has signed yet',

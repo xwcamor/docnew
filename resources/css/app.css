@@ -1862,6 +1862,20 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
  * su contenido. */
 .info-card { container: card / inline-size; }
 
+/* La cabecera de la tarjeta tambien se parte.
+ *
+ * Es el mismo fallo que las filas, un piso mas arriba: el titulo y el `extra`
+ * comparten una linea flex y el `extra` no encoge, asi que gana siempre. La
+ * tarjeta de Documentos lleva ahi dos pastillas y el boton de descargar el
+ * expediente, y a 473px de columna el titulo «Documentos (5)» se quedaba en
+ * 49px —«D…»— y a 1280px de ventana en CERO: la tarjeta salia sin nombre.
+ *
+ * Con `wrap` y un minimo para el titulo, el `extra` baja a su propia linea
+ * cuando de verdad no cabe, y solo en la tarjeta donde no cabe. */
+.info-card > .ant-card-head .ant-card-head-wrapper { flex-wrap: wrap; row-gap: 8px; }
+.info-card > .ant-card-head .ant-card-head-title   { min-width: 140px; }
+.info-card > .ant-card-head .ant-card-extra        { margin-inline-start: auto; }
+
 /* ── Composicion del plan: cuadrilla, formatos y aprobadores ─────────────────
    La ficha del plan lista lo mismo que un checklist —una fila por persona, por
    formato o por aprobador, con sus etiquetas de estado y un boton— asi que
