@@ -326,7 +326,19 @@ class MigrateLegacyFormatsCommand extends Command
                 return null;
             }
 
-            $this->line("  {$codigo} ya existe, se omite (usa --fresh para rehacerlo).");
+            // Por que «ya existe» si la base se acaba de rehacer.
+            //
+            // Porque la creo `FormTemplatesSeeder` unos segundos antes, en el
+            // mismo `setup:project`: el seeder trae las cuatro plantillas desde
+            // `formatos-v1.json` para que una instalacion limpia funcione sin
+            // tener la base vieja delante. O sea que este comando, dentro de
+            // `--datos`, no tiene nada que hacer.
+            //
+            // El mensaje anterior decia «ya existe, se omite (usa --fresh para
+            // rehacerlo)» y asustaba con razon: parecia que quedaba algo de una
+            // corrida anterior y que hacia falta forzar. No queda nada — la base
+            // se borro entera hace un momento.
+            $this->line("  {$codigo}: ya la creo el sembrador en esta misma corrida, no hay nada que traer.");
 
             return null;
         }

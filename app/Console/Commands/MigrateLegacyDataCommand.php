@@ -1206,7 +1206,14 @@ class MigrateLegacyDataCommand extends Command
         }
 
         if ($sinPareja !== []) {
-            $this->warn('  Nacionalidades sin pais equivalente (se dejan en blanco): ' . implode(', ', $sinPareja));
+            // Se dice en positivo y diciendo a QUE base afecta: el aviso
+            // anterior —«Nacionalidades sin pais equivalente (se dejan en
+            // blanco)»— sonaba a que se estaba tirando algo, y en la base vieja
+            // no se toca nada. Las personas se migran enteras; lo unico que
+            // llega vacio es ese campo, porque la v1 tenia una lista suelta de
+            // nacionalidades y aqui son paises del catalogo.
+            $this->line('  Estas nacionalidades de la v1 no tienen pais en el catalogo nuevo, asi que'
+                . ' esas personas llegan con el campo vacio (nada mas se pierde): ' . implode(', ', $sinPareja));
         }
 
         return $mapa;

@@ -53,7 +53,21 @@ class SetupProjectCommand extends Command
         }
 
         $this->warn(sprintf('Entorno [%s] · motor [%s] · base [%s]', app()->environment(), $conexion, $base));
-        $this->warn('Se van a BORRAR TODAS LAS TABLAS y volver a crearlas.');
+        $this->warn(sprintf('Se van a BORRAR TODAS LAS TABLAS de [%s] y volver a crearlas.', $base));
+
+        // Cual es la base que se borra y cual no. Es la duda que sale sola al
+        // leer «se van a borrar todas las tablas» en un comando que se llama
+        // «--datos» y que habla del sistema anterior en la misma pantalla.
+        //
+        // Se dice aqui y no en la documentacion porque es aqui donde da miedo.
+        if ($this->option('datos')) {
+            $legacy = Config::get('database.connections.legacy.database');
+
+            $this->line(sprintf(
+                '  La base anterior [%s] SOLO SE LEE: de ahi no se borra ni se modifica nada.',
+                $legacy ?: 'legacy',
+            ));
+        }
 
         match ($conexion) {
             'mysql' => $this->recrearMysql($cfg),
