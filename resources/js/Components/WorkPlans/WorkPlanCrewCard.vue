@@ -38,16 +38,21 @@ const { t } = useI18n();
 const firmados = computed(() => props.crew.filter((f) => f.signed).length);
 const todosFirmaron = computed(() => props.crew.length > 0 && firmados.value === props.crew.length);
 
-// Cargo y documento, en una línea. El documento llega ya enmascarado del
-// servidor; lo que identifica a la persona en pantalla es el nombre.
+/**
+ * Cargo y nacionalidad. **El documento no.**
+ *
+ * Aquí salía el documento, y el documento no dice nada que ayude a nadie en
+ * esta pantalla: quien mira la ficha ya sabe a quién metió en el plan, y lo
+ * identifica por el nombre. Lo que de verdad se comprueba en la puerta es qué
+ * hace cada uno y de dónde es — de eso depende qué documento lleva encima.
+ *
+ * Y de paso deja de pasearse un dato personal por una pantalla que abre
+ * cualquiera con permiso de ver el plan. Sigue estando en la ficha de la
+ * persona, que es donde se busca, y allí va con `people.view_private_info`.
+ */
 const subtitulo = (fila) => [
     fila.position,
-    [fila.doc_type, fila.num_doc].filter(Boolean).join(' '),
-    // La nacionalidad SOLO si no es la del país donde se trabaja. El servidor
-    // ya decide eso: aquí llega el nombre o no llega nada. Una banderita
-    // peruana en las 380 filas peruanas no informa de nada; la del que viene
-    // de fuera sí, porque lleva carné de extranjería y no DNI.
-    fila.foreign,
+    fila.nationality,
 ].filter(Boolean).join(' · ');
 
 const documento = ref('');

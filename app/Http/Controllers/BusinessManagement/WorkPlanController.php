@@ -326,14 +326,23 @@ class WorkPlanController extends Controller
                     // al navegador, así que taparlo en la plantilla no tapa nada.
                     'num_doc'   => $asignado->person?->safe_num_doc,
                     'doc_type'  => $asignado->person?->doc_type,
-                    // La nacionalidad SOLO cuando no es la del pais donde se
-                    // trabaja. En la v1 salia una banderita en las 391 filas, y
-                    // con el 97 % peruanos eso no informa de nada: es la misma
-                    // bandera repetida. Lo que importa es el que viene de fuera,
-                    // porque lleva carne de extranjeria y no DNI, y eso es lo
-                    // que el supervisor comprueba en la puerta.
                     // El cargo, que es lo que la v1 ponía debajo del nombre.
                     'position'  => $asignado->person?->companyLinks->first()?->position?->code,
+                    // Y la nacionalidad.
+                    //
+                    // Aqui habia un comentario largo explicando que solo debia
+                    // salir cuando NO fuera la del pais del trabajo —«una
+                    // banderita peruana en 380 filas peruanas no informa de
+                    // nada»— y la tarjeta leia `fila.foreign` para pintarla.
+                    // El detalle: **el servidor no mandaba ese campo**, asi que
+                    // la nacionalidad no salio nunca y `fila.foreign` llevaba
+                    // desde el primer dia en `undefined`. Un comentario que
+                    // describe una regla que no existe es peor que ninguno.
+                    //
+                    // Va entera y siempre, por decision del dueno del producto:
+                    // en la ficha se comprueba quien entra a obra, y de si es
+                    // del pais o no depende que documento lleva encima.
+                    'nationality' => $asignado->person?->country?->name,
                     'signed'    => (bool) $asignado->is_approved || $firmadoEn !== null,
                     'signed_at' => $firmadoEn,
                     'face_url'  => $puedeVerCaras && $asignado->person

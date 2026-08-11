@@ -100,7 +100,7 @@ const puedeDesignar = computed(() => props.canEdit && candidatos.value.length > 
 // hacer— y bajo petición cuando ya hay uno y se quiere cambiar.
 const eligiendo = computed(() => puedeDesignar.value && (!persona.value || cambiando.value));
 
-const subtitulo = (fila) => [fila.position, fila.num_doc].filter(Boolean).join(' · ');
+const subtitulo = (fila) => [fila.position, fila.nationality].filter(Boolean).join(' · ');
 
 const designar = (fila) => {
     const slug = fila.person ?? fila.slug;
