@@ -514,6 +514,134 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame('No aplica', $filas[0]['items'][2]['answer']);
     }
 
+    // ── etiquetas de la matriz de riesgo ─────────────────────────────────────
+
+    /**
+     * Los nombres reales de severidad y probabilidad llegan a la config.
+     *
+     * La v1 nunca enseño c1..c5: el formulario hacia `I18n.t("severities.#{id}")`
+     * contra su tabla `translations` y en pantalla salia «Temporal» o «Podría
+     * suceder». `migrate-formats` leia solo `severities.name` —las claves— y
+     * los selectores de aqui quedaron enseñando la tripa. Ahora los textos
+     * viajan como mapas clave interna → texto, aparte de los valores.
+     */
+    public function test_los_nombres_reales_de_severidad_y_probabilidad_llegan_a_la_config(): void
+    {
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $config = $this->configDeLaMatriz('AST');
+
+        $this->assertSame(['c1' => 'Catastrófico', 'c3' => 'Temporal'], $config['severity_labels']);
+        // `probabilities.2` no tiene traduccion en es: p2 no entra en el mapa
+        // y la pantalla cae a la clave interna, como siempre hizo.
+        $this->assertSame(['p1' => 'Podría suceder'], $config['probability_labels']);
+        // El en llega aparte, y puede ser parcial.
+        $this->assertSame(['c1' => 'Catastrophic'], $config['severity_labels_en']);
+        // El pt existe en la v1 pero nadie lo pide: no se cuela en ningun mapa.
+        $this->assertArrayNotHasKey('probability_labels_en', $config);
+
+        // Y los VALORES siguen siendo las claves internas: las etiquetas son
+        // solo presentacion.
+        $this->assertSame(['c1', 'c3'], $config['severities']);
+        $this->assertSame(['p1', 'p2'], $config['probabilities']);
+
+        // El PTF comparte la misma matriz, con las mismas etiquetas.
+        $this->assertSame($config['severity_labels'], $this->configDeLaMatriz('PTF')['severity_labels']);
+    }
+
+    /** Sin filas en `translations` no hay mapas, y nada revienta. */
+    public function test_sin_traducciones_la_config_no_lleva_mapas(): void
+    {
+        DB::connection('legacy')->table('translations')->delete();
+
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $config = $this->configDeLaMatriz('AST');
+
+        $this->assertArrayNotHasKey('severity_labels', $config);
+        $this->assertArrayNotHasKey('probability_labels', $config);
+        $this->assertSame(['c1', 'c3'], $config['severities']);
+
+        // Y el refresco de migrate-data tampoco los inventa ni se cae.
+        $this->artisan('docufiz:migrate-data', ['paso' => 'documentos'])->assertSuccessful();
+
+        $this->assertArrayNotHasKey('severity_labels', $this->configDeLaMatriz('AST'));
+    }
+
+    /**
+     * El agujero por el que las etiquetas no llegaban nunca: en
+     * `setup:project --datos` el sembrador crea las plantillas desde el JSON
+     * congelado ANTES de `migrate-formats`, y este al verlas se aparta. El
+     * refresco de `migrate-data` pisa los catalogos de la matriz EN SITIO
+     * sobre la plantilla ya sembrada: misma fila, misma version, mismas
+     * entregas colgando.
+     */
+    public function test_una_plantilla_ya_sembrada_se_refresca_en_sitio_sin_cambiar_version_ni_perder_entregas(): void
+    {
+        $this->seed(\Database\Seeders\FormTemplatesSeeder::class);
+
+        $antes = \App\Models\FormTemplate::where('code', 'AST')->sole();
+        $camposAntes = $antes->fields()->count();
+        $congelada = $this->configDeLaMatriz('AST');
+
+        // El JSON congelado trae las cinco claves internas y ningun mapa: es el
+        // respaldo para cuando no hay base vieja delante.
+        $this->assertSame(['c1', 'c2', 'c3', 'c4', 'c5'], $congelada['severities']);
+        $this->assertArrayNotHasKey('severity_labels', $congelada);
+
+        $this->migrarTodo();
+
+        $despues = \App\Models\FormTemplate::where('code', 'AST')->sole();
+        $config = $this->configDeLaMatriz('AST');
+
+        // La plantilla es la misma fila, con la misma version.
+        $this->assertSame($antes->id, $despues->id);
+        $this->assertSame((int) $antes->version, (int) $despues->version);
+        $this->assertSame($camposAntes, $despues->fields()->count());
+
+        // Pero sus catalogos ya son los de la base vieja, etiquetas incluidas.
+        $this->assertSame(['c1', 'c3'], $config['severities']);
+        $this->assertSame(['c1' => 'Catastrófico', 'c3' => 'Temporal'], $config['severity_labels']);
+
+        // Las entregas migradas cuelgan de ella y ahi siguen.
+        $entregas = DB::table('form_submissions')->where('form_template_id', $despues->id)->count();
+        $this->assertSame(1, $entregas);
+
+        // Repetir el paso vuelve a refrescar —y lo dice— sin perder nada.
+        $this->artisan('docufiz:migrate-data', ['paso' => 'documentos'])
+            ->expectsOutputToContain('Catálogos de la matriz refrescados desde la base anterior')
+            ->assertSuccessful();
+
+        $this->assertSame($entregas, DB::table('form_submissions')->where('form_template_id', $despues->id)->count());
+    }
+
+    /**
+     * La de oro: las respuestas guardan la clave interna, con o sin etiquetas.
+     *
+     * Hay 3 657 AST cuyos `severidad`/`probabilidad` son c1..c5 y la tabla
+     * `config.matrix` se indexa por su posicion en el catalogo. Si alguien
+     * cede a la tentacion de guardar el texto bonito, todo eso deja de cruzar.
+     */
+    public function test_las_respuestas_siguen_guardando_la_clave_interna_aunque_haya_etiquetas(): void
+    {
+        $this->migrarTodo();
+
+        // La etiqueta esta en la config, lista para pintarse...
+        $this->assertSame('Temporal', $this->configDeLaMatriz('AST')['severity_labels']['c3']);
+
+        // ...pero lo guardado sigue siendo la clave interna.
+        $filas = $this->respuestasDe('AST', 'matriz_de_riesgo');
+        $this->assertSame('c3', $filas[0]['severidad']);
+        $this->assertSame('p2', $filas[0]['probabilidad']);
+    }
+
+    /** La config del unico campo risk_matrix de esa plantilla. */
+    protected function configDeLaMatriz(string $codigo): array
+    {
+        return \App\Models\FormTemplate::where('code', $codigo)->sole()
+            ->fields()->where('field_type', 'risk_matrix')->sole()->config;
+    }
+
     // ── evidencias ───────────────────────────────────────────────────────────
 
     public function test_las_firmas_de_la_v1_llegan_como_migradas_y_las_que_no_tienen_archivo_se_marcan(): void

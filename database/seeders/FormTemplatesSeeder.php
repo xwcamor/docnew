@@ -187,6 +187,17 @@ class FormTemplatesSeeder extends Seeder
      * eso viaja la tabla entera y no una formula.
      *
      * Las bandas son las de `Risk#level_name`: 1-8 alto, 9-15 medio, 16-25 bajo.
+     *
+     * Ojo con `severidades` y `probabilidades`: el JSON congelado trae las
+     * claves internas (c1..c5, p1..p5) y NO los nombres que la v1 enseñaba
+     * —«Catastrófico», «Podría suceder»—, porque esos viven en la tabla
+     * `translations` de la base vieja y este seeder es justamente el camino
+     * que funciona sin base delante. Los nombres reales llegan despues:
+     * `docufiz:migrate-data`, cuando prepara los formatos con la base viva,
+     * refresca EN SITIO estos catalogos y añade los mapas `severity_labels` /
+     * `probability_labels` sobre la plantilla ya sembrada (ver
+     * refrescarCatalogosDeLaMatriz() en MigrateLegacyDataCommand). Mientras
+     * tanto la pantalla cae a la clave interna, que es lo que siempre hizo.
      */
     protected function configMatriz(array $matriz): array
     {

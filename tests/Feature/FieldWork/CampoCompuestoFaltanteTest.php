@@ -104,8 +104,11 @@ class CampoCompuestoFaltanteTest extends TestCase
     }
 
     /**
-     * La fila a medias se anuncia antes de guardar: pastilla «Incompleto» en
-     * la cabecera y la nota con las columnas faltantes dentro de la tarjeta.
+     * La fila a medias se anuncia antes de guardar, en las DOS presentaciones:
+     * en la tarjeta, pastilla «Incompleto» en la cabecera y la nota con las
+     * columnas faltantes; en la tabla, la celda con hueco lleva su palabra
+     * («Falta») porque ahi no hay etiqueta de campo que teñir y el color nunca
+     * va solo (docs/UI.md §5).
      */
     public function test_la_fila_a_medias_se_ve_antes_de_guardar(): void
     {
@@ -113,9 +116,11 @@ class CampoCompuestoFaltanteTest extends TestCase
         $plantilla = $m[1] ?? '';
 
         $this->assertStringContainsString('field_work.risk_matrix.incomplete', $plantilla,
-            'la cabecera de la fila a medias perdio su palabra («Incompleto»)');
+            'la fila a medias perdio su palabra («Incompleto»)');
         $this->assertStringContainsString('field_work.risk_matrix.row_missing', $plantilla,
             'la tarjeta ya no nombra las columnas que faltan antes de guardar');
+        $this->assertStringContainsString('field_work.risk_matrix.cell_missing', $plantilla,
+            'la celda vacia del modo tabla perdio su palabra («Falta»)');
     }
 
     /**
@@ -132,6 +137,7 @@ class CampoCompuestoFaltanteTest extends TestCase
             ['progress', 'required_tools'], ['progress', 'required_questions'],
             ['progress', 'questions_done'],
             ['risk_matrix', 'row_missing'], ['risk_matrix', 'incomplete'],
+            ['risk_matrix', 'cell_missing'], ['risk_matrix', 'remove_row_confirm'],
         ];
 
         foreach ($claves as [$bloque, $clave]) {

@@ -122,7 +122,102 @@ class MigrateLegacyFormatsCommand extends Command
             'probabilidades' => $viejo->table('probabilities')->where('is_deleted', 0)
                                 ->orderBy('id')->pluck('name')->values()->all(),
             'matriz'        => $this->leerMatrizDeRiesgo(),
+            'etiquetas'     => $this->leerEtiquetasDeLaMatriz(),
         ];
+    }
+
+    /**
+     * Los nombres con los que la v1 enseñaba severidad y probabilidad.
+     *
+     * El comentario de arriba —«usan `name` (c1..c5)»— era verdad a medias, y la
+     * mitad que faltaba es la que se ve. `name` es la clave interna, y eso es lo
+     * que este comando ponia en el selector: c1, c2, P3. Pero la v1 en pantalla
+     * nunca enseño eso: el formulario hace `I18n.t("severities.#{id}")` y esos
+     * textos viven en la tabla `translations` de la propia base (locale, key,
+     * value), donde el administrador los escribio. La captura del dueño lo dice
+     * todo: probabilidad «Podría suceder», severidad «Temporal».
+     *
+     * La forma real de las claves es `severities.<id>` / `probabilities.<id>`
+     * —el id de la fila, no la clave interna— porque asi las genera la vista.
+     * Aqui se resuelven a mapas clave interna → texto (`severity_labels`,
+     * `probability_labels`) en el locale es, que es el de la operacion; si hay
+     * traduccion en en llega aparte como `severity_labels_en` /
+     * `probability_labels_en`, y otros locales (pt) se ignoran: la pantalla no
+     * los pide.
+     *
+     * REGLA DE ORO: esto es SOLO presentacion. Las respuestas —las 3 657
+     * migradas y las nuevas— siguen guardando c1..c5, y `config.matrix` se
+     * sigue indexando por su posicion en `severities`/`probabilities`. La
+     * pantalla pinta `labels[valor] ?? valor`, asi que la clave sin traduccion
+     * simplemente no entra en el mapa y se cae al nombre interno de siempre.
+     *
+     * @return array<string, array<string, string>> solo los mapas con contenido
+     */
+    protected function leerEtiquetasDeLaMatriz(): array
+    {
+        $viejo = DB::connection('legacy');
+
+        // Un volcado parcial puede venir sin `translations`: sin ella no hay
+        // etiquetas y la pantalla se queda con las claves internas, como hasta ahora.
+        if (! $viejo->getSchemaBuilder()->hasTable('translations')) {
+            return [];
+        }
+
+        $etiquetas = [];
+
+        foreach (['severities' => 'severity_labels', 'probabilities' => 'probability_labels'] as $tabla => $clave) {
+            // id => clave interna (c1..c5 / p1..p5), en el orden del catalogo.
+            $internas = $viejo->table($tabla)->where('is_deleted', 0)->orderBy('id')->pluck('name', 'id');
+
+            foreach (['es' => $clave, 'en' => "{$clave}_en"] as $locale => $nombre) {
+                $textos = $viejo->table('translations')
+                    ->where('locale', $locale)
+                    ->whereIn('key', $internas->keys()->map(fn ($id) => "{$tabla}.{$id}")->all())
+                    ->pluck('value', 'key');
+
+                $mapa = [];
+
+                foreach ($internas as $id => $interna) {
+                    $texto = $textos->get("{$tabla}.{$id}");
+
+                    if (filled($texto)) {
+                        $mapa[$interna] = $texto;
+                    }
+                }
+
+                // Un mapa vacio no viaja: la config sin la clave dice «no hay
+                // traducciones», que es distinto de «hay un mapa sin nada».
+                if ($mapa !== []) {
+                    $etiquetas[$nombre] = $mapa;
+                }
+            }
+        }
+
+        return $etiquetas;
+    }
+
+    /**
+     * La parte de la config del campo `risk_matrix` que sale de la base vieja.
+     *
+     * Publico a proposito: `docufiz:migrate-data` lo usa para refrescar EN
+     * SITIO las plantillas que ya creo el sembrador desde el JSON congelado
+     * —ese JSON no puede traer los nombres reales porque no tiene base
+     * delante— sin recrearlas, sin subirles la version y sin tocar sus
+     * entregas. Ver refrescarCatalogosDeLaMatriz() en MigrateLegacyDataCommand.
+     */
+    public function catalogosRefrescablesDeLaMatriz(): array
+    {
+        $viejo = DB::connection('legacy');
+        $matriz = $this->leerMatrizDeRiesgo();
+
+        return [
+            'severities'    => $viejo->table('severities')->where('is_deleted', 0)
+                                ->orderBy('id')->pluck('name')->values()->all(),
+            'probabilities' => $viejo->table('probabilities')->where('is_deleted', 0)
+                                ->orderBy('id')->pluck('name')->values()->all(),
+            'matrix'        => $matriz['valores'],
+            'levels'        => $matriz['niveles'],
+        ] + $this->leerEtiquetasDeLaMatriz();
     }
 
     /**
@@ -207,7 +302,10 @@ class MigrateLegacyFormatsCommand extends Command
                 // leerMatrizDeRiesgo().
                 'matrix'        => $cat['matriz']['valores'],
                 'levels'        => $cat['matriz']['niveles'],
-            ],
+                // Los nombres reales de severidad y probabilidad, solo para
+                // pintar: ver leerEtiquetasDeLaMatriz(). Los valores guardados
+                // siguen siendo c1..c5.
+            ] + $cat['etiquetas'],
         ]);
 
         $s2 = $c->agregarSeccion($t);
@@ -242,7 +340,8 @@ class MigrateLegacyFormatsCommand extends Command
                 'risks' => $cat['riesgos'], 'controls' => $cat['controles'],
                 'severities' => $cat['severidades'], 'probabilities' => $cat['probabilidades'],
                 'matrix' => $cat['matriz']['valores'], 'levels' => $cat['matriz']['niveles'],
-            ],
+                // Mismas etiquetas que en el AST: es la misma matriz.
+            ] + $cat['etiquetas'],
         ]);
         $c->agregarCampo($s2, ['code' => 'observaciones', 'field_type' => 'textarea']);
 

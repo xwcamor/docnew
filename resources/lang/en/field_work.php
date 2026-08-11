@@ -163,6 +163,10 @@ return [
         'search'       => 'Search the catalogue',
         'add_row'      => 'Add hazard',
         'remove_row'   => 'Remove this row',
+        // La papelera de cada fila del modo tabla pregunta antes. Ver `es`.
+        'remove_row_confirm' => 'Remove this hazard?',
+        // La palabra junto al rojo de una celda vacía del modo tabla. Ver `es`.
+        'cell_missing' => 'Missing',
         // Cabecera de cada bloque, como el «Actividad 1» del formato de papel.
         'activity_n'    => 'Activity :n',
         'activity_hint' => 'Name the activity: it is the heading of the hazards below it.',

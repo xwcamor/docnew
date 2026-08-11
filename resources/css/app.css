@@ -2202,3 +2202,115 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 @media (max-width: 560px) {
     .ff-row__body--matriz { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   La matriz de riesgo como TABLA por actividad (prefijo .ff-tabla)
+
+   El dueño del producto mandó la captura de su v1 y pidió esa forma para el
+   AST: una tabla por actividad —Peligro, Riesgo, Control, Probabilidad,
+   Severidad, Nivel y una papelera por fila—, con todas las filas a la vista.
+   La sección «tarjeta de peligro en rejilla» de más arriba decía que la tabla
+   ancha estaba vetada: el veto era en realidad contra el scroll horizontal
+   (docs/UI.md §3), no contra la tabla, así que ahora conviven las dos formas
+   y el que conmuta es RiskMatrixField.vue midiendo su propio contenedor
+   (`UMBRAL_TABLA`): tabla cuando el hueco da, tarjetas plegables cuando no.
+   Las reglas de la rejilla de arriba siguen vivas porque son el modo tarjetas.
+
+   La tabla es `table-layout: fixed` con anchos en porcentaje A PROPÓSITO: con
+   el reparto automático los desplegables de catálogo (127 actividades, textos
+   largos) estiran su columna hasta desbordar la caja, y un desborde aquí es
+   exactamente el scroll horizontal que está vetado. Con el reparto fijo las
+   seis columnas suman 100% y el texto que no cabe hace elipsis dentro de su
+   desplegable, que para eso tiene buscador.
+
+   Colores por token, nunca un hex (docs/UI.md §5-bis); el rojo de la celda
+   con hueco lleva su palabra al lado (§5), pintada por el componente.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* La caja de la tabla dentro del bloque de actividad: mismo respiro que
+   .ff-group__body pero cerrando también por abajo, porque en modo tabla el
+   bloque no lleva pie (el «+» de la cabecera de Peligro es quien añade). */
+.ff-tabla-caja { padding: 12px; }
+
+.ff-tabla {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    background: var(--color-surface);
+}
+
+.ff-tabla th,
+.ff-tabla td {
+    border: 1px solid var(--color-border-soft);
+    padding: 8px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.ff-tabla th {
+    background: var(--color-surface-alt);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+/* El reparto: tres columnas de catálogo se llevan lo gordo, probabilidad y
+   severidad son desplegables cortos, y la papelera lo justo para un objetivo
+   de toque de 44px (docs/UI.md §3). Suma 100 con la columna de acciones; en
+   sólo lectura no hay acciones y el sobrante se reparte solo. */
+.ff-tabla__th--texto    { width: 21%; }
+.ff-tabla__th--corta    { width: 9.5%; }
+.ff-tabla__th--nivel    { width: 11%; }
+.ff-tabla__th--acciones { width: 7%; }
+
+/* Cabecera de Peligro: el rótulo y el «+» azul que añade fila a ESA actividad,
+   como el link_to_add_association de la v1. */
+.ff-tabla__cab { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ff-tabla__add { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+
+/* Los controles dentro de la celda: compactos a lo ancho (los recorta la
+   columna) pero nunca por debajo del objetivo táctil de 44px de alto. */
+.ff-tabla__td .ant-select { width: 100%; }
+.ff-tabla__td .ant-select-selector { min-height: 44px; align-items: center; }
+.ff-tabla__del { min-width: 44px; min-height: 44px; }
+.ff-tabla__td--acciones { text-align: center; }
+
+/* La pastilla del nivel puede partir en dos líneas: en la columna estrecha
+   «Riesgo medio · 12» no cabe en una y cortarla sería quitarle la palabra.
+   Partida, el radio de píldora (999px) la volvía un óvalo raro (visto en el
+   navegador a 1024): radio de tarjeta y texto centrado. */
+.ff-tabla__td--nivel .ff-risk,
+.ff-tabla__td--nivel .ff-incomplete {
+    white-space: normal;
+    max-width: 100%;
+    border-radius: 12px;
+    justify-content: center;
+    text-align: center;
+}
+
+/* «Probabilidad» no cabe entera en su cabecera a 1024 y el corte a lo bruto
+   dejaba «Probabilid / ad» (visto en el navegador): que corte por sílabas. */
+.ff-tabla th { hyphens: auto; overflow-wrap: break-word; }
+
+/* La celda con hueco del espejo de exigirPeligroEntero(): fondo teñido y el
+   borde del control en el rojo del TEXTO —el token de borde acompaña a un
+   fondo y en el canto de un input al sol no se ve—, misma elección que
+   .ff-cell.is-missing. Las tres clases le ganan a la regla de dos de Ant sin
+   `!important` (ver .ff-falta, arriba). */
+.ff-tabla__td.is-missing { background: var(--state-bad-bg); }
+.ff-tabla__td.is-missing .ant-select .ant-select-selector { border-color: var(--state-bad-text); }
+
+/* La palabra junto al rojo de la celda: color nunca solo (docs/UI.md §5). */
+.ff-tabla__falta {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--state-bad-text);
+}
+
+/* «Quitar esta actividad» subió del pie a la cabecera del bloque (la captura
+   lo pone arriba a la derecha) y ahí nadie le daba el alto táctil que el pie
+   sí declaraba (.ff-group__foot .ant-btn). El margin-left: auto que ya tenía
+   lo sigue empujando al borde derecho, ahora dentro de .ff-group__top. */
+.ff-group__del { min-height: 44px; }

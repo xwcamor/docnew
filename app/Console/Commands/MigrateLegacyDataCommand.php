@@ -1456,7 +1456,75 @@ class MigrateLegacyDataCommand extends Command
             return false;
         }
 
+        $this->refrescarCatalogosDeLaMatriz();
+
         return true;
+    }
+
+    /**
+     * Refresca EN SITIO los catalogos de la matriz de riesgo de AST y PTF.
+     *
+     * El agujero que tapa: dentro de `setup:project --datos`,
+     * `FormTemplatesSeeder` crea las plantillas desde el JSON congelado
+     * (`formatos-v1.json`, que trae c1..c5 a secas) ANTES de que corra
+     * `migrate-formats`, y este al verlas existir se hace a un lado. O sea que
+     * todo lo que `migrate-formats` sabe leer de la base vieja —incluidos los
+     * nombres reales de severidad y probabilidad de su tabla `translations`—
+     * no llegaba NUNCA en el flujo real del dueño: solo en una base donde
+     * nadie hubiera sembrado antes.
+     *
+     * Por eso, cuando este comando prepara los formatos y la base vieja esta
+     * delante, los catalogos de la config del campo `risk_matrix` (severities,
+     * probabilities, matrix, levels y los mapas de etiquetas) se pisan sobre
+     * la plantilla existente. Solo eso: la plantilla no se recrea, su version
+     * no se toca y sus entregas se quedan donde estan — las respuestas guardan
+     * c1..c5 y `matrix` se indexa por posicion, asi que refrescar el catalogo
+     * no cambia el significado de nada ya firmado.
+     *
+     * Se escribe con el constructor de consultas, como el resto de pasos
+     * grandes: es la cronica de un hecho que ya queda dicho en el log, no una
+     * edicion de la que haya que auditar autor.
+     */
+    protected function refrescarCatalogosDeLaMatriz(): void
+    {
+        try {
+            $nuevos = app(MigrateLegacyFormatsCommand::class)->catalogosRefrescablesDeLaMatriz();
+        } catch (\Throwable $e) {
+            // Sin base vieja delante no hay de donde refrescar: las plantillas
+            // se quedan con el JSON congelado, que es justo el respaldo para
+            // ese caso. Aqui en la practica no se llega —handle() ya comprobo
+            // la conexion— pero un volcado a medias no debe tumbar el paso.
+            $this->warn('  No se pudieron refrescar los catalogos de la matriz: ' . $e->getMessage());
+
+            return;
+        }
+
+        $refrescados = 0;
+
+        foreach (FormTemplate::whereIn('code', ['AST', 'PTF'])->get() as $plantilla) {
+            foreach ($plantilla->fields()->where('field_type', 'risk_matrix')->get() as $campo) {
+                $config = $campo->config ?? [];
+
+                // Los mapas de etiquetas se quitan antes de mezclar: si la base
+                // vieja ya no trae una traduccion, el mapa viejo no puede
+                // quedarse pegado diciendo lo que la base ya no dice.
+                unset(
+                    $config['severity_labels'], $config['probability_labels'],
+                    $config['severity_labels_en'], $config['probability_labels_en'],
+                );
+
+                DB::table('form_fields')->where('id', $campo->getKey())->update([
+                    'config'     => json_encode(array_merge($config, $nuevos), JSON_UNESCAPED_UNICODE),
+                    'updated_at' => now(),
+                ]);
+
+                $refrescados++;
+            }
+        }
+
+        if ($refrescados > 0) {
+            $this->line('  Catálogos de la matriz refrescados desde la base anterior (nombres reales de severidad y probabilidad).');
+        }
     }
 
     /**

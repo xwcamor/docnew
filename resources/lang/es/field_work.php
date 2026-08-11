@@ -185,6 +185,13 @@ return [
         'search'       => 'Buscar en el catálogo',
         'add_row'      => 'Añadir peligro',
         'remove_row'   => 'Quitar esta fila',
+        // La papelera de cada fila del modo tabla pregunta antes, como el
+        // confirm del link_to_remove_association de la v1: borra una fila
+        // entera del documento y un toque con guantes se va fácil.
+        'remove_row_confirm' => '¿Quitar este peligro?',
+        // La palabra junto al rojo de una celda vacía del modo tabla: ahí no
+        // hay etiqueta de campo que teñir y el color nunca va solo (UI.md §5).
+        'cell_missing' => 'Falta',
         // Cabecera de cada bloque, como el «Actividad 1» del formato de papel.
         'activity_n'    => 'Actividad :n',
         'activity_hint' => 'Ponle nombre a la actividad: es el título de los peligros que van debajo.',

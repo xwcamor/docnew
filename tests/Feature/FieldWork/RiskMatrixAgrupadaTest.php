@@ -107,11 +107,42 @@ class RiskMatrixAgrupadaTest extends TestCase
      * actividad. El servidor exige las cinco del peligro en
      * `FormSubmissionService::exigirPeligroEntero()` en cuanto la fila se
      * empieza a puntuar.
+     *
+     * Son 13 y no 7 desde que la matriz tiene dos presentaciones (ver el test
+     * de abajo): la actividad (1) + las seis cabeceras de la tabla + las seis
+     * etiquetas de la tarjeta. Si el numero baila, un modo perdio un asterisco
+     * y el otro no, y las dos vistas dirian obligatorios distintos.
      */
     public function test_las_columnas_obligatorias_se_marcan(): void
     {
-        $this->assertSame(7, mb_substr_count($this->plantilla, 'ff-block__req'),
-            'faltan (o sobran) asteriscos: son la actividad y las seis columnas del peligro');
+        $this->assertSame(13, mb_substr_count($this->plantilla, 'ff-block__req'),
+            'faltan (o sobran) asteriscos: la actividad y las seis columnas del peligro, en la tabla y en la tarjeta');
+    }
+
+    /**
+     * Las dos presentaciones existen: tabla en ancho, tarjetas en estrecho.
+     *
+     * El dueño del producto pidio con la captura de su v1 la matriz como TABLA
+     * —todas las filas a la vista, el «+» en la cabecera de Peligro, papelera
+     * por fila—, y docs/UI.md §3 sigue vetando el scroll horizontal en
+     * pantalla estrecha: por eso conviven, conmutadas por el ancho del
+     * contenedor (`UMBRAL_TABLA`). Si una de las dos ramas desaparece, o
+     * volvio la tabla con scroll en la tablet en vertical, o volvio el «no
+     * hay tabla» que el dueño ya rechazo.
+     */
+    public function test_la_tabla_y_las_tarjetas_conviven(): void
+    {
+        $this->assertStringContainsString('ff-tabla', $this->plantilla,
+            'desaparecio el modo tabla: es la forma que el dueño pidio con su captura');
+        $this->assertStringContainsString('ff-group__body', $this->plantilla,
+            'desaparecio el modo tarjetas: sin el, la tabla obliga a scroll horizontal en pantalla estrecha');
+        $this->assertStringContainsString('modoTabla', $this->componente,
+            'no queda el conmutador por ancho de contenedor entre tabla y tarjetas');
+
+        // El indice plegable es SOLO del modo tarjetas: la tabla ya enseña
+        // todas las filas a la vez.
+        $this->assertMatchesRegularExpression('/<RowNavigator\s+v-if="!modoTabla/', $this->plantilla,
+            'el indice (RowNavigator) tiene que quedarse solo para el modo tarjetas');
     }
 
     /**

@@ -24,11 +24,24 @@
  * pueden llamarse igual. Reordenar al pintar cambiaria el AST sin que nadie lo
  * pidiera.
  *
- * Y NO se vuelve a la tabla ancha de la v1: seis columnas obligan a scroll
- * horizontal en una tablet de 10". Cada peligro sigue siendo una tarjeta
- * plegable, con el mismo indice que el EPP y el IHM, porque un AST de verdad
- * trae diez o quince peligros y desplegados son una columna infinita. Lo que
- * cambia es que ahora las tarjetas viven DENTRO de su actividad.
+ * TABLA EN ANCHO, TARJETAS EN ESTRECHO. Aqui decia «NO se vuelve a la tabla
+ * ancha de la v1», y los peligros iban en tarjetas plegables con rejilla
+ * dentro. El dueño del producto mando la captura de su v1 y pidio esa forma:
+ * una tabla por actividad —Peligro, Riesgo, Control, Probabilidad, Severidad,
+ * Nivel, papelera—, todas las filas a la vista, el «+» junto a la cabecera de
+ * Peligro y «Eliminar actividad» arriba a la derecha. Es como su papel, y con
+ * quince peligros la tabla larga es lo que el espera leer.
+ *
+ * El veto de entonces no era contra la tabla: era contra el scroll horizontal
+ * en una tablet de 10" (docs/UI.md §3), que sigue vetado. Por eso el veto se
+ * queda pero con su condicion escrita: la tabla manda cuando el CONTENEDOR da
+ * el ancho (`UMBRAL_TABLA`, ver abajo), y por debajo el campo vuelve a las
+ * tarjetas plegables de la iteracion anterior — mismo indice (`RowNavigator`)
+ * y mismo plegado (`usePlegado`) que el EPP y el IHM, que SOLO viven en el
+ * modo tarjetas: en la tabla todas las filas estan a la vista, como en la
+ * captura. Se conmuta por ancho del contenedor y no de la ventana porque el
+ * campo vive dentro de tarjetas y consolas con rellenos propios, y lo que
+ * decide si la tabla cabe es el hueco real, no la pantalla.
  *
  * ORDEN DE LAS COLUMNAS, el de la v1: peligro, riesgo, control, probabilidad,
  * severidad, nivel. Aqui la probabilidad iba DESPUES de la severidad; en la
@@ -51,31 +64,35 @@
  * `severidad` y `probabilidad` son obligatorias porque es lo que exige
  * FormSubmissionService::validarValor() para este tipo. El resto acompaña.
  *
+ * LO QUE SE GUARDA ES LA CLAVE, LO QUE SE ENSEÑA ES SU NOMBRE. Las severidades
+ * y probabilidades del catalogo son claves internas (c1..c5, p1..p5): es lo que
+ * guardan las 3 657 respuestas migradas y lo que indexa `config.matrix` por
+ * posicion, y NO cambia jamas. Pero la v1 nunca enseño eso: en pantalla ponia
+ * la traduccion del administrador («Catastrofico», «Podria suceder»), y este
+ * campo enseñaba la clave pelada. La config puede traer los mapas
+ * `severity_labels` / `probability_labels` (y `_en` para el ingles): aqui se
+ * pinta `labels[valor] ?? valor` —en selects, chips y solo lectura— y el valor
+ * emitido sigue siendo la clave. Si el mapa no llega, se cae al nombre interno,
+ * que es lo que habia.
+ *
  * LA REGLA DEL PELIGRO ENTERO SE DICE AQUI, ANTES DE GUARDAR. El servidor
  * rechaza una fila empezada a puntuar y sin terminar (`exigirPeligroEntero`:
  * con severidad o probabilidad puestas, las cinco casillas van o no va
  * ninguna), pero el usuario lo descubria recien en el aviso del guardado,
  * lejos de la fila del problema. Ahora la misma regla —calcada, no otra— se
- * evalua fila a fila al pintar: la fila a medias sale en rojo con la palabra
- * «Incompleto» en su cabecera y en el indice, y dentro de la tarjeta se
- * nombran las columnas que faltan. El servidor sigue siendo el juez; esto es
- * el espejo que avisa antes.
+ * evalua fila a fila al pintar: en la tabla, cada celda con hueco sale teñida
+ * de rojo con la palabra «Falta» y la columna Nivel dice «Incompleto»; en las
+ * tarjetas, la fila a medias sale en rojo en su cabecera y en el indice, y
+ * dentro se nombran las columnas que faltan. El servidor sigue siendo el juez;
+ * esto es el espejo que avisa antes.
  *
  * Y cuando un guardado dejo el campo entero pendiente, FormFill lo dice con la
  * prop `faltante` (el contrato de esa pantalla con los cuatro compuestos): el
  * campo repite el aviso en rojo y con la cuenta de lo que falta, en su sitio.
- *
- * LA TARJETA ABIERTA VA EN REJILLA, NO EN COLUMNA. Los seis campos apilados
- * median 610 px en la tablet en vertical —mas otra tanto de pie— y un AST trae
- * diez o quince peligros: añadir uno era abrir un churro que no cabia en la
- * pantalla. La rejilla pone la fila de la v1 en dos lineas (peligro, riesgo,
- * control / probabilidad, severidad, nivel), que es leerla de izquierda a
- * derecha como en el papel, sin volver a la tabla ancha con scroll horizontal
- * que esta vetada arriba. A 768 la rejilla baja a dos columnas y solo en un
- * movil se apila.
  */
-import { computed, nextTick } from 'vue';
-import { Button, Popconfirm } from 'ant-design-vue';
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { usePage } from '@inertiajs/vue3';
+import { Button, Popconfirm, Select } from 'ant-design-vue';
 import { DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined } from '@ant-design/icons-vue';
 import CatalogSelect from './CatalogSelect.vue';
 import RowNavigator from './RowNavigator.vue';
@@ -94,6 +111,7 @@ const props = defineProps({
 const emit = defineEmits(['update:value']);
 
 const { t } = useI18n();
+const pagina = usePage();
 
 const config = computed(() => props.field?.config ?? {});
 const actividades = computed(() => catalogo(config.value, 'activities'));
@@ -103,6 +121,40 @@ const controles = computed(() => catalogo(config.value, 'controls'));
 const severidades = computed(() => catalogo(config.value, 'severities', 'severidades'));
 const probabilidades = computed(() => catalogo(config.value, 'probabilities', 'probabilidades'));
 
+/**
+ * Los nombres con los que se ENSEÑAN las claves internas (c1..c5, p1..p5).
+ *
+ * `docufiz:migrate-formats` trae de la base vieja los mapas `severity_labels`
+ * y `probability_labels` (es) y sus `_en`: son las traducciones que el
+ * administrador escribio y que la v1 pintaba con `I18n.t`. El es va de base y
+ * el en encima cuando ese es el idioma de quien mira: una clave que el
+ * administrador no tradujo al ingles cae al texto en es, que sigue diciendo
+ * mas que un «c3» pelado. Y si el mapa no vino —formato nuevo, volcado sin
+ * `translations`— `labels[valor] ?? valor` se cae a la clave, como hasta ahora.
+ *
+ * SOLO presentacion: lo que se emite y se guarda es siempre la clave interna.
+ */
+function rotulos(base) {
+    const es = config.value[base] ?? {};
+    const en = pagina.props.locale === 'en' ? (config.value[`${base}_en`] ?? {}) : {};
+
+    return { ...es, ...en };
+}
+
+const rotulosSeveridad = computed(() => rotulos('severity_labels'));
+const rotulosProbabilidad = computed(() => rotulos('probability_labels'));
+
+const rotuloSeveridad = (v) => rotulosSeveridad.value[v] ?? v;
+const rotuloProbabilidad = (v) => rotulosProbabilidad.value[v] ?? v;
+
+/** Para los selects de la tabla: se elige por nombre, se emite la clave. */
+const opcionesSeveridad = computed(
+    () => severidades.value.map((s) => ({ value: s, label: rotuloSeveridad(s) })),
+);
+const opcionesProbabilidad = computed(
+    () => probabilidades.value.map((p) => ({ value: p, label: rotuloProbabilidad(p) })),
+);
+
 const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
 
 const prefijo = `riesgo-${props.field?.id ?? 'x'}`;
@@ -111,6 +163,68 @@ const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo, cerr
     usePlegado(prefijo);
 
 const idActividad = (g) => `${prefijo}-actividad-${g}`;
+
+/**
+ * TABLA O TARJETAS: lo decide el ancho del CONTENEDOR, no el de la ventana.
+ *
+ * El campo vive dentro de una tarjeta, dentro de una consola, al lado de un
+ * menu lateral que se colapsa: a la misma ventana le quedan huecos distintos.
+ * Se mide el propio campo con un ResizeObserver y por encima del umbral se
+ * pinta la tabla de la captura del dueño; por debajo, las tarjetas plegables
+ * (docs/UI.md §3: nada de scroll horizontal — la tabla que no cabe no se
+ * encoge hasta lo ilegible, se convierte).
+ *
+ * El umbral es lo que la tabla necesita para ser usable: siete columnas con
+ * desplegables de catalogo dentro. Medido en el navegador: con 6 columnas de
+ * contenido + papelera, por debajo de ~700px los desplegables quedan en menos
+ * de 100px y no se lee ni la primera palabra del peligro.
+ */
+const UMBRAL_TABLA = 700;
+
+const raiz = ref(null);
+const anchoCampo = ref(0);
+const modoTabla = computed(() => anchoCampo.value >= UMBRAL_TABLA);
+
+let observador = null;
+
+/**
+ * El menu lateral se colapsa al entrar, como invita el propio AppLayout
+ * («paginas con mucho contenido pueden colapsar el sidebar al entrar y
+ * restaurarlo al salir», via `provide('sidebarCollapsed')`).
+ *
+ * No es capricho: en una tablet en horizontal (1024px) el menu abierto se come
+ * 240px y al campo le quedan ~680 — EXACTAMENTE lo mismo que le queda en la
+ * tablet en vertical (768px) sin menu. Con el menu abierto, la tabla que el
+ * dueño pidio para su tablet en horizontal no cabria nunca; colapsado quedan
+ * ~856px y cabe con holgura. Quien lo reabra a mano, manda: solo se colapsa
+ * una vez al montar, y al salir se restaura como estaba.
+ */
+const barraLateral = inject('sidebarCollapsed', null);
+let barraEstaba = null;
+
+onMounted(() => {
+    if (barraLateral && typeof barraLateral.value === 'boolean' && ! barraLateral.value) {
+        barraEstaba = barraLateral.value;
+        barraLateral.value = true;
+    }
+
+    anchoCampo.value = raiz.value?.getBoundingClientRect().width ?? 0;
+
+    if (typeof ResizeObserver !== 'undefined' && raiz.value) {
+        observador = new ResizeObserver((entradas) => {
+            anchoCampo.value = entradas[0]?.contentRect?.width ?? anchoCampo.value;
+        });
+        observador.observe(raiz.value);
+    }
+});
+
+onBeforeUnmount(() => {
+    observador?.disconnect();
+
+    if (barraLateral && barraEstaba === false) {
+        barraLateral.value = false;
+    }
+});
 
 /**
  * El riesgo sale de la tabla, no de una multiplicacion.
@@ -221,6 +335,12 @@ function renombrarActividad(grupo, valor) {
  * El peligro nuevo entra DETRAS del ultimo de su actividad, no al final de la
  * lista: si entrara al final rompería el tramo y la actividad saldria partida
  * en dos bloques con el mismo nombre.
+ *
+ * En la tabla el «+» de la cabecera de Peligro llama aqui con SU grupo, como
+ * el `link_to_add_association` de la v1, que insertaba en el tbody de su
+ * actividad. `abrir()` ademas desplaza la vista a la fila nueva, que con
+ * quince peligros puede estar fuera de pantalla; en el modo tarjetas tambien
+ * la despliega.
  */
 function agregarPeligro(grupo) {
     const posicion = grupo.indices.at(-1) + 1;
@@ -430,7 +550,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
 </script>
 
 <template>
-    <div class="ff-field">
+    <div ref="raiz" class="ff-field">
         <!-- El guardado dejo el campo pendiente: se dice AQUI, en rojo y con
              la cuenta de lo concreto que falta, no solo en el aviso de arriba
              que se pierde al scrollear. Se apaga solo cuando ya no queda nada
@@ -443,8 +563,10 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
             {{ $t('field_work.risk_matrix.empty') }}
         </p>
 
+        <!-- El indice con su plegado es SOLO del modo tarjetas: la tabla ya
+             enseña todas las filas a la vez, que es su gracia. -->
         <RowNavigator
-            v-if="filas.length > 1"
+            v-if="!modoTabla && filas.length > 1"
             :rows="resumenFilas"
             :active="todas ? null : abierta"
             :summary="$t('field_work.progress.hazards_rated', { done: evaluadas, total: filas.length })"
@@ -458,10 +580,12 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
             @toggle-all="alternarTodo"
         />
 
-        <!-- Un bloque por actividad, y dentro sus peligros. La cabecera NO es
-             un boton de plegado como la del peligro: lleva dentro el selector
-             de la actividad, y un desplegable dentro de un boton no se puede
-             usar. La actividad tampoco se pliega — es el titulo de lo que hay
+        <!-- Un bloque por actividad, y dentro sus peligros: en tabla si el
+             contenedor da el ancho, en tarjetas plegables si no. La cabecera
+             del bloque es la de la captura del dueño: «Actividad N» a la
+             izquierda, «Quitar esta actividad» en rojo a la derecha, y el
+             campo Actividad a lo ancho. No es un boton de plegado: lleva
+             dentro el selector, y la actividad es el titulo de lo que hay
              debajo, no una fila mas. -->
         <section
             v-for="(grupo, g) in grupos"
@@ -488,6 +612,23 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                     <span v-else class="ff-risk is-none">
                         {{ $t('field_work.risk_matrix.no_risk') }}
                     </span>
+
+                    <!-- En la captura de la v1 el boton rojo va aqui, arriba a
+                         la derecha del bloque — no en el pie, donde estaba. Es
+                         lo unico que borra mas de lo que se ve, asi que
+                         pregunta con la cuenta. -->
+                    <Popconfirm
+                        v-if="!readonly"
+                        :title="$tc('field_work.risk_matrix.remove_activity_confirm', grupo.indices.length)"
+                        :ok-text="$t('field_work.risk_matrix.remove_activity')"
+                        :cancel-text="$t('global.cancel')"
+                        @confirm="quitarActividad(grupo)"
+                    >
+                        <Button class="ff-group__del" danger>
+                            <template #icon><DeleteOutlined /></template>
+                            {{ $t('field_work.risk_matrix.remove_activity') }}
+                        </Button>
+                    </Popconfirm>
                 </div>
 
                 <div class="ff-group__name">
@@ -505,7 +646,171 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                 </div>
             </header>
 
-            <div class="ff-group__body">
+            <!-- MODO TABLA: la de la captura, una fila por peligro y TODAS a
+                 la vista. El «+» azul de la cabecera de Peligro añade fila a
+                 ESTA actividad (como el link_to_add_association de la v1) y la
+                 papelera de cada fila pregunta antes. Sin plegado: un AST de
+                 quince peligros da una tabla larga, y esta bien — es como su
+                 papel. -->
+            <div v-if="modoTabla" class="ff-tabla-caja">
+                <table class="ff-tabla">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="ff-tabla__th ff-tabla__th--texto">
+                                <span class="ff-tabla__cab">
+                                    <span>{{ $t('field_work.risk_matrix.danger') }}<span class="ff-block__req"> *</span></span>
+                                    <Button
+                                        v-if="!readonly"
+                                        type="primary"
+                                        class="ff-tabla__add"
+                                        :title="$t('field_work.risk_matrix.add_row')"
+                                        :aria-label="$t('field_work.risk_matrix.add_row')"
+                                        @click="agregarPeligro(grupo)"
+                                    >
+                                        <template #icon><PlusOutlined /></template>
+                                    </Button>
+                                </span>
+                            </th>
+                            <th scope="col" class="ff-tabla__th ff-tabla__th--texto">
+                                {{ $t('field_work.risk_matrix.risk') }}<span class="ff-block__req"> *</span>
+                            </th>
+                            <th scope="col" class="ff-tabla__th ff-tabla__th--texto">
+                                {{ $t('field_work.risk_matrix.control') }}<span class="ff-block__req"> *</span>
+                            </th>
+                            <th scope="col" class="ff-tabla__th ff-tabla__th--corta">
+                                {{ $t('field_work.risk_matrix.probability') }}<span class="ff-block__req"> *</span>
+                            </th>
+                            <th scope="col" class="ff-tabla__th ff-tabla__th--corta">
+                                {{ $t('field_work.risk_matrix.severity') }}<span class="ff-block__req"> *</span>
+                            </th>
+                            <th scope="col" class="ff-tabla__th ff-tabla__th--nivel">
+                                {{ $t('field_work.risk_matrix.level') }}<span class="ff-block__req"> *</span>
+                            </th>
+                            <!-- Sin titulo, como en la v1: la papelera se explica sola.
+                                 El nombre queda para el lector de pantalla. -->
+                            <th
+                                v-if="!readonly" scope="col"
+                                class="ff-tabla__th ff-tabla__th--acciones"
+                                :aria-label="$t('global.actions')"
+                            ></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr
+                            v-for="i in grupo.indices"
+                            :id="idFila(i)"
+                            :key="i"
+                        >
+                            <td class="ff-tabla__td" :class="{ 'is-missing': faltaCelda(filas[i], 'peligro') }">
+                                <CatalogSelect
+                                    :value="filas[i].peligro" :options="peligros" :readonly="readonly"
+                                    :placeholder="$t('field_work.risk_matrix.search')"
+                                    @update:value="cambiar(i, 'peligro', $event)" />
+                                <!-- La celda con hueco lleva su palabra: el rojo
+                                     nunca va solo (docs/UI.md §5). -->
+                                <span v-if="faltaCelda(filas[i], 'peligro')" class="ff-tabla__falta">
+                                    {{ $t('field_work.risk_matrix.cell_missing') }}
+                                </span>
+                            </td>
+
+                            <td class="ff-tabla__td" :class="{ 'is-missing': faltaCelda(filas[i], 'riesgo') }">
+                                <CatalogSelect
+                                    :value="filas[i].riesgo" :options="riesgos" :readonly="readonly"
+                                    :placeholder="$t('field_work.risk_matrix.search')"
+                                    @update:value="cambiar(i, 'riesgo', $event)" />
+                                <span v-if="faltaCelda(filas[i], 'riesgo')" class="ff-tabla__falta">
+                                    {{ $t('field_work.risk_matrix.cell_missing') }}
+                                </span>
+                            </td>
+
+                            <td class="ff-tabla__td" :class="{ 'is-missing': faltaCelda(filas[i], 'control') }">
+                                <CatalogSelect
+                                    :value="filas[i].control" :options="controles" :readonly="readonly"
+                                    :placeholder="$t('field_work.risk_matrix.search')"
+                                    @update:value="cambiar(i, 'control', $event)" />
+                                <span v-if="faltaCelda(filas[i], 'control')" class="ff-tabla__falta">
+                                    {{ $t('field_work.risk_matrix.cell_missing') }}
+                                </span>
+                            </td>
+
+                            <td class="ff-tabla__td" :class="{ 'is-missing': faltaCelda(filas[i], 'probabilidad') }">
+                                <span v-if="readonly" class="ff-readonly">
+                                    {{ filas[i].probabilidad ? rotuloProbabilidad(filas[i].probabilidad) : '—' }}
+                                </span>
+                                <Select
+                                    v-else
+                                    class="ff-select"
+                                    :value="filas[i].probabilidad"
+                                    :options="opcionesProbabilidad"
+                                    :placeholder="$t('field_work.risk_matrix.probability')"
+                                    size="large"
+                                    allow-clear
+                                    @update:value="cambiar(i, 'probabilidad', $event ?? null)"
+                                />
+                                <span v-if="faltaCelda(filas[i], 'probabilidad')" class="ff-tabla__falta">
+                                    {{ $t('field_work.risk_matrix.cell_missing') }}
+                                </span>
+                            </td>
+
+                            <td class="ff-tabla__td" :class="{ 'is-missing': faltaCelda(filas[i], 'severidad') }">
+                                <span v-if="readonly" class="ff-readonly">
+                                    {{ filas[i].severidad ? rotuloSeveridad(filas[i].severidad) : '—' }}
+                                </span>
+                                <Select
+                                    v-else
+                                    class="ff-select"
+                                    :value="filas[i].severidad"
+                                    :options="opcionesSeveridad"
+                                    :placeholder="$t('field_work.risk_matrix.severity')"
+                                    size="large"
+                                    allow-clear
+                                    @update:value="cambiar(i, 'severidad', $event ?? null)"
+                                />
+                                <span v-if="faltaCelda(filas[i], 'severidad')" class="ff-tabla__falta">
+                                    {{ $t('field_work.risk_matrix.cell_missing') }}
+                                </span>
+                            </td>
+
+                            <!-- La fila a medias manda sobre el nivel: aunque
+                                 tenga banda, el guardado la va a rechazar, y en
+                                 la tabla eso se lee AQUI, en su columna. -->
+                            <td class="ff-tabla__td ff-tabla__td--nivel">
+                                <span v-if="faltasDe(filas[i]).length" class="ff-incomplete">
+                                    {{ $t('field_work.risk_matrix.incomplete') }}
+                                </span>
+                                <span v-else-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
+                                    {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
+                                </span>
+                                <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
+                            </td>
+
+                            <td v-if="!readonly" class="ff-tabla__td ff-tabla__td--acciones">
+                                <Popconfirm
+                                    :title="$t('field_work.risk_matrix.remove_row_confirm')"
+                                    :ok-text="$t('global.delete')"
+                                    :cancel-text="$t('global.cancel')"
+                                    @confirm="quitar(i)"
+                                >
+                                    <Button
+                                        danger
+                                        class="ff-tabla__del"
+                                        :title="$t('field_work.risk_matrix.remove_row')"
+                                        :aria-label="$t('field_work.risk_matrix.remove_row')"
+                                    >
+                                        <template #icon><DeleteOutlined /></template>
+                                    </Button>
+                                </Popconfirm>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- MODO TARJETAS: el contenedor no da para la tabla (tablet en
+                 vertical, movil) y docs/UI.md §3 veta el scroll horizontal, asi
+                 que cada peligro vuelve a ser una tarjeta plegable con el mismo
+                 indice que el EPP y el IHM. -->
+            <div v-else class="ff-group__body">
                 <article
                     v-for="i in grupo.indices"
                     :id="idFila(i)"
@@ -587,13 +892,18 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.probability') }}<span class="ff-block__req"> *</span>
                                 </label>
+                                <!-- Los chips enseñan el nombre del catalogo si
+                                     vino («Podria suceder»), y la clave si no.
+                                     Se emite SIEMPRE la clave (p1..p5). -->
                                 <div class="ff-chips">
-                                    <span v-if="readonly" class="ff-readonly">{{ filas[i].probabilidad || '—' }}</span>
+                                    <span v-if="readonly" class="ff-readonly">
+                                        {{ filas[i].probabilidad ? rotuloProbabilidad(filas[i].probabilidad) : '—' }}
+                                    </span>
                                     <button
                                         v-for="p in (readonly ? [] : probabilidades)" :key="p" type="button"
                                         class="ff-chip" :class="{ 'is-on': filas[i].probabilidad === p }"
                                         :aria-pressed="filas[i].probabilidad === p"
-                                        @click="cambiar(i, 'probabilidad', p)">{{ p }}</button>
+                                        @click="cambiar(i, 'probabilidad', p)">{{ rotuloProbabilidad(p) }}</button>
                                 </div>
                             </div>
 
@@ -602,12 +912,14 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                     {{ $t('field_work.risk_matrix.severity') }}<span class="ff-block__req"> *</span>
                                 </label>
                                 <div class="ff-chips">
-                                    <span v-if="readonly" class="ff-readonly">{{ filas[i].severidad || '—' }}</span>
+                                    <span v-if="readonly" class="ff-readonly">
+                                        {{ filas[i].severidad ? rotuloSeveridad(filas[i].severidad) : '—' }}
+                                    </span>
                                     <button
                                         v-for="s in (readonly ? [] : severidades)" :key="s" type="button"
                                         class="ff-chip" :class="{ 'is-on': filas[i].severidad === s }"
                                         :aria-pressed="filas[i].severidad === s"
-                                        @click="cambiar(i, 'severidad', s)">{{ s }}</button>
+                                        @click="cambiar(i, 'severidad', s)">{{ rotuloSeveridad(s) }}</button>
                                 </div>
                             </div>
 
@@ -643,23 +955,14 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                 </article>
             </div>
 
-            <footer v-if="!readonly" class="ff-group__foot">
+            <!-- El pie solo existe en tarjetas: en la tabla el «+» de la
+                 cabecera de Peligro es quien añade (la captura del dueño), y
+                 «Quitar esta actividad» ya subio a la cabecera del bloque. -->
+            <footer v-if="!readonly && !modoTabla" class="ff-group__foot">
                 <Button size="large" @click="agregarPeligro(grupo)">
                     <template #icon><PlusOutlined /></template>
                     {{ $t('field_work.risk_matrix.add_row') }}
                 </Button>
-
-                <Popconfirm
-                    :title="$tc('field_work.risk_matrix.remove_activity_confirm', grupo.indices.length)"
-                    :ok-text="$t('field_work.risk_matrix.remove_activity')"
-                    :cancel-text="$t('global.cancel')"
-                    @confirm="quitarActividad(grupo)"
-                >
-                    <Button class="ff-group__del" danger size="large">
-                        <template #icon><DeleteOutlined /></template>
-                        {{ $t('field_work.risk_matrix.remove_activity') }}
-                    </Button>
-                </Popconfirm>
             </footer>
         </section>
 
