@@ -17,6 +17,7 @@ return [
 
     // Columns
     'index_title'     => 'Listado de Idiomas',
+    'index_subtitle'  => 'Los idiomas base del sistema; cada locale de traducción sale de uno de ellos.',
     'create_title'    => 'Idioma - Crear',
     'show_title'      => 'Idioma - Información',
     'edit_title'      => 'Idioma - Editar',

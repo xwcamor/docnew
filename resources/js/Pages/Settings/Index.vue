@@ -344,6 +344,7 @@ const tour = useModuleTour({ module: 'settings', steps: () => moduleTourSteps(t,
         <div class="mi-title" data-tour="module">
             <SettingsPageHeader
                 :title="$t('sidebar.settings')"
+                :subtitle="$t('settings.index_subtitle')"
             />
         </div>
 

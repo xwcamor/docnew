@@ -9,6 +9,7 @@
  */
 defineProps({
     title: { type: String, required: true },
+    subtitle: { type: String, default: '' },
 });
 </script>
 
@@ -22,6 +23,7 @@ defineProps({
         </div>
         <div class="page-header__heading">
             <h1>{{ title }}</h1>
+            <p v-if="subtitle">{{ subtitle }}</p>
         </div>
     </div>
 </template>
@@ -46,6 +48,11 @@ defineProps({
     margin: 0;
     color: var(--color-text);
     letter-spacing: 0;
+}
+.page-header__title p {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    margin: 2px 0 0 0;
 }
 @media (max-width: 768px) {
     .page-header__title h1 { font-size: 1.25rem; }

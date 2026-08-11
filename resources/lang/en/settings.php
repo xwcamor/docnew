@@ -50,6 +50,7 @@ return [
     'restore_hint'    => 'It will be available again in the main list.',
 
     'index_title'     => 'Settings List',
+    'index_subtitle'  => 'System configuration settings. Each value is edited on its own page.',
     'create_title'    => 'Setting - Create',
     'show_title'      => 'Setting - Details',
     'edit_title'      => 'Setting - Edit',

@@ -16,6 +16,7 @@ return [
 
     // Columns
     'index_title'     => 'Listado de Regiones',
+    'index_subtitle'  => 'Las regiones del mundo con las que se agrupan los países.',
     'create_title'    => 'Región - Crear',
     'show_title'      => 'Región - Información',
     'edit_title'      => 'Región - Editar',

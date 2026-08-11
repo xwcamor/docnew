@@ -13,6 +13,8 @@ return [
     'empty_bell'            => 'You have no messages',
     'empty_bell_hint'       => 'Announcements, notices and threads from the administrator will appear here.',
     'view_inbox'            => 'View inbox',
+    'index_subtitle'        => 'Announcements sent to users: who receives them and who has read them.',
+    'inbox_subtitle'        => 'The notices and announcements you received, with what is still unread.',
 
     // Fields
     'subject'               => 'Subject',

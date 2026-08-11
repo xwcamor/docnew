@@ -13,6 +13,8 @@ return [
     'empty_bell'            => 'No tienes mensajes',
     'empty_bell_hint'       => 'Aquí verás avisos, anuncios y debates del administrador.',
     'view_inbox'            => 'Ver bandeja',
+    'index_subtitle'        => 'Los anuncios enviados a los usuarios: quién los recibe y quién los leyó.',
+    'inbox_subtitle'        => 'Los avisos y anuncios que recibiste, con lo pendiente por leer.',
 
     // Campos
     'subject'               => 'Asunto',

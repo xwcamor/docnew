@@ -20,6 +20,7 @@ return [
     'restore_hint'    => 'Volverá a estar disponible en el listado principal.',
 
     'index_title'     => 'Listado de Workspaces',
+    'index_subtitle'  => 'Los workspaces del sistema: cada cliente con su plan y su suscripción.',
     'create_title'    => 'Workspace - Crear',
     'show_title'      => 'Workspace - Información',
     'edit_title'      => 'Workspace - Editar',

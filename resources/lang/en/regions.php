@@ -16,6 +16,7 @@ return [
 
     // Columns
     'index_title'     => 'Regions List',
+    'index_subtitle'  => 'The world regions used to group the countries.',
     'create_title'    => 'Region - Create',
     'show_title'      => 'Region - Information',
     'edit_title'      => 'Region - Edit',

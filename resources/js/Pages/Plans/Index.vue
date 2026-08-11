@@ -89,6 +89,7 @@ const { visibleColumnKeys, columns } = useColumnPreferences(allColumns);
         <div class="mi-title" data-tour="module">
             <PlansPageHeader
                 :title="$t('plans.index_title')"
+                :subtitle="$t('plans.index_subtitle')"
             />
 
             <div class="mi-title__actions">

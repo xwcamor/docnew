@@ -15,6 +15,7 @@ return [
     'restore_hint'    => 'It will be available again in the main list.',
 
     'index_title'     => 'Language List',
+    'index_subtitle'  => 'The base languages of the system; every translation locale comes from one of them.',
     'create_title'    => 'Language - Create',
     'show_title'      => 'Language - Details',
     'edit_title'      => 'Language - Edit',

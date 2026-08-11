@@ -326,6 +326,7 @@ const goDelete = (record) => router.visit(route('business_management.approver_ro
         <div class="mi-title" data-tour="module">
             <ApproverRolesPageHeader
                 :title="$t('approver_roles.plural')"
+                :subtitle="$t('approver_roles.index_subtitle')"
             />
         </div>
 

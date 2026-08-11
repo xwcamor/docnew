@@ -332,6 +332,7 @@ const tour = useModuleTour({ module: 'locales', steps: () => moduleTourSteps(t, 
         <div class="mi-title" data-tour="module">
             <LocalesPageHeader
                 :title="$t('sidebar.locales')"
+                :subtitle="$t('locales.index_subtitle')"
             />
         </div>
 

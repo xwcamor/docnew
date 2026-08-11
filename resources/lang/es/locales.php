@@ -16,6 +16,7 @@ return [
 
     // Columns
     'index_title'     => 'Listado de Locales',
+    'index_subtitle'  => 'Las variantes de idioma por país, como Español (Perú), en las que se muestra el sistema.',
     'create_title'    => 'Locale - Crear',
     'show_title'      => 'Locale - Información',
     'edit_title'      => 'Locale - Editar',

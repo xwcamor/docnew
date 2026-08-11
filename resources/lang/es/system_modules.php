@@ -14,6 +14,7 @@ return [
     'restore_hint'    => 'Volverá a estar disponible en el listado principal.',
 
     'index_title'     => 'Listado de Módulos',
+    'index_subtitle'  => 'Los módulos del sistema; al crear uno se generan solas sus claves de permiso.',
     'create_title'    => 'Módulo - Crear',
     'show_title'      => 'Módulo - Información',
     'edit_title'      => 'Módulo - Editar',

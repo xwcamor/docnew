@@ -19,6 +19,7 @@ return [
     'restore_hint'    => 'It will be available again in the main list.',
 
     'index_title'     => 'Workspaces List',
+    'index_subtitle'  => 'The workspaces of the system: each customer with its plan and subscription.',
     'create_title'    => 'Workspace - Create',
     'show_title'      => 'Workspace - Details',
     'edit_title'      => 'Workspace - Edit',

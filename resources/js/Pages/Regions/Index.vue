@@ -355,6 +355,7 @@ const tour = useModuleTour({ module: 'regions', steps: () => moduleTourSteps(t, 
         <div class="mi-title" data-tour="module">
             <RegionsPageHeader
                 :title="$t('sidebar.regions')"
+                :subtitle="$t('regions.index_subtitle')"
             />
         </div>
 

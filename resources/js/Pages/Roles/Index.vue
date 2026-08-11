@@ -327,6 +327,7 @@ useKeyboardShortcuts({
         <div class="mi-title" data-tour="module">
             <RolesPageHeader
                 :title="$t('roles.plural')"
+                :subtitle="$t('roles.index_subtitle')"
             />
         </div>
 

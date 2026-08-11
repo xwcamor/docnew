@@ -376,6 +376,7 @@ const toggleOnlyFavorites = () => {
         <div class="mi-title" data-tour="module">
             <UsersPageHeader
                 :title="$t('users.index_title')"
+                :subtitle="$t('users.index_subtitle')"
             />
         </div>
 

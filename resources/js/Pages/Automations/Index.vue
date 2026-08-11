@@ -356,6 +356,7 @@ const tour = useModuleTour({ module: 'automations', steps: () => moduleTourSteps
         <div class="mi-title" data-tour="module">
             <AutomationsPageHeader
                 :title="$t('automations.index_title')"
+                :subtitle="$t('automations.index_subtitle')"
             />
         </div>
 

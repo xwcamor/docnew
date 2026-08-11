@@ -16,6 +16,7 @@ return [
 
     // Columns
     'index_title'     => 'Countries List',
+    'index_subtitle'  => 'The countries the system knows, each with its region and default locale.',
     'create_title'    => 'Country - Create',
     'show_title'      => 'Country - Details',
     'edit_title'      => 'Country - Edit',

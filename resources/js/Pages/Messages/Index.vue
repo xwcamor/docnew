@@ -115,6 +115,7 @@ const meta = computed(() => ({
                 </div>
                 <div class="page-header__heading">
                     <h1>{{ t('messages.plural') }}</h1>
+                    <p>{{ t('messages.index_subtitle') }}</p>
                 </div>
             </div>
             <div class="mi-title__actions">

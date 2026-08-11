@@ -77,6 +77,7 @@ const fmtRel = (d) => d ? dayjs(d).fromNow() : '-';
                 <div class="page-header__icon"><InboxOutlined /></div>
                 <div class="page-header__heading">
                     <h1>{{ t('messages.inbox') }}</h1>
+                    <p>{{ t('messages.inbox_subtitle') }}</p>
                 </div>
             </div>
             <div class="mi-title__actions">

@@ -291,7 +291,7 @@ const goDelete = (record) => router.visit(route('business_management.work_types.
 
     <div class="sap-index">
         <div class="mi-title" data-tour="module">
-            <WorkTypesPageHeader :title="$t('work_types.plural')" />
+            <WorkTypesPageHeader :title="$t('work_types.plural')" :subtitle="$t('work_types.index_subtitle')" />
         </div>
 
         <!-- Las tres cosas que hay que saber para no configurar a ciegas. Se

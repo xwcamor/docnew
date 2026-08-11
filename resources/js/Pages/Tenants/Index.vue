@@ -324,6 +324,7 @@ const tour = useModuleTour({ module: 'tenants', steps: () => moduleTourSteps(t, 
         <div class="mi-title" data-tour="module">
             <TenantsPageHeader
                 :title="$t('sidebar.tenants')"
+                :subtitle="$t('tenants.index_subtitle')"
             />
         </div>
 

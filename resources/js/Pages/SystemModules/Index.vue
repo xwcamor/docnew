@@ -324,6 +324,7 @@ const tour = useModuleTour({ module: 'system_modules', steps: () => moduleTourSt
         <div class="mi-title" data-tour="module">
             <SystemModulesPageHeader
                 :title="$t('sidebar.system_modules')"
+                :subtitle="$t('system_modules.index_subtitle')"
             />
         </div>
 

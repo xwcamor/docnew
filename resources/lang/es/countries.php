@@ -16,6 +16,7 @@ return [
 
     // Columns
     'index_title'     => 'Listado de Países',
+    'index_subtitle'  => 'Los países que el sistema reconoce, cada uno con su región y su locale por defecto.',
     'create_title'    => 'País - Crear',
     'show_title'      => 'País - Información',
     'edit_title'      => 'País - Editar',

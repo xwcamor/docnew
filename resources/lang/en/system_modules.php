@@ -14,6 +14,7 @@ return [
     'restore_hint'    => 'It will be available again in the main list.',
 
     'index_title'     => 'Modules List',
+    'index_subtitle'  => 'The system modules; creating one generates its permission keys automatically.',
     'create_title'    => 'Module - Create',
     'show_title'      => 'Module - Details',
     'edit_title'      => 'Module - Edit',

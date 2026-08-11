@@ -14,6 +14,7 @@ return [
     'restore_hint'    => 'It will be available again in the main list.',
 
     'index_title'     => 'Locales List',
+    'index_subtitle'  => 'The per-country language variants, like Spanish (Peru), the system is shown in.',
     'create_title'    => 'Locale - Create',
     'show_title'      => 'Locale - Details',
     'edit_title'      => 'Locale - Edit',

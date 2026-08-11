@@ -332,6 +332,7 @@ const goDelete = (record) => router.visit(route('business_management.approval_ru
         <div class="mi-title" data-tour="module">
             <ApprovalRulesPageHeader
                 :title="$t('approval_rules.plural')"
+                :subtitle="$t('approval_rules.index_subtitle')"
             />
             <Tooltip :title="$t('approval_rules.preview_subtitle')">
                 <Link :href="route('business_management.approval_rules.preview')" data-tour="preview">

@@ -291,7 +291,7 @@ const goDelete = (record) => router.visit(route('business_management.work_locati
 
     <div class="sap-index">
         <div class="mi-title" data-tour="module">
-            <CatalogPageHeader :title="$t('work_locations.plural')">
+            <CatalogPageHeader :title="$t('work_locations.plural')" :subtitle="$t('work_locations.index_subtitle')">
                 <template #icon><EnvironmentOutlined /></template>
             </CatalogPageHeader>
         </div>

@@ -378,6 +378,7 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
         <div class="mi-title" data-tour="module">
             <WorkPlansPageHeader
                 :title="$t('work_plans.plural')"
+                :subtitle="$t('work_plans.index_subtitle')"
             />
         </div>
 

@@ -49,6 +49,7 @@ return [
     'restore_hint'    => 'Volverá a estar disponible en el listado principal.',
 
     'index_title'     => 'Listado de Ajustes',
+    'index_subtitle'  => 'Los ajustes de configuración del sistema. El valor de cada uno se edita en su propia ficha.',
     'create_title'    => 'Ajuste - Crear',
     'show_title'      => 'Ajuste - Información',
     'edit_title'      => 'Ajuste - Editar',
