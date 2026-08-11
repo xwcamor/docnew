@@ -549,6 +549,35 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame($config['severity_labels'], $this->configDeLaMatriz('PTF')['severity_labels']);
     }
 
+    /**
+     * Los dos nombres que el dueño retoco llegan retocados.
+     *
+     * «Raro que suceda» → «Raro de suceder» e «Prácticamente imposible que
+     * suceda» → «Imposible de suceder» (y su espejo en en). La base vieja es
+     * de solo lectura, asi que el retoque vive en la migracion
+     * (ETIQUETAS_RETOCADAS): por texto exacto ya limpio, no por clave.
+     */
+    public function test_los_nombres_que_el_dueño_retoco_llegan_retocados(): void
+    {
+        $viejo = DB::connection('legacy');
+
+        // Con la mugre real encima: el retoque corre DESPUES de la limpieza.
+        $viejo->table('translations')->where('locale', 'es')->where('key', 'probabilities.1')
+            ->update(['value' => "--- Raro que suceda\n"]);
+        $viejo->table('translations')->where('locale', 'es')->where('key', 'severities.3')
+            ->update(['value' => "--- Prácticamente imposible que suceda\n"]);
+        $viejo->table('translations')->where('locale', 'en')->where('key', 'severities.1')
+            ->update(['value' => "--- Practically impossible to happen\n"]);
+
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $config = $this->configDeLaMatriz('AST');
+
+        $this->assertSame('Raro de suceder', $config['probability_labels']['p1']);
+        $this->assertSame('Imposible de suceder', $config['severity_labels']['c3']);
+        $this->assertSame('Impossible to happen', $config['severity_labels_en']['c1']);
+    }
+
     /** Sin filas en `translations` no hay mapas, y nada revienta. */
     public function test_sin_traducciones_la_config_no_lleva_mapas(): void
     {

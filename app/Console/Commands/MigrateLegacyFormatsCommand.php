@@ -153,6 +153,24 @@ class MigrateLegacyFormatsCommand extends Command
      *
      * @return array<string, array<string, string>> solo los mapas con contenido
      */
+    /**
+     * Los nombres que el dueño retoco al verlos en el selector nuevo.
+     *
+     * La fuente sigue siendo la tabla `translations` de la base vieja —que es
+     * de SOLO LECTURA y no se puede corregir alla— asi que el retoque vive
+     * aqui, en el unico punto por el que esos textos entran al sistema: si no,
+     * cada corrida de `--datos` los volveria a pisar con la version vieja.
+     * Por texto exacto ya limpio, no por clave: si algun dia la base vieja
+     * dice otra cosa, no hay nada que retocar.
+     */
+    public const ETIQUETAS_RETOCADAS = [
+        'Raro que suceda'                    => 'Raro de suceder',
+        'Prácticamente imposible que suceda' => 'Imposible de suceder',
+        // El espejo del segundo en ingles: sin el «practically», como pidio
+        // el dueño para el es. «Rarely happens» se queda: ya dice lo mismo.
+        'Practically impossible to happen'   => 'Impossible to happen',
+    ];
+
     protected function leerEtiquetasDeLaMatriz(): array
     {
         $viejo = DB::connection('legacy');
@@ -183,6 +201,7 @@ class MigrateLegacyFormatsCommand extends Command
                     // final. Aqui se guarda el nombre y nada mas: los guiones
                     // no son parte del texto, son el envoltorio del pegado.
                     $texto = trim(preg_replace('/^[\s\-]+/u', '', (string) $textos->get("{$tabla}.{$id}", '')));
+                    $texto = self::ETIQUETAS_RETOCADAS[$texto] ?? $texto;
 
                     if (filled($texto)) {
                         $mapa[$interna] = $texto;
