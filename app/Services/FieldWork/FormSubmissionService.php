@@ -329,6 +329,128 @@ class FormSubmissionService
     }
 
     /**
+     * Que catalogos de que campos pueden crecer con lo aprendido.
+     *
+     * Son los cinco textos libres de la v1 (`.danger-autocomplete` y familia):
+     * actividad, peligro, riesgo y control en la matriz, y la herramienta del
+     * IHM. Lo demas de la config (answers, items, severities...) son claves
+     * cerradas con significado: ahi no se aprende nada.
+     */
+    public const CATALOGOS_APRENDIBLES = [
+        'risk_matrix'    => ['actividad' => 'activities', 'peligro' => 'dangers', 'riesgo' => 'risks', 'control' => 'controls'],
+        'tool_checklist' => ['tool' => 'tools'],
+    ];
+
+    /**
+     * Lo que este equipo escribe de verdad, aprendido de sus documentos.
+     *
+     * El catalogo fijo sugiere poco: de 3 561 peligros distintos tecleados en
+     * los AST reales, 3 492 no estan en el. Asi que ademas del catalogo se
+     * sugieren los textos ya usados en entregas CONFIRMADAS de la misma
+     * plantilla (mismo `code`, cualquier version), ordenados por las veces
+     * que se escribieron: lo que mas se repite, primero. Solo confirmadas:
+     * un borrador puede tener cualquier cosa a medio teclear y sugerirlo es
+     * propagar el error.
+     *
+     * Presentacion pura: no se persiste nada, se calcula al abrir la pantalla
+     * sobre las ultimas entregas (acotado para que abrir un formato no pasee
+     * por todo el historico) y viaja mezclado en la config del campo, donde
+     * el autocompletado ya mira.
+     *
+     * @return array<string, array<int, string>> clave de catalogo => textos
+     */
+    public function sugerenciasAprendidas(FormTemplate $plantilla, int $entregasMiradas = 300, int $topePorLista = 100): array
+    {
+        $claves = array_merge(...array_values(self::CATALOGOS_APRENDIBLES));
+
+        $entregas = FormSubmission::whereIn(
+            'form_template_id',
+            FormTemplate::where('code', $plantilla->code)->pluck('id'),
+        )
+            ->where('status', 'confirmed')
+            ->orderByDesc('id')
+            ->limit($entregasMiradas)
+            ->pluck('id');
+
+        if ($entregas->isEmpty()) {
+            return [];
+        }
+
+        // catalogo => texto normalizado => [texto tal cual se escribio, veces].
+        $conteo = [];
+
+        // El pluck de Eloquent pasa por el cast `array`, pero no hay que
+        // apostarle: si llega la cadena cruda, se decodifica aqui mismo.
+        $filas = FormAnswer::whereIn('form_submission_id', $entregas)
+            ->whereNotNull('value_json')
+            ->pluck('value_json')
+            ->flatMap(function ($json) {
+                $registros = is_string($json) ? json_decode($json, true) : $json;
+
+                return is_array($registros) ? $registros : [];
+            });
+
+        foreach ($filas as $fila) {
+            if (! is_array($fila)) {
+                continue;
+            }
+
+            foreach ($claves as $campo => $catalogo) {
+                $texto = trim((string) ($fila[$campo] ?? ''));
+
+                if ($texto === '') {
+                    continue;
+                }
+
+                $norma = mb_strtolower($texto);
+                $conteo[$catalogo][$norma] ??= [$texto, 0];
+                $conteo[$catalogo][$norma][1]++;
+            }
+        }
+
+        return array_map(
+            fn ($textos) => collect($textos)->sortByDesc(1)->take($topePorLista)->pluck(0)->values()->all(),
+            $conteo,
+        );
+    }
+
+    /**
+     * La config del campo con lo aprendido detras del catalogo fijo.
+     *
+     * El fijo va primero —es el orden que el administrador eligio— y lo
+     * aprendido despues, sin repetir lo que ya esta (mismo texto con otra
+     * caja o espacios no cuenta como distinto). Para un tipo de campo que no
+     * aprende, la config sale tal cual entro.
+     */
+    public function configConAprendidas(string $tipo, array $config, array $aprendidas): array
+    {
+        foreach (self::CATALOGOS_APRENDIBLES[$tipo] ?? [] as $catalogo) {
+            $textos = $aprendidas[$catalogo] ?? [];
+
+            if ($textos === []) {
+                continue;
+            }
+
+            $lista = array_values(array_filter(
+                (array) ($config[$catalogo] ?? []),
+                fn ($v) => is_string($v) || is_numeric($v),
+            ));
+            $vistos = array_map(fn ($v) => mb_strtolower(trim((string) $v)), $lista);
+
+            foreach ($textos as $texto) {
+                if (! in_array(mb_strtolower(trim($texto)), $vistos, true)) {
+                    $lista[] = $texto;
+                    $vistos[] = mb_strtolower(trim($texto));
+                }
+            }
+
+            $config[$catalogo] = $lista;
+        }
+
+        return $config;
+    }
+
+    /**
      * Si una fila de respuestas guarda algo o esta hueca.
      *
      * `false` cuenta: una casilla desmarcada es una respuesta. Una cadena

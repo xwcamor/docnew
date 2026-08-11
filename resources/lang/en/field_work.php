@@ -160,7 +160,9 @@ return [
         'probability'  => 'Probability',
         // Sexta columna de la tabla vieja. No se teclea: sale de la matriz.
         'level'        => 'Level',
-        'search'       => 'Search the catalogue',
+        // It said «Search the catalogue» while this was a closed select. It is
+        // free text now, as in v1: the catalogue suggests, it does not rule.
+        'search'       => 'Type, or pick a suggestion',
         'add_row'      => 'Add hazard',
         'remove_row'   => 'Remove this row',
         // La papelera de cada fila del modo tabla pregunta antes. Ver `es`.

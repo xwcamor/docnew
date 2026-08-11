@@ -54,6 +54,13 @@ class FormSubmissionController extends Controller
 
         $faltantes = $this->formatos->faltantesDetallados($entrega);
 
+        // La automatizacion que pidio el dueño: ademas del catalogo fijo, los
+        // textos ya escritos en entregas confirmadas de esta plantilla se
+        // sugieren en los textos libres (actividad, peligro, riesgo, control,
+        // herramienta). Se calculan una vez por apertura y viajan mezclados en
+        // la config del campo; nada se persiste.
+        $aprendidas = $this->formatos->sugerenciasAprendidas($form_template);
+
         return inertia('FieldWork/FormFill', [
             'submission' => $entrega->only(['slug', 'status', 'template_version']),
             // El plan del que cuelga el formato. Hace falta para poder SALIR:
@@ -96,7 +103,9 @@ class FormSubmissionController extends Controller
                         'label'       => $campo->label,
                         'field_type'  => $campo->field_type,
                         'is_required' => (bool) $campo->is_required,
-                        'config'      => $campo->config ?? [],
+                        'config'      => $this->formatos->configConAprendidas(
+                            $campo->field_type, $campo->config ?? [], $aprendidas,
+                        ),
                     ])->values(),
                 ])->values(),
             ],

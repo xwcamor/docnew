@@ -2165,6 +2165,9 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
    dos con la que Ant pinta su borde, sin `!important`. */
 .ff-cell.is-missing .ff-label { color: var(--state-bad-text); }
 .ff-cell.is-missing .ant-select .ant-select-selector { border-color: var(--state-bad-text); }
+/* El texto libre con sugerencias (CatalogSelect) es un AutoComplete con un
+   textarea dentro: el borde vive en el .ant-input, no en el selector. */
+.ff-cell.is-missing .ff-libre .ant-input { border-color: var(--state-bad-text); }
 .ff-cell.is-missing .ff-chips .ff-chip:not(.is-on) { border-color: var(--state-bad-border); }
 
 /* La pregunta sin responder del banco, cuando el guardado dejó el campo
@@ -2272,6 +2275,12 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
    columna) pero nunca por debajo del objetivo táctil de 44px de alto. */
 .ff-tabla__td .ant-select { width: 100%; }
 .ff-tabla__td .ant-select-selector { min-height: 44px; align-items: center; }
+
+/* El texto libre con sugerencias (CatalogSelect): un AutoComplete que envuelve
+   un textarea. El ancho lo manda el envoltorio y la altura minima el textarea,
+   que crece solo (auto-size) cuando el peligro es de dos lineas. */
+.ff-libre { width: 100%; }
+.ff-libre .ant-input { min-height: 44px; }
 .ff-tabla__del { min-width: 44px; min-height: 44px; }
 .ff-tabla__td--acciones { text-align: center; }
 
@@ -2299,6 +2308,7 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
    `!important` (ver .ff-falta, arriba). */
 .ff-tabla__td.is-missing { background: var(--state-bad-bg); }
 .ff-tabla__td.is-missing .ant-select .ant-select-selector { border-color: var(--state-bad-text); }
+.ff-tabla__td.is-missing .ff-libre .ant-input { border-color: var(--state-bad-text); }
 
 /* La palabra junto al rojo de la celda: color nunca solo (docs/UI.md §5). */
 .ff-tabla__falta {

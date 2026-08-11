@@ -182,7 +182,9 @@ return [
         'probability'  => 'Probabilidad',
         // Sexta columna de la tabla vieja. No se teclea: sale de la matriz.
         'level'        => 'Nivel',
-        'search'       => 'Buscar en el catálogo',
+        // Era «Buscar en el catálogo» cuando esto fue un select cerrado. Se
+        // escribe libre, como en la v1: el catálogo sugiere, no manda.
+        'search'       => 'Escribe, o elige una sugerencia',
         'add_row'      => 'Añadir peligro',
         'remove_row'   => 'Quitar esta fila',
         // La papelera de cada fila del modo tabla pregunta antes, como el

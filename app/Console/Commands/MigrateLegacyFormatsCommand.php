@@ -178,7 +178,11 @@ class MigrateLegacyFormatsCommand extends Command
                 $mapa = [];
 
                 foreach ($internas as $id => $interna) {
-                    $texto = $textos->get("{$tabla}.{$id}");
+                    // Los valores reales vienen sucios: «--- Común\n», con los
+                    // guiones del YAML del que se pegaron y el salto de linea
+                    // final. Aqui se guarda el nombre y nada mas: los guiones
+                    // no son parte del texto, son el envoltorio del pegado.
+                    $texto = trim(preg_replace('/^[\s\-]+/u', '', (string) $textos->get("{$tabla}.{$id}", '')));
 
                     if (filled($texto)) {
                         $mapa[$interna] = $texto;

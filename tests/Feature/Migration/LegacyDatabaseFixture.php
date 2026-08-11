@@ -395,17 +395,21 @@ class LegacyDatabaseFixture
         // Lo que la v1 enseñaba en los selectores de la matriz: la clave es
         // `severities.<id>` —el id de la fila, no la clave interna— porque asi
         // la genera la vista (`I18n.t("severities.#{id}")`). Nombres inventados
-        // pero con la forma de los reales. A proposito faltan y sobran cosas:
-        // `probabilities.2` no tiene fila en es (su clave interna p2 debe
-        // quedarse fuera del mapa), el en solo cubre una severidad (los mapas
-        // pueden ser parciales) y el pt existe pero no debe colarse en ningun
-        // mapa: la pantalla no lo pide.
+        // pero con la forma de los reales, INCLUIDA la mugre: en la base real
+        // los valores estan guardados como «--- Catastrófico\n», con los
+        // guiones del YAML del que se pegaron y un salto de linea final. La
+        // migracion debe quedarse solo con el nombre; los asserts de
+        // MigrateLegacyDataTest exigen el texto limpio. A proposito faltan y
+        // sobran cosas: `probabilities.2` no tiene fila en es (su clave
+        // interna p2 debe quedarse fuera del mapa), el en solo cubre una
+        // severidad (los mapas pueden ser parciales) y el pt existe pero no
+        // debe colarse en ningun mapa: la pantalla no lo pide.
         $viejo->table('translations')->insert([
-            ['id' => 1, 'locale' => 'es', 'key' => 'severities.1',    'value' => 'Catastrófico',   'created_at' => $ahora, 'updated_at' => $ahora],
-            ['id' => 2, 'locale' => 'es', 'key' => 'severities.3',    'value' => 'Temporal',       'created_at' => $ahora, 'updated_at' => $ahora],
-            ['id' => 3, 'locale' => 'es', 'key' => 'probabilities.1', 'value' => 'Podría suceder', 'created_at' => $ahora, 'updated_at' => $ahora],
-            ['id' => 4, 'locale' => 'en', 'key' => 'severities.1',    'value' => 'Catastrophic',   'created_at' => $ahora, 'updated_at' => $ahora],
-            ['id' => 5, 'locale' => 'pt', 'key' => 'probabilities.2', 'value' => 'Raro (pt)',      'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 1, 'locale' => 'es', 'key' => 'severities.1',    'value' => "--- Catastrófico\n",   'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 2, 'locale' => 'es', 'key' => 'severities.3',    'value' => "--- Temporal\n",       'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 3, 'locale' => 'es', 'key' => 'probabilities.1', 'value' => "--- Podría suceder\n", 'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 4, 'locale' => 'en', 'key' => 'severities.1',    'value' => "--- Catastrophic\n",   'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 5, 'locale' => 'pt', 'key' => 'probabilities.2', 'value' => "--- Raro (pt)\n",      'created_at' => $ahora, 'updated_at' => $ahora],
         ]);
 
         // En la v1 el valor de riesgo esta tabulado celda a celda: 1 es lo peor.
