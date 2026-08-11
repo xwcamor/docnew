@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Migration;
 
+use App\Services\FieldWork\FormFindingsService;
 use App\Services\Migration\LegacyFormMapper;
 use Tests\TestCase;
 
@@ -25,17 +26,17 @@ class LegacyFormMapperTest extends TestCase
 
     public function test_los_numeros_de_la_v1_significan_cosas_distintas_en_cada_formato(): void
     {
-        // El mismo 2: en EPP es "no conforme", en IHM es "no cumple".
+        // El mismo 0: en PTF es "No", en EPP "no conforme" y en IHM "no cumple".
         $this->assertSame('Si', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_PTF, 1));
         $this->assertSame('No', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_PTF, 0));
 
         $this->assertSame('Conforme', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_EPP, 1));
-        $this->assertSame('No conforme', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_EPP, 2));
-        $this->assertSame('No aplica', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_EPP, 0));
+        $this->assertSame('No conforme', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_EPP, 0));
+        $this->assertSame('No aplica', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_EPP, 2));
 
         $this->assertSame('Cumple', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_IHM, 1));
-        $this->assertSame('No cumple', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_IHM, 2));
-        $this->assertSame('No aplica', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_IHM, 0));
+        $this->assertSame('No cumple', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_IHM, 0));
+        $this->assertSame('No aplica', $this->mapa->etiqueta(LegacyFormMapper::RESPUESTAS_IHM, 2));
     }
 
     public function test_una_respuesta_sin_valor_no_se_convierte_en_no_aplica(): void
@@ -99,7 +100,7 @@ class LegacyFormMapperTest extends TestCase
         $valor = $this->mapa->checklistDePersona(
             ['plan_worker_id' => 7, 'correction_measure' => 'Cambiar casco',
              'deadline_date' => '2026-01-31', 'correction_verification' => 'Verificado'],
-            [['epp_item_id' => 1, 'answer' => 2]],
+            [['epp_item_id' => 1, 'answer' => 0]],
             [1 => 'Casco'],
             42,
         );
@@ -115,13 +116,89 @@ class LegacyFormMapperTest extends TestCase
     {
         $valor = $this->mapa->checklistDeHerramienta(
             ['name' => 'Amoladora', 'is_enabled' => 0, 'correction_measure' => 'Retirar', 'responsible' => 'Jefe'],
-            [['ihm_item_id' => 5, 'answer' => 2]],
+            [['ihm_item_id' => 5, 'answer' => 0]],
             [5 => 'Guardas y dispositivos de seguridad.'],
         );
 
         $this->assertSame('Amoladora', $valor['tool']);
         $this->assertFalse($valor['habilitada']);
         $this->assertSame('No cumple', $valor['items'][0]['answer']);
+    }
+
+    /**
+     * El 0 es la equis y el 2 es la raya. Estaban al reves.
+     *
+     * Es el fallo mas caro que ha tenido la migracion, porque no reventaba
+     * nada: cada item que en obra se marco «No aplica» salia en rojo como
+     * incumplimiento, y cada incumplimiento real salia en gris como si no
+     * aplicara. El sistema acusaba de lo que no fue y escondia lo que si, en
+     * los 14 435 EPP e IHM migrados, y con la pantalla entera pintada de rojo
+     * el dueno del producto lo vio antes que ninguna prueba.
+     *
+     * Se colo porque el codigo de la v1 lleva el comentario cambiado:
+     *
+     *     when 2 -> <!-- Opcion marcada como No -->
+     *     when 0 -> <!-- Opcion marcada como No Aplica -->
+     *
+     * Se leyo el comentario y se creyo. Lo que manda es lo que se imprimia, y
+     * eso son las imagenes del radio: `.img0` es `equis.png`, `.img1` es
+     * `check.png` y `.img2` es `minus.png`. Esta prueba fija ESO, con la
+     * referencia al lado, para que la proxima vez que alguien lea el comentario
+     * de la v1 y quiera «corregir» el mapeo, se encuentre esto primero.
+     */
+    public function test_el_cero_es_no_conforme_y_el_dos_es_no_aplica(): void
+    {
+        // .img1 = check.png · .img0 = equis.png · .img2 = minus.png
+        $esperado = [1 => 'Conforme', 0 => 'No conforme', 2 => 'No aplica'];
+
+        foreach ($esperado as $valorV1 => $etiqueta) {
+            $epp = $this->mapa->checklistDePersona(
+                ['plan_worker_id' => 1], [['epp_item_id' => 1, 'answer' => $valorV1]], [1 => 'Casco'], null,
+            );
+
+            $this->assertSame($etiqueta, $epp['items'][0]['answer'],
+                "el {$valorV1} de la v1 no es «{$etiqueta}» en el EPP");
+        }
+
+        foreach ([1 => 'Cumple', 0 => 'No cumple', 2 => 'No aplica'] as $valorV1 => $etiqueta) {
+            $ihm = $this->mapa->checklistDeHerramienta(
+                ['name' => 'Amoladora'], [['ihm_item_id' => 5, 'answer' => $valorV1]], [5 => 'Guardas'],
+            );
+
+            $this->assertSame($etiqueta, $ihm['items'][0]['answer'],
+                "el {$valorV1} de la v1 no es «{$etiqueta}» en el IHM");
+        }
+    }
+
+    /**
+     * Y lo que la v1 contaba como observacion es lo que aqui cuenta como no
+     * conformidad. Es la comprobacion cruzada que habria cazado lo de arriba
+     * sin necesidad de mirar un solo PNG.
+     *
+     * `F3Document#set_completed` hace `answers.count(0)` y llama «errores» a
+     * eso. Si el 0 se tradujera a «No aplica», el motor de aqui contaria cero
+     * donde la v1 contaba uno, y el historico entero cambiaria de significado
+     * al migrar.
+     */
+    public function test_lo_que_la_v1_contaba_como_error_aqui_cuenta_como_no_conformidad(): void
+    {
+        $findings = app(\App\Services\FieldWork\FormFindingsService::class);
+
+        $porValor = [];
+
+        foreach ([0, 1, 2] as $valorV1) {
+            $epp = $this->mapa->checklistDePersona(
+                ['plan_worker_id' => 1], [['epp_item_id' => 1, 'answer' => $valorV1]], [1 => 'Casco'], null,
+            );
+
+            $porValor[$valorV1] = $findings->tono($epp['items'][0]['answer']);
+        }
+
+        $this->assertSame(FormFindingsService::MALA, $porValor[0],
+            'la v1 contaba el 0 como error: aqui tiene que ser una no conformidad');
+        $this->assertSame('ok', $porValor[1]);
+        $this->assertSame(FormFindingsService::NO_APLICA, $porValor[2],
+            'la raya de la v1 no es un incumplimiento');
     }
 
     public function test_los_textos_del_ast_que_la_plantilla_no_reproduce_acaban_en_observaciones(): void

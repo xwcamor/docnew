@@ -505,8 +505,13 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertCount(1, $filas);
         $this->assertSame('Amoladora', $filas[0]['tool']);
         $this->assertFalse($filas[0]['habilitada']);
+        // Los tres valores de la v1 de extremo a extremo: el check, la equis y
+        // la raya. Esta prueba afirmaba que el 2 era «No cumple» —y lo daba por
+        // bueno— porque el fixture no traia ningun 0 con el que contrastarlo.
+        // Ver LegacyFormMapperTest::test_el_cero_es_no_conforme_y_el_dos_es_no_aplica.
         $this->assertSame('Cumple', $filas[0]['items'][0]['answer']);
         $this->assertSame('No cumple', $filas[0]['items'][1]['answer']);
+        $this->assertSame('No aplica', $filas[0]['items'][2]['answer']);
     }
 
     // ── evidencias ───────────────────────────────────────────────────────────

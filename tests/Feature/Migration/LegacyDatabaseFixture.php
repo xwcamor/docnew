@@ -375,7 +375,7 @@ class LegacyDatabaseFixture
         $viejo->table('ast_equipments')->insert($catalogo(['Grua', 'Escalera']));
         $viejo->table('ast_objetives')->insert($catalogo(['Fin de trabajo']));
         $viejo->table('epp_items')->insert($catalogo(['Casco', 'Guantes']));
-        $viejo->table('ihm_items')->insert($catalogo(['Condiciones generales', 'Guardas']));
+        $viejo->table('ihm_items')->insert($catalogo(['Condiciones generales', 'Guardas', 'Mango empunadora']));
         $viejo->table('ihm_tools')->insert($catalogo(['Amoladora']));
         $viejo->table('ptf_questions')->insert($catalogo(['Tienes permiso?', 'Conoces la emergencia?']));
 
@@ -470,9 +470,15 @@ class LegacyDatabaseFixture
         $viejo->table('f4_document_tools')->insert([
             ['id' => 1, 'f4_document_id' => 1, 'name' => 'Amoladora', 'is_enabled' => false, 'correction_measure' => 'Retirar', 'responsible' => 'Jefe', 'created_at' => $ahora, 'updated_at' => $ahora],
         ]);
+        // Los tres valores de la v1, para que la migracion los cruce enteros:
+        // 1 es el check, 0 es la equis y 2 es la raya. Antes estaban solo el 1 y
+        // el 2, asi que el caso que de verdad importa —el incumplimiento, que es
+        // el 0— no lo cubria nadie de extremo a extremo, y el 2 se afirmaba como
+        // «No cumple» cuando es «No aplica».
         $viejo->table('f4_document_items')->insert([
             ['id' => 1, 'f4_document_tool_id' => 1, 'ihm_item_id' => 1, 'answer' => 1, 'created_at' => $ahora, 'updated_at' => $ahora],
-            ['id' => 2, 'f4_document_tool_id' => 1, 'ihm_item_id' => 2, 'answer' => 2, 'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 2, 'f4_document_tool_id' => 1, 'ihm_item_id' => 2, 'answer' => 0, 'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 3, 'f4_document_tool_id' => 1, 'ihm_item_id' => 3, 'answer' => 2, 'created_at' => $ahora, 'updated_at' => $ahora],
         ]);
     }
 

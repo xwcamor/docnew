@@ -19,6 +19,7 @@ use App\Models\WorkPlanPerson;
 use App\Models\WorkLocation;
 use App\Models\Workstation;
 use App\Models\WorkType;
+use App\Services\FieldWork\FormFindingsService;
 use App\Services\Migration\LegacyFormMapper;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
@@ -1508,13 +1509,14 @@ class MigrateLegacyDataCommand extends Command
     protected function migrarAst($viejo, FormTemplate $plantilla): void
     {
         $campos = $this->camposDe($plantilla);
+        $bandas = $this->bandasDeLaMatriz($plantilla);
         $severidades = $viejo->table('severities')->pluck('name', 'id')->all();
         $probabilidades = $viejo->table('probabilities')->pluck('name', 'id')->all();
         $equipos = $viejo->table('ast_equipments')->pluck('name_es', 'id')->all();
         $objetivos = $viejo->table('ast_objetives')->pluck('name_es', 'id')->all();
 
         $this->recorrerFormato($viejo, 'f1_documents', $plantilla, function ($docs, $entregas) use (
-            $viejo, $campos, $severidades, $probabilidades, $equipos, $objetivos
+            $viejo, $campos, $severidades, $probabilidades, $equipos, $objetivos, $bandas
         ) {
             $ids = $docs->pluck('id')->all();
 
@@ -1542,7 +1544,7 @@ class MigrateLegacyDataCommand extends Command
                     ->flatMap(fn ($a) => ($peligros[$a['id']] ?? collect())->map(fn ($p) => (array) $p))
                     ->all();
 
-                $filas = $this->mapa->matrizDeRiesgo($suyas, $suyos, $severidades, $probabilidades, 'f1_document_activity_id');
+                $filas = $this->mapa->matrizDeRiesgo($suyas, $suyos, $severidades, $probabilidades, 'f1_document_activity_id', $bandas);
 
                 foreach ($filas as $i => $fila) {
                     $respuestas[] = $this->respuesta($entregaId, $campos['matriz_de_riesgo'], $i, $fila, 'json');
@@ -1572,12 +1574,13 @@ class MigrateLegacyDataCommand extends Command
     protected function migrarPtf($viejo, FormTemplate $plantilla): void
     {
         $campos = $this->camposDe($plantilla);
+        $bandas = $this->bandasDeLaMatriz($plantilla);
         $preguntas = $viejo->table('ptf_questions')->pluck('name_es', 'id')->all();
         $severidades = $viejo->table('severities')->pluck('name', 'id')->all();
         $probabilidades = $viejo->table('probabilities')->pluck('name', 'id')->all();
 
         $this->recorrerFormato($viejo, 'f2_documents', $plantilla, function ($docs, $entregas) use (
-            $viejo, $campos, $preguntas, $severidades, $probabilidades
+            $viejo, $campos, $preguntas, $severidades, $probabilidades, $bandas
         ) {
             $ids = $docs->pluck('id')->all();
 
@@ -1608,7 +1611,7 @@ class MigrateLegacyDataCommand extends Command
                 $act = ($actividades[$d->id] ?? collect())->map(fn ($a) => (array) $a)->all();
                 $pel = collect($act)->flatMap(fn ($a) => ($peligros[$a['id']] ?? collect())->map(fn ($p) => (array) $p))->all();
 
-                foreach ($this->mapa->matrizDeRiesgo($act, $pel, $severidades, $probabilidades, 'f2_document_activity_id') as $i => $fila) {
+                foreach ($this->mapa->matrizDeRiesgo($act, $pel, $severidades, $probabilidades, 'f2_document_activity_id', $bandas) as $i => $fila) {
                     $respuestas[] = $this->respuesta($entregaId, $campos['matriz_de_riesgo'], $i, $fila, 'json');
                 }
             }
@@ -1781,6 +1784,21 @@ class MigrateLegacyDataCommand extends Command
         $this->linea($plantilla->code, $origen, $destino, "{$respuestasEscritas} respuestas escritas");
 
         $this->avisarDescartes($descartados, ['plan' => 'el plan del documento no esta migrado']);
+    }
+
+    /**
+     * Las bandas de riesgo que declara la plantilla («1-8 alto, 9-15 medio...»).
+     *
+     * Se leen una vez por formato y se le pasan al mapeador, para que cada fila
+     * migrada llegue con su banda puesta. Sin ellas la fila guarda el numero de
+     * la matriz y nada mas, que es como se quedaron las 3 657 matrices de la
+     * primera migracion: la pantalla las daba por «sin evaluar».
+     */
+    protected function bandasDeLaMatriz(FormTemplate $plantilla): array
+    {
+        $campo = $plantilla->fields()->where('field_type', 'risk_matrix')->first();
+
+        return FormFindingsService::bandasDe($campo->config ?? []);
     }
 
     /** Los campos de la plantilla, por codigo, para no buscarlos en cada fila. */

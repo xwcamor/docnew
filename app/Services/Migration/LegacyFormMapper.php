@@ -2,6 +2,8 @@
 
 namespace App\Services\Migration;
 
+use App\Services\FieldWork\FormFindingsService;
+
 /**
  * Traduce los formatos llenados de la v1 a respuestas del motor.
  *
@@ -40,13 +42,35 @@ class LegacyFormMapper
 
     /**
      * Las respuestas numericas de la v1 no significan lo mismo en cada formato,
-     * y en ningun caso son el indice de la lista de opciones. Salen de leer las
-     * vistas originales (show_pdf_page1.erb de cada formato), que es donde
-     * estaba escrito el significado:
+     * y en ningun caso son el indice de la lista de opciones.
      *
-     *   PTF: `if answer == 1` marca la casilla Si, `if answer == 0` la de No.
-     *   EPP: `when 1` conforme, `when 2` no conforme, `when 0` no aplica.
-     *   IHM: `when 1` cumple,   `when 2` no cumple,  `when 0` no aplica.
+     * **El 0 y el 2 estuvieron cambiados, y no es un detalle.** Lo saque de los
+     * comentarios del `case` de `show_pdf_page1.erb`, que dicen:
+     *
+     *     when 2 -> <!-- Opcion marcada como No -->
+     *     when 0 -> <!-- Opcion marcada como No Aplica -->
+     *
+     * y estan mal escritos. Lo que de verdad se imprimia son las imagenes del
+     * radio, y esas no mienten (`f4_documents/show.html.erb`):
+     *
+     *     .img0 { background-image: url(equis.png) }   <- radio_button :answer, 0
+     *     .img1 { background-image: url(check.png) }   <- radio_button :answer, 1
+     *     .img2 { background-image: url(minus.png) }   <- radio_button :answer, 2
+     *
+     * O sea: **0 es la equis (no conforme) y 2 es la raya (no aplica)**, al
+     * reves de lo que decia el comentario. Se confirma por partida doble con el
+     * contador de la v1, `F3Document#set_completed`, que hace
+     * `answers.count(0)` y llama a eso «errores»: si el 0 fuera «no aplica»
+     * estaria contando como observacion justo lo que no lo es.
+     *
+     * Lo que provocaba: cada item que en obra se marco «No aplica» salia en
+     * rojo como no conforme, y —peor— cada incumplimiento real salia en gris
+     * como si no aplicara. El sistema acusaba de lo que no fue y escondia lo
+     * que si.
+     *
+     *   PTF: `radio_button :answer, "1"` es Si (verde), `"0"` es No (rojo).
+     *   EPP: 1 conforme, 0 no conforme, 2 no aplica.
+     *   IHM: 1 cumple,   0 no cumple,   2 no aplica.
      *
      * Ojo: en IHM el catalogo de la plantilla nueva lista las opciones en el
      * orden 'No cumple, Cumple, No aplica'. Por eso aqui se guarda la etiqueta
@@ -54,8 +78,8 @@ class LegacyFormMapper
      * catalogo cambiaria el significado de lo ya firmado.
      */
     public const RESPUESTAS_PTF = [1 => 'Si', 0 => 'No'];
-    public const RESPUESTAS_EPP = [1 => 'Conforme', 2 => 'No conforme', 0 => 'No aplica'];
-    public const RESPUESTAS_IHM = [1 => 'Cumple', 2 => 'No cumple', 0 => 'No aplica'];
+    public const RESPUESTAS_EPP = [1 => 'Conforme', 0 => 'No conforme', 2 => 'No aplica'];
+    public const RESPUESTAS_IHM = [1 => 'Cumple', 0 => 'No cumple', 2 => 'No aplica'];
 
     /** Una respuesta sin valor se queda sin valor: no se inventa un "no aplica". */
     public function etiqueta(array $mapa, mixed $valor): ?string
@@ -86,6 +110,7 @@ class LegacyFormMapper
         array $severidades,
         array $probabilidades,
         string $claveActividad,
+        array $bandas = [],
     ): array {
         $porActividad = [];
 
@@ -113,6 +138,8 @@ class LegacyFormMapper
             }
 
             foreach ($suyos as $p) {
+                $valor = isset($p['risk_value']) ? (int) $p['risk_value'] : null;
+
                 $filas[] = [
                     'actividad'    => $a['name'],
                     'peligro'      => $p['name_danger'],
@@ -120,7 +147,12 @@ class LegacyFormMapper
                     'control'      => $p['name_control'],
                     'severidad'    => $severidades[(int) $p['severity_id']] ?? null,
                     'probabilidad' => $probabilidades[(int) $p['probability_id']] ?? null,
-                    'valor_riesgo' => isset($p['risk_value']) ? (int) $p['risk_value'] : null,
+                    'valor_riesgo' => $valor,
+                    // La banda, que es lo que se lee. Sin esto las 3 657
+                    // matrices migradas salian «0 de 8 peligros evaluados» con
+                    // los ocho evaluados en la v1, y sumaban cero observaciones:
+                    // un AST con peligros altos se leia como jornada limpia.
+                    'nivel'        => FormFindingsService::nivelDeRiesgo($valor, $bandas),
                 ];
             }
         }

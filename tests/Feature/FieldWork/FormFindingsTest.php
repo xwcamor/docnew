@@ -201,6 +201,62 @@ class FormFindingsTest extends TestCase
         $this->assertSame('na', $servicio->tono(null));
     }
 
+    /**
+     * Una fila migrada trae el numero y no la banda, y aun asi cuenta.
+     *
+     * La v1 guardaba `risk_value` y calculaba la banda al pintar
+     * (`Risk#level_name`), asi que las 3 657 matrices que trajo la migracion no
+     * tienen `nivel`. El contador lo exigia, con lo que **todos los AST y PTF
+     * migrados sumaban cero observaciones** por altos que fueran sus peligros, y
+     * la pantalla los daba por «Sin evaluar»: un AST con ocho peligros altos se
+     * leia como una jornada limpia.
+     */
+    public function test_un_peligro_migrado_sin_banda_se_cuenta_por_su_valor(): void
+    {
+        [$entrega] = $this->entregaAst();
+
+        $sinBanda = $this->filaRiesgo(4, 'alto');
+        unset($sinBanda['nivel']);
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => $sinBanda],
+        ]);
+
+        $this->assertSame(1, app(FormFindingsService::class)->contar($entrega->fresh()),
+            'un peligro con valor 4 es «alto» aunque la fila no lo diga con la palabra');
+    }
+
+    /**
+     * El servidor y la pantalla ponen la misma banda al mismo numero.
+     *
+     * `nivelDeRiesgo()` aqui y `nivelRiesgo()` de RiskMatrixField.vue son la
+     * misma regla escrita dos veces, una por lenguaje. Si una cambia y la otra
+     * no, la pantalla pinta «Riesgo bajo» mientras el contador suma una
+     * observacion por lo mismo.
+     */
+    public function test_el_nivel_se_calcula_igual_en_el_servidor_y_en_la_pantalla(): void
+    {
+        $bandas = [
+            ['hasta' => 8, 'clave' => 'alto'],
+            ['hasta' => 15, 'clave' => 'medio'],
+            ['hasta' => 25, 'clave' => 'bajo'],
+        ];
+
+        // Los bordes de cada banda, que es donde se rompen estas cosas.
+        $esperado = [1 => 'alto', 8 => 'alto', 9 => 'medio', 15 => 'medio', 16 => 'bajo', 25 => 'bajo'];
+
+        foreach ($esperado as $valor => $banda) {
+            $this->assertSame($banda, FormFindingsService::nivelDeRiesgo($valor, $bandas),
+                "el {$valor} cae en «{$banda}»");
+        }
+
+        // Sin valor no hay banda, y sin bandas declaradas tampoco se inventa
+        // ninguna: mejor «sin evaluar» que una banda a ojo.
+        $this->assertNull(FormFindingsService::nivelDeRiesgo(null, $bandas));
+        $this->assertNull(FormFindingsService::nivelDeRiesgo(0, $bandas));
+        $this->assertNull(FormFindingsService::nivelDeRiesgo(4, []));
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     protected function filaRiesgo(int $riesgo, string $nivel): array

@@ -24,15 +24,21 @@ use App\Models\FormSubmission;
  *   - **EPP y IHM** (`f3_document`, `f4_document`): cuenta las respuestas
  *     negativas, una por trabajador-item o herramienta-item.
  *
- * Lo que la v1 hacia y aqui NO se copia, a proposito:
+ * Aqui hubo un error MIO que conviene dejar escrito, porque casi se queda: este
+ * comentario decia que la v1 contaba mal —que `answers.count(0)` sumaba los «no
+ * aplica» y dejaba fuera los «no conforme»— y lo daba por un fallo de alla. No
+ * lo era. El 0 de la v1 **es** «no conforme»: el radio con valor 0 pinta
+ * `equis.png` (ver LegacyFormMapper), asi que `count(0)` contaba exactamente lo
+ * que tenia que contar. Quien tenia el 0 y el 2 cambiados era el migrador de
+ * aqui, y en vez de sospechar del propio codigo se escribio un parrafo
+ * explicando por que el sistema viejo estaba equivocado.
  *
- *   1. Alli el EPP y el IHM contaban las respuestas con valor `0`, que en el
- *      formulario es **«No aplica»**, y dejaban fuera el `2`, que es **«No
- *      conforme»**. Un item marcado «no aplica» sumaba observacion y uno marcado
- *      «no conforme» no. Es un error de la v1, no una regla: se cuenta lo que no
- *      esta conforme. Queda anotado en docs/COMPARACION-V1.md.
- *   2. El banco de preguntas del PTF no se cuenta, porque alli tampoco se
- *      contaba: `F2Document#set_completed` solo mira la matriz de riesgo.
+ * Cuando un sistema que lleva anios en produccion y el codigo nuevo no
+ * coinciden, el que suele estar mal es el nuevo.
+ *
+ * Lo que la v1 hacia y aqui NO se copia, a proposito: el banco de preguntas del
+ * PTF no se cuenta, porque alli tampoco se contaba — `F2Document#set_completed`
+ * solo mira la matriz de riesgo.
  *
  * Lo que se cuenta NO bloquea nada. En la v1 tampoco: `lock_plan_if_all_-
  * conditions_met` solo exige `date_end` y las aprobaciones obligatorias
@@ -107,8 +113,18 @@ class FormFindingsService
     {
         $nivel = $fila['nivel'] ?? null;
 
-        // Sin nivel no hay peligro evaluado: una fila a medias no es una no
-        // conformidad, es un campo sin llenar, y de eso se ocupa `faltantes()`.
+        // Si la fila no trae el nivel pero si el valor, se deduce. Las 3 657
+        // matrices migradas estan asi: el migrador copiaba `risk_value` de la
+        // v1 y no escribia la banda, con lo que salian «Sin evaluar» en
+        // pantalla y sumaban cero observaciones — un AST con ocho peligros
+        // altos se leia como una jornada limpia.
+        if (! is_string($nivel) || $nivel === '') {
+            $nivel = self::nivelDeRiesgo($fila['valor_riesgo'] ?? null, self::bandasDe($config));
+        }
+
+        // Sin nivel Y sin valor no hay peligro evaluado: una fila a medias no
+        // es una no conformidad, es un campo sin llenar, y de eso se ocupa
+        // `faltantes()`.
         if (! is_string($nivel) || $nivel === '') {
             return false;
         }
@@ -120,6 +136,45 @@ class FormFindingsService
             : 'bajo';
 
         return $nivel !== $tolerable;
+    }
+
+    /** Las bandas de la plantilla, se llamen como se llamen. */
+    public static function bandasDe(array $config): array
+    {
+        $bandas = $config['levels'] ?? $config['niveles'] ?? null;
+
+        return is_array($bandas) ? $bandas : [];
+    }
+
+    /**
+     * En que banda cae un valor de la matriz.
+     *
+     * El nivel es un DERIVADO del valor y de las bandas de la plantilla, no un
+     * dato por si mismo: `1-8 alto, 9-15 medio, 16-25 bajo` en la matriz de la
+     * v1 (`Risk#level_name`). Por eso se puede reconstruir de una fila que solo
+     * guarde el numero, que es como llegaron las migradas.
+     *
+     * Es la misma regla que `nivelRiesgo()` de RiskMatrixField.vue, que la pinta.
+     * La prueba `test_el_nivel_se_calcula_igual_en_el_servidor_y_en_la_pantalla`
+     * compara las dos.
+     */
+    public static function nivelDeRiesgo(mixed $valor, array $bandas): ?string
+    {
+        if (! is_numeric($valor) || (int) $valor <= 0) {
+            return null;
+        }
+
+        $valor = (int) $valor;
+
+        foreach ($bandas as $banda) {
+            if (isset($banda['hasta']) && $valor <= (int) $banda['hasta']) {
+                return $banda['clave'] ?? null;
+            }
+        }
+
+        // Sin bandas declaradas no se inventa ninguna: mejor «sin evaluar» que
+        // una banda a ojo en un documento de seguridad.
+        return $bandas === [] ? null : (end($bandas)['clave'] ?? null);
     }
 
     /** @param array<int, mixed> $items */

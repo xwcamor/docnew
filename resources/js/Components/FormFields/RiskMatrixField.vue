@@ -151,11 +151,28 @@ function quitar(indice) {
  */
 const TONO_NIVEL = { alto: 'bad', medio: 'warn', bajo: 'ok' };
 
-const estados = computed(() => filas.value.map((fila) => (
-    fila?.nivel
-        ? { clave: TONO_NIVEL[fila.nivel] ?? 'off', texto: t(`field_work.risk_matrix.level_${fila.nivel}`) }
-        : { clave: 'off', texto: t('field_work.risk_matrix.no_risk') }
-)));
+/**
+ * La banda de una fila, tambien cuando la fila no la trae escrita.
+ *
+ * Es el caso de TODO lo migrado. La v1 guardaba `risk_value` y calculaba la
+ * banda al pintar (`Risk#level_name`), asi que las filas que trajo la migracion
+ * tienen el numero y no la palabra: salian «Sin evaluar» las ocho de ocho, con
+ * el resumen en «0 de 8 peligros evaluados». En un documento de seguridad eso
+ * no es un detalle de pantalla — dice que nadie evaluo los peligros de esa
+ * jornada, y era mentira.
+ *
+ * Se deduce al leer y no se guarda: el nivel es un derivado del valor y de las
+ * bandas de la plantilla, y guardarlo aparte es tener dos verdades.
+ */
+const nivelDe = (fila) => fila?.nivel || nivelRiesgo(fila?.valor_riesgo);
+
+const estados = computed(() => filas.value.map((fila) => {
+    const nivel = nivelDe(fila);
+
+    return nivel
+        ? { clave: TONO_NIVEL[nivel] ?? 'off', texto: t(`field_work.risk_matrix.level_${nivel}`) }
+        : { clave: 'off', texto: t('field_work.risk_matrix.no_risk') };
+}));
 
 /** Actividad → peligro, que es como se lee una fila del AST de papel. */
 function titulo(fila, i) {
@@ -171,8 +188,8 @@ const resumenFilas = computed(() => filas.value.map((fila, i) => ({
     stateText: estados.value[i].texto,
 })));
 
-const evaluadas = computed(() => filas.value.filter((f) => f?.nivel).length);
-const porNivel = (nivel) => filas.value.filter((f) => f?.nivel === nivel).length;
+const evaluadas = computed(() => filas.value.filter((f) => nivelDe(f)).length);
+const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).length;
 </script>
 
 <template>
@@ -214,8 +231,8 @@ const porNivel = (nivel) => filas.value.filter((f) => f?.nivel === nivel).length
 
                 <span class="ff-row__title">{{ titulo(fila, i) }}</span>
 
-                <span v-if="fila.nivel" class="ff-risk" :class="`is-${fila.nivel}`">
-                    {{ $t(`field_work.risk_matrix.level_${fila.nivel}`) }} · {{ fila.valor_riesgo }}
+                <span v-if="nivelDe(fila)" class="ff-risk" :class="`is-${nivelDe(fila)}`">
+                    {{ $t(`field_work.risk_matrix.level_${nivelDe(fila)}`) }} · {{ fila.valor_riesgo }}
                 </span>
                 <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
             </button>
