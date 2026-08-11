@@ -22,7 +22,7 @@ return [
     // ── Campos ──────────────────────────────────────────────────────────────
     'code'                 => 'Código',
     'num_os'               => 'Orden de servicio',
-    'num_os_help'          => 'Número de la orden de servicio del cliente, si la hay.',
+    'num_os_help'          => 'Número de la orden de servicio del cliente.',
     'num_os_placeholder'   => 'Ej: OS-2024-1187',
     'description'          => 'Descripción del trabajo',
     'description_help'     => 'Qué se va a hacer, en las palabras del supervisor. Es lo que se busca cuando no se recuerda el código.',
@@ -317,6 +317,17 @@ return [
 
     // Lo que le falta al plan para cerrarse solo. Las dos condiciones del
     // sistema anterior, ni una más.
+    'close_needs_corrections' => '{1} Verificar la corrección de 1 observación.|[2,*] Verificar la corrección de :count observaciones.',
+    'close_still_missing' => 'Todavía no se puede dar por terminado. Falta: :fields',
+    'reopened' => 'Plan reabierto: ya puedes corregirlo. Cuando acabes, pulsa «Dar por terminado».',
+    'marked_done' => 'Plan dado por terminado.',
+    'state_reopened' => 'Reabierto',
+    'reopen' => 'Reabrir',
+    'reopen_hint' => 'Deja editables otra vez el plan, sus trabajadores, sus formatos y su representante. Queda anotado quién lo reabrió.',
+    'reopen_confirm' => 'El plan volverá a estar en curso y se podrá modificar. Queda registrado quién lo reabrió y cuándo.',
+    'mark_done' => 'Dar por terminado',
+    'mark_done_hint' => 'Vuelve a cerrar el plan, si ya no falta nada.',
+    'reopened_by' => 'Reabierto por :name el :when',
     'close_needs_date_end'  => 'Falta la hora de fin del trabajo.',
     // Literalmente los mensajes de la v1: «Debe tener al menos 1 trabajador» /
     // «...1 documento». Allí impedían guardar; aquí impiden cerrar, porque el

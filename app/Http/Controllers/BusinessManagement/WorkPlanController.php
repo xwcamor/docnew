@@ -19,6 +19,7 @@ use App\Jobs\BusinessManagement\WorkPlans\GenerateWorkPlansPdfJob;
 use App\Jobs\BusinessManagement\WorkPlans\GenerateWorkPlansWordJob;
 use App\Models\AuditLog;
 use App\Models\WorkPlan;
+use App\Services\BusinessManagement\WorkPlanCompletionService;
 use App\Services\BusinessManagement\WorkPlanService;
 use App\Support\PrivateInfo;
 use Illuminate\Http\RedirectResponse;
@@ -39,6 +40,40 @@ class WorkPlanController extends Controller
     public function unlock(Request $request, WorkPlan $workPlan): RedirectResponse
     {
         return $this->applyUnlock($workPlan, $request);
+    }
+
+    /**
+     * Reabre un plan terminado para poder corregirlo.
+     *
+     * No es el candado administrativo —ese ya no sale en la ficha del plan—:
+     * esto devuelve el plan a «en curso» de verdad, y con el vuelven a estar
+     * editables sus trabajadores, sus formatos, su representante y el propio
+     * formulario. Queda anotado quien lo hizo y cuando.
+     *
+     * Va con `work_plans.edit`, el mismo permiso con el que se arma el plan:
+     * quien puede montarlo puede corregirlo. Lo que no puede nadie es tocarlo
+     * mientras esta terminado sin pasar por aqui, que es el punto.
+     */
+    public function reopen(WorkPlan $workPlan, WorkPlanCompletionService $cierre): RedirectResponse
+    {
+        $cierre->reabrir($workPlan);
+
+        return back()->with('success', __('work_plans.reopened'));
+    }
+
+    /**
+     * «Ya termine de corregir»: levanta la suspension y vuelve a evaluar.
+     *
+     * Si todavia falta algo no cierra y se dice que falta. La alternativa
+     * —cerrar igual— seria dar por bueno un documento incompleto porque alguien
+     * pulso un boton, que es justo lo que el cierre automatico existe para
+     * evitar.
+     */
+    public function markDone(WorkPlan $workPlan, WorkPlanCompletionService $cierre): RedirectResponse
+    {
+        $cierre->darPorTerminado($workPlan);
+
+        return back()->with('success', __('work_plans.marked_done'));
     }
 
     public function index(Request $request)
@@ -212,7 +247,11 @@ class WorkPlanController extends Controller
         return inertia('WorkPlans/Show', [
             'workPlan' => array_merge(
                 $this->payload($workPlan, withAudit: true),
-                ['lock' => $this->lockMeta($workPlan, $request)],
+                [
+                    'lock'        => $this->lockMeta($workPlan, $request),
+                    'reopened_at' => $workPlan->reopened_at,
+                    'reopened_by' => $workPlan->reopenedBy?->name,
+                ],
             ),
             'recordAudit'  => $this->recordAuditMeta($workPlan),
             'activity'     => $activity,

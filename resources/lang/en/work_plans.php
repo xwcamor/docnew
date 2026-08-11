@@ -22,7 +22,7 @@ return [
     // ── Fields ──────────────────────────────────────────────────────────────
     'code'                 => 'Code',
     'num_os'               => 'Service order',
-    'num_os_help'          => "Customer's service order number, if any.",
+    'num_os_help'          => "Customer's service order number.",
     'num_os_placeholder'   => 'E.g.: OS-2024-1187',
     'description'          => 'Work description',
     'description_help'     => "What is going to be done, in the supervisor's own words. This is what people search when they cannot recall the code.",
@@ -305,6 +305,17 @@ return [
 
     // What the plan still needs to close itself. The previous system's two
     // conditions, and no others.
+    'close_needs_corrections' => '{1} Verify the fix for 1 finding.|[2,*] Verify the fix for :count findings.',
+    'close_still_missing' => 'It cannot be marked as done yet. Still missing: :fields',
+    'reopened' => 'Plan reopened: you can correct it now. When you are done, press “Mark as done”.',
+    'marked_done' => 'Plan marked as done.',
+    'state_reopened' => 'Reopened',
+    'reopen' => 'Reopen',
+    'reopen_hint' => 'Makes the plan, its workers, its forms and its representative editable again. Who reopened it is recorded.',
+    'reopen_confirm' => 'The plan goes back to in progress and can be modified. Who reopened it and when is recorded.',
+    'mark_done' => 'Mark as done',
+    'mark_done_hint' => 'Closes the plan again, if nothing is missing.',
+    'reopened_by' => 'Reopened by :name on :when',
     'close_needs_date_end'  => 'The end time of the work is missing.',
     // The v1 messages, word for word. There they blocked saving; here they
     // block closing, because the plan is assembled after it is created.

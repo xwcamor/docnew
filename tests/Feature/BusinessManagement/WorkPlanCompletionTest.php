@@ -249,6 +249,178 @@ class WorkPlanCompletionTest extends TestCase
         ], $falta);
     }
 
+    // ── Observaciones sin corregir ───────────────────────────────────────────
+
+    /**
+     * Una observacion sin verificar impide cerrar. Verificada, no.
+     *
+     * Es la regla que pidio el dueno del producto —«los formatos completados
+     * SIN ADVERTENCIAS»— leida de la unica forma que funciona en obra. «Cero
+     * observaciones» seria una trampa: el dia que encuentras un arnes roto ese
+     * plan no cerraria nunca, ni cambiando el arnes. La v1 cerraba igual con
+     * observaciones y asi se cerraron 3 297 de 3 653 planes.
+     *
+     * Encontrar un problema no atrapa el plan. No arreglarlo, si.
+     */
+    public function test_una_observacion_sin_verificar_impide_cerrar_y_verificada_no(): void
+    {
+        $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
+        $this->aprobacion($plan, obligatoria: true, firmada: true);
+
+        [$entrega, $campo] = $this->conChecklist($plan);
+
+        // Un trabajador con el casco no conforme y sin decir que se corrigio.
+        $fila = fn (?string $verificacion) => [
+            'person_name' => 'Ana Quispe',
+            'items' => [['item' => 'Casco', 'answer' => 'No conforme']],
+            'correction_measure' => 'Se entrega casco nuevo',
+            'correction_verification' => $verificacion,
+        ];
+
+        $entrega->answers()->create([
+            'slug' => Str::random(22), 'form_field_id' => $campo->id, 'row_index' => 0,
+            'value_json' => $fila(null), 'tenant_id' => 1, 'created_by' => 1,
+        ]);
+
+        $this->assertContains(
+            trans_choice('work_plans.close_needs_corrections', 1, ['count' => 1]),
+            $this->cierre->loQueFalta($plan->refresh()),
+            'una observacion sin verificar tiene que impedir el cierre',
+        );
+        $this->assertFalse($this->cierre->evaluar($plan));
+
+        // Se verifica la correccion: ya se puede cerrar.
+        $entrega->answers()->first()->update(['value_json' => $fila('Verificado por el supervisor')]);
+
+        $this->assertSame([], $this->cierre->loQueFalta($plan->refresh()));
+        $this->assertTrue($this->cierre->evaluar($plan));
+    }
+
+    /** Un formato conforme no pide verificar nada. */
+    public function test_un_formato_conforme_no_bloquea_el_cierre(): void
+    {
+        $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
+        $this->aprobacion($plan, obligatoria: true, firmada: true);
+
+        [$entrega, $campo] = $this->conChecklist($plan);
+
+        $entrega->answers()->create([
+            'slug' => Str::random(22), 'form_field_id' => $campo->id, 'row_index' => 0,
+            'value_json' => ['person_name' => 'Ana Quispe',
+                             'items' => [['item' => 'Casco', 'answer' => 'Conforme']]],
+            'tenant_id' => 1, 'created_by' => 1,
+        ]);
+
+        $this->assertSame([], $this->cierre->loQueFalta($plan->refresh()));
+    }
+
+    // ── Reabrir y volver a cerrar ────────────────────────────────────────────
+
+    /**
+     * Un plan reabierto NO se vuelve a cerrar solo.
+     *
+     * Es la pieza que hace que «Reabrir» sirva para algo. Las condiciones se
+     * siguen cumpliendo —por eso estaba cerrado—, asi que sin la suspension la
+     * primera evaluacion que pase, que es el propio guardado que viene detras,
+     * lo cierra otra vez: entras a corregir y te expulsa.
+     */
+    public function test_un_plan_reabierto_no_se_cierra_solo_aunque_no_le_falte_nada(): void
+    {
+        $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
+        $this->aprobacion($plan, obligatoria: true, firmada: true);
+
+        $this->assertTrue($this->cierre->evaluar($plan));
+
+        $this->cierre->reabrir($plan->refresh());
+        $plan->refresh();
+
+        $this->assertFalse($plan->is_closed, 'reabrir tiene que dejar el plan en curso');
+        $this->assertNotNull($plan->reopened_at);
+
+        // Y aqui esta la clave: no le falta NADA y aun asi no se cierra.
+        $this->assertSame([], $this->cierre->loQueFalta($plan));
+        $this->assertFalse($this->cierre->evaluar($plan), 'el plan reabierto se cerro solo');
+        $this->assertFalse($plan->refresh()->is_closed);
+    }
+
+    /** «Dar por terminado» levanta la suspension y vuelve a cerrar. */
+    public function test_dar_por_terminado_vuelve_a_cerrar_el_plan(): void
+    {
+        $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
+        $this->aprobacion($plan, obligatoria: true, firmada: true);
+        $this->cierre->evaluar($plan);
+        $this->cierre->reabrir($plan->refresh());
+
+        $this->cierre->darPorTerminado($plan->refresh());
+
+        $plan->refresh();
+        $this->assertTrue($plan->is_closed);
+        $this->assertNull($plan->reopened_at, 'la marca de reabierto tiene que irse al cerrar');
+    }
+
+    /**
+     * Y si todavia falta algo, no cierra y lo dice.
+     *
+     * La alternativa —cerrar igual porque alguien pulso el boton— seria dar por
+     * bueno un documento incompleto, que es justo lo que el cierre automatico
+     * existe para evitar.
+     */
+    public function test_dar_por_terminado_con_algo_pendiente_avisa_y_no_cierra(): void
+    {
+        $plan = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($plan);
+        $this->aprobacion($plan, obligatoria: true, firmada: true);
+        $this->cierre->evaluar($plan);
+        $this->cierre->reabrir($plan->refresh());
+
+        // Se le quita la hora de fin: ya falta algo.
+        $plan->updateQuietly(['date_end' => null]);
+
+        try {
+            $this->cierre->darPorTerminado($plan->refresh());
+            $this->fail('deberia haber avisado de que falta la hora de fin');
+        } catch (\DomainException $e) {
+            // Contra la traduccion, no contra una palabra suelta: las pruebas
+            // corren en ingles (`config/app.php`) y buscar «fin» aqui hace que
+            // pase o falle segun el idioma, no segun el codigo.
+            $this->assertStringContainsString(__('work_plans.close_needs_date_end'), $e->getMessage());
+        }
+
+        $this->assertFalse($plan->refresh()->is_closed);
+        $this->assertNotNull($plan->refresh()->reopened_at, 'la suspension no se levanta si no cierra');
+    }
+
+    /**
+     * Un campo de checklist en la plantilla del plan, para poder guardarle una
+     * fila no conforme. La plantilla del fixture nace sin campos: aqui solo
+     * hace falta uno, y del tipo que lleva `items`.
+     *
+     * @return array{0: \App\Models\FormSubmission, 1: \App\Models\FormField}
+     */
+    private function conChecklist(WorkPlan $plan): array
+    {
+        $entrega = $plan->submissions()->first();
+
+        $seccion = \App\Models\FormSection::create([
+            'slug' => Str::random(22), 'form_template_id' => $entrega->form_template_id,
+            'code' => 'epp', 'position' => 1, 'tenant_id' => 1, 'created_by' => 1,
+        ]);
+
+        $campo = \App\Models\FormField::create([
+            'slug' => Str::random(22), 'form_template_id' => $entrega->form_template_id,
+            'form_section_id' => $seccion->id, 'code' => 'epp_por_trabajador',
+            'field_type' => 'person_checklist', 'is_required' => false, 'position' => 1,
+            'config' => ['items' => ['Casco'], 'answers' => ['Conforme', 'No conforme', 'No aplica']],
+            'tenant_id' => 1, 'created_by' => 1,
+        ]);
+
+        return [$entrega, $campo];
+    }
+
     // ── apoyo ────────────────────────────────────────────────────────────────
 
     private function base(): array

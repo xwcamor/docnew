@@ -1,13 +1,14 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, router } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert, Button, Segmented, Tooltip,
+    Card, Tag, Space, Alert, Button, Segmented, Tooltip, Modal,
 } from 'ant-design-vue';
 import {
     ScheduleOutlined, LockOutlined, ToolOutlined, FormOutlined, IdcardOutlined,
     BankOutlined, EnvironmentOutlined, CalendarOutlined, DashboardOutlined,
     CheckCircleFilled, ExclamationCircleFilled, HourglassOutlined, DownloadOutlined,
+    UnlockOutlined,
 } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -87,12 +88,52 @@ const canSetup = computed(() => props.setup?.can && !isDeleted.value);
  * `docs/UI.md` §6: un botón que falla al pulsarlo es peor que un botón que no
  * está.
  *
- * Son dos candados distintos y los dos cuentan: `is_closed` (el plan terminó) y
- * el candado administrativo del trait Lockable, que ya mira `EntityShowActions`
- * por su cuenta a través de `lock`.
+ * Un solo candado: `is_closed`. El administrativo ya no llega a esta pantalla.
  */
 const puedeEditar = computed(() => can('work_plans.edit') && !props.workPlan.is_closed);
 const puedeBorrar = computed(() => can('work_plans.delete') && !props.workPlan.is_closed);
+
+/**
+ * Dos estados, y se calculan. No hay tercero.
+ *
+ * Aqui habia TRES banderas —`is_closed`, `is_done` y el `locked_at` del candado
+ * administrativo— y para poder editar hacian falta las tres abiertas. Pero el
+ * boton de la ficha solo movia la tercera, asi que desbloquear un plan
+ * terminado no desbloqueaba nada: el dueno del producto lo probo y se quedo sin
+ * poder tocar el plan, sin ninguna forma de arreglarlo.
+ *
+ * El candado administrativo sale de esta pantalla. Un plan terminado ya se
+ * protege solo; lo que lo reabre es «Reabrir», que ademas deja rastro.
+ */
+const terminado = computed(() => props.workPlan.is_done || props.workPlan.is_closed);
+
+/**
+ * Un solo control cada vez, y siempre el que manda.
+ *
+ * El candado administrativo (Lockable) sigue existiendo y sigue protegiendo la
+ * edicion y el borrado masivos — no era un mecanismo de mentira—. Lo que estaba
+ * mal es que su boton salia SIEMPRE, tambien cuando el plan estaba terminado, y
+ * entonces era el boton equivocado: se desbloqueaba y el plan seguia intocable
+ * porque lo que lo bloqueaba era su estado.
+ *
+ * Con el plan terminado sale «Reabrir» y el candado no se enseña. Con el plan
+ * en curso sale el candado, que ahi si es lo unico que puede estar
+ * bloqueandolo. Nunca los dos.
+ */
+const candadoAdministrativo = computed(() => (terminado.value ? null : props.workPlan.lock));
+const reabierto = computed(() => !!props.workPlan.reopened_at);
+
+const reabrir = () => Modal.confirm({
+    title: t('work_plans.reopen'),
+    content: t('work_plans.reopen_confirm'),
+    okText: t('work_plans.reopen'),
+    cancelText: t('global.cancel'),
+    onOk: () => router.post(route('business_management.work_plans.reopen', props.workPlan.slug), {},
+        { preserveScroll: true }),
+});
+
+const darPorTerminado = () => router.post(
+    route('business_management.work_plans.mark_done', props.workPlan.slug), {}, { preserveScroll: true });
 
 // ── Las dos vistas ───────────────────────────────────────────────────────────
 // El dueño pidió abrir por el resumen y poder saltar a la lista completa. La
@@ -281,6 +322,16 @@ const irAlRepresentante = () => {
                     <Tag v-if="workPlan.is_closed" color="gold" :bordered="false">
                         <LockOutlined /> {{ $t('work_plans.state_closed') }}
                     </Tag>
+
+                    <!-- Reabierto: en curso, pero no porque falte algo — porque
+                         alguien lo abrio para corregirlo. Se dice quien, que es
+                         lo que hay que poder explicar despues. -->
+                    <Tag v-if="reabierto" color="processing" :bordered="false">
+                        <UnlockOutlined />
+                        {{ workPlan.reopened_by
+                            ? $t('work_plans.reopened_by', { name: workPlan.reopened_by, when: fmtMoment(workPlan.reopened_at) })
+                            : $t('work_plans.state_reopened') }}
+                    </Tag>
                     <span v-if="workPlan.company" class="muted">{{ workPlan.company.name }}</span>
                 </Space>
             </template>
@@ -315,8 +366,25 @@ const irAlRepresentante = () => {
                     :can-see-audit="canSeeAudit"
                     :is-super="isSuper"
                     :is-global="workPlan.tenant_id === null"
-                    :lock="workPlan.lock"
+                    :lock="candadoAdministrativo"
                 />
+
+                <!-- Reabrir un plan terminado, o volver a cerrarlo.
+                     Sale uno o el otro, nunca los dos: son los dos unicos
+                     estados que tiene un plan. -->
+                <Tooltip v-if="terminado && can('work_plans.edit')" :title="$t('work_plans.reopen_hint')">
+                    <Button @click="reabrir">
+                        <template #icon><UnlockOutlined /></template>
+                        {{ $t('work_plans.reopen') }}
+                    </Button>
+                </Tooltip>
+
+                <Tooltip v-else-if="reabierto && can('work_plans.edit')" :title="$t('work_plans.mark_done_hint')">
+                    <Button type="primary" @click="darPorTerminado">
+                        <template #icon><CheckCircleFilled /></template>
+                        {{ $t('work_plans.mark_done') }}
+                    </Button>
+                </Tooltip>
             </template>
         </SectionHeader>
 

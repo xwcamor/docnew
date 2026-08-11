@@ -3,6 +3,7 @@
 namespace App\Services\BusinessManagement;
 
 use App\Models\WorkPlan;
+use App\Services\FieldWork\FormFindingsService;
 
 /**
  * El plan se cierra solo cuando ya no falta nada.
@@ -43,6 +44,21 @@ class WorkPlanCompletionService
             return false;
         }
 
+        // Un plan reabierto a mano NO se vuelve a cerrar solo.
+        //
+        // Sin esto, reabrir es un boton que no sirve: las condiciones se siguen
+        // cumpliendo —por eso estaba cerrado— asi que la primera evaluacion que
+        // pase, que es el propio guardado que viene detras, lo cierra otra vez.
+        // Entras a corregir y te expulsa.
+        //
+        // La marca la quita «Dar por terminado», que es quien decide que ya se
+        // acabo de corregir. Mientras tanto el plan se queda en curso y el
+        // listado lo ensena como tal, que es la verdad: alguien esta trabajando
+        // en el.
+        if ($plan->reopened_at !== null) {
+            return false;
+        }
+
         if (! $this->puedeCerrarse($plan)) {
             return false;
         }
@@ -50,6 +66,51 @@ class WorkPlanCompletionService
         $plan->updateQuietly(['is_closed' => true, 'is_done' => true]);
 
         return true;
+    }
+
+    /**
+     * Vuelve a abrir un plan terminado, para poder corregirlo.
+     *
+     * Deja rastro de quien y cuando: un plan terminado es el documento que
+     * acaba delante de un inspector, y que alguien lo haya reabierto despues es
+     * justo lo que hay que poder explicar.
+     */
+    public function reabrir(WorkPlan $plan): void
+    {
+        if (! $plan->is_closed && ! $plan->is_done) {
+            return;   // ya estaba abierto: no hay nada que reabrir
+        }
+
+        $plan->update([
+            'is_closed'   => false,
+            'is_done'     => false,
+            'reopened_at' => now(),
+            'reopened_by' => auth()->id(),
+        ]);
+    }
+
+    /**
+     * Levanta la suspension y vuelve a evaluar.
+     *
+     * Es la contraparte de `reabrir()`: dice «ya termine de corregir». Si
+     * todavia falta algo no cierra —lo decide `loQueFalta()`, no este boton— y
+     * se avisa de que falta, en vez de dejar el plan en un limbo silencioso.
+     *
+     * @throws \DomainException si el plan todavia no esta completo
+     */
+    public function darPorTerminado(WorkPlan $plan): void
+    {
+        $falta = $this->loQueFalta($plan);
+
+        if ($falta !== []) {
+            throw new \DomainException(__('work_plans.close_still_missing', [
+                'fields' => implode(' · ', $falta),
+            ]));
+        }
+
+        $plan->update(['reopened_at' => null, 'reopened_by' => null]);
+
+        $this->evaluar($plan->refresh());
     }
 
     /**
@@ -135,6 +196,24 @@ class WorkPlanCompletionService
             }
         }
 
+        // Lo que salio mal y sigue sin arreglarse.
+        //
+        // Decision del dueno del producto: un plan no se da por terminado con
+        // una observacion viva. Pero la regla NO es «cero observaciones» —eso
+        // seria una trampa: el dia que encuentras un arnes roto ese plan no
+        // cerraria nunca, ni cambiando el arnes. La v1 cerraba igual con
+        // observaciones y asi se cerraron 3 297 de 3 653 planes.
+        //
+        // Lo que bloquea es la observacion **cuya correccion no esta
+        // verificada**. Encontrar un problema no atrapa el plan; no arreglarlo,
+        // si. Para eso existe el campo «verificacion de la correccion», que ya
+        // venia de la v1 y hasta ahora no decidia nada.
+        $sinCorregir = $this->observacionesSinVerificar($plan);
+
+        if ($sinCorregir > 0) {
+            $falta[] = trans_choice('work_plans.close_needs_corrections', $sinCorregir, ['count' => $sinCorregir]);
+        }
+
         $pendientes = $plan->approvals()
             ->where('is_required', true)
             ->where('is_approved', false)
@@ -145,5 +224,70 @@ class WorkPlanCompletionService
         }
 
         return $falta;
+    }
+
+    /**
+     * Cuantas filas salieron no conformes y no dicen que se hayan corregido.
+     *
+     * Se mira fila a fila y no el contador `nonconformities` de la entrega,
+     * porque la correccion tambien es por fila: en un EPP la lleva el
+     * trabajador al que le falto algo, y en un IHM la herramienta. Un formato
+     * con dos observaciones puede tener una verificada y la otra no.
+     *
+     * Cuenta como verificada cualquier cosa escrita en el campo: es texto libre
+     * —«Se entrega guante nuevo, verificado por el supervisor»— y quien lo
+     * escribe esta afirmando que lo comprobo. Exigir un formato concreto aqui
+     * seria inventarse una regla que en obra nadie sigue.
+     */
+    protected function observacionesSinVerificar(WorkPlan $plan): int
+    {
+        $entregas = $plan->submissions()->with('answers')->get();
+
+        $sinVerificar = 0;
+
+        foreach ($entregas as $entrega) {
+            foreach ($entrega->answers as $respuesta) {
+                $fila = $respuesta->value_json;
+
+                if (! is_array($fila)) {
+                    continue;
+                }
+
+                if (! $this->filaNoConforme($fila)) {
+                    continue;
+                }
+
+                if (blank($fila['correction_verification'] ?? null)) {
+                    $sinVerificar++;
+                }
+            }
+        }
+
+        return $sinVerificar;
+    }
+
+    /**
+     * Si esta fila de un checklist salio no conforme.
+     *
+     * La regla de que respuesta es mala vive en un solo sitio —
+     * `FormFindingsService::tono()`— y aqui se usa esa, no una copia.
+     */
+    protected function filaNoConforme(array $fila): bool
+    {
+        $items = $fila['items'] ?? null;
+
+        if (! is_array($items)) {
+            return false;
+        }
+
+        $findings = app(\App\Services\FieldWork\FormFindingsService::class);
+
+        foreach ($items as $item) {
+            if (is_array($item) && $findings->tono($item['answer'] ?? null) === FormFindingsService::MALA) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

@@ -471,6 +471,20 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::get('work_plans/{workPlan}/edit', [WorkPlanController::class, 'edit'])->name('work_plans.edit');
         Route::put('work_plans/{workPlan}',      [WorkPlanController::class, 'update'])->name('work_plans.update');
     });
+
+    // Reabrir un plan terminado y volver a darlo por terminado.
+    //
+    // NO es el candado administrativo (`lock`/`unlock`, mas abajo): esto mueve
+    // el ESTADO del plan, que es lo que decide si sus trabajadores, sus
+    // formatos y su representante se pueden tocar.
+    //
+    // Va con `work_plans.edit` y no con `role:super|admin` porque quien arma el
+    // plan es quien tiene que poder corregirlo: un supervisor de obra que se
+    // equivoco en una hora no deberia necesitar a un administrador.
+    Route::middleware('permission:work_plans.edit')->group(function () {
+        Route::post('work_plans/{workPlan}/reopen',    [WorkPlanController::class, 'reopen'])->name('work_plans.reopen');
+        Route::post('work_plans/{workPlan}/mark_done', [WorkPlanController::class, 'markDone'])->name('work_plans.mark_done');
+    });
     Route::middleware('permission:work_plans.delete')->group(function () {
         Route::get('work_plans/{workPlan}/delete',        [WorkPlanController::class, 'delete'])->name('work_plans.delete');
         Route::delete('work_plans/{workPlan}/deleteSave', [WorkPlanController::class, 'deleteSave'])->name('work_plans.deleteSave');
@@ -480,6 +494,7 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     Route::middleware('role:super|admin')->group(function () {
         Route::post('work_plans/{workPlan}/lock',   [WorkPlanController::class, 'lock'])->name('work_plans.lock');
         Route::post('work_plans/{workPlan}/unlock', [WorkPlanController::class, 'unlock'])->name('work_plans.unlock');
+
     });
 
     // 6) Composición del plan: cuadrilla, formatos exigidos y aprobadores.

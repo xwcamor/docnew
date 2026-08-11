@@ -227,7 +227,7 @@ class WorkPlan extends Model
         'slug', 'country_id', 'company_id', 'crew_representative_person_id',
         'work_type_id', 'work_location_id',
         'workstation_id', 'work_area_id', 'user_id', 'code', 'num_os', 'description',
-        'date_start', 'date_end', 'is_closed', 'is_done', 'legacy_id',
+        'date_start', 'date_end', 'is_closed', 'is_done', 'reopened_at', 'reopened_by', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
@@ -236,7 +236,7 @@ class WorkPlan extends Model
     // una de otra sale el «Tiempo Trabajado» que la ficha enseñaba. Se
     // serializan sin zona (Y-m-d H:i) porque son la hora de la obra, no un
     // instante UTC que el navegador deba reinterpretar.
-    protected $casts = ['is_closed' => 'boolean', 'is_done' => 'boolean',
+    protected $casts = ['is_closed' => 'boolean', 'is_done' => 'boolean', 'reopened_at' => 'datetime',
                         'date_start' => 'datetime:Y-m-d H:i', 'date_end' => 'datetime:Y-m-d H:i'];
 
     public function country() { return $this->belongsTo(Country::class); }
@@ -258,8 +258,32 @@ class WorkPlan extends Model
      * aprobadores). Un plan cerrado, terminado o con candado administrativo ya
      * es un documento del archivo: se consulta, no se arma.
      */
+    /** Quien reabrio el plan, para poder decirlo en la ficha. */
+    public function reopenedBy()
+    {
+        return $this->belongsTo(User::class, 'reopened_by');
+    }
+
     public function isOpenForSetup(): bool
     {
+        // Dos cosas distintas bloquean un plan, y las dos siguen contando:
+        //
+        //   `is_closed`/`is_done` — el plan termino. Es su ciclo de vida, se
+        //       calcula solo, y lo reabre «Reabrir».
+        //   `locked_at`           — un administrador congelo el registro. Es el
+        //       trait Lockable, que existe en todo el sistema y ademas protege
+        //       la edicion y el borrado masivos.
+        //
+        // Lo que estaba mal NO era que hubiera dos: era que la ficha enseñaba
+        // el boton del segundo mientras el que bloqueaba de verdad era el
+        // primero. El dueno del producto cerro un plan terminado, lo
+        // desbloqueo, y seguia sin poder tocar nada — estaba quitando el
+        // candado que no era, y del otro no habia forma de salir.
+        //
+        // La regla ahora es de PANTALLA y esta en Show.vue: se enseña un solo
+        // control cada vez, y siempre el que manda. Plan terminado → «Reabrir»,
+        // y el candado administrativo no sale. Plan en curso → el candado, que
+        // ahi si es lo unico que puede estar bloqueandolo.
         return ! $this->is_closed && ! $this->is_done && $this->locked_at === null;
     }
 

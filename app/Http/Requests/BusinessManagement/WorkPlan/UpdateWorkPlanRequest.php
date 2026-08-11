@@ -66,7 +66,7 @@ class UpdateWorkPlanRequest extends FormRequest
                     }
                 },
             ],
-            'num_os'           => ['nullable', 'string', 'max:255'],
+            'num_os'           => ['required', 'string', 'max:255'],
             'description'      => ['required', 'string', 'max:5000'],
             'company_id'       => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
             'work_type_id'     => ['required', 'integer', Rule::exists('work_types', 'id')->whereNull('deleted_at')],

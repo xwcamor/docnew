@@ -104,6 +104,9 @@ class WorkPlanSetupTest extends TestCase
             'work_area_id'     => $this->area()->id,
             'country_id'       => 1,
             'description'      => 'Bobinado AT',
+            // La orden de servicio es obligatoria: decision del dueno del
+            // producto, «la OC si es obligatorio». En la v1 era opcional.
+            'num_os'           => 'OS-2026-0001',
             'date_start'       => '2026-08-08 08:00',
         ]);
 

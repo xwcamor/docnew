@@ -62,7 +62,7 @@ class StoreWorkPlanRequest extends FormRequest
                     }
                 },
             ],
-            'num_os'           => ['nullable', 'string', 'max:255'],
+            'num_os'           => ['required', 'string', 'max:255'],
             'description'      => ['required', 'string', 'max:5000'],
             'country_id'       => ['required', 'integer', Rule::exists('countries', 'id')],
             'company_id'       => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],
