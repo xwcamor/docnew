@@ -259,15 +259,39 @@ class CompositeFieldAnswersTest extends TestCase
         $this->assertSame('confirmed', $servicio->confirmar($entrega)->status);
     }
 
-    public function test_un_compuesto_sin_su_forma_no_se_guarda(): void
+    /**
+     * Una actividad sin peligros es una fila legitima; un peligro a medias no.
+     *
+     * La regla era «sin severidad y probabilidad no vale», y tenia dos agujeros
+     * a la vez. Dejaba fuera la fila de una actividad que no tiene ningun
+     * peligro asociado —en la v1 existia y la migracion la conserva; perderla
+     * cambia el documento— y dejaba pasar lo grave: un peligro puntuado «alto»
+     * **sin decir de que peligro se trata ni que control se puso**, porque solo
+     * se exigian esas dos claves. En la v1 las cinco casillas de la fila iban
+     * con `required: true` (`_f1_document_danger_fields.html.erb`).
+     *
+     * Ahora la regla es condicional: en cuanto alguien empieza a evaluar, la
+     * fila tiene que quedar entera.
+     */
+    public function test_una_actividad_sin_peligros_vale_pero_un_peligro_a_medias_no(): void
     {
         [$entrega] = $this->entregaAst();
+        $servicio = app(FormSubmissionService::class);
 
-        $this->expectException(\InvalidArgumentException::class);
-
-        // Sin severidad ni probabilidad no hay matriz de riesgo que valga.
-        app(FormSubmissionService::class)->responder($entrega, [
+        // La actividad sola se guarda, como en la v1.
+        $servicio->responder($entrega, [
             ['code' => 'matriz_de_riesgo', 'row' => 0, 'value' => ['actividad' => 'Excavacion manual']],
+        ]);
+
+        $this->assertSame(1, $entrega->fresh()->answers()->count());
+
+        // En cuanto se puntua, falta lo que de verdad dice el documento.
+        $this->expectException(\DomainException::class);
+
+        $servicio->responder($entrega, [
+            ['code' => 'matriz_de_riesgo', 'row' => 1, 'value' => [
+                'actividad' => 'Excavacion manual', 'severidad' => 'c1', 'probabilidad' => 'p1',
+            ]],
         ]);
     }
 

@@ -125,6 +125,7 @@ return [
         'add_row'      => 'Añadir peligro',
         'remove_row'   => 'Quitar esta fila',
         'empty'        => 'Todavía no hay peligros. Añade el primero.',
+        'row_incomplete' => 'Al peligro le falta: :fields. Un peligro evaluado se declara entero: qué puede pasar, qué consecuencia tiene y qué control se puso.',
         'no_risk'      => 'Sin evaluar',
         'level_alto'   => 'Riesgo alto',
         'level_medio'  => 'Riesgo medio',

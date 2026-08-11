@@ -366,7 +366,7 @@ class FormSubmissionService
         }
 
         match ($tipo) {
-            'risk_matrix' => $this->exigirClaves($valor, ['severidad', 'probabilidad'], $tipo),
+            'risk_matrix' => $this->exigirPeligroEntero($valor, $tipo),
             'person_checklist', 'tool_checklist' => $this->exigirLista($valor, $tipo),
             'question_bank' => $this->exigirLista($valor, $tipo),
             'select', 'radio' => $this->exigirOpcion($valor, $config['options'] ?? [], $tipo),
@@ -382,6 +382,62 @@ class FormSubmissionService
                 "El campo '{$tipo}' espera " . implode(' y ', $claves) . '.'
             );
         }
+    }
+
+    /**
+     * Un peligro evaluado esta entero, o no esta.
+     *
+     * En la v1 las cinco casillas de la fila —peligro, riesgo, control,
+     * severidad y probabilidad— iban con `required: true`
+     * (`_f1_document_danger_fields.html.erb`). Aqui solo se exigian severidad y
+     * probabilidad, asi que se podia guardar y confirmar un AST con un peligro
+     * puntuado «alto» y **sin decir de que peligro se trata ni que control se
+     * puso**. Es la fila mas importante del documento: dice que puede salir mal
+     * y que se hizo para evitarlo.
+     *
+     * Lo que NO se exige es que la fila exista: una actividad sin peligros es
+     * una fila legitima —la v1 las guardaba asi y la migracion las conserva—.
+     * Por eso la regla es condicional: en cuanto alguien empieza a evaluar
+     * (pone severidad o probabilidad), la fila tiene que quedar completa.
+     */
+    protected function exigirPeligroEntero(mixed $valor, string $tipo): void
+    {
+        if (! is_array($valor)) {
+            throw new \InvalidArgumentException("El campo '{$tipo}' espera una fila de la matriz.");
+        }
+
+        $evaluando = filled($valor['severidad'] ?? null) || filled($valor['probabilidad'] ?? null);
+
+        if (! $evaluando) {
+            return;
+        }
+
+        $faltan = array_values(array_filter(
+            ['peligro', 'riesgo', 'control', 'severidad', 'probabilidad'],
+            fn ($clave) => blank($valor[$clave] ?? null),
+        ));
+
+        if ($faltan !== []) {
+            throw new \DomainException(__('field_work.risk_matrix.row_incomplete', [
+                'fields' => implode(', ', array_map(
+                    fn ($c) => __("field_work.risk_matrix.{$this->rotuloDeColumna($c)}"),
+                    $faltan,
+                )),
+            ]));
+        }
+    }
+
+    /** El nombre de la columna en `resources/lang`, que no siempre es la clave. */
+    protected function rotuloDeColumna(string $clave): string
+    {
+        return match ($clave) {
+            'peligro' => 'danger',
+            'riesgo'  => 'risk',
+            'control' => 'control',
+            'severidad' => 'severity',
+            'probabilidad' => 'probability',
+            default => $clave,
+        };
     }
 
     protected function exigirLista(mixed $valor, string $tipo): void

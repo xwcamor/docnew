@@ -119,6 +119,7 @@ return [
         'add_row'      => 'Add hazard',
         'remove_row'   => 'Remove this row',
         'empty'        => 'No hazards yet. Add the first one.',
+        'row_incomplete' => 'This hazard is missing: :fields. A rated hazard is declared in full: what can happen, what it leads to and what control is in place.',
         'no_risk'      => 'Not assessed',
         'level_alto'   => 'High risk',
         'level_medio'  => 'Medium risk',

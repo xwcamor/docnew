@@ -559,9 +559,12 @@ class FormSubmissionPdfTest extends TestCase
             ['code' => 'fecha',      'value' => today()->toDateString()],
             ['code' => 'charla',     'value' => true],
             ['code' => 'epp_basico', 'value' => ['Casco', 'Guantes']],
+            // La fila entera, con la consecuencia incluida: le faltaba `riesgo`
+            // y colaba porque el servidor solo exigia severidad y probabilidad.
             ['code' => 'matriz_de_riesgo', 'value' => [
                 'actividad'    => 'Trabajo en altura',
                 'peligro'      => 'Caida a distinto nivel',
+                'riesgo'       => 'Fracturas y politraumatismos',
                 'control'      => 'Arnes anclado',
                 'severidad'    => 4,
                 'probabilidad' => 2,
