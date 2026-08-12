@@ -45,11 +45,16 @@ class CopiarImagenesPorDocumentoTest extends TestCase
 
         $this->desde = sys_get_temp_dir() . '/docufiz_imagenes_' . Str::random(8);
         File::makeDirectory($this->desde, 0777, true);
+
+        // El informe se escribe en modo anadir, para no perder el de la corrida
+        // anterior. Entre pruebas eso las contamina, asi que se limpia.
+        File::delete(storage_path('logs/imagenes-importadas.log'));
     }
 
     protected function tearDown(): void
     {
         File::deleteDirectory($this->desde);
+        File::delete(storage_path('logs/imagenes-importadas.log'));
 
         parent::tearDown();
     }
@@ -58,7 +63,9 @@ class CopiarImagenesPorDocumentoTest extends TestCase
     private function imagen(string $sub, string $documento, string $nombre, string $semilla): void
     {
         $dir = $this->desde . '/' . $sub . '/' . $documento;
-        File::makeDirectory($dir, 0777, true);
+
+        // `force`: la misma carpeta recibe dos imagenes en la prueba de dobles.
+        File::ensureDirectoryExists($dir);
 
         $png = imagecreatetruecolor(4, 4);
         imagefill($png, 0, 0, imagecolorallocate($png, crc32($semilla) % 255, 10, 10));
@@ -217,6 +224,107 @@ class CopiarImagenesPorDocumentoTest extends TestCase
         } finally {
             File::deleteDirectory(storage_path('app/old_system'));
         }
+    }
+
+    /**
+     * La carpeta manda sobre lo que ya hubiera.
+     *
+     * Es la regla que pidio el dueño del producto: las imagenes de la carpeta
+     * son las ultimas que se sacaron del sistema viejo, asi que son la
+     * informacion buena. La anterior no se pierde — se jubila y queda como
+     * historia, porque un documento firmado sigue apuntando a la que se uso.
+     */
+    public function test_la_carpeta_pisa_la_foto_que_ya_tenia_el_trabajador(): void
+    {
+        $id = $this->persona('44445555');
+
+        DB::table('person_photos')->insert([
+            'person_id' => $id, 'file_path' => 'fotos/2026/01/vieja.webp',
+            'sha256' => str_repeat('b', 64), 'source' => PersonPhoto::SUBIDA,
+            'valid_from' => now()->subYear(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->imagen('photo', '44445555', 'la-buena.png', 'nueva');
+        $this->copiar();
+
+        $vigentes = DB::table('person_photos')->where('person_id', $id)->whereNull('valid_to')->get();
+
+        $this->assertCount(1, $vigentes, 'Solo puede quedar una vigente.');
+        $this->assertStringStartsWith('fotos/legacy/', $vigentes->first()->file_path);
+        $this->assertSame(1, DB::table('person_photos')->where('person_id', $id)->whereNotNull('valid_to')->count(),
+            'La anterior se jubila, no se borra.');
+    }
+
+    /**
+     * Con dos imagenes en la carpeta se usa una y se dice cual.
+     *
+     * Elegir en silencio es lo que no se puede hacer: quien armo la carpeta
+     * sabe cual es la buena y desde aqui no hay forma de saberlo.
+     */
+    public function test_una_carpeta_con_dos_imagenes_queda_anotada(): void
+    {
+        $this->persona('66667777');
+        $this->imagen('photo', '66667777', 'a-primera.png', 'uno');
+        $this->imagen('photo', '66667777', 'z-segunda.png', 'dos');
+
+        $this->copiar();
+
+        $informe = file_get_contents(storage_path('logs/imagenes-importadas.log'));
+
+        $this->assertStringContainsString('CARPETAS CON MAS DE UNA IMAGEN', $informe);
+        $this->assertStringContainsString('66667777', $informe);
+        $this->assertStringContainsString('a-primera.png', $informe);
+        $this->assertStringContainsString('z-segunda.png', $informe);
+    }
+
+    /**
+     * La misma imagen en dos documentos tambien se anota.
+     *
+     * Byte a byte identica en dos personas distintas: o se copio la carpeta de
+     * alguien, o es la misma persona dada de alta dos veces. Se guarda igual
+     * —compartiendo archivo— pero queda dicho.
+     */
+    public function test_la_misma_imagen_en_dos_documentos_queda_anotada(): void
+    {
+        $this->persona('10001000', 'Ana');
+        $this->persona('20002000', 'Beto');
+
+        // Misma semilla: mismo contenido, mismo hash.
+        $this->imagen('photo', '10001000', 'f.png', 'clon');
+        $this->imagen('photo', '20002000', 'f.png', 'clon');
+
+        $this->copiar();
+
+        $informe = file_get_contents(storage_path('logs/imagenes-importadas.log'));
+
+        $this->assertStringContainsString('LA MISMA IMAGEN EN VARIOS DOCUMENTOS', $informe);
+        $this->assertStringContainsString('10001000', $informe);
+        $this->assertStringContainsString('20002000', $informe);
+    }
+
+    /** Y los documentos que no existen en la base, con nombre y apellido. */
+    public function test_los_documentos_sin_persona_quedan_por_escrito(): void
+    {
+        $this->persona('00088375');
+        $this->imagen('photo', '99999999', 'f.png', 'x');
+
+        $this->copiar();
+
+        $informe = file_get_contents(storage_path('logs/imagenes-importadas.log'));
+
+        $this->assertStringContainsString('CARPETAS SIN PERSONA EN LA BASE', $informe);
+        $this->assertStringContainsString('99999999', $informe);
+    }
+
+    /** Sin nada raro que contar, no se escribe informe. */
+    public function test_sin_nada_que_revisar_no_se_escribe_informe(): void
+    {
+        $this->persona('33334444');
+        $this->imagen('photo', '33334444', 'f.png', 'x');
+
+        $this->copiar();
+
+        $this->assertFileDoesNotExist(storage_path('logs/imagenes-importadas.log'));
     }
 
     /** Sin las carpetas no revienta: dice que no hay nada y sigue. */

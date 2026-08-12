@@ -2530,8 +2530,14 @@ class MigrateLegacyDataCommand extends Command
             return;
         }
 
-        $copiadas = $yaEstaban = $sinPersona = $vacias = 0;
-        $sinDuenoEjemplos = [];
+        $cuenta = ['nueva' => 0, 'actualizada' => 0, 'igual' => 0];
+        $sinPersona = $vacias = 0;
+        $sinDueno = $dobles = [];
+
+        // hash => documentos que traen esa misma imagen. La misma cara en dos
+        // documentos distintos no es un duplicado inocente: o se copio la
+        // carpeta de alguien, o son la misma persona dada de alta dos veces.
+        $porHash = [];
 
         foreach (scandir($raiz) ?: [] as $documento) {
             if ($documento === '.' || $documento === '..') {
@@ -2548,20 +2554,31 @@ class MigrateLegacyDataCommand extends Command
 
             if ($personaId === null) {
                 $sinPersona++;
-
-                if (count($sinDuenoEjemplos) < 5) {
-                    $sinDuenoEjemplos[] = $documento;
-                }
+                $sinDueno[] = $documento;
 
                 continue;
             }
 
-            $fuente = $this->primeraImagen($dir);
+            $imagenes = $this->imagenesDe($dir);
 
-            if ($fuente === null) {
+            if ($imagenes === []) {
                 $vacias++;
 
                 continue;
+            }
+
+            // Con varias en la misma carpeta se coge la primera por orden
+            // alfabetico y se anotan las otras. Elegir en silencio es lo que no
+            // se puede hacer: quien armo la carpeta sabe cual es la buena y
+            // aqui no hay forma de saberlo.
+            $fuente = $imagenes[0];
+
+            if (count($imagenes) > 1) {
+                $dobles[] = [
+                    'documento' => $documento,
+                    'usada'     => basename($fuente),
+                    'ignoradas' => array_map('basename', array_slice($imagenes, 1)),
+                ];
             }
 
             $contenido = file_get_contents($fuente);
@@ -2576,26 +2593,101 @@ class MigrateLegacyDataCommand extends Command
             $destino = $prefijoNuevo . substr($hash, 0, 2) . '/' . $hash . '.'
                 . strtolower(pathinfo($fuente, PATHINFO_EXTENSION));
 
+            $porHash[$hash][] = $documento;
+
             if (! Storage::disk('local')->exists($destino)) {
                 Storage::disk('local')->put($destino, $contenido);
             }
 
-            if ($this->guardarReferencia($tabla, $personaId, $destino, $hash, $source)) {
-                $copiadas++;
-            } else {
-                $yaEstaban++;
+            $cuenta[$this->guardarReferencia($tabla, $personaId, $destino, $hash, $source)]++;
+        }
+
+        $compartidas = array_values(array_filter($porHash, fn ($docs) => count($docs) > 1));
+
+        $this->line(sprintf(
+            '  %s: %d nuevas · %d actualizadas · %d sin cambio · %d sin persona · %d carpetas sin imagen',
+            $etiqueta, $cuenta['nueva'], $cuenta['actualizada'], $cuenta['igual'], $sinPersona, $vacias,
+        ));
+
+        if ($sinDueno !== []) {
+            $this->warn(sprintf('    %d documento(s) sin persona en la base: %s%s',
+                count($sinDueno), implode(', ', array_slice($sinDueno, 0, 5)),
+                count($sinDueno) > 5 ? '…' : ''));
+        }
+
+        if ($dobles !== []) {
+            $this->warn(sprintf('    %d carpeta(s) con mas de una imagen: se uso la primera por orden alfabetico.', count($dobles)));
+        }
+
+        if ($compartidas !== []) {
+            $this->warn(sprintf('    %d imagen(es) repetida(s) en mas de un documento.', count($compartidas)));
+        }
+
+        $this->escribirInformeDeImagenes($etiqueta, $sinDueno, $dobles, $compartidas);
+    }
+
+    /**
+     * Deja por escrito lo que hay que mirar a mano.
+     *
+     * En pantalla solo caben los totales, y estas tres listas pueden tener
+     * cientos de filas: se van con el scroll y no queda nada que revisar
+     * despues. El fichero se puede abrir, buscar y comparar contra la carpeta.
+     *
+     * @param  list<string>  $sinDueno
+     * @param  list<array{documento:string, usada:string, ignoradas:list<string>}>  $dobles
+     * @param  list<list<string>>  $compartidas
+     */
+    protected function escribirInformeDeImagenes(string $etiqueta, array $sinDueno, array $dobles, array $compartidas): void
+    {
+        if ($sinDueno === [] && $dobles === [] && $compartidas === []) {
+            return;
+        }
+
+        $lineas = ['', str_repeat('=', 72), strtoupper($etiqueta) . ' — ' . now()->format('d-m-Y H:i'), str_repeat('=', 72)];
+
+        if ($dobles !== []) {
+            $lineas[] = '';
+            $lineas[] = sprintf('CARPETAS CON MAS DE UNA IMAGEN (%d)', count($dobles));
+            $lineas[] = 'Se uso la primera por orden alfabetico. Si la buena es otra, deja solo esa';
+            $lineas[] = 'en la carpeta y vuelve a importar.';
+            $lineas[] = '';
+
+            foreach ($dobles as $d) {
+                $lineas[] = sprintf('  %-16s usada: %s', $d['documento'], $d['usada']);
+
+                foreach ($d['ignoradas'] as $ignorada) {
+                    $lineas[] = sprintf('  %-16s   ignorada: %s', '', $ignorada);
+                }
             }
         }
 
-        $this->line(sprintf(
-            '  %s: %d copiadas · %d ya estaban · %d sin persona · %d carpetas sin imagen',
-            $etiqueta, $copiadas, $yaEstaban, $sinPersona, $vacias,
-        ));
+        if ($compartidas !== []) {
+            $lineas[] = '';
+            $lineas[] = sprintf('LA MISMA IMAGEN EN VARIOS DOCUMENTOS (%d)', count($compartidas));
+            $lineas[] = 'Byte a byte identica. O se copio la carpeta de alguien, o es la misma';
+            $lineas[] = 'persona dada de alta dos veces. Se guardo igual, apuntando al mismo archivo.';
+            $lineas[] = '';
 
-        if ($sinDuenoEjemplos !== []) {
-            $this->warn(sprintf('    Documentos sin persona en la base: %s%s',
-                implode(', ', $sinDuenoEjemplos), $sinPersona > count($sinDuenoEjemplos) ? '…' : ''));
+            foreach ($compartidas as $docs) {
+                $lineas[] = '  ' . implode(' · ', $docs);
+            }
         }
+
+        if ($sinDueno !== []) {
+            $lineas[] = '';
+            $lineas[] = sprintf('CARPETAS SIN PERSONA EN LA BASE (%d)', count($sinDueno));
+            $lineas[] = 'Ese documento no existe o esta borrado. No se le colgo a nadie.';
+            $lineas[] = '';
+
+            foreach ($sinDueno as $doc) {
+                $lineas[] = '  ' . $doc;
+            }
+        }
+
+        $ruta = storage_path('logs/imagenes-importadas.log');
+        @file_put_contents($ruta, implode(PHP_EOL, $lineas) . PHP_EOL, FILE_APPEND);
+
+        $this->line('    Detalle escrito en ' . $ruta);
     }
 
     /**
@@ -2641,11 +2733,21 @@ class MigrateLegacyDataCommand extends Command
         return $aproximada->count() === 1 ? (int) $aproximada->first() : null;
     }
 
-    /** El primer fichero de imagen de una carpeta, en orden alfabetico. */
-    protected function primeraImagen(string $dir): ?string
+    /**
+     * Los ficheros de imagen de una carpeta, en orden alfabetico.
+     *
+     * Se devuelven todos y no solo el primero para poder decir cuando hay mas
+     * de uno: es lo unico que quien armo la carpeta puede resolver, y en
+     * silencio no se entera.
+     *
+     * @return list<string>
+     */
+    protected function imagenesDe(string $dir): array
     {
         $nombres = scandir($dir) ?: [];
         sort($nombres);
+
+        $imagenes = [];
 
         foreach ($nombres as $nombre) {
             $ruta = $dir . DIRECTORY_SEPARATOR . $nombre;
@@ -2655,11 +2757,11 @@ class MigrateLegacyDataCommand extends Command
             }
 
             if (in_array(strtolower(pathinfo($nombre, PATHINFO_EXTENSION)), self::IMAGENES, true)) {
-                return $ruta;
+                $imagenes[] = $ruta;
             }
         }
 
-        return null;
+        return $imagenes;
     }
 
     /**
@@ -2673,15 +2775,20 @@ class MigrateLegacyDataCommand extends Command
      *    nueva entra al lado. Un documento ya firmado sigue apuntando a la que
      *    se uso entonces.
      *
-     * @return bool si ha escrito algo
+     * **La carpeta manda.** Si la persona ya tenia una imagen y la de la
+     * carpeta es otra, gana la de la carpeta: es la ultima que se saco del
+     * sistema viejo y es la informacion buena. La anterior no se pierde, se
+     * jubila.
+     *
+     * @return 'nueva'|'actualizada'|'igual'
      */
-    protected function guardarReferencia(string $tabla, int $personaId, string $destino, string $hash, string $source): bool
+    protected function guardarReferencia(string $tabla, int $personaId, string $destino, string $hash, string $source): string
     {
         $vigente = DB::table($tabla)->where('person_id', $personaId)
             ->whereNull('valid_to')->orderByDesc('valid_from')->first();
 
         if ($vigente && $vigente->sha256 === $hash) {
-            return false;
+            return 'igual';
         }
 
         if ($vigente && str_starts_with((string) $vigente->file_path, 'legacy/')) {
@@ -2689,7 +2796,7 @@ class MigrateLegacyDataCommand extends Command
                 'file_path' => $destino, 'sha256' => $hash, 'updated_at' => now(),
             ]);
 
-            return true;
+            return 'nueva';
         }
 
         if ($vigente) {
@@ -2707,7 +2814,7 @@ class MigrateLegacyDataCommand extends Command
             'updated_at' => now(),
         ]);
 
-        return true;
+        return $vigente ? 'actualizada' : 'nueva';
     }
 
     // ── Utilidades ───────────────────────────────────────────────────────────
