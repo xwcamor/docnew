@@ -46,10 +46,21 @@ class ApproverRole extends Model
         return $this->hasMany(ApprovalRule::class, 'approver_role', 'code');
     }
 
-    /** El nombre en el idioma en que se esta mirando la aplicacion. */
+    /**
+     * El nombre en el idioma en que se esta mirando la aplicacion.
+     *
+     * Con caida al otro. El formulario ya no pide el nombre en ingles —lo que
+     * se traduce es la aplicacion, no lo que escribe el cliente— asi que esa
+     * columna llega vacia en todo rol nuevo. Sin la caida, la pantalla en
+     * ingles enseñaba el selector de aprobadores con las opciones en blanco.
+     */
     public function getLabelAttribute(): string
     {
-        return app()->getLocale() === 'en' ? $this->name_en : $this->name_es;
+        [$propio, $otro] = app()->getLocale() === 'en'
+            ? [$this->name_en, $this->name_es]
+            : [$this->name_es, $this->name_en];
+
+        return $propio ?: ($otro ?: (string) $this->code);
     }
 
     /** code => etiqueta, para pintar selectores sin repetir la consulta. */

@@ -102,6 +102,47 @@ class ApproverRoleCrudTest extends TestCase
 
     // ── Alta ─────────────────────────────────────────────────────────────────
 
+    /**
+     * El nombre en ingles ya no se pide.
+     *
+     * Lo que se traduce es la aplicacion, no lo que escribe el cliente: un rol
+     * se llama «Supervisor Autorizante» y asi se llama en obra, se mire la
+     * pantalla en el idioma que se mire. Pedir la traduccion era pedirle al
+     * cliente que tradujera sus propios datos.
+     */
+    public function test_un_rol_se_crea_sin_nombre_en_ingles(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.approver_roles.store'), [
+            'code' => 'jefe_de_izaje', 'name_es' => 'Jefe de izaje', 'sort_order' => 5,
+        ])->assertRedirect()->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('approver_roles', ['code' => 'jefe_de_izaje', 'name_es' => 'Jefe de izaje']);
+    }
+
+    /**
+     * Y en ingles se lee el nombre que hay, no un hueco.
+     *
+     * Sin la caida, el selector de aprobadores de la pantalla inglesa salia con
+     * las opciones en blanco en cuanto el rol se creaba desde el formulario
+     * nuevo.
+     */
+    public function test_en_ingles_un_rol_sin_traduccion_se_lee_igual(): void
+    {
+        $rol = \App\Models\ApproverRole::create([
+            'slug' => Str::random(22),
+            // Vacia, que es como la deja el servicio: la columna es NOT NULL y
+            // una copia del castellano seria decir que ese es su nombre ingles.
+            'code' => 'jefe_de_izaje', 'name_es' => 'Jefe de izaje', 'name_en' => '',
+            'sort_order' => 5, 'is_active' => true, 'tenant_id' => 1,
+        ]);
+
+        app()->setLocale('en');
+
+        $this->assertSame('Jefe de izaje', $rol->label);
+    }
+
     public function test_un_rol_nuevo_es_una_fila_y_se_da_de_alta_desde_la_pantalla(): void
     {
         $this->actingAs($this->admin());

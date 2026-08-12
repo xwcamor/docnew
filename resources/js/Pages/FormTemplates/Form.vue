@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import {
-    Card, Form, FormItem, Input, Switch, Space, Alert, Row, Col, Select,
+    Card, Form, FormItem, Input, Switch, Space, Alert, Select,
 } from 'ant-design-vue';
 import { FileOutlined } from '@ant-design/icons-vue';
 
@@ -94,7 +94,43 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <!-- Lo que identifica al documento va arriba: su nombre. -->
+                <!-- Un campo por línea, y en el orden en que se decide: primero
+                     el país —acota qué documentos se pueden exigir y en qué
+                     idioma sale el PDF—, luego el código, luego el nombre, y al
+                     final cómo se llena. No van en pares: son cuatro decisiones
+                     seguidas, no dos parejas, y en la tablet una fila partida
+                     obliga a leer en zigzag. -->
+                <FormItem
+                    :label="$t('form_templates.country')"
+                    :tooltip="$t('form_templates.country_help')"
+                    required
+                    :validate-status="form.errors.country_id ? 'error' : ''"
+                    :help="form.errors.country_id"
+                >
+                    <Select
+                        v-model:value="form.country_id"
+                        size="large"
+                        show-search
+                        :options="countryOptions"
+                        :filter-option="(i, o) => String(o.label ?? '').toLowerCase().includes(String(i).toLowerCase())"
+                        :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('form_templates.code')"
+                    :tooltip="$t('form_templates.code_help')"
+                    :validate-status="form.errors.code ? 'error' : ''"
+                    :help="form.errors.code"
+                >
+                    <Input
+                        v-model:value="form.code"
+                        size="large"
+                        :maxlength="40"
+                        :placeholder="$t('form_templates.code')"
+                    />
+                </FormItem>
+
                 <FormItem
                     :label="$t('form_templates.name')"
                     :tooltip="$t('form_templates.name_help')"
@@ -111,48 +147,6 @@ const submit = () => {
                         :placeholder="$t('form_templates.name_placeholder')"
                     />
                 </FormItem>
-
-                <!-- Código y país son cortos: van por pares. Una fila sólo se
-                     pinta en dos columnas si lleva `form-grid`; parte en lg. -->
-                <Row :gutter="[20, 0]" class="form-grid">
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            :label="$t('form_templates.code')"
-                            :tooltip="$t('form_templates.code_help')"
-                            :validate-status="form.errors.code ? 'error' : ''"
-                            :help="form.errors.code"
-                        >
-                            <Input
-                                v-model:value="form.code"
-                                size="large"
-                                :maxlength="40"
-                                :placeholder="$t('form_templates.code')"
-                            />
-                        </FormItem>
-                    </Col>
-                    <Col :xs="24" :lg="12">
-                        <FormItem
-                            :label-col="{ xs: 24, sm: 8 }"
-                            :wrapper-col="{ xs: 24, sm: 16 }"
-                            :label="$t('form_templates.country')"
-                            :tooltip="$t('form_templates.country_help')"
-                            required
-                            :validate-status="form.errors.country_id ? 'error' : ''"
-                            :help="form.errors.country_id"
-                        >
-                            <Select
-                                v-model:value="form.country_id"
-                                size="large"
-                                show-search
-                                :options="countryOptions"
-                                :filter-option="(i, o) => String(o.label ?? '').toLowerCase().includes(String(i).toLowerCase())"
-                                :placeholder="$t('global.select')"
-                            />
-                        </FormItem>
-                    </Col>
-                </Row>
 
                 <!-- Cómo se llena: con campos en la tablet, sólo foto del papel
                      o las dos cosas. Decide qué se le pide al trabajador en

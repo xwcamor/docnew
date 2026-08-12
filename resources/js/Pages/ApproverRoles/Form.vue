@@ -97,26 +97,11 @@ const submit = () => {
 
                 <h2 class="form-section-title">{{ $t('global.general_data') }}</h2>
 
-                <FormItem
-                    :label="$t('approver_roles.name_es')"
-                    :tooltip="$t('approver_roles.name_es_help')"
-                    required
-                    :validate-status="form.errors.name_es ? 'error' : ''"
-                    :help="form.errors.name_es"
-                >
-                    <Input v-model:value="form.name_es" size="large" :maxlength="60" show-count autofocus />
-                </FormItem>
-
-                <FormItem
-                    :label="$t('approver_roles.name_en')"
-                    :tooltip="$t('approver_roles.name_en_help')"
-                    required
-                    :validate-status="form.errors.name_en ? 'error' : ''"
-                    :help="form.errors.name_en"
-                >
-                    <Input v-model:value="form.name_en" size="large" :maxlength="60" show-count />
-                </FormItem>
-
+                <!-- Código, nombre y orden, en ese orden y uno por línea.
+                     No se pide el nombre en inglés: lo que se traduce es la
+                     aplicación, no lo que escribe el cliente. Un rol se llama
+                     «Supervisor Autorizante» y así se llama en obra, se mire la
+                     pantalla en el idioma que se mire. -->
                 <FormItem
                     :label="$t('approver_roles.code')"
                     :tooltip="$t('approver_roles.code_help')"
@@ -129,9 +114,26 @@ const submit = () => {
                         size="large"
                         :maxlength="30"
                         :disabled="codeLocked"
+                        :autofocus="!codeLocked"
                         :placeholder="$t('approver_roles.code_placeholder')"
                         class="code-input"
                         @input="codeTouched = true"
+                    />
+                </FormItem>
+
+                <FormItem
+                    :label="$t('approver_roles.name_es')"
+                    :tooltip="$t('approver_roles.name_es_help')"
+                    required
+                    :validate-status="form.errors.name_es ? 'error' : ''"
+                    :help="form.errors.name_es"
+                >
+                    <Input
+                        v-model:value="form.name_es"
+                        size="large"
+                        :maxlength="60"
+                        show-count
+                        :autofocus="codeLocked"
                     />
                 </FormItem>
 

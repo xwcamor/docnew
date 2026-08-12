@@ -23,8 +23,13 @@ return [
     'code'            => 'Código',
     'code_help'       => 'La clave con la que las reglas nombran al rol: minúsculas, sin espacios ni acentos (ej: jefe_de_obra). Se corrige solo mientras escribes.',
     'code_placeholder' => 'jefe_de_obra',
-    'name_es'         => 'Nombre en español',
-    'name_es_help'    => 'Como se lee en la aplicación cuando está en español.',
+    // Un solo nombre, sin pedir la traducción. Lo que se traduce es la
+    // aplicación —los rótulos, los avisos— no lo que escribe el cliente: el rol
+    // se llama «Supervisor Autorizante» y así se llama en obra, se mire la
+    // pantalla en el idioma que se mire. La columna en inglés sigue existiendo
+    // por lo ya guardado, pero no se pide.
+    'name_es'         => 'Nombre',
+    'name_es_help'    => 'Como se le llama en obra: «Supervisor Autorizante», «Jefe de Seguridad».',
     'name_en'         => 'Nombre en inglés',
     'name_en_help'    => 'Como se lee en la aplicación cuando está en inglés.',
     'sort_order'      => 'Orden',

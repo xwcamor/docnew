@@ -104,7 +104,9 @@ const fmt = (d) => formatDateTimeFull(d);
                             <span class="spec-cell__label">{{ $t('approver_roles.name_es') }}</span>
                             <span class="spec-cell__value">{{ approverRole.name_es }}</span>
                         </div>
-                        <div class="spec-cell">
+                        <!-- El nombre en inglés sólo se enseña si lo hay: es de
+                             los roles de antes, ya no se pide. -->
+                        <div v-if="approverRole.name_en" class="spec-cell">
                             <span class="spec-cell__label">{{ $t('approver_roles.name_en') }}</span>
                             <span class="spec-cell__value">{{ approverRole.name_en }}</span>
                         </div>

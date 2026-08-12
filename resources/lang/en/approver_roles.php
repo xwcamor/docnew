@@ -23,8 +23,13 @@ return [
     'code'            => 'Code',
     'code_help'       => 'The key rules use to name the role: lowercase, no spaces or accents (e.g. site_manager). It is fixed up as you type.',
     'code_placeholder' => 'site_manager',
-    'name_es'         => 'Spanish name',
-    'name_es_help'    => 'How it reads when the app is in Spanish.',
+    // One name, no translation asked for. What gets translated is the app —
+    // labels, warnings — not what the customer types: the role is called
+    // «Supervisor Autorizante» and that is its name on site, whatever language
+    // the screen is in. The English column still exists for what is already
+    // stored, but it is not asked for.
+    'name_es'         => 'Name',
+    'name_es_help'    => 'What it is called on site: "Authorising Supervisor", "Safety Manager".',
     'name_en'         => 'English name',
     'name_en_help'    => 'How it reads when the app is in English.',
     'sort_order'      => 'Order',

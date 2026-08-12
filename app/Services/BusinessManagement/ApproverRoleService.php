@@ -160,7 +160,7 @@ class ApproverRoleService
 
     public function create(array $data): ApproverRole
     {
-        $rol = new ApproverRole($data);
+        $rol = new ApproverRole($this->sinPedirTraduccion($data));
         // El slug lo pone quien crea la fila: el modelo no lo genera solo
         // porque tambien lo escriben la migracion y el motor de datos heredados.
         $rol->slug       = $this->slug();
@@ -168,6 +168,26 @@ class ApproverRoleService
         $rol->save();
 
         return $rol;
+    }
+
+    /**
+     * El nombre en ingles deja de pedirse, pero la columna es NOT NULL.
+     *
+     * Se guarda vacia, no con una copia del castellano: una copia seria decir
+     * que ese ES el nombre en ingles, y no lo es — nadie lo escribio. Vacia
+     * significa «no se tradujo», que es la verdad, y `ApproverRole::label` cae
+     * al otro idioma cuando lo ve.
+     *
+     * No se hace nullable la columna a proposito: en SQLite cambiar el tipo
+     * reconstruye la tabla, y `approver_roles` lleva un indice unico creado con
+     * SQL crudo —`lower(code), coalesce(tenant_id,0)`— que la reconstruccion se
+     * llevaria por delante sin avisar.
+     */
+    private function sinPedirTraduccion(array $data): array
+    {
+        $data['name_en'] = $data['name_en'] ?? '';
+
+        return $data;
     }
 
     /** Slug opaco de 22 caracteres, unico en su tabla: la convencion del proyecto. */
@@ -186,6 +206,13 @@ class ApproverRoleService
         // el motor de migracion lo nombran asi. Los nombres si, que son etiqueta.
         if ($this->esDelSistema($rol)) {
             unset($data['code']);
+        }
+
+        // Si la peticion no trae el nombre en ingles, el que hubiera se queda:
+        // los roles de antes lo tienen escrito y no se borra por editar el
+        // nombre en castellano.
+        if (! array_key_exists('name_en', $data) || $data['name_en'] === null) {
+            unset($data['name_en']);
         }
 
         $rol->update($data);

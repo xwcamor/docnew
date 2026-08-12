@@ -30,7 +30,8 @@ class UpdateApproverRoleRequest extends FormRequest
         return [
             'code'       => $this->codeRules(is_object($rol) ? $rol->id : null),
             'name_es'    => 'required|string|max:60',
-            'name_en'    => 'required|string|max:60',
+            // Ya no se pide: ver `StoreApproverRoleRequest`.
+            'name_en'    => 'nullable|string|max:60',
             'sort_order' => 'nullable|integer|min:1|max:9999',
             'is_active'  => 'sometimes|boolean',
         ];

@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 /**
@@ -15,10 +14,9 @@ use Illuminate\Support\Facades\Schema;
  * el papel de los 3.712 planes que ya lo citan, incluidos los cerrados y
  * firmados.
  *
- * Por eso los catalogos que trajo la migracion quedan bloqueados de entrada
- * (ver `docufiz:migrate-data`): son la referencia del sistema anterior y no se
- * tocan por accidente. Quien quiera cambiarlos tiene que quitar el candado
- * primero, que es exactamente la pausa que faltaba.
+ * El candado se pone a mano, fila a fila, desde la ficha. Aqui solo se crean
+ * las columnas. Hubo una version que bloqueaba de entrada todo lo migrado, y
+ * salio al reves de lo que se buscaba: ver el comentario de abajo.
  *
  * Los planes NO entran aqui: ya tienen su propio cierre (`is_closed`), que es
  * otra cosa —lo pone el supervisor cuando termina la jornada, no un
@@ -44,18 +42,20 @@ return new class extends Migration
                 $t->string('lock_scope', 10)->nullable();
             });
 
-            // Lo que ya trajo la migracion de la v1 se bloquea aqui mismo: de
-            // ahora en adelante lo hace `docufiz:migrate-data` al crear cada
-            // fila, pero las que ya estaban puestas no pasarian por ahi otra vez.
-            // `legacy_id` es justo lo que las distingue de lo que se dio de alta
-            // a mano, que se queda como esta.
-            if (Schema::hasColumn($tabla, 'legacy_id')) {
-                DB::table($tabla)->whereNotNull('legacy_id')->update([
-                    'locked_at'  => now(),
-                    'locked_by'  => 1,
-                    'lock_scope' => 'super',
-                ]);
-            }
+            // Aqui las filas migradas se bloqueaban de entrada, con candado de
+            // nivel 'super'. Se quito, por lo mismo que se quito de
+            // `docufiz:migrate-data`: `canBeUnlockedBy()` solo deja a un admin
+            // con los candados de nivel 'tenant', asi que quien acababa de
+            // migrar su sistema se encontraba TODO su catalogo intocable —sus
+            // cargos, sus sedes, sus tipos de trabajo— y sin ninguna forma de
+            // arreglarlo desde la aplicacion.
+            //
+            // Lo que se pierde es la pausa antes de renombrar algo que citan
+            // miles de planes firmados, y eso sigue siendo cierto. Quien la
+            // quiera tiene el candado en la ficha, que es donde se decide fila
+            // a fila y no de golpe para todo lo migrado.
+            //
+            // La columna se queda: el candado manual sigue existiendo.
         }
     }
 
