@@ -41,8 +41,18 @@ use Symfony\Component\Console\Attribute\AsCommand;
  *   php artisan docufiz:migrate-data planes
  *   php artisan docufiz:migrate-data documentos
  *   php artisan docufiz:migrate-data evidencias
- *   php artisan docufiz:migrate-data archivos --desde=/ruta/v1/public/images_uploads
+ *   php artisan docufiz:migrate-data archivos --desde=/ruta/con/las/imagenes
  *   php artisan docufiz:migrate-data todo
+ *
+ * La carpeta de `--desde` se espera ORDENADA POR DOCUMENTO, que es como se
+ * saca del servidor viejo para poder revisarla a ojo:
+ *
+ *   <desde>/photo/<num_doc>/<lo que sea>.jpg      la foto de la persona
+ *   <desde>/signature/<num_doc>/<lo que sea>.png  su firma
+ *   <desde>/<archivo suelto>                      las evidencias, planas
+ *
+ * También se aceptan `fotos/` y `firmas/` como nombres de las dos primeras.
+ * El nombre del fichero de dentro da igual: la carpeta ES la identidad.
  *
  * `todo` es de verdad todo: crea antes las plantillas AST, PTF, EPP e IHM
  * llamando a `docufiz:migrate-formats`, porque los formatos llenados cuelgan de
@@ -63,7 +73,7 @@ class MigrateLegacyDataCommand extends Command
     protected $signature = 'docufiz:migrate-data
         {paso=todo : empresas|usuarios|personas|planes|documentos|evidencias|archivos|todo}
         {--lote=500 : Cuantas filas de la base vieja se leen de una vez}
-        {--desde= : Carpeta con el public/images_uploads de la v1, para el paso archivos}
+        {--desde= : Carpeta con las imagenes de la v1 (photo/<doc>/ y signature/<doc>/), para el paso archivos}
         {--rehacer-formatos : Reconstruye las plantillas AST/PTF/EPP/IHM aunque ya existan}';
 
     /** En la v1 los planes son todos de Peru (country_id 1); el resto de paises solo tiene catalogos. */
@@ -104,15 +114,20 @@ class MigrateLegacyDataCommand extends Command
         $this->countryId = $pais->id;
         $this->lote = max(50, (int) $this->option('lote'));
 
-        try {
-            DB::connection('legacy')->getPdo();
-        } catch (\Throwable $e) {
-            $this->error('No se pudo conectar a la base anterior. Revisa LEGACY_DB_* en .env');
-
-            return self::FAILURE;
-        }
-
         $paso = $this->argument('paso');
+
+        // Copiar imagenes no lee ni una fila de la base vieja: lo unico que
+        // necesita es la carpeta. Exigir el MySQL antiguo para eso obligaba a
+        // levantarlo entero solo para volver a pasar unas fotos.
+        if ($paso !== 'archivos') {
+            try {
+                DB::connection('legacy')->getPdo();
+            } catch (\Throwable $e) {
+                $this->error('No se pudo conectar a la base anterior. Revisa LEGACY_DB_* en .env');
+
+                return self::FAILURE;
+            }
+        }
 
         // Las plantillas primero: los formatos llenados cuelgan de ellas. Es lo
         // que antes habia que recordar correr aparte, y olvidarlo se pagaba a
@@ -151,7 +166,7 @@ class MigrateLegacyDataCommand extends Command
         // el paso no puede fallar por su ausencia.
         if ($paso === 'archivos' || ($paso === 'todo' && $this->option('desde'))) {
             if (! $this->option('desde')) {
-                $this->error('El paso archivos necesita --desde=/ruta/al/public/images_uploads de la v1.');
+                $this->error('El paso archivos necesita --desde=/ruta/con/photo/<doc>/ y signature/<doc>/.');
 
                 return self::FAILURE;
             }
@@ -2373,17 +2388,17 @@ class MigrateLegacyDataCommand extends Command
         // las dos.
         $this->recalcularEvidenciaPerdida();
 
-        // Las firmas y las fotos de referencia salen de la misma carpeta.
-        $firmas = $this->copiarDeReferencia($carpeta, 'person_signatures', 'legacy/firmas/', 'firmas/legacy/');
-        $fotos  = $this->copiarDeReferencia($carpeta, 'person_photos', 'legacy/fotos/', 'fotos/legacy/');
-
         $this->line(sprintf('  evidencias: %d copiadas · %d ya estaban · %d no aparecieron', $copiados, $yaEstaban, $perdidos));
-        $this->line(sprintf('  firmas de persona: %d copiadas · %d no aparecieron', $firmas[0], $firmas[1]));
-        $this->line(sprintf('  fotos de persona: %d copiadas · %d no aparecieron', $fotos[0], $fotos[1]));
 
         if ($perdidos > 0) {
             $this->warn('  Las que no aparecieron quedan marcadas como evidencia perdida (evidence_missing).');
         }
+
+        // Las firmas y las fotos de referencia van por documento, cada una en
+        // su carpeta. Se aceptan los dos idiomas porque la carpeta la arma una
+        // persona a mano y equivocarse de idioma no puede costar la migracion.
+        $this->copiarDeReferencia($carpeta, ['signature', 'firmas'], 'person_signatures', 'firmas/legacy/', 'migrated');
+        $this->copiarDeReferencia($carpeta, ['photo', 'fotos'], 'person_photos', 'fotos/legacy/', \App\Models\PersonPhoto::MIGRADA);
     }
 
     /**
@@ -2404,46 +2419,227 @@ class MigrateLegacyDataCommand extends Command
             ->whereNotExists($conArchivo)->update(['evidence_missing' => true]);
     }
 
+    /** Extensiones que se aceptan como imagen de referencia. */
+    protected const IMAGENES = ['jpg', 'jpeg', 'png', 'webp'];
+
     /**
-     * Copia las firmas o las fotos de referencia desde la carpeta de la v1.
+     * Copia las firmas o las fotos de referencia, que vienen POR DOCUMENTO.
      *
-     * Las dos tablas tienen la misma forma —`file_path` + `sha256`— y hasta
-     * ahora esto solo existia para las firmas. El nombre del fichero en la v1
-     * no dice nada del contenido, asi que al copiarlo se renombra por su hash:
-     * dos personas con la misma imagen comparten archivo y no se duplica.
+     *   <desde>/signature/<num_doc>/<lo que sea>.png
+     *   <desde>/photo/<num_doc>/<lo que sea>.jpg
      *
-     * @return array{0:int,1:int} copiadas, perdidas
+     * Se recorre la CARPETA y no la tabla, y esa es la diferencia que importa.
+     * En la v1 el 96% de las firmas y el 83% de las fotos no eran un archivo
+     * sino la cadena `detected_by_IA` escrita en la columna, asi que a esas
+     * personas el paso `personas` no les creo ninguna fila. Yendo por la tabla
+     * se quedarian fuera justo las que mas falta hacen; yendo por la carpeta,
+     * si el archivo esta, la persona lo recibe.
+     *
+     * La carpeta ES la identidad: el nombre del fichero de dentro da igual,
+     * porque en la v1 no decia nada del contenido. Al copiarlo se renombra por
+     * su hash, de modo que dos personas con la misma imagen comparten archivo.
+     *
+     * @param  list<string>  $subcarpetas  nombres aceptados, en orden
      */
-    protected function copiarDeReferencia(string $carpeta, string $tabla, string $prefijoViejo, string $prefijoNuevo): array
+    protected function copiarDeReferencia(string $carpeta, array $subcarpetas, string $tabla, string $prefijoNuevo, string $source): void
     {
-        $copiadas = $perdidas = 0;
+        $raiz = null;
 
-        DB::table($tabla)->where('file_path', 'like', $prefijoViejo . '%')
-            ->orderBy('id')->chunkById(500, function ($filas) use ($carpeta, $tabla, $prefijoNuevo, &$copiadas, &$perdidas) {
-                foreach ($filas as $f) {
-                    $fuente = rtrim($carpeta, '/') . '/' . basename($f->file_path);
+        foreach ($subcarpetas as $sub) {
+            $ruta = rtrim($carpeta, '/\\') . DIRECTORY_SEPARATOR . $sub;
 
-                    if (! is_file($fuente)) {
-                        $perdidas++;
+            if (is_dir($ruta)) {
+                $raiz = $ruta;
+                break;
+            }
+        }
 
-                        continue;
-                    }
+        $etiqueta = $tabla === 'person_photos' ? 'fotos de persona' : 'firmas de persona';
 
-                    $contenido = file_get_contents($fuente);
-                    $hash = hash('sha256', $contenido);
-                    $destino = $prefijoNuevo . substr($hash, 0, 2) . '/' . $hash . '.' . pathinfo($f->file_path, PATHINFO_EXTENSION);
+        if ($raiz === null) {
+            $this->line(sprintf('  %s: no hay carpeta «%s», no se copia ninguna', $etiqueta, $subcarpetas[0]));
 
-                    if (! Storage::disk('local')->exists($destino)) {
-                        Storage::disk('local')->put($destino, $contenido);
-                    }
+            return;
+        }
 
-                    DB::table($tabla)->where('id', $f->id)
-                        ->update(['file_path' => $destino, 'sha256' => $hash]);
-                    $copiadas++;
+        $copiadas = $yaEstaban = $sinPersona = $vacias = 0;
+        $sinDuenoEjemplos = [];
+
+        foreach (scandir($raiz) ?: [] as $documento) {
+            if ($documento === '.' || $documento === '..') {
+                continue;
+            }
+
+            $dir = $raiz . DIRECTORY_SEPARATOR . $documento;
+
+            if (! is_dir($dir)) {
+                continue;
+            }
+
+            $personaId = $this->personaDelDocumento($documento);
+
+            if ($personaId === null) {
+                $sinPersona++;
+
+                if (count($sinDuenoEjemplos) < 5) {
+                    $sinDuenoEjemplos[] = $documento;
                 }
-            });
 
-        return [$copiadas, $perdidas];
+                continue;
+            }
+
+            $fuente = $this->primeraImagen($dir);
+
+            if ($fuente === null) {
+                $vacias++;
+
+                continue;
+            }
+
+            $contenido = file_get_contents($fuente);
+
+            if ($contenido === false || $contenido === '') {
+                $vacias++;
+
+                continue;
+            }
+
+            $hash    = hash('sha256', $contenido);
+            $destino = $prefijoNuevo . substr($hash, 0, 2) . '/' . $hash . '.'
+                . strtolower(pathinfo($fuente, PATHINFO_EXTENSION));
+
+            if (! Storage::disk('local')->exists($destino)) {
+                Storage::disk('local')->put($destino, $contenido);
+            }
+
+            if ($this->guardarReferencia($tabla, $personaId, $destino, $hash, $source)) {
+                $copiadas++;
+            } else {
+                $yaEstaban++;
+            }
+        }
+
+        $this->line(sprintf(
+            '  %s: %d copiadas · %d ya estaban · %d sin persona · %d carpetas sin imagen',
+            $etiqueta, $copiadas, $yaEstaban, $sinPersona, $vacias,
+        ));
+
+        if ($sinDuenoEjemplos !== []) {
+            $this->warn(sprintf('    Documentos sin persona en la base: %s%s',
+                implode(', ', $sinDuenoEjemplos), $sinPersona > count($sinDuenoEjemplos) ? '…' : ''));
+        }
+    }
+
+    /**
+     * La persona a la que pertenece una carpeta, por su documento.
+     *
+     * Primero exacto. Si no aparece, se prueba sin los ceros de la izquierda:
+     * el volcado del sistema viejo pasa por Excel y Excel se come los ceros de
+     * un DNI que empieza por cero. Esa segunda vuelta solo vale si deja UNA
+     * persona: con dos, callar y no adivinar — colgarle la cara de alguien a
+     * otro es peor que no tener foto.
+     */
+    protected function personaDelDocumento(string $documento): ?int
+    {
+        $documento = preg_replace('/[\s-]/', '', trim($documento)) ?? '';
+
+        if ($documento === '') {
+            return null;
+        }
+
+        $exacta = DB::table('people')->whereNull('deleted_at')
+            ->where('num_doc', $documento)->pluck('id');
+
+        if ($exacta->count() === 1) {
+            return (int) $exacta->first();
+        }
+
+        if ($exacta->count() > 1) {
+            return null;   // el mismo documento en dos workspaces: no es nuestro problema resolverlo aqui
+        }
+
+        // Los ceros pueden faltar en cualquiera de los dos lados —la carpeta
+        // sale de un volcado y la persona pudo entrar por un Excel— asi que se
+        // comparan los dos sin ellos, no solo la carpeta.
+        $sinCeros = ltrim($documento, '0');
+
+        if ($sinCeros === '') {
+            return null;
+        }
+
+        $aproximada = DB::table('people')->whereNull('deleted_at')
+            ->whereRaw("ltrim(num_doc, '0') = ?", [$sinCeros])->pluck('id');
+
+        return $aproximada->count() === 1 ? (int) $aproximada->first() : null;
+    }
+
+    /** El primer fichero de imagen de una carpeta, en orden alfabetico. */
+    protected function primeraImagen(string $dir): ?string
+    {
+        $nombres = scandir($dir) ?: [];
+        sort($nombres);
+
+        foreach ($nombres as $nombre) {
+            $ruta = $dir . DIRECTORY_SEPARATOR . $nombre;
+
+            if (! is_file($ruta)) {
+                continue;
+            }
+
+            if (in_array(strtolower(pathinfo($nombre, PATHINFO_EXTENSION)), self::IMAGENES, true)) {
+                return $ruta;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Deja esa imagen como la vigente de la persona, respetando el versionado.
+     *
+     *  - Si ya es la vigente (mismo hash), no se toca nada.
+     *  - Si la vigente es el marcador que dejo el paso `personas`
+     *    (`legacy/…`, un archivo que nunca existio), se corrige EN SITIO: no
+     *    tiene sentido archivar como historia algo que nunca fue nada.
+     *  - Si la vigente es una imagen de verdad, se jubila con `valid_to` y la
+     *    nueva entra al lado. Un documento ya firmado sigue apuntando a la que
+     *    se uso entonces.
+     *
+     * @return bool si ha escrito algo
+     */
+    protected function guardarReferencia(string $tabla, int $personaId, string $destino, string $hash, string $source): bool
+    {
+        $vigente = DB::table($tabla)->where('person_id', $personaId)
+            ->whereNull('valid_to')->orderByDesc('valid_from')->first();
+
+        if ($vigente && $vigente->sha256 === $hash) {
+            return false;
+        }
+
+        if ($vigente && str_starts_with((string) $vigente->file_path, 'legacy/')) {
+            DB::table($tabla)->where('id', $vigente->id)->update([
+                'file_path' => $destino, 'sha256' => $hash, 'updated_at' => now(),
+            ]);
+
+            return true;
+        }
+
+        if ($vigente) {
+            DB::table($tabla)->where('id', $vigente->id)
+                ->update(['valid_to' => now(), 'updated_at' => now()]);
+        }
+
+        DB::table($tabla)->insert([
+            'person_id'  => $personaId,
+            'file_path'  => $destino,
+            'sha256'     => $hash,
+            'source'     => $source,
+            'valid_from' => now(),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        return true;
     }
 
     // ── Utilidades ───────────────────────────────────────────────────────────
