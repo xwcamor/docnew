@@ -205,6 +205,9 @@ return [
     'export_zip_empty' => 'No form has been confirmed yet, so there is nothing to download.',
 
     'findings_count' => '{1} 1 finding|[2,*] :count findings',
+    // A slot that sometimes holds a red warning and sometimes nothing reads as
+    // "nobody has looked yet". This is a result, and it is the good one.
+    'findings_none'  => 'No findings',
     'findings_hint'  => '{1} One answer came out non-conforming. The form still closes: what it cannot do is close without a record of it.|[2,*] :count answers came out non-conforming. The form still closes: what it cannot do is close without a record of it.',
     'forms_findings' => '{1} 1 finding|[2,*] :count findings',
     'forms_empty'    => 'This plan’s work type does not require any form.',

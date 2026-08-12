@@ -222,6 +222,7 @@ const guardarAlta = () => {
                 :subtitle="subtitulo(fila)"
                 :when="fila.signed ? fila.signed_at : null"
                 :label="fila.signed ? $t('work_plans.crew_signed') : $t('work_plans.crew_pending')"
+                state-as="mark"
             >
                 <template #actions>
                     <!-- La cara con la que firmo. Solo llega con

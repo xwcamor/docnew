@@ -138,15 +138,19 @@ const alternar = (f, valor) => {
                 :when="f.status === 'confirmed' ? f.confirmed_at : null"
                 :label="f.included ? $t('field_work.status.' + f.status) : ''"
                 :findings="f.included ? (f.findings || 0) : 0"
+                :show-clean="f.included && f.status === 'confirmed'"
                 done-verb="completed"
             >
                 <template #actions>
                     <template v-if="f.included">
                         <Tooltip v-if="canExport && conPdf(f)" :title="$t('work_plans.forms_pdf_hint', { code: f.code })">
+                            <!-- Sólo el icono: el de PDF es de los pocos que se
+                                 reconocen sin leer, y la palabra al lado
+                                 ocupaba en cada fila el sitio que necesita el
+                                 nombre del documento. El tooltip lo nombra. -->
                             <a :href="route('field_work.forms.pdf', f.submission)">
-                                <Button size="small">
+                                <Button size="small" :aria-label="$t('work_plans.forms_pdf')">
                                     <template #icon><FilePdfOutlined /></template>
-                                    {{ $t('work_plans.forms_pdf') }}
                                 </Button>
                             </a>
                         </Tooltip>

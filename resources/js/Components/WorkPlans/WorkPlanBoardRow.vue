@@ -2,7 +2,8 @@
 import { computed } from 'vue';
 import { Tag, Tooltip } from 'ant-design-vue';
 import {
-    CheckCircleFilled, ClockCircleOutlined, LockOutlined, MinusCircleOutlined, WarningFilled,
+    CheckCircleFilled, CheckCircleOutlined, ClockCircleOutlined, LockOutlined,
+    MinusCircleOutlined, WarningFilled,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -63,6 +64,32 @@ const props = defineProps({
      * «Completado» (`standard.completed`).
      */
     doneVerb: { type: String, default: 'signed' },
+    /**
+     * Dónde se cuenta el estado: `mark` o `tag`. **Nunca en los dos sitios.**
+     *
+     * Antes se contaba en los dos: la marca verde de la izquierda y, otra vez,
+     * dentro de la pastilla con la hora — que lleva el mismo icono. Dos checks
+     * verdes por fila diciendo lo mismo, y en una tarjeta con cuatro filas eso
+     * son ocho.
+     *
+     * - `mark` (trabajadores, aprobaciones): la marca, y la hora en su tooltip.
+     *   Ahí la fila es corta y una pastilla con la fecha en verde pesa más que
+     *   el nombre de la persona, que es lo que se viene a leer. El flujo de
+     *   aprobaciones **necesita** la marca de todas formas: es de donde cuelga
+     *   el hilo que encadena un paso con el siguiente.
+     * - `tag` (documentos): la pastilla con la hora a la vista, sin marca. Aquí
+     *   la fecha sí se lee — es cuándo se cerró el documento — y la fila ya
+     *   tiene su propia hilera de acciones a la derecha.
+     */
+    stateAs:  { type: String, default: 'tag' },
+    /**
+     * Si esta fila puede decir «sin observaciones» cuando no tiene ninguna.
+     *
+     * Sólo tiene sentido en algo ya terminado: un documento en borrador no está
+     * conforme, es que todavía no se ha llenado, y ponerle «sin observaciones»
+     * sería afirmar un resultado limpio que nadie ha comprobado.
+     */
+    showClean: { type: Boolean, default: false },
 });
 
 const { t, tc } = useI18n();
@@ -91,11 +118,20 @@ const cuando = computed(() => {
 });
 
 const etiqueta = computed(() => cuando.value || props.label);
+
+/** Lo que dice la marca al posarse encima: qué pasó y cuándo. */
+const tituloDeLaMarca = computed(() => (
+    props.when ? t(`work_plans.done_at_${props.doneVerb}`, { when: cuando.value }) : props.label
+));
 </script>
 
 <template>
-    <li class="wp-row" :class="[`is-${state}`, { 'is-chained': chained }]">
-        <span class="wp-row__mark" aria-hidden="true"><component :is="marca" /></span>
+    <li class="wp-row" :class="[`is-${state}`, { 'is-chained': chained, 'is-nomark': stateAs !== 'mark' }]">
+        <!-- La marca lleva el estado Y la hora en su tooltip: es la única cosa
+             verde de la fila, no la primera de dos. -->
+        <Tooltip v-if="stateAs === 'mark'" :title="tituloDeLaMarca">
+            <span class="wp-row__mark"><component :is="marca" /></span>
+        </Tooltip>
 
         <div class="wp-row__body">
             <strong class="wp-row__title">{{ title }}</strong>
@@ -104,7 +140,7 @@ const etiqueta = computed(() => cuando.value || props.label);
         </div>
 
         <div class="wp-row__side">
-            <Tooltip v-if="etiqueta" :title="when ? t(`work_plans.done_at_${doneVerb}`, { when: cuando }) : etiqueta">
+            <Tooltip v-if="stateAs === 'tag' && etiqueta" :title="tituloDeLaMarca || etiqueta">
                 <Tag :color="color" :bordered="false" class="wp-row__tag">
                     <component :is="marca" /> {{ etiqueta }}
                 </Tag>
@@ -118,6 +154,16 @@ const etiqueta = computed(() => cuando.value || props.label);
                     <WarningFilled /> {{ tc('work_plans.findings_count', findings, { count: findings }) }}
                 </Tag>
             </Tooltip>
+
+            <!-- Y cuando no hay ninguna, decirlo.
+                 El hueco donde a veces sale un aviso rojo y a veces no sale
+                 nada se lee como «todavía no lo han mirado». «Sin
+                 observaciones» es un resultado, y es el que se busca. En gris y
+                 no en verde: el día limpio es lo normal, no un logro, y compite
+                 con la pastilla de estado que ya va en verde. -->
+            <Tag v-else-if="showClean" :bordered="false" class="wp-row__tag wp-row__tag--clean">
+                <CheckCircleOutlined /> {{ t('work_plans.findings_none') }}
+            </Tag>
 
             <div v-if="$slots.actions" class="wp-row__acts"><slot name="actions" /></div>
         </div>
@@ -201,7 +247,19 @@ const etiqueta = computed(() => cuando.value || props.label);
 }
 /* Debajo de todo y a lo ancho, alineado con el cuerpo. */
 .wp-row__wide  { flex: 0 0 calc(100% - 32px); margin-left: 32px; margin-top: 8px; }
+
+/* Sin marca (documentos) no hay 32px que compensar: la sangría era para
+   alinearse con el cuerpo cuando el lado baja de línea, y sin marca el cuerpo
+   empieza en el borde. Dejarla metía todo el bloque hacia dentro sin motivo. */
+.wp-row.is-nomark .wp-row__side { margin-left: 0; }
+.wp-row.is-nomark .wp-row__wide { flex-basis: 100%; margin-left: 0; }
 .wp-row__tag   { margin: 0; white-space: nowrap; }
+/* El resultado limpio, en gris: es lo normal, no un logro, y en verde
+   competiría con la pastilla de estado que ya lo es. */
+.wp-row__tag--clean {
+    background: var(--color-surface-alt, #F5F6F7);
+    color: var(--color-text-muted, #6A6D70);
+}
 .wp-row__acts  { display: inline-flex; align-items: center; gap: 6px; }
 /* Con guantes, a pleno sol (docs/UI.md §3). */
 .wp-row__acts :deep(.ant-btn) { min-height: 32px; }

@@ -290,6 +290,7 @@ const firmar = (a) => router.get(
                 :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
                 :when="a.signed ? a.signed_at : null"
                 :label="etiqueta(a)"
+                state-as="mark"
             >
                 <template #actions>
                     <!-- Mientras el flujo esta bloqueado no sale ningun boton.

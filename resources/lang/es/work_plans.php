@@ -211,6 +211,9 @@ return [
     'export_zip_empty' => 'Todavía no hay ningún documento completado que descargar.',
 
     'findings_count' => '{1} 1 observación|[2,*] :count observaciones',
+    // El hueco donde a veces sale un aviso rojo y a veces no sale nada se lee
+    // como «todavía no lo han mirado». Esto es un resultado, y es el bueno.
+    'findings_none'  => 'Sin observaciones',
     'findings_hint'  => '{1} Una respuesta salió no conforme. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.|[2,*] :count respuestas salieron no conformes. El formato se cierra igual: lo que no se puede es cerrarlo sin que conste.',
     'forms_findings' => '{1} 1 observación|[2,*] :count observaciones',
     'forms_empty'    => 'El tipo de trabajo de este plan no exige ningún documento.',
