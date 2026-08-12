@@ -190,7 +190,10 @@ return [
     'crew_added'    => ':name se añadió al plan.',
     'crew_removed'  => 'El trabajador se quitó del plan.',
     'crew_already_assigned'     => ':name ya está en este plan.',
-    'crew_signed_cannot_remove' => 'No se puede quitar a :name: ya firmó este plan. Su firma es la prueba de que estuvo en la obra y recibió la charla, así que el registro se conserva.',
+    // El motivo y nada más. Antes seguía explicando que la firma prueba que
+    // estuvo en la obra y recibió la charla: eso es doctrina de seguridad, no
+    // interfaz, y quien usa la pantalla ya lo sabe mejor que el sistema.
+    'crew_signed_cannot_remove' => 'No se puede quitar a :name: ya firmó el plan.',
 
     'forms_title'    => 'Documentos',
     'forms_not_in_plan'  => 'No se exige en este plan',

@@ -71,8 +71,15 @@ const conPdf = (f) => f.submission && f.status === 'confirmed';
 const subtitulo = (f) => {
     const partes = [];
 
-    if (!f.included) partes.push(t('work_plans.forms_not_in_plan'));
-    else if (!f.locked_by_work_type) partes.push(t('work_plans.forms_optional'));
+    if (!f.included) return t('work_plans.forms_not_in_plan');
+
+    if (!f.locked_by_work_type) partes.push(t('work_plans.forms_optional'));
+
+    // Cómo va: «Sin empezar», «En borrador», «Enviado». Confirmado NO, y es a
+    // propósito: para eso está la hora justo al lado, que dice lo mismo y
+    // además dice cuándo. La fila de un documento sin llenar se quedaba con la
+    // segunda línea vacía y no había manera de distinguirla de una a medias.
+    if (f.status !== 'confirmed') partes.push(t('field_work.status.' + f.status));
 
     return partes.join(' · ');
 };

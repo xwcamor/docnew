@@ -1,9 +1,8 @@
 <script setup>
 import { computed } from 'vue';
-import { Tag, Tooltip } from 'ant-design-vue';
+import { Tooltip } from 'ant-design-vue';
 import {
-    CheckCircleFilled, CheckCircleOutlined, ClockCircleOutlined, LockOutlined,
-    MinusCircleOutlined, WarningFilled,
+    CheckCircleFilled, ClockCircleOutlined, LockOutlined, MinusCircleOutlined, WarningFilled,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import { horaDeObra } from '@/Utils/horaDeObra';
@@ -109,6 +108,11 @@ const tituloDeLaMarca = computed(() => (
         ? t(`work_plans.done_at_${props.doneVerb}`, { when: horaDeObra(props.when) })
         : props.label
 ));
+
+/** ¿Hay algo que contar en la segunda línea? Si no, no se pinta el hueco. */
+const hayLineaDos = computed(() => (
+    !!props.subtitle || !!props.subtitleTime || props.findings > 0 || props.showClean
+));
 </script>
 
 <template>
@@ -120,40 +124,36 @@ const tituloDeLaMarca = computed(() => (
 
         <div class="wp-row__body">
             <strong class="wp-row__title">{{ title }}</strong>
-            <!-- La hora va en el subtítulo pero como prop aparte, NUNCA
-                 concatenada con `v-html`: aquí dentro se pintan nombres de
-                 personas, que son datos de usuario. -->
-            <span v-if="subtitle || subtitleTime" class="wp-row__sub">
-                {{ subtitle }}<template v-if="subtitle && subtitleTime"> · </template><b v-if="subtitleTime">{{ subtitleTime }}</b>
+            <!-- La segunda línea: lo que la fila es, cuándo pasó y cómo salió.
+                 Cada trozo es un hijo suelto y los puntos de separación los
+                 pone el CSS, así que no hay que encadenarlos a mano ni
+                 preocuparse de los que falten. Y NUNCA con `v-html`: aquí
+                 dentro se pintan nombres de personas, que son datos de
+                 usuario. -->
+            <span v-if="hayLineaDos" class="wp-row__sub">
+                <span v-if="subtitle">{{ subtitle }}</span>
+                <b v-if="subtitleTime">{{ subtitleTime }}</b>
+
+                <!-- El resultado, en la misma línea que la hora: «se confirmó a
+                     las 06:06 y salió con una observación» es una sola cosa que
+                     contar, y partida en dos sitios se leía dos veces. -->
+                <Tooltip v-if="findings > 0" :title="tc('work_plans.findings_hint', findings, { count: findings })">
+                    <span class="wp-row__flag">
+                        <WarningFilled /> {{ tc('work_plans.findings_count', findings, { count: findings }) }}
+                    </span>
+                </Tooltip>
+                <span v-else-if="showClean">{{ t('work_plans.findings_none') }}</span>
             </span>
             <span v-if="reason" class="wp-row__why">{{ reason }}</span>
         </div>
 
         <div class="wp-row__side">
-            <!-- Aquí vivía una pastilla de estado con la hora dentro, y llevaba
-                 el mismo icono que la marca: dos veces lo mismo por fila. El
-                 estado lo cuenta la marca y la hora va en el subtítulo, donde
-                 se lee sin hover — que en una tablet no existe (docs/UI.md §3).
-
-                 Lo que sí se queda a la derecha es el RESULTADO, que no es el
-                 estado: un documento confirmado Y con tres observaciones son
-                 dos cosas ciertas a la vez, y una no sustituye a la otra. -->
-            <Tooltip v-if="findings > 0" :title="tc('work_plans.findings_hint', findings, { count: findings })">
-                <Tag color="error" :bordered="false" class="wp-row__tag">
-                    <WarningFilled /> {{ tc('work_plans.findings_count', findings, { count: findings }) }}
-                </Tag>
-            </Tooltip>
-
-            <!-- Y cuando no hay ninguna, decirlo.
-                 El hueco donde a veces sale un aviso rojo y a veces no sale
-                 nada se lee como «todavía no lo han mirado». «Sin
-                 observaciones» es un resultado, y es el que se busca. En gris y
-                 no en verde: el día limpio es lo normal, no un logro, y compite
-                 con la pastilla de estado que ya va en verde. -->
-            <Tag v-else-if="showClean" :bordered="false" class="wp-row__tag wp-row__tag--clean">
-                <CheckCircleOutlined /> {{ t('work_plans.findings_none') }}
-            </Tag>
-
+            <!-- Aquí a la derecha vivían la pastilla de estado con la hora y,
+                 debajo, las observaciones. Las tres se han ido a la segunda
+                 línea: el estado ya lo cuenta la marca, y la hora y el
+                 resultado son la misma frase —«se confirmó a las 06:06 y salió
+                 con una observación»— que partida en dos sitios se leía dos
+                 veces. Aquí sólo quedan las acciones. -->
             <div v-if="$slots.actions" class="wp-row__acts"><slot name="actions" /></div>
         </div>
 
@@ -224,6 +224,22 @@ const tituloDeLaMarca = computed(() => (
    palabra que de verdad no cabe, y el resto respeta los espacios. */
 .wp-row__title { display: block; font-weight: 600; font-size: 0.95rem; color: var(--color-text, #32363A); overflow-wrap: break-word; }
 .wp-row__sub   { display: block; margin-top: 2px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+
+/* Los puntos de separación los pone el CSS y no la plantilla: los trozos de
+   esta línea aparecen y desaparecen según la fila —hay hora o no, hay
+   observaciones o no— y encadenarlos a mano acababa en « ·  · » cada vez que
+   faltaba uno. */
+.wp-row__sub > * + *::before {
+    content: '·';
+    margin: 0 6px;
+    color: var(--color-border, #d9d9d9);
+}
+/* La hora, en monoespaciada: son varias filas con la misma forma y alineadas
+   por columna se leen de un barrido. `<b>` sin negrita — es la marca que
+   distingue el dato del texto, no un énfasis. */
+.wp-row__sub b { font-weight: 400; font-family: ui-monospace, Consolas, monospace; }
+/* Lo que salió mal: color Y icono, nunca sólo color (docs/UI.md §5). */
+.wp-row__flag { color: var(--color-error, #BB0000); white-space: nowrap; }
 .wp-row__why   { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); }
 
 /* Los 32px son la marca (22) más el hueco (10): cuando el lado se va a su
@@ -237,22 +253,6 @@ const tituloDeLaMarca = computed(() => (
 /* Debajo de todo y a lo ancho, alineado con el cuerpo. */
 .wp-row__wide  { flex: 0 0 calc(100% - 32px); margin-left: 32px; margin-top: 8px; }
 
-.wp-row__tag   { margin: 0; white-space: nowrap; }
-
-/* La hora va dentro del subtítulo y en monoespaciada: son cuatro filas con la
-   misma forma —dd-mm-aaaa hh:mm— y alineadas por columna se leen de un barrido
-   en vez de una a una. Lo marca la tarjeta envolviéndola en un `<b>`, que es lo
-   único que el subtítulo deja pasar como marca. */
-.wp-row__sub :deep(b) {
-    font-weight: 400;
-    font-family: ui-monospace, Consolas, monospace;
-}
-/* El resultado limpio, en gris: es lo normal, no un logro, y en verde
-   competiría con la pastilla de estado que ya lo es. */
-.wp-row__tag--clean {
-    background: var(--color-surface-alt, #F5F6F7);
-    color: var(--color-text-muted, #6A6D70);
-}
 .wp-row__acts  { display: inline-flex; align-items: center; gap: 6px; }
 /* Con guantes, a pleno sol (docs/UI.md §3). */
 .wp-row__acts :deep(.ant-btn) { min-height: 32px; }

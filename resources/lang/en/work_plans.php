@@ -184,7 +184,8 @@ return [
     'crew_added'    => ':name was added to the plan.',
     'crew_removed'  => 'The worker was removed from the plan.',
     'crew_already_assigned'     => ':name is already on this plan.',
-    'crew_signed_cannot_remove' => 'Cannot remove :name: they already signed this plan. Their signature proves they were on site and attended the briefing, so the record is kept.',
+    // The reason and nothing else — see the Spanish note.
+    'crew_signed_cannot_remove' => 'Cannot remove :name: they already signed the plan.',
 
     'forms_title'    => 'Documents',
     'forms_not_in_plan'  => 'Not required on this plan',
