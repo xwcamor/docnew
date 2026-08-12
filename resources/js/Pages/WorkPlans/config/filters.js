@@ -27,6 +27,14 @@ export const workPlansFilterFields = (t, {
         { value: true,  label: t('work_plans.state_closed') },
         { value: false, label: t('work_plans.state_open')   },
     ]},
+    // Reabiertos: los que alguien volvio a abrir para corregir algo. No es un
+    // tercer estado —el plan sigue en curso— pero si el grupo que hay que poder
+    // aislar: son los unicos cuyo documento cambio DESPUES de darse por
+    // terminado, y eso es lo que hay que poder explicar.
+    { key: 'reopened',         label: t('work_plans.filter_reopened'), type: 'select', options: [
+        { value: true,  label: t('work_plans.state_reopened') },
+        { value: false, label: t('work_plans.filter_never_reopened') },
+    ]},
     { key: 'work_date',        label: t('work_plans.date_start'),     type: 'date_range' },
     { key: 'created_at',       label: t('global.created_at'),         type: 'date_range' },
     { key: 'only_favorites',   label: t('global.only_favorites'),     type: 'switch' },
@@ -40,6 +48,7 @@ export const workPlansEmptyFilters = () => ({
     work_location_id: [],
     is_done: null,
     is_closed: null,
+    reopened: null,
     work_date: null,
     created_at: null,
     only_favorites: false,
@@ -53,6 +62,7 @@ export const hydrateWorkPlansFilters = (server) => ({
     work_location_id: Array.isArray(server.work_location_id) ? server.work_location_id : [],
     is_done:          server.is_done ?? null,
     is_closed:        server.is_closed ?? null,
+    reopened:         server.reopened ?? null,
     work_date: (server.date_from && server.date_to)
         ? [dayjs(server.date_from), dayjs(server.date_to)]
         : null,
@@ -70,6 +80,7 @@ export const workPlansFiltersToQuery = (f) => ({
     work_location_id: f.work_location_id?.length ? f.work_location_id : undefined,
     is_done:          f.is_done ?? undefined,
     is_closed:        f.is_closed ?? undefined,
+    reopened:         f.reopened ?? undefined,
     date_from:        f.work_date?.[0]?.format('YYYY-MM-DD') ?? undefined,
     date_to:          f.work_date?.[1]?.format('YYYY-MM-DD') ?? undefined,
     created_from:     f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
@@ -90,6 +101,9 @@ export const workPlansFiltersSummary = (f, t) => {
     if (f.is_closed !== null && f.is_closed !== undefined) {
         parts.push(`${t('work_plans.is_closed')}: ${f.is_closed ? t('work_plans.state_closed') : t('work_plans.state_open')}`);
     }
+    if (f.reopened !== null && f.reopened !== undefined) {
+        parts.push(`${t('work_plans.filter_reopened')}: ${f.reopened ? t('work_plans.state_reopened') : t('work_plans.filter_never_reopened')}`);
+    }
     if (f.work_date)  parts.push(`${t('work_plans.date_start')}: ${f.work_date[0]?.format('YYYY-MM-DD')} → ${f.work_date[1]?.format('YYYY-MM-DD')}`);
     if (f.created_at) parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
     return parts.join(' · ');
@@ -106,6 +120,7 @@ export const serializeSavedFilters = (f) => ({
     work_location_id: f.work_location_id ?? [],
     is_done:          f.is_done ?? null,
     is_closed:        f.is_closed ?? null,
+    reopened:         f.reopened ?? null,
     work_date:  f.work_date?.[0]
         ? [f.work_date[0].format('YYYY-MM-DD'), f.work_date[1]?.format('YYYY-MM-DD')]
         : null,
@@ -122,6 +137,7 @@ export const deserializeSavedFilters = (f = {}) => ({
     work_location_id: Array.isArray(f.work_location_id) ? f.work_location_id : [],
     is_done:          f.is_done ?? null,
     is_closed:        f.is_closed ?? null,
+    reopened:         f.reopened ?? null,
     work_date:  f.work_date?.[0]  ? [dayjs(f.work_date[0]),  dayjs(f.work_date[1])]  : null,
     created_at: f.created_at?.[0] ? [dayjs(f.created_at[0]), dayjs(f.created_at[1])] : null,
     only_favorites: f.only_favorites ?? false,

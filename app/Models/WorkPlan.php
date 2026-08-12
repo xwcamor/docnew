@@ -120,6 +120,19 @@ class WorkPlan extends Model
             $q->where("{$tbl}.is_closed", filter_var($request->is_closed, FILTER_VALIDATE_BOOLEAN));
         });
 
+        // Reabiertos: los que alguien volvio a abrir para corregir algo.
+        //
+        // No es un tercer estado —el plan sigue en curso— pero si es el grupo
+        // que hay que poder aislar: son los unicos planes cuyo documento cambio
+        // DESPUES de haberse dado por terminado, y eso es justo lo que hay que
+        // poder explicar delante de un inspector. `reopened_at` ya se guardaba
+        // con quien y cuando; lo que no habia era forma de listarlos.
+        $query->when($request->filled('reopened'), function ($q) use ($request, $tbl) {
+            filter_var($request->reopened, FILTER_VALIDATE_BOOLEAN)
+                ? $q->whereNotNull("{$tbl}.reopened_at")
+                : $q->whereNull("{$tbl}.reopened_at");
+        });
+
         // Fecha del trabajo (no la de alta del registro): es la que usa el
         // supervisor para encontrar "los planes de esta semana".
         // Se filtra por día aunque la columna lleve hora: pedir «hasta el 6» y

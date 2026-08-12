@@ -253,14 +253,13 @@ const hayLineaDos = computed(() => (
 .wp-row__when {
     display: inline-block;
     padding: 1px 6px;
-    border: 1px solid var(--color-border, #E5E5E5);
+    border: 1px solid var(--color-border);
     border-radius: 4px;
-    background: var(--color-surface-alt, #F5F6F7);
+    background: var(--color-surface-alt);
     font-weight: 400;
-    font-family: ui-monospace, Consolas, monospace;
     font-size: 0.75rem;
     line-height: 1.5;
-    color: var(--color-text-muted, #6A6D70);
+    color: var(--color-text-muted);
     white-space: nowrap;
 }
 /* La pastilla no lleva punto delante: la caja ya la separa, y el punto la haría

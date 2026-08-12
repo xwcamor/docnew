@@ -436,6 +436,28 @@ class WorkPlanCompletionTest extends TestCase
      * porque un plan vacio no se cierra. Los casos de plan a medias tienen su
      * propia prueba, donde se monta a mano lo que falta.
      */
+    public function test_el_listado_puede_quedarse_solo_con_los_reabiertos(): void
+    {
+        $reabierto = $this->plan(['date_end' => '2026-08-08 18:00:00']);
+        $this->completar($reabierto);
+        $this->aprobacion($reabierto, obligatoria: true, firmada: true);
+        $this->cierre->evaluar($reabierto);
+        $this->cierre->reabrir($reabierto->refresh());
+
+        $normal = $this->plan(['code' => 'PE26-0808-0002']);
+
+        $ids = fn (array $params) => WorkPlan::query()
+            ->filter(new \Illuminate\Http\Request($params))
+            ->pluck('id')
+            ->all();
+
+        $this->assertSame([$reabierto->id], $ids(['reopened' => 1]));
+        $this->assertSame([$normal->id], $ids(['reopened' => 0]));
+
+        // Sin el filtro salen los dos: la vista «Todos» no esconde nada.
+        $this->assertCount(2, $ids([]));
+    }
+
     private function plan(array $extra = [], bool $armado = true): WorkPlan
     {
         $empresa = Company::create($this->base() + [

@@ -138,6 +138,11 @@ class WorkPlanController extends Controller
                 'is_closed'    => $request->filled('is_closed')
                     ? filter_var($request->is_closed, FILTER_VALIDATE_BOOLEAN)
                     : null,
+                // Los que se volvieron a abrir para corregir algo. Alimenta la
+                // vista «Reabiertos» del listado.
+                'reopened'     => $request->filled('reopened')
+                    ? filter_var($request->reopened, FILTER_VALIDATE_BOOLEAN)
+                    : null,
                 'date_from'    => $request->get('date_from', ''),
                 'date_to'      => $request->get('date_to', ''),
                 'created_from' => $request->get('created_from', ''),

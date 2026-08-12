@@ -329,6 +329,49 @@ const colSel = ref(null);
 const exportableColumns = computed(() => workPlansExportableColumns(t, { isSuper: isSuper.value }));
 const exportEndpoints   = computed(() => workPlansExportEndpoints());
 
+// ─── Las tres vistas de estado ──────────────────────────────────────────────
+//
+// No son «vistas guardadas» —esas las crea cada quien y viven en su cuenta—:
+// son las tres preguntas que se le hacen SIEMPRE a este listado, así que van
+// escritas y a la vista. Por debajo son los filtros que ya existían; lo que se
+// ahorra es abrir el cajón y saber qué campo mirar.
+const vistasDeEstado = computed(() => [
+    { key: 'todos',      label: t('global.all') },
+    { key: 'pendientes', label: t('work_plans.state_pending') },
+    { key: 'terminados', label: t('work_plans.state_done') },
+    { key: 'reabiertos', label: t('work_plans.state_reopened') },
+]);
+
+/** Qué vista refleja el filtro actual. Ninguna combinación rara cuenta. */
+const vistaActiva = computed(() => {
+    if (filters.value.reopened === true) return 'reabiertos';
+    if (filters.value.is_done === true)  return 'terminados';
+    if (filters.value.is_done === false) return 'pendientes';
+
+    return 'todos';
+});
+
+/**
+ * Pulsar una vista LIMPIA el resto de filtros.
+ *
+ * Es lo que espera quien la pulsa: «enséñame los terminados», no «los
+ * terminados de lo que ya tenía puesto». Si alguien quiere cruzar dos cosas
+ * tiene el cajón de filtros, que para eso está.
+ */
+const verVista = (clave) => {
+    suspendReload(() => {
+        clearFilters();
+        if (clave === 'pendientes') filters.value.is_done = false;
+        if (clave === 'terminados') filters.value.is_done = true;
+        if (clave === 'reabiertos') filters.value.reopened = true;
+    });
+
+    advancedWhere.value = [];
+    applySavedViewState([], {
+        sort: props.filters.sort, direction: props.filters.direction, perPage: props.filters.per_page,
+    });
+};
+
 // ─── Saved Views (filtros + columnas + sort persistidos por usuario) ──────
 const { currentViewState, applySavedState } = useModuleSavedViews({
     filters,
@@ -377,6 +420,27 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                 :title="$t('work_plans.plural')"
                 :subtitle="$t('work_plans.index_subtitle')"
             />
+        </div>
+
+        <!-- Las tres preguntas que se le hacen a este listado, de un toque.
+             «¿Qué queda por cerrar?», «¿qué se terminó?» y «¿cuáles se
+             volvieron a abrir?». Se respondían con el cajón de filtros, tres
+             gestos y saber qué campo mirar; aquí son un botón.
+
+             Reabiertos no es un tercer estado —esos planes siguen en curso— y
+             por eso va aparte y no dentro de los otros dos: son los únicos cuyo
+             documento cambió DESPUÉS de darse por terminado, y ese es el grupo
+             que hay que poder enseñar entero. -->
+        <div class="wp-views" role="group" :aria-label="$t('work_plans.views_label')">
+            <button
+                v-for="v in vistasDeEstado"
+                :key="v.key"
+                type="button"
+                class="wp-views__btn"
+                :class="{ 'is-on': vistaActiva === v.key }"
+                :aria-pressed="vistaActiva === v.key"
+                @click="verVista(v.key)"
+            >{{ v.label }}</button>
         </div>
 
         <!-- Consola de filtros: búsqueda + builder + controles. -->
@@ -553,8 +617,12 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                         <span v-else class="muted">—</span>
                     </template>
 
+                    <!-- Texto, no pastilla. El color de una etiqueta tiene que
+                         significar algo, y aquí no significaba nada: todos los
+                         tipos salían del mismo azul. Era decoración pintando de
+                         importante un dato que sólo se lee. -->
                     <template v-else-if="column.key === 'work_type'">
-                        <Tag v-if="record.work_type" color="geekblue" :bordered="false">{{ record.work_type.code }}</Tag>
+                        <span v-if="record.work_type">{{ record.work_type.code }}</span>
                         <span v-else class="muted">—</span>
                     </template>
 
@@ -676,6 +744,35 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
 </template>
 
 <style scoped>
+/* ── Las tres vistas de estado ───────────────────────────────────────────── */
+/* Botones de verdad y no pastillas: esto se pulsa, y algo que se pulsa tiene
+   que parecerlo. Objetivo de 40px de alto, que es lo que pide una tablet con
+   guantes (docs/UI.md §3). */
+.wp-views {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin-bottom: 12px;
+}
+.wp-views__btn {
+    min-height: 40px;
+    padding: 0 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.875rem; font-weight: 600;
+    cursor: pointer;
+}
+.wp-views__btn:hover { background: var(--color-surface-hover); }
+/* La activa se distingue por relleno Y por peso, no sólo por color: al sol se
+   pierde el matiz (docs/UI.md §5).
+   Sin respaldos en hexadecimal: los tokens son la fuente y escribir el color a
+   mano al lado es justo lo que vigila `UiStandardTest`. */
+.wp-views__btn.is-on {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: var(--color-on-primary, #fff);
+}
+
 .page-header {
     display: flex;
     justify-content: space-between;
