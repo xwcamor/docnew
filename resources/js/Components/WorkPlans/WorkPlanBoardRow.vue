@@ -136,17 +136,24 @@ const hayLineaDos = computed(() => (
                  usuario. -->
             <span v-if="hayLineaDos" class="wp-row__sub">
                 <span v-if="subtitle">{{ subtitle }}</span>
-                <b v-if="subtitleTime">{{ subtitleTime }}</b>
 
-                <!-- El resultado, en la misma línea que la hora: «se confirmó a
-                     las 06:06 y salió con una observación» es una sola cosa que
-                     contar, y partida en dos sitios se leía dos veces. -->
+                <!-- Primero QUÉ pasó, después CUÁNDO. Es el orden en que se
+                     pregunta: «¿salió limpio?» y sólo entonces «¿a qué hora?».
+                     Al revés, la hora se leía antes que el resultado, que es lo
+                     que de verdad se viene a mirar. -->
                 <Tooltip v-if="findings > 0" :title="tc('work_plans.findings_hint', findings, { count: findings })">
                     <span class="wp-row__flag">
                         <WarningFilled /> {{ tc('work_plans.findings_count', findings, { count: findings }) }}
                     </span>
                 </Tooltip>
                 <span v-else-if="showClean">{{ t('work_plans.findings_none') }}</span>
+
+                <!-- La hora, en pastilla y SIN color. Es un dato, no un estado:
+                     el color ya lo lleva la marca de la izquierda, y una
+                     segunda cosa de color en la misma fila competiría con ella
+                     sin significar nada nuevo. La caja sólo la separa del
+                     texto. -->
+                <b v-if="subtitleTime" class="wp-row__when">{{ subtitleTime }}</b>
             </span>
             <span v-if="reason" class="wp-row__why">{{ reason }}</span>
         </div>
@@ -238,10 +245,29 @@ const hayLineaDos = computed(() => (
     margin: 0 6px;
     color: var(--color-border, #d9d9d9);
 }
-/* La hora, en monoespaciada: son varias filas con la misma forma y alineadas
-   por columna se leen de un barrido. `<b>` sin negrita — es la marca que
-   distingue el dato del texto, no un énfasis. */
-.wp-row__sub b { font-weight: 400; font-family: ui-monospace, Consolas, monospace; }
+/* La hora, en pastilla y sin color: es un dato, no un estado. El color de la
+   fila lo lleva la marca de la izquierda y no hay que repetirlo aquí.
+   Monoespaciada porque son varias filas con la misma forma —dd-mm-aaaa hh:mm—
+   y alineadas por columna se leen de un barrido. `<b>` sin negrita: marca que
+   esto es un dato, no un énfasis. */
+.wp-row__when {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--color-border, #E5E5E5);
+    border-radius: 4px;
+    background: var(--color-surface-alt, #F5F6F7);
+    font-weight: 400;
+    font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--color-text-muted, #6A6D70);
+    white-space: nowrap;
+}
+/* La pastilla no lleva punto delante: la caja ya la separa, y el punto la haría
+   parecer parte de la frase cuando es un dato aparte. El hueco se lo pone el
+   margen, y sólo cuando va detrás de algo — sola, empieza a ras del título. */
+.wp-row__sub > .wp-row__when::before { content: none; }
+.wp-row__sub > * + .wp-row__when { margin-left: 8px; }
 /* Lo que salió mal: color Y icono, nunca sólo color (docs/UI.md §5). */
 .wp-row__flag { color: var(--color-error, #BB0000); white-space: nowrap; }
 .wp-row__why   { display: block; margin-top: 4px; font-size: 0.75rem; color: var(--color-text-muted, #6A6D70); }
