@@ -275,19 +275,22 @@ class SignatureController extends Controller
             ? __('field_work.sign.left_pending')
             : __('field_work.sign.verified');
 
-        // La firma limpia se anuncia en el plan: la pantalla se va alli sola y
-        // el aviso viaja en la sesion, que la visita de Inertia recoge.
+        // Las dos se anuncian en el plan, y las dos se van alli.
         //
-        // La que queda pendiente de revision NO: esa **detiene** la pantalla de
-        // firma y se lee alli, con su boton para volver. Es la unica que lo
-        // hace, y es a proposito: la persona cree que ya firmo y en realidad su
-        // firma no vale hasta que la mire un supervisor. Por flash no vale —
-        // solo hay canal `success` y `error` (ver HandleInertiaRequests), los
-        // dos son avisos que se desvanecen solos y ninguno de los dos colores
-        // dice «pendiente» (docs/UI.md §5).
-        if (! $evento->pending_review) {
-            $request->session()->flash('success', $mensaje);
-        }
+        // La pendiente **detenia** la pantalla de firma, con su cartel y su
+        // boton para volver, con el argumento de que la persona tiene que saber
+        // que su firma todavia no vale. El argumento sigue en pie; el sitio era
+        // el equivocado: en obra la tablet pasa a la siguiente persona en
+        // cuanto suelta el dedo, y lo que hacia el cartel era obligar a un toque
+        // mas para seguir. Ademas era el unico sitio donde se decia — un cartel
+        // que se cierra y no deja nada detras.
+        //
+        // Ahora se dice en el plan, que es donde queda: en el aviso al llegar y,
+        // sobre todo, en la fila de esa persona, marcada «sin reconocer / por
+        // revisar» mientras un supervisor no la mire.
+        $request->session()->flash(
+            $evento->pending_review ? 'warning' : 'success', $mensaje,
+        );
 
         return response()->json([
             'method'   => $evento->method,

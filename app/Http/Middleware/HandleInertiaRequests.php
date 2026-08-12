@@ -110,6 +110,11 @@ class HandleInertiaRequests extends Middleware
                 // sobrevive entre XHRs y los toasts aparecen en cada nav.
                 'success'      => fn () => $request->session()->pull('success'),
                 'error'        => fn () => $request->session()->pull('error'),
+                // Ni salió bien ni falló: salió, pero con una pega. Hacía falta
+                // porque sin este canal una firma que queda pendiente de
+                // revisión no se podía anunciar — «éxito» sería mentir y
+                // «error» diría que no se guardó, y sí se guardó.
+                'warning'      => fn () => $request->session()->pull('warning'),
                 // Correo al que se acaba de enviar el enlace de recuperación.
                 // `ForgotPassword.vue` lo lee para sostener el «mira tu correo»
                 // si el usuario recarga la página: sin esto vuelve al

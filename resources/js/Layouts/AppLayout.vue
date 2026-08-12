@@ -144,6 +144,12 @@ watch(
             message.error(flash.error);
             flash.error = null;
         }
+        // Salió, pero con una pega. Dura más que los otros dos porque es lo que
+        // la persona tiene que leer antes de darse por firmada.
+        if (flash.warning) {
+            message.warning(flash.warning, 8);
+            flash.warning = null;
+        }
     },
     { deep: true, immediate: true },
 );

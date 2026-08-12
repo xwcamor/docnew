@@ -103,8 +103,17 @@ class SignatureBackToPlanTest extends TestCase
         $this->assertTrue(SignatureEvent::sole()->pending_review,
             'el evento tiene que quedar marcado, o el supervisor no lo ve en su bandeja');
 
-        // Sin flash: este aviso se lee en la pantalla de firma, no en un toast
-        // que se desvanece mientras la tablet cambia de manos.
+        // Se anuncia en el plan, por el canal `warning`. Ni por `success`, que
+        // seria mentir —esa firma todavia no vale—, ni por `error`, que diria
+        // que no se guardo, y si se guardo.
+        //
+        // Antes no se anunciaba por ningun canal: la pantalla de firma se
+        // detenia con un cartel y un boton. En obra la tablet pasa a la
+        // siguiente persona en cuanto la anterior suelta el dedo, asi que eso
+        // era un toque de mas entre firma y firma, y encima la unica vez que se
+        // decia. Ahora queda ademas en la fila del plan, marcada «sin
+        // reconocer», que no se desvanece.
+        $this->assertSame(__('field_work.sign.left_pending'), session('warning'));
         $this->assertFalse(session()->has('success'));
         $this->assertFalse(session()->has('error'));
     }

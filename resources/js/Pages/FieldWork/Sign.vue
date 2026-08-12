@@ -47,10 +47,6 @@ const mensaje = ref('');
 const error = ref(false);
 const trabajando = ref(false);
 const reto = ref(null);
-// Firmó, pero su firma quedó pendiente de revisión. Es lo único que detiene la
-// pantalla: la que sale limpia se va al plan sin pasar por aquí.
-const pendiente = ref(false);
-
 // La firma trazada y si se está reemplazando una que ya existe.
 const trazo = ref(null);
 const reemplazando = ref(false);
@@ -89,22 +85,24 @@ const volver = () => router.get(route('business_management.work_plans.show', pro
  * encima cambiaba el texto del botón cada segundo: en una tablet, con guantes,
  * eso es un botón que se mueve mientras lo apuntas.
  *
- * La regla que queda, y es la única:
+ * La regla que queda, y es la única: **firmó → al plan**. Las dos, la limpia y
+ * la que queda pendiente de revisión. Cero toques.
  *
- * - **Firma limpia → al plan, sin pasar por aquí.** La confirmación de verdad
- *   no es un cartel: es la fila del plan en verde con su hora, y el aviso que
- *   el servidor dejó en la sesión. Cero toques.
- * - **Firma que queda pendiente de revisión → la pantalla se queda.** Eso sí
- *   hay que leerlo: la persona cree que ya firmó y en realidad su firma no vale
- *   hasta que la mire un supervisor. Ese aviso no se puede sacar por el flash
- *   —sólo hay canal `success` y `error`, y son avisos que se desvanecen solos—,
- *   así que se enseña aquí y se sale con un botón. Un toque, y sólo cuando algo
- *   salió mal.
+ * La pendiente se quedaba aquí, con un cartel y un botón, porque la persona
+ * tiene que saber que su firma todavía no vale. Eso sigue siendo cierto; el
+ * sitio era el equivocado. En obra la tablet pasa a la siguiente persona en
+ * cuanto la anterior suelta el dedo, así que el cartel era un toque de más
+ * entre firma y firma. Y era la única vez que se decía: se cerraba y no dejaba
+ * nada detrás.
  *
- * Quién decide cuál de las dos es **el servidor**: la pantalla mira el
- * `pending_review` que devuelve al registrar la firma, no lo que crea el
- * navegador. Antes lo decidía el resultado del reto de vida del cliente y podía
- * no coincidir con lo que el servidor había guardado.
+ * Ahora lo dice el plan, con el aviso naranja al llegar —canal `warning`, que
+ * se añadió para esto: «éxito» sería mentir y «error» diría que no se guardó, y
+ * sí se guardó— y, sobre todo, con la fila de esa persona marcada «sin
+ * reconocer» hasta que un supervisor la mire. Eso no se desvanece.
+ *
+ * Quién decide si una firma vale es **el servidor**, y desde aquí no se afirma
+ * nada: se manda el descriptor y la foto, y lo que él resuelva es lo que se
+ * guarda y lo que el plan enseña. El navegador ni siquiera lee la respuesta.
  */
 
 // ── El reto de vida ──────────────────────────────────────────────────────────
@@ -188,8 +186,10 @@ async function firmar() {
             return;
         }
 
-        // El servidor vuelve a comparar y decide: aquí no se afirma nada.
-        const { data: firma } = await axios.post(route('field_work.signatures.store'), {
+        // El servidor vuelve a comparar y decide: aquí no se afirma nada. Y de
+        // lo que responde no se lee nada tampoco — si la firma quedó pendiente
+        // lo cuenta el plan, no esta pantalla.
+        await axios.post(route('field_work.signatures.store'), {
             signable_type: f.tipo,
             signable_slug: f.slug,
             person_slug: f.person.slug,
@@ -207,22 +207,20 @@ async function firmar() {
             liveness_failed: resultado.retoFallido === true,
         });
 
-        // Firma limpia: al plan, y punto. Sin cartel y sin toques — la
-        // confirmación es la fila del plan en verde con su hora, y el aviso lo
-        // dejó el servidor en la sesión.
-        if (! firma.pending_review) {
-            volver();
-
-            return;
-        }
-
-        // Pendiente de revisión: aquí sí hay algo que la persona tiene que
-        // saber antes de irse, porque su firma todavía no vale. Se dice por qué
-        // cuando se sabe —el gesto no se completó— y si no, en general.
-        pendiente.value = true;
-        mensaje.value = resultado.retoFallido
-            ? t('field_work.sign.challenge_failed')
-            : t('field_work.sign.pending_review');
+        // Firmada: al plan, y punto. Las dos — la limpia y la que queda
+        // pendiente de revisión. Sin cartel y sin toques.
+        //
+        // La pendiente se detenía aquí, con su aviso y su botón «Volver al
+        // plan». Lo que decía era cierto —esa firma todavía no vale— pero el
+        // sitio era el equivocado: en obra la tablet pasa a la siguiente
+        // persona en cuanto la anterior suelta el dedo, y el cartel solo añadía
+        // un toque para poder seguir. Y no dejaba nada detrás: se cerraba y ahí
+        // se acababa la única vez que se decía.
+        //
+        // Ahora lo dice el plan, que es donde queda: el aviso naranja al
+        // llegar, y sobre todo la fila de esa persona marcada «sin reconocer»
+        // mientras un supervisor no la mire.
+        volver();
     } catch (e) {
         error.value = true;
         mensaje.value = e?.response?.data?.message ?? t('field_work.sign.failed');
@@ -279,18 +277,18 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
                 </Tag>
             </Card>
 
-            <!-- Naranja y no verde cuando ya se firmó: lo único que se queda en
-                 esta pantalla es una firma **pendiente** de revisión, y pintarla
-                 de conforme diría lo contrario del texto (docs/UI.md §5). -->
+            <!-- Lo que se dice mientras se está aquí: que hace falta enrolar la
+                 cara, que el enrolamiento salió bien, o que algo falló. Una vez
+                 firmada, esta pantalla ya no cuenta nada — se va al plan. -->
             <Alert
                 v-if="mensaje"
                 :message="mensaje"
-                :type="error ? 'error' : (pendiente ? 'warning' : 'info')"
+                :type="error ? 'error' : 'info'"
                 show-icon
                 class="mb-4"
             />
 
-            <template v-if="!fila.signed && !pendiente">
+            <template v-if="!fila.signed">
                 <!-- Sin firma en archivo: se traza una vez y queda guardada. -->
                 <Card v-if="pideTrazo" :bodyStyle="{ padding: 20 }" class="info-card">
                     <template #title>{{ $t('field_work.sign.draw_title') }}</template>
@@ -327,11 +325,10 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
                 </div>
             </template>
 
-            <!-- Sólo se llega aquí cuando la firma quedó pendiente de revisión:
-                 es un aviso que hay que leer. La firma limpia no pasa por esta
-                 pantalla, se va al plan sola. El botón se queda porque aquí no
-                 se va nadie solo: quien lee esto decide cuándo ha terminado de
-                 leerlo, y el botón siempre lleva al plan (docs/UI.md §6). -->
+            <!-- Sólo si se llega con la firma ya puesta: el servidor manda al
+                 plan cuando el destino ya firmó, así que en la práctica es una
+                 red por si alguien vuelve atrás con la pantalla vieja. Sin este
+                 botón se quedaría sin salida. -->
             <div v-else class="firma__acciones">
                 <Button size="large" type="primary" @click="volver">
                     <template #icon><ArrowLeftOutlined /></template>
