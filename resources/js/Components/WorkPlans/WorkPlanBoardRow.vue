@@ -146,6 +146,23 @@ const tituloDeLaMarca = computed(() => (
                 </Tag>
             </Tooltip>
 
+            <!-- Con la marca, la hora va aquí en gris y NO dentro de un tooltip.
+                 Un tooltip se dispara con el hover, y en una tablet el hover no
+                 existe: lo que hay es un toque, que el navegador traduce a un
+                 pseudo-hover errático y que además compite con el clic de lo
+                 que haya debajo. Y el objetivo sería la marca, de 15px, cuando
+                 la guía pide 44 para acertar con guantes (docs/UI.md §3).
+
+                 La hora de firma es dato de auditoría —se consulta a
+                 propósito—, así que tiene que leerse sin pedir nada. En gris y
+                 sin pastilla: se lee, y no compite con el nombre, que es lo que
+                 se viene a buscar. -->
+            <span
+                v-else-if="stateAs === 'mark' && etiqueta"
+                class="wp-row__when"
+                :class="{ 'wp-row__when--dato': !!when }"
+            >{{ etiqueta }}</span>
+
             <!-- Va junto a la etiqueta de estado, no en su lugar: las dos cosas
                  son ciertas a la vez —el formato está confirmado Y tiene tres
                  observaciones— y sustituir una por otra escondería una. -->
@@ -254,6 +271,17 @@ const tituloDeLaMarca = computed(() => (
 .wp-row.is-nomark .wp-row__side { margin-left: 0; }
 .wp-row.is-nomark .wp-row__wide { flex-basis: 100%; margin-left: 0; }
 .wp-row__tag   { margin: 0; white-space: nowrap; }
+
+/* La hora, en gris y sin caja. Monoespaciada cuando es una fecha: son cuatro
+   filas con la misma forma —dd-mm-aaaa hh:mm— y alineadas por columna se leen
+   de un barrido en vez de una a una. El texto de estado («Pendiente») no, que
+   es una palabra y no un dato. */
+.wp-row__when {
+    white-space: nowrap;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted, #6A6D70);
+}
+.wp-row__when--dato { font-family: ui-monospace, Consolas, monospace; }
 /* El resultado limpio, en gris: es lo normal, no un logro, y en verde
    competiría con la pastilla de estado que ya lo es. */
 .wp-row__tag--clean {
