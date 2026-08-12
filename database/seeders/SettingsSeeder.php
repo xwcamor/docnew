@@ -54,7 +54,15 @@ class SettingsSeeder extends Seeder
             // ── Trabajo en obra ──────────────────────────────────────────
             // Se leian con un valor por defecto en codigo y nunca se sembraron,
             // asi que no habia forma de cambiarlos desde la aplicacion.
-            ['key' => 'docufiz.always_store_photo', 'name' => 'Guardar siempre la foto al firmar', 'type' => 'bool', 'value' => '1', 'group' => 'field_work', 'description' => 'La foto de quien firma se guarda reconozca o no la cara. Es la prueba de quien estuvo en la obra; apagarlo deja las firmas sin respaldo.'],
+            // Apagado por decision del dueno del producto: cuando el servidor
+            // reconoce la cara, la foto no aporta nada que no diga ya la
+            // comparacion —que guarda su distancia y su umbral— y en cambio
+            // deja una cara por firma y por dia. La foto buena de la persona ya
+            // esta en su ficha.
+            //
+            // La de la firma que NO reconocio se guarda igual, pase lo que pase
+            // con este ajuste: esa es justo la que hay que mirar.
+            ['key' => 'docufiz.always_store_photo', 'name' => 'Guardar la foto tambien cuando reconoce la cara', 'type' => 'bool', 'value' => '0', 'group' => 'field_work', 'description' => 'Apagado, la foto solo se guarda cuando el reconocimiento NO cuadra, que es cuando hace falta mirarla. Encendido, se guarda en cada firma: mas prueba y mucho mas disco.'],
             ['key' => 'docufiz.face_threshold', 'name' => 'Umbral de coincidencia facial', 'type' => 'string', 'value' => '0.50', 'group' => 'field_work', 'description' => 'Distancia maxima para dar una cara por reconocida (0,35 a 0,65). Mas bajo es mas exigente. Se ajusta con las distancias reales que registre el sistema, no por corazonada.'],
             ['key' => 'docufiz.face_timeout_seconds', 'name' => 'Segundos antes de capturar evidencia', 'type' => 'int', 'value' => '20', 'group' => 'field_work', 'description' => 'Cuanto se intenta reconocer una cara antes de pasar a tomar la foto de evidencia y dejar la firma pendiente de revision.'],
             ['key' => 'docufiz.face_liveness', 'name' => 'Pedir gesto de vida al firmar', 'type' => 'bool', 'value' => '1', 'group' => 'field_work', 'description' => 'Pide girar la cabeza o asentir, y volver al centro. Para una foto impresa o una pantalla quieta. Si no se completa, la firma se registra igual y queda pendiente de revision.'],

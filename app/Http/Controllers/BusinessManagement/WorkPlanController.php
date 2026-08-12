@@ -519,12 +519,18 @@ class WorkPlanController extends Controller
             ->where('signable_type', $morph)
             ->whereIn('signable_id', collect($ids)->all())
             ->orderBy('signed_at')
-            ->get(['signable_id', 'method', 'manual_override', 'pending_review'])
+            ->get(['signable_id', 'method', 'used_ai', 'manual_override', 'pending_review'])
             // La ultima gana: si alguien firmo dos veces, lo que cuenta es como
             // quedo, no como empezo.
             ->keyBy('signable_id')
             ->map(fn ($e) => [
                 'method'         => $e->method,
+                // Si hubo reconocimiento. Importa aparte del metodo por las
+                // firmas migradas: su metodo es 'migrated' —el reconocimiento
+                // de la v1 lo decidia el navegador y no dejo prueba— pero se
+                // conservo lo que aquel sistema creia, y decir «del sistema
+                // anterior» de una firma que SI se reconocio no cuenta nada.
+                'used_ai'        => (bool) $e->used_ai,
                 'verified'       => $e->isVerified(),
                 'pending_review' => (bool) $e->pending_review,
             ]);

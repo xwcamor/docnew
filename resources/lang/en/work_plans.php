@@ -195,6 +195,10 @@ return [
     'sign_manual_hint'         => 'Authorised by hand, with a reason. No face comparison took place.',
     'sign_migrated'            => 'From the previous system',
     'sign_migrated_hint'       => 'Signature brought over from the previous system. It did not record what was checked.',
+    // Same label as a signature recognised here: that is what the row is asked.
+    // The caveat goes in the tooltip.
+    'sign_migrated_recognised'      => 'Face recognition',
+    'sign_migrated_recognised_hint' => 'The previous system recognised :name\'s face. It comes from there, so this server did not run the check and no distance was stored.',
     'sign_reused'              => 'Reused check',
     'sign_reused_hint'         => 'Reused the check :name already passed on this same plan.',
     'sign_pending_review'      => 'Pending review',

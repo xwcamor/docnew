@@ -212,6 +212,45 @@ class FirmaEnLaFichaTest extends TestCase
                 ->where('approvals.0.signature.pending_review', false));
     }
 
+    /**
+     * Una firma migrada que SI se reconocio lo dice.
+     *
+     * Su metodo es `migrated` —el reconocimiento de la v1 lo decidia el
+     * navegador y no dejo prueba— pero se conservo lo que aquel sistema creia.
+     * Decir «del sistema anterior» de una firma que se reconocio no cuenta
+     * nada: lo que se pregunta mirando la fila es como se comprobo a esa
+     * persona. La salvedad va en el tooltip, que la pantalla arma con
+     * `used_ai`.
+     */
+    public function test_una_firma_migrada_reconocida_lo_dice(): void
+    {
+        $plan = $this->plan();
+        $persona = $this->persona('44445555');
+        $aprobacion = $this->aprobacionFirmada($plan, $persona, SignatureEvent::MIGRATED);
+
+        SignatureEvent::where('signable_id', $aprobacion->id)->update(['used_ai' => true]);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('approvals.0.signature.method', SignatureEvent::MIGRATED)
+                ->where('approvals.0.signature.used_ai', true));
+    }
+
+    /** Y una migrada que no reconocio se queda como lo que es. */
+    public function test_una_firma_migrada_sin_reconocer_no_presume(): void
+    {
+        $plan = $this->plan();
+        $persona = $this->persona('44445555');
+        $aprobacion = $this->aprobacionFirmada($plan, $persona, SignatureEvent::MIGRATED);
+
+        SignatureEvent::where('signable_id', $aprobacion->id)->update(['used_ai' => false]);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page->where('approvals.0.signature.used_ai', false));
+    }
+
     /** La cuadrilla tambien lo lleva: es la misma pregunta en la otra columna. */
     public function test_la_cuadrilla_tambien_dice_como_se_firmo(): void
     {

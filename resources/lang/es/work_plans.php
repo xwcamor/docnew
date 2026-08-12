@@ -204,6 +204,10 @@ return [
     'sign_manual_hint'         => 'Autorizada a mano, con motivo. No hubo comparación de la cara.',
     'sign_migrated'            => 'Del sistema anterior',
     'sign_migrated_hint'       => 'Firma traída del sistema anterior. Allí no se guardaba con qué se comprobó.',
+    // La misma etiqueta que una firma reconocida aquí: eso es lo que se
+    // pregunta mirando la fila. La salvedad va en el tooltip.
+    'sign_migrated_recognised'      => 'Reconocimiento facial',
+    'sign_migrated_recognised_hint' => 'El sistema anterior reconoció la cara de :name. Viene de allí, así que la comprobación no la hizo este servidor y no guardó la distancia.',
     'sign_reused'              => 'Firma reutilizada',
     'sign_reused_hint'         => 'Se reutilizó la comprobación que :name ya pasó en este mismo plan.',
     'sign_pending_review'      => 'Por revisar',

@@ -36,12 +36,31 @@ const CLASES = {
     reused:           { icon: CheckCircleOutlined, color: 'success', clave: 'reused' },
 };
 
-// Un método que no esté en el mapa no deja el hueco en blanco: se cae a
-// «del sistema anterior», que es lo que son las firmas sin método conocido.
+/**
+ * Qué marca le toca a esta firma.
+ *
+ * Las migradas son el caso que hay que tratar aparte. Su método es `migrated`
+ * porque el reconocimiento de la v1 lo decidía el navegador y no dejó prueba,
+ * pero sí se conservó lo que aquel sistema creía (`used_ai`). Decir «del
+ * sistema anterior» de una firma que **sí** se reconoció no cuenta nada: lo que
+ * se pregunta mirando la fila es cómo se comprobó a esa persona, y la respuesta
+ * es que por la cara. La salvedad —que no la verificó este servidor— va en el
+ * tooltip, que es donde cabe sin quitarle sitio a lo que importa.
+ *
+ * Un método que no esté en el mapa tampoco deja el hueco en blanco.
+ */
 const marca = computed(() => {
-    if (!props.signature?.method) return null;
+    const firma = props.signature;
 
-    return CLASES[props.signature.method] ?? CLASES.migrated;
+    if (!firma?.method) return null;
+
+    if (firma.method === 'migrated') {
+        return firma.used_ai
+            ? { ...CLASES.face_recognition, clave: 'migrated_recognised' }
+            : CLASES.migrated;
+    }
+
+    return CLASES[firma.method] ?? CLASES.migrated;
 });
 </script>
 

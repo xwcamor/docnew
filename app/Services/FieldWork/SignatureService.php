@@ -75,11 +75,24 @@ class SignatureService
         // anterior lo intentaba pero no lo cumplia: de 9 012 fotos, 7 508 eran la
         // cadena "detected_by_IA" y el archivo no existia.
         //
-        // Se puede desactivar por workspace, pero por defecto se guarda.
-        $exigirFoto = (bool) (Setting::get('docufiz.always_store_photo') ?? true);
+        // Se puede desactivar, y desactivado significa **solo cuando hace
+        // falta**: si el servidor reconocio la cara, la foto no aporta nada que
+        // no diga ya la comparacion, y en cambio llena el disco con una cara
+        // por firma y por dia. Lo que si queda es la foto de referencia de la
+        // persona, que es la buena.
+        // El `false` de aqui tiene que decir lo mismo que el ajuste sembrado, o
+        // el comportamiento depende de si la fila existe en la base.
+        $exigirFoto = (bool) (Setting::get('docufiz.always_store_photo') ?? false);
 
         if (blank($foto) && ! $manual && ($exigirFoto || $metodo !== SignatureEvent::FACE_RECOGNITION)) {
             throw new \InvalidArgumentException('Se requiere la captura de la camara para firmar.');
+        }
+
+        // Y la decision la toma el servidor, no el navegador: la camara manda
+        // la foto igual, asi que si aqui no se descartara, apagar el ajuste no
+        // cambiaria nada.
+        if (! $exigirFoto && $metodo === SignatureEvent::FACE_RECOGNITION) {
+            $foto = null;
         }
 
         return DB::transaction(function () use (

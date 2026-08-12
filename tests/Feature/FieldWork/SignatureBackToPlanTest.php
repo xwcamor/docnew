@@ -82,6 +82,73 @@ class SignatureBackToPlanTest extends TestCase
     }
 
     /**
+     * Reconocida: no se guarda foto de evidencia.
+     *
+     * Cuando el servidor reconoce la cara, la foto no aporta nada que no diga
+     * ya la comparacion —que guarda su distancia y su umbral— y en cambio deja
+     * una cara por firma y por dia. La foto buena de la persona ya esta en su
+     * ficha, y es la que la ficha del plan enseña.
+     *
+     * La decision la toma el servidor y no el navegador: la camara manda la
+     * foto igual, asi que si no se descartara aqui, apagar el ajuste no
+     * cambiaria nada.
+     */
+    public function test_si_reconoce_la_cara_no_se_guarda_foto_de_evidencia(): void
+    {
+        [$usuario, $persona, $asignado] = $this->escenario();
+
+        $this->actingAs($usuario)
+            ->postJson(route('field_work.signatures.store'), $this->firmaDe($persona, $asignado))
+            ->assertCreated()->assertJson(['verified' => true]);
+
+        $this->assertSame(0, \App\Models\EvidenceFile::count(),
+            'reconocio: la foto sobra, y la camara la manda igual');
+    }
+
+    /** Pero la que NO reconoce se guarda siempre: esa es la que hay que mirar. */
+    public function test_si_no_reconoce_la_foto_se_guarda_igual(): void
+    {
+        [$usuario, $persona, $asignado] = $this->escenario();
+
+        // Un descriptor que no se parece al enrolado.
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.store'),
+            $this->firmaDe($persona, $asignado) + [],
+            [],
+        );
+
+        \App\Models\SignatureEvent::query()->delete();
+        \App\Models\EvidenceFile::query()->delete();
+
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.store'),
+            array_merge($this->firmaDe($persona, $asignado), [
+                'descriptor' => array_fill(0, 128, 0.99),
+            ]),
+        )->assertCreated()->assertJson(['verified' => false]);
+
+        $this->assertSame(1, \App\Models\EvidenceFile::count(),
+            'no reconocio: sin la foto no queda nada que revisar');
+    }
+
+    /** Y con el ajuste encendido se guarda tambien la de la que reconoce. */
+    public function test_con_el_ajuste_encendido_se_guarda_siempre(): void
+    {
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'docufiz.always_store_photo'],
+            ['name' => 'x', 'type' => 'bool', 'value' => '1', 'group' => 'field_work', 'is_active' => true],
+        );
+
+        [$usuario, $persona, $asignado] = $this->escenario();
+
+        $this->actingAs($usuario)
+            ->postJson(route('field_work.signatures.store'), $this->firmaDe($persona, $asignado))
+            ->assertCreated()->assertJson(['verified' => true]);
+
+        $this->assertSame(1, \App\Models\EvidenceFile::count());
+    }
+
+    /**
      * La cara coincide pero no se completa el gesto de vida.
      *
      * La distancia entre descriptores es la misma que en una firma buena —el
