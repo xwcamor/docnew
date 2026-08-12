@@ -304,14 +304,26 @@ class WorkPlanController extends Controller
      */
     public function signerFace(WorkPlan $work_plan, \App\Models\Person $person, \App\Services\FieldWork\SignatureService $firmas)
     {
-        $asignado = $work_plan->people()->where('person_id', $person->id)->first();
+        // De la cuadrilla o del flujo: las dos son firmas de este plan.
+        //
+        // Antes solo miraba la cuadrilla, asi que un aprobador que no fuera
+        // ademas trabajador —el supervisor autorizante, casi siempre— daba 404
+        // y su fila se quedaba sin cara. La comprobacion sigue: con un slug
+        // cualquiera no se saca la cara de quien no pinta nada en este plan.
+        $asignado     = $work_plan->people()->where('person_id', $person->id)->first();
+        $aprobaciones = $work_plan->approvals()->where('person_id', $person->id)->pluck('id');
 
-        abort_if($asignado === null, 404);
+        abort_if($asignado === null && $aprobaciones->isEmpty(), 404);
 
         $evidencia = \App\Models\EvidenceFile::query()
             ->whereIn('signature_event_id', \App\Models\SignatureEvent::query()
-                ->where('signable_type', (new \App\Models\WorkPlanPerson)->getMorphClass())
-                ->where('signable_id', $asignado->id)
+                ->where(fn ($q) => $q
+                    ->when($asignado, fn ($w) => $w->orWhere(fn ($p) => $p
+                        ->where('signable_type', (new \App\Models\WorkPlanPerson)->getMorphClass())
+                        ->where('signable_id', $asignado->id)))
+                    ->when($aprobaciones->isNotEmpty(), fn ($w) => $w->orWhere(fn ($p) => $p
+                        ->where('signable_type', (new \App\Models\WorkPlanApproval)->getMorphClass())
+                        ->whereIn('signable_id', $aprobaciones))))
                 ->select('id'))
             ->where('kind', \App\Models\EvidenceFile::FACE)
             ->latest('id')
@@ -348,6 +360,10 @@ class WorkPlanController extends Controller
             ->orderBy('signed_at')
             ->pluck('signed_at', 'signable_id');
 
+        $comoFirmo = $this->comoSeFirmo(
+            (new \App\Models\WorkPlanPerson)->getMorphClass(), $asignados->pluck('id'),
+        );
+
         // La cara de quien firmo. Es lo que un admin necesita para saber quien
         // estuvo de verdad en obra, y es justo lo que se pierde cuando la
         // cuadrilla es de una contratista que no conoce.
@@ -359,7 +375,7 @@ class WorkPlanController extends Controller
         $puedeVerCaras = PrivateInfo::visibleFor(request()->user());
 
         return $asignados
-            ->map(function ($asignado) use ($firmas, $workPlan, $puedeVerCaras) {
+            ->map(function ($asignado) use ($firmas, $comoFirmo, $workPlan, $puedeVerCaras) {
                 $firmadoEn = $firmas->get($asignado->id);
 
                 return [
@@ -389,6 +405,7 @@ class WorkPlanController extends Controller
                     'nationality' => $asignado->person?->country?->name,
                     'signed'    => (bool) $asignado->is_approved || $firmadoEn !== null,
                     'signed_at' => $firmadoEn,
+                    'signature' => $comoFirmo->get($asignado->id),
                     'face_url'  => $puedeVerCaras && $asignado->person
                         ? route('business_management.work_plans.signer_face', [$workPlan->slug, $asignado->person->slug])
                         : null,
@@ -486,6 +503,33 @@ class WorkPlanController extends Controller
     }
 
     /** Quién tiene que aprobar el plan, si su firma es obligatoria y cuándo firmó. */
+    /**
+     * Como se produjo cada firma, indexado por el id del firmable.
+     *
+     * La hora dice CUANDO se firmo; esto dice si el servidor reconocio la cara
+     * o no. Son cosas distintas y en la ficha solo se veia la primera: una
+     * firma verificada y una que se capturo porque NO reconocio salian
+     * exactamente iguales, y la segunda es justo la que hay que ir a revisar.
+     *
+     * @return \Illuminate\Support\Collection<int, array{method:string, verified:bool, pending_review:bool}>
+     */
+    protected function comoSeFirmo(string $morph, iterable $ids): \Illuminate\Support\Collection
+    {
+        return \App\Models\SignatureEvent::query()
+            ->where('signable_type', $morph)
+            ->whereIn('signable_id', collect($ids)->all())
+            ->orderBy('signed_at')
+            ->get(['signable_id', 'method', 'manual_override', 'pending_review'])
+            // La ultima gana: si alguien firmo dos veces, lo que cuenta es como
+            // quedo, no como empezo.
+            ->keyBy('signable_id')
+            ->map(fn ($e) => [
+                'method'         => $e->method,
+                'verified'       => $e->isVerified(),
+                'pending_review' => (bool) $e->pending_review,
+            ]);
+    }
+
     protected function approvalsPayload(WorkPlan $workPlan): array
     {
         $aprobaciones = $workPlan->approvals()
@@ -511,6 +555,12 @@ class WorkPlanController extends Controller
             ->orderBy('signature_events.signed_at')
             ->pluck('signature_events.signed_at', 'wpp.person_id');
 
+        $comoFirmo = $this->comoSeFirmo(
+            (new \App\Models\WorkPlanApproval)->getMorphClass(), $aprobaciones->pluck('id'),
+        );
+
+        $puedeVerCaras = auth()->user()?->can('people.view_private_info') ?? false;
+
         return $aprobaciones
             ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)
             ->map(fn ($a) => [
@@ -527,6 +577,12 @@ class WorkPlanController extends Controller
                 // La suya si la hay; si es el ejecutante, la que dio como
                 // trabajador.
                 'signed_at' => $firmas->get($a->id) ?? $firmasDeCuadrilla->get($a->person_id),
+                'signature' => $comoFirmo->get($a->id),
+                // La cara con la que firmó, igual que en la cuadrilla. Faltaba:
+                // el aprobador es justo de quien más interesa saber que estuvo.
+                'face_url'  => $puedeVerCaras && $a->person
+                    ? route('business_management.work_plans.signer_face', [$workPlan->slug, $a->person->slug])
+                    : null,
             ])
             ->values()
             ->all();

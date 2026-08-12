@@ -181,6 +181,24 @@ return [
     'done_at_completed' => 'Completed on :when',
     'crew_signed_at'    => 'Signed on :when',
     'crew_pending'      => 'Signature missing',
+
+    // How the signature came about. The time says WHEN; this says whether the
+    // server recognised the face. A verified signature and one captured because
+    // it did NOT recognise looked the same on the record, and the second is the
+    // one to go and review.
+    'sign_how'                 => 'How they signed',
+    'sign_face_recognition'    => 'Face recognition',
+    'sign_face_recognition_hint' => 'The server compared the face against :name\'s biometrics and it matched.',
+    'sign_timeout_capture'     => 'Not recognised',
+    'sign_timeout_capture_hint' => 'It did not match :name\'s biometrics. The photo was stored and the signature is pending review.',
+    'sign_manual'              => 'Manual signature',
+    'sign_manual_hint'         => 'Authorised by hand, with a reason. No face comparison took place.',
+    'sign_migrated'            => 'From the previous system',
+    'sign_migrated_hint'       => 'Signature brought over from the previous system. It did not record what was checked.',
+    'sign_reused'              => 'Reused check',
+    'sign_reused_hint'         => 'Reused the check :name already passed on this same plan.',
+    'sign_pending_review'      => 'Pending review',
+
     'crew_sign_hint'    => 'Sign for :name with face recognition',
     'crew_added'    => ':name was added to the plan.',
     'crew_removed'  => 'The worker was removed from the plan.',

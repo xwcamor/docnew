@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, useSlots } from 'vue';
 import { Tooltip } from 'ant-design-vue';
 import {
     CheckCircleFilled, ClockCircleOutlined, LockOutlined, MinusCircleOutlined, WarningFilled,
@@ -113,9 +113,16 @@ const tituloDeLaMarca = computed(() => (
         : props.label
 ));
 
-/** ¿Hay algo que contar en la segunda línea? Si no, no se pinta el hueco. */
+const slots = useSlots();
+
+/**
+ * ¿Hay algo que contar en la segunda línea? Si no, no se pinta el hueco.
+ *
+ * El slot cuenta: una fila cuyo único dato de la segunda línea sea la marca de
+ * cómo se firmó se quedaría sin línea, y la marca no se vería.
+ */
 const hayLineaDos = computed(() => (
-    !!props.subtitle || !!props.subtitleTime || props.findings > 0 || props.showClean
+    !!props.subtitle || !!props.subtitleTime || props.findings > 0 || props.showClean || !!slots.sub
 ));
 </script>
 
@@ -154,6 +161,11 @@ const hayLineaDos = computed(() => (
                      sin significar nada nuevo. La caja sólo la separa del
                      texto. -->
                 <b v-if="subtitleTime" class="wp-row__when">{{ subtitleTime }}</b>
+
+                <!-- Y al final, CÓMO se produjo. Lo pone quien usa la fila: la
+                     cuadrilla y las aprobaciones ponen aquí con qué se comprobó
+                     la firma. -->
+                <slot name="sub" />
             </span>
             <span v-if="reason" class="wp-row__why">{{ reason }}</span>
         </div>

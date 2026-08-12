@@ -190,6 +190,23 @@ return [
     'done_at_completed' => 'Completado el :when',
     'crew_signed_at'    => 'Firmado el :when',
     'crew_pending'      => 'Falta su firma',
+
+    // Cómo se produjo la firma. La hora dice CUÁNDO; esto dice si el servidor
+    // reconoció la cara. Una firma verificada y una que se capturó porque NO
+    // reconoció salían iguales en la ficha, y la segunda es la que hay que ir
+    // a revisar.
+    'sign_how'                 => 'Cómo firmó',
+    'sign_face_recognition'    => 'Reconocimiento facial',
+    'sign_face_recognition_hint' => 'El servidor comparó la cara con la biometría de :name y coincidió.',
+    'sign_timeout_capture'     => 'Sin reconocer',
+    'sign_timeout_capture_hint' => 'No coincidió con la biometría de :name. Se guardó la foto y la firma queda por revisar.',
+    'sign_manual'              => 'Firma manual',
+    'sign_manual_hint'         => 'Autorizada a mano, con motivo. No hubo comparación de la cara.',
+    'sign_migrated'            => 'Del sistema anterior',
+    'sign_migrated_hint'       => 'Firma traída del sistema anterior. Allí no se guardaba con qué se comprobó.',
+    'sign_reused'              => 'Firma reutilizada',
+    'sign_reused_hint'         => 'Se reutilizó la comprobación que :name ya pasó en este mismo plan.',
+    'sign_pending_review'      => 'Por revisar',
     'crew_sign_hint'    => 'Firmar por :name con reconocimiento facial',
     'crew_added'    => ':name se añadió al plan.',
     'crew_removed'  => 'El trabajador se quitó del plan.',

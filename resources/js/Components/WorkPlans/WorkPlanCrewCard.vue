@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
+import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
@@ -232,6 +233,13 @@ const guardarAlta = () => {
                 :subtitle-time="fila.signed ? formatDateTime(fila.signed_at) : ''"
                 :label="fila.signed ? $t('work_plans.crew_signed') : $t('work_plans.crew_pending')"
             >
+                <!-- Con qué se comprobó la firma. Sin esto, una verificada por
+                     la cara y una que se capturó porque NO reconoció salían
+                     idénticas, y la segunda es la que hay que ir a revisar. -->
+                <template v-if="fila.signed" #sub>
+                    <SignatureMark :signature="fila.signature" :name="fila.name" />
+                </template>
+
                 <template #actions>
                     <!-- La cara con la que firmo. Solo llega con
                          `people.view_private_info` —el servidor manda `face_url`
