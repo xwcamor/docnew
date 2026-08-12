@@ -358,6 +358,13 @@ class WorkPlan extends Model
      * un papel que alguien llenó y firmó no puede desaparecer de la ficha
      * porque después se haya cambiado el catálogo.
      *
+     * Y un plan CERRADO no hereda nada nuevo del catálogo. Es la regla que ya
+     * estaba escrita en `WorkTypeService::planesAbiertos()` —«pedirle a un plan
+     * cerrado un formato que se añadió hoy sería inventar un incumplimiento que
+     * nunca existió»— y que sólo se aplicaba al texto del aviso: el cálculo de
+     * aquí no miraba `is_closed`, así que marcar un formato nuevo en el tipo de
+     * trabajo aparecía como pendiente en planes firmados hacía un año.
+     *
      * @return \Illuminate\Support\Collection<int, array{template: FormTemplate, is_required: bool, source: string}>
      */
     public function expectedFormTemplates(): \Illuminate\Support\Collection
@@ -369,6 +376,20 @@ class WorkPlan extends Model
         $esperados = collect();
 
         $estandar = $this->workType ? $this->workType->formTemplates()->published()->get() : collect();
+
+        if ($this->is_closed) {
+            // Del estándar vigente sólo sobrevive lo que este plan conoció: lo
+            // que tiene entrega y lo que se le ajustó a mano. No se pierde
+            // nada por el camino —un plan sólo cierra con TODO lo esperado
+            // confirmado (`WorkPlanCompletionService::puedeCerrarse()`), así
+            // que todo lo que esperaba tiene su entrega— y lo que se filtra es
+            // exactamente lo que se añadió al catálogo después de cerrarlo.
+            $conEntrega = $this->submissions()->pluck('form_template_id')->all();
+
+            $estandar = $estandar->filter(
+                fn ($plantilla) => in_array($plantilla->id, $conEntrega) || $overrides->has($plantilla->id),
+            );
+        }
 
         foreach ($estandar as $plantilla) {
             $override = $overrides->get($plantilla->id);

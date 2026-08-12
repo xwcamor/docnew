@@ -434,6 +434,50 @@ class WorkPlanSetupTest extends TestCase
     }
 
     /**
+     * Un plan CERRADO no hereda lo que se añada al catalogo despues.
+     *
+     * La regla ya estaba escrita en `WorkTypeService::planesAbiertos()`
+     * —«pedirle a un plan cerrado un formato que se añadio hoy seria inventar
+     * un incumplimiento que nunca existio»— pero solo la aplicaba el texto del
+     * aviso. `expectedFormTemplates()` no miraba `is_closed`, asi que marcar un
+     * formato nuevo en el tipo de trabajo salia como pendiente en planes
+     * firmados hacia un año.
+     */
+    public function test_un_plan_cerrado_no_hereda_un_formato_anadido_despues(): void
+    {
+        $plan = $this->plan();
+        $ast  = $this->plantilla('AST');
+        $plan->workType->formTemplates()->attach($ast->id, ['is_required' => true]);
+        $this->entrega($plan, $ast);
+
+        $plan->updateQuietly(['is_closed' => true, 'is_done' => true]);
+
+        // El catalogo cambia DESPUES de cerrarlo.
+        $ihm = $this->plantilla('IHM');
+        $plan->workType->formTemplates()->attach($ihm->id, ['is_required' => true]);
+
+        $codigos = $plan->fresh()->expectedFormTemplates()->map(fn ($i) => $i['template']->code)->values()->all();
+
+        $this->assertSame(['AST'], $codigos, 'Un plan cerrado no puede heredar un formato añadido despues.');
+    }
+
+    /** Y uno ABIERTO si: el cambio del catalogo es para el trabajo que aun se hace. */
+    public function test_un_plan_abierto_si_hereda_un_formato_anadido_despues(): void
+    {
+        $plan = $this->plan();
+        $ast  = $this->plantilla('AST');
+        $plan->workType->formTemplates()->attach($ast->id, ['is_required' => true]);
+        $this->entrega($plan, $ast);
+
+        $ihm = $this->plantilla('IHM');
+        $plan->workType->formTemplates()->attach($ihm->id, ['is_required' => true]);
+
+        $codigos = $plan->fresh()->expectedFormTemplates()->map(fn ($i) => $i['template']->code)->values()->all();
+
+        $this->assertEqualsCanonicalizing(['AST', 'IHM'], $codigos);
+    }
+
+    /**
      * Se le quita el formato **opcional** que no aplica, sin tocar el estandar.
      *
      * El tipo de trabajo marca cada formato obligatorio u opcional
