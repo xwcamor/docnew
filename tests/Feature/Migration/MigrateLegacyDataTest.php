@@ -293,6 +293,18 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(2, DB::table('approval_rules')->whereNotNull('legacy_id')->count());
         $this->assertSame(0, DB::table('approval_rules')->where('approver_role', 'worker')->count());
 
+        // Y el flujo empieza en 1. En la v1 eran 1-Ejecutante, 2-Autorizante y
+        // 3-Seguridad; al no traerse la primera, copiar el nivel tal cual
+        // dejaba un flujo que arrancaba en 2, con la pantalla enseñando «Nivel
+        // 2» y «Nivel 3» y ningun 1. No rompia nada —el orden se resuelve
+        // comparando valores— pero un hueco que nadie decidio parece un dato
+        // que falta.
+        $this->assertSame(
+            ['supervisor' => 1, 'hse_supervisor' => 2],
+            DB::table('approval_rules')->whereNotNull('legacy_id')
+                ->orderBy('priority_level')->pluck('priority_level', 'approver_role')->all(),
+        );
+
         // Los formatos que exige cada tipo de trabajo tambien vienen de la v1.
         $this->assertSame(2, DB::table('work_type_form_templates')->count());
     }

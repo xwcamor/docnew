@@ -1307,7 +1307,7 @@ class MigrateLegacyDataCommand extends Command
      */
     protected function catalogoReglas($viejo): array
     {
-        return $this->catalogo($viejo, 'approval_rules', function ($f) {
+        $mapa = $this->catalogo($viejo, 'approval_rules', function ($f) {
             return ApprovalRule::withTrashed()
                 ->where('country_id', $this->countryId)
                 ->where('approver_role', $this->rolAprobador($f->approver_type))
@@ -1325,6 +1325,57 @@ class MigrateLegacyDataCommand extends Command
             'is_required'    => (bool) $f->is_required,
             'is_active'      => (bool) $f->is_active,
         ]);
+
+        $this->cerrarElHuecoDelRepresentante();
+
+        return $mapa;
+    }
+
+    /**
+     * Renumera el flujo para que empiece en 1.
+     *
+     * El nivel se copia tal cual venia de la v1, donde el 1 era «Worker» — el
+     * representante de la cuadrilla, que aqui no es una aprobacion y no se
+     * trae. Resultado: el flujo llegaba empezando en 2, y en pantalla salian
+     * «Nivel 2» y «Nivel 3» sin ningun 1, con la ayuda del campo diciendo que
+     * «1 firma primero».
+     *
+     * No rompia nada —el orden se resuelve comparando valores, no contandolos—
+     * pero un hueco que nadie decidio parece un dato que falta, y lo primero
+     * que se hace con algo asi es buscar el error que no existe.
+     *
+     * Se renumera **solo lo migrado** (`legacy_id`), por flujo: pais, tipo de
+     * trabajo y workspace. Un administrador que numere 10, 20, 30 a proposito
+     * para dejarse sitio en medio no se toca.
+     */
+    protected function cerrarElHuecoDelRepresentante(): void
+    {
+        $porFlujo = ApprovalRule::withTrashed()
+            ->whereNotNull('legacy_id')
+            ->orderBy('priority_level')->orderBy('id')
+            ->get()
+            ->groupBy(fn ($r) => $r->country_id . '|' . ($r->work_type_id ?? '*') . '|' . ($r->tenant_id ?? '*'));
+
+        $movidas = 0;
+
+        foreach ($porFlujo as $reglas) {
+            $nivel = 1;
+
+            foreach ($reglas as $regla) {
+                // De arriba abajo y siempre bajando, asi que el nivel al que se
+                // mueve una regla ya lo dejo libre la anterior.
+                if ((int) $regla->priority_level !== $nivel) {
+                    $regla->updateQuietly(['priority_level' => $nivel]);
+                    $movidas++;
+                }
+
+                $nivel++;
+            }
+        }
+
+        if ($movidas > 0) {
+            $this->line(sprintf('  %d regla(s) renumeradas: el flujo empieza en 1 (en la v1 el 1 era el representante).', $movidas));
+        }
     }
 
     /**
