@@ -348,6 +348,15 @@ class FormSubmissionService
             ->pluck('form_field_id')
             ->all();
 
+        // Foto, archivo y firma no dejan fila en `form_answers`: su valor es el
+        // adjunto. Sin esto un campo de foto obligatorio se contaba como sin
+        // responder aunque estuviera subido — para siempre, porque nunca iba a
+        // tener respuesta— y el formato no se podia confirmar nunca.
+        $respondidos = array_merge($respondidos, $entrega->attachments()
+            ->whereNotNull('form_field_id')
+            ->pluck('form_field_id')
+            ->all());
+
         $faltantes = $plantilla->fields()
             ->where('is_required', true)
             ->get()

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\FieldWork;
 
 use App\Http\Controllers\Controller;
 use App\Models\FormAttachment;
+use App\Models\FormField;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\WorkPlan;
@@ -245,6 +246,15 @@ class FormSubmissionController extends Controller
         $archivos = $request->file('files') ?: array_filter([$request->file('file')]);
         $campoId  = $request->integer('form_field_id') ?: null;
 
+        // Lo que el campo declara en su configuracion: cuantos archivos admite
+        // y de que tipo. Estaba solo en el editor de formatos, o sea que era
+        // decorativo — se rellenaba «max_files: 2» y se podian subir veinte.
+        if ($campoId && ($campo = FormField::find($campoId))) {
+            if ($error = $this->loQueElCampoNoAdmite($campo, $form_submission, $archivos)) {
+                return back()->with('error', $error);
+            }
+        }
+
         foreach ($archivos as $archivo) {
             $this->formatos->adjuntar(
                 $form_submission,
@@ -260,6 +270,73 @@ class FormSubmissionController extends Controller
         return back()->with('success', trans_choice('field_work.attached_flash', count($archivos), [
             'count' => count($archivos),
         ]));
+    }
+
+    /**
+     * Servir el archivo adjunto.
+     *
+     * Hace falta para poder VER lo que se subió: una firma que no se ve es un
+     * lienzo en blanco que invita a firmar otra vez encima, y una foto que no
+     * se puede mirar no se puede comprobar antes de confirmar el formato.
+     *
+     * El fichero vive en el disco `local`, o sea fuera de `public/`: no hay URL
+     * directa y por eso pasa por aquí, que es donde se comprueba de quién es.
+     * Mismo patrón que `SignatureController::evidence()`.
+     *
+     * 404 y no 403 cuando el adjunto es de otra entrega: con el id en la mano,
+     * decir «no puedes» ya confirma que existe.
+     */
+    public function attachment(FormSubmission $form_submission, FormAttachment $attachment)
+    {
+        abort_if($attachment->form_submission_id !== $form_submission->id, 404);
+
+        return \Storage::disk('local')->response($attachment->file_path);
+    }
+
+    /**
+     * Lo que el campo NO admite de este lote, si es que no admite algo.
+     *
+     * `max_files` y `mimes` los escribe quien define el formato en el editor de
+     * campos, y hasta ahora no los leia nadie: el navegador filtra por
+     * comodidad y se salta con un `curl`. Un campo de foto de la portada que
+     * dice «una sola» tiene que ser una sola de verdad.
+     *
+     * `mimes` viene como lista de extensiones («pdf», «jpg»), que es como la
+     * escribe el editor. La lista general de tipos —imagenes y PDF— ya la
+     * comprobo `validate()`: esto solo puede estrecharla, nunca ampliarla.
+     *
+     * @param  array<int, \Illuminate\Http\UploadedFile>  $archivos
+     */
+    protected function loQueElCampoNoAdmite(FormField $campo, FormSubmission $entrega, array $archivos): ?string
+    {
+        $config = $campo->config ?? [];
+
+        $tope = (int) ($config['max_files'] ?? 0);
+        if ($tope > 0) {
+            $yaHay = $entrega->attachments()->where('form_field_id', $campo->id)->count();
+
+            if ($yaHay + count($archivos) > $tope) {
+                return __('field_work.attach_max_files', ['label' => $campo->label, 'max' => $tope]);
+            }
+        }
+
+        $extensiones = array_filter(array_map(
+            fn ($m) => strtolower(ltrim((string) $m, '.')),
+            is_array($config['mimes'] ?? null) ? $config['mimes'] : [],
+        ));
+
+        if ($extensiones !== []) {
+            foreach ($archivos as $archivo) {
+                if (! in_array(strtolower($archivo->getClientOriginalExtension()), $extensiones, true)) {
+                    return __('field_work.attach_field_mimes', [
+                        'name'  => $archivo->getClientOriginalName(),
+                        'mimes' => strtoupper(implode(', ', $extensiones)),
+                    ]);
+                }
+            }
+        }
+
+        return null;
     }
 
     /**

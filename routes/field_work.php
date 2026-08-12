@@ -17,6 +17,13 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
             ->name('forms.index');
         Route::get('work_plans/{work_plan}/forms/{form_template}', [FormSubmissionController::class, 'open'])
             ->name('forms.open');
+
+        // Ver un adjunto. Va con el permiso de VER y no con el de exportar: es
+        // mirar lo que se acaba de subir en la propia pantalla de llenado, no
+        // sacar el documento del sistema. Los ficheros viven en el disco
+        // `local`, fuera de `public/`, asi que esta es la unica puerta.
+        Route::get('submissions/{form_submission}/attachments/{attachment}', [FormSubmissionController::class, 'attachment'])
+            ->name('forms.attachment');
     });
 
     // El PDF firmado saca el documento del sistema, asi que pide el mismo

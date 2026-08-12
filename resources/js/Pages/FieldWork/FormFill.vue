@@ -7,7 +7,7 @@ import { Modal } from 'ant-design-vue';
 // única de la aplicación sin marca a la izquierda. Antes era peor: `SectionHeader`
 // pintaba el recuadro de color aunque no le pasaran nada, así que aquí salía un
 // cuadrado azul vacío que se lee como un icono que no cargó.
-import { ArrowLeftOutlined, FileOutlined, InboxOutlined } from '@ant-design/icons-vue';
+import { ArrowLeftOutlined, FileOutlined } from '@ant-design/icons-vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -15,6 +15,8 @@ import RiskMatrixField from '@/Components/FormFields/RiskMatrixField.vue';
 import PersonChecklistField from '@/Components/FormFields/PersonChecklistField.vue';
 import ToolChecklistField from '@/Components/FormFields/ToolChecklistField.vue';
 import QuestionBankField from '@/Components/FormFields/QuestionBankField.vue';
+import AttachField from '@/Components/FormFields/AttachField.vue';
+import SignatureField from '@/Components/FormFields/SignatureField.vue';
 import { humanizar } from '@/Components/FormFields/respuestas';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -59,6 +61,23 @@ const COMPUESTOS = {
     person_checklist: PersonChecklistField,
     tool_checklist: ToolChecklistField,
     question_bank: QuestionBankField,
+};
+
+/**
+ * Los que guardan su valor en `form_attachments` y no en `form_answers`.
+ *
+ * Caían al `<a-input v-else>` del final de la cadena: definías un campo de foto
+ * y en obra salía una caja de escribir texto. El servidor sí estaba listo —el
+ * adjunto acepta `form_field_id` desde el principio y el PDF sabe pintarlo—;
+ * lo que faltaba era el control.
+ *
+ * Va aparte de `COMPUESTOS` porque estos necesitan además el slug de la entrega
+ * y sus adjuntos: su valor no está en `valores`, está en el servidor.
+ */
+const CON_ARCHIVO = {
+    photo: AttachField,
+    file: AttachField,
+    signature: SignatureField,
 };
 
 const campos = props.template.sections.flatMap((s) => s.fields);
@@ -230,75 +249,15 @@ function guardar() {
 
 // ─── Adjuntos ───────────────────────────────────────────────────────────────
 //
-// En obra un papel son tres hojas y cuatro fotos. Antes esto era un
-// `<input type="file">` suelto y un botón: de uno en uno, sin ver lo que ya
-// había subido y sin manera de quitar el que se coló.
+// Toda la mecánica —arrastrar, la cola, los rechazados, quitar— vive en
+// `AttachField`, porque es el mismo gesto en dos sitios: el formato entero (la
+// HOJA X, sin campo) y cada campo de foto o archivo.
 
-/** Lo que la tablet puede mandar. Se repite en el servidor, que es quien manda. */
-const TIPOS_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const TAMANO_MAX = 8 * 1024 * 1024;   // el `max:8192` (KB) de la validación
+/** Los del formato entero: los que no cuelgan de ningún campo. */
+const adjuntosDelFormato = computed(() => props.attachments.filter((a) => ! a.field_id));
 
-const enCola = ref([]);
-const rechazados = ref([]);
-const subiendo = ref(false);
-
-/**
- * Intercepta el arrastre: `false` para que Ant no suba por su cuenta.
- *
- * El filtro de aquí es una cortesía —decirle a quien arrastra una hoja de
- * cálculo que ahí no va, en el momento, y no después de un viaje al servidor—,
- * nunca un candado: el `accept` y esto se saltan con un `curl`, y por eso la
- * lista de tipos vuelve a comprobarse entera en `attach()`.
- */
-const alSoltar = (archivo) => {
-    const malTipo   = ! TIPOS_OK.includes(archivo.type);
-    const muyGrande = archivo.size > TAMANO_MAX;
-
-    if (malTipo || muyGrande) {
-        rechazados.value.push({
-            name: archivo.name,
-            reason: malTipo ? t('field_work.attach_bad_type') : t('field_work.attach_too_big'),
-        });
-    } else if (! enCola.value.some((f) => f.name === archivo.name && f.size === archivo.size)) {
-        enCola.value.push(archivo);
-    }
-
-    return false;
-};
-
-const quitarDeLaCola = (i) => enCola.value.splice(i, 1);
-
-function subir() {
-    if (! enCola.value.length) return;
-
-    const datos = new FormData();
-    enCola.value.forEach((f) => datos.append('files[]', f));
-
-    subiendo.value = true;
-    router.post(route('field_work.forms.attach', props.submission.slug), datos, {
-        preserveScroll: true,
-        // La cola se vacía SOLO cuando el servidor ha dicho que sí. Si falla,
-        // lo arrastrado sigue ahí para reintentar sin volver a buscarlo.
-        onSuccess: () => { enCola.value = []; rechazados.value = []; },
-        onFinish:  () => { subiendo.value = false; },
-    });
-}
-
-function quitarAdjunto(a) {
-    router.delete(route('field_work.forms.detach', [props.submission.slug, a.id]), {
-        preserveScroll: true,
-    });
-}
-
-/** «1,2 MB» — el dato que distingue dos fotos de la misma obra. */
-const enTamano = (bytes) => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
-/** Los adjuntos viejos no tienen nombre: nunca se guardó. Se numeran. */
-const nombreDe = (a, i) => a.name || `${t('field_work.document')} ${i + 1}`;
+/** Los de un campo concreto, que es donde el PDF los va a buscar. */
+const adjuntosDe = (campo) => props.attachments.filter((a) => a.field_id === campo.id);
 
 /**
  * La salida: de aqui se vuelve a la ficha del plan, que es de donde se viene.
@@ -390,81 +349,11 @@ function reabrir() {
              son tres viajes al servidor desde una tablet con mala señal. -->
         <a-card v-if="template.kind !== 'structured'"
                 :title="$t('field_work.document')" size="small" class="mb-4">
-
-            <!-- Lo que ya está subido. Antes no se veía nada: adjuntabas y la
-                 pantalla no cambiaba, así que la única forma de saber si había
-                 entrado era darle a confirmar y ver si se quejaba. -->
-            <ul v-if="attachments.length" class="adj">
-                <li v-for="(a, i) in attachments" :key="a.id" class="adj__item">
-                    <FileOutlined class="adj__icon" />
-                    <span class="adj__name">{{ nombreDe(a, i) }}</span>
-                    <span class="adj__meta">{{ enTamano(a.size) }}</span>
-                    <a-popconfirm
-                        v-if="!soloLectura"
-                        :title="$t('field_work.detach_confirm')"
-                        :ok-text="$t('global.delete')"
-                        :cancel-text="$t('global.cancel')"
-                        @confirm="quitarAdjunto(a)"
-                    >
-                        <a-button type="text" danger size="small">{{ $t('global.delete') }}</a-button>
-                    </a-popconfirm>
-                </li>
-            </ul>
-            <p v-else-if="soloLectura" class="adj__empty">{{ $t('field_work.no_attachments') }}</p>
-
-            <template v-if="!soloLectura">
-                <a-upload-dragger
-                    :before-upload="alSoltar"
-                    :show-upload-list="false"
-                    :multiple="true"
-                    accept="image/jpeg,image/png,image/webp,application/pdf"
-                    :disabled="subiendo"
-                    class="adj-dragger"
-                >
-                    <p class="adj-dragger__icon"><InboxOutlined /></p>
-                    <p class="adj-dragger__text">
-                        <strong>{{ $t('field_work.attach_drag_strong') }}</strong>
-                        {{ $t('field_work.attach_drag_or_click') }}
-                    </p>
-                    <p class="adj-dragger__hint">{{ $t('field_work.attach_formats_hint') }}</p>
-                </a-upload-dragger>
-
-                <!-- Lo arrastrado, antes de mandarlo. Se puede quitar de aquí
-                     sin haber gastado un viaje al servidor. -->
-                <ul v-if="enCola.length" class="adj adj--cola">
-                    <li v-for="(f, i) in enCola" :key="`${f.name}-${f.size}`" class="adj__item">
-                        <FileOutlined class="adj__icon" />
-                        <span class="adj__name">{{ f.name }}</span>
-                        <span class="adj__meta">{{ enTamano(f.size) }}</span>
-                        <a-button type="text" size="small" @click="quitarDeLaCola(i)">
-                            {{ $t('global.cancel') }}
-                        </a-button>
-                    </li>
-                </ul>
-
-                <!-- Lo que NO se va a subir y por qué. Un archivo que
-                     desaparece en silencio se da por subido. -->
-                <a-alert v-if="rechazados.length" type="warning" show-icon class="mt-2">
-                    <template #message>{{ $t('field_work.attach_rejected') }}</template>
-                    <template #description>
-                        <ul class="adj__err">
-                            <li v-for="(r, i) in rechazados" :key="i">{{ r.name }} — {{ r.reason }}</li>
-                        </ul>
-                    </template>
-                </a-alert>
-
-                <a-button
-                    type="primary"
-                    class="mt-2"
-                    :disabled="!enCola.length"
-                    :loading="subiendo"
-                    @click="subir"
-                >
-                    {{ enCola.length > 1
-                        ? $t('field_work.attach_many', { count: enCola.length })
-                        : $t('field_work.attach') }}
-                </a-button>
-            </template>
+            <AttachField
+                :submission-slug="submission.slug"
+                :attachments="adjuntosDelFormato"
+                :readonly="soloLectura"
+            />
         </a-card>
 
         <!-- El titulo del bloque, cuando lo tiene. En el papel el AST lleva
@@ -498,6 +387,19 @@ function reabrir() {
                     @update:value="valores[c.id] = $event"
                 />
 
+                <!-- Foto, archivo y firma: el valor es el adjunto, así que no
+                     pasan por `valores` ni por el guardado de respuestas. Se
+                     suben solos y el servidor los cuenta como respondidos. -->
+                <component
+                    v-else-if="CON_ARCHIVO[c.field_type]"
+                    :is="CON_ARCHIVO[c.field_type]"
+                    :field="c"
+                    :submission-slug="submission.slug"
+                    :attachments="adjuntosDe(c)"
+                    :readonly="soloLectura"
+                    :faltante="faltaCampo(c)"
+                />
+
                 <template v-else-if="soloLectura">
                     <span class="ff-readonly">{{ enLimpio(valores[c.id]) }}</span>
                 </template>
@@ -512,6 +414,17 @@ function reabrir() {
                 <a-select v-else-if="c.field_type === 'select'" v-model:value="valores[c.id]"
                           size="large" show-search allow-clear option-filter-prop="label"
                           :options="(c.config?.options ?? []).map((o) => ({ value: o, label: o }))" />
+
+                <!-- `radio` y `time` también caían al input de texto del final:
+                     un campo de hora se tecleaba a mano y uno de opción única
+                     se escribía la opción. Los dos estaban en `FormField::TIPOS`
+                     desde el principio. -->
+                <a-radio-group v-else-if="c.field_type === 'radio'" v-model:value="valores[c.id]" size="large">
+                    <a-radio v-for="o in (c.config?.options ?? [])" :key="o" :value="o">{{ o }}</a-radio>
+                </a-radio-group>
+                <a-time-picker v-else-if="c.field_type === 'time'" v-model:value="valores[c.id]"
+                               value-format="HH:mm" format="HH:mm" size="large" />
+
                 <a-input v-else v-model:value="valores[c.id]" />
             </div>
         </a-card>

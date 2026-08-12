@@ -94,6 +94,13 @@ return [
     'no_attachments'  => 'No se adjuntó ningún archivo.',
     'detach_confirm'  => '¿Quitar este archivo del formato?',
     'detached_flash'  => 'Archivo quitado.',
+    'attach_full'     => '{1} Este campo admite un solo archivo y ya lo tiene. Quítalo para poner otro.|[2,*] Este campo admite :max archivos y ya los tiene. Quita alguno para poner otro.',
+    'attach_max_files' => '«:label» admite como mucho :max archivos.',
+    'attach_field_mimes' => ':name no vale aquí: este campo solo admite :mimes.',
+    'signature_save'   => 'Guardar firma',
+    'signature_redo'   => 'Volver a firmar',
+    'signature_redo_confirm' => '¿Borrar esta firma y volver a firmar?',
+    'signature_none'   => 'Sin firmar.',
     // El ÚNICO botón de acción del pie. Eran dos —«Confirmar formato» y
     // «Guardar cambios»— y el dueño del producto lo dijo tal cual: nadie
     // guarda para después volver a confirmar. Ahora guardar intenta confirmar

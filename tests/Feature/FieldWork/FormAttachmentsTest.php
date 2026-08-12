@@ -3,7 +3,8 @@
 namespace Tests\Feature\FieldWork;
 
 use App\Models\Company;
-use App\Models\FormAttachment;
+use App\Models\FormField;
+use App\Models\FormSection;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\User;
@@ -239,7 +240,144 @@ class FormAttachmentsTest extends TestCase
         $this->assertSame('hoja.png', $adjuntos[0]['name']);
     }
 
+    /**
+     * Un campo de foto obligatorio se da por respondido cuando esta subido.
+     *
+     * Es el bloqueo de fondo: `faltantesDetallados()` solo miraba
+     * `form_answers`, y una foto NUNCA deja fila ahi — su valor es el adjunto.
+     * Un formato con un campo de foto obligatorio no se podia confirmar jamas,
+     * hicieras lo que hicieras.
+     */
+    public function test_un_campo_de_foto_obligatorio_deja_de_faltar_al_subirlo(): void
+    {
+        Storage::fake('local');
+        [$entrega, $campo] = $this->entregaConCampoDeFoto();
+
+        $servicio = app(FormSubmissionService::class);
+
+        $this->assertSame(
+            ['portada'],
+            array_column($servicio->faltantesDetallados($entrega), 'code'),
+            'Sin la foto, el campo falta.',
+        );
+
+        $servicio->adjuntar($entrega, 'la-portada', 'image/png', $campo->id, 'portada.png');
+
+        $this->assertSame([], $servicio->faltantesDetallados($entrega->fresh()),
+            'Con la foto subida ya no puede faltar nada.');
+    }
+
+    /** El adjunto se cuelga del campo, que es donde el PDF lo va a buscar. */
+    public function test_el_adjunto_de_un_campo_guarda_su_form_field_id(): void
+    {
+        Storage::fake('local');
+        [$entrega, $campo] = $this->entregaConCampoDeFoto();
+
+        $this->actingAs($this->actor())
+            ->post(route('field_work.forms.attach', $entrega->slug), [
+                'files' => [UploadedFile::fake()->image('portada.jpg')],
+                'form_field_id' => $campo->id,
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame($campo->id, $entrega->attachments()->first()->form_field_id);
+    }
+
+    /**
+     * `max_files` deja de ser decorativo.
+     *
+     * Se rellenaba en el editor de campos y no lo leia nadie: un campo que
+     * decia «una sola foto» se tragaba veinte.
+     */
+    public function test_un_campo_no_admite_mas_archivos_de_los_que_declara(): void
+    {
+        Storage::fake('local');
+        [$entrega, $campo] = $this->entregaConCampoDeFoto(['max_files' => 1]);
+
+        $this->actingAs($this->actor())
+            ->post(route('field_work.forms.attach', $entrega->slug), [
+                'files' => [
+                    UploadedFile::fake()->image('una.jpg'),
+                    UploadedFile::fake()->image('dos.jpg'),
+                ],
+                'form_field_id' => $campo->id,
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, $entrega->attachments()->count());
+    }
+
+    /** Y tampoco de un tipo que el campo no declara. */
+    public function test_un_campo_no_admite_un_tipo_que_no_declara(): void
+    {
+        Storage::fake('local');
+        [$entrega, $campo] = $this->entregaConCampoDeFoto(['mimes' => ['pdf']]);
+
+        $this->actingAs($this->actor())
+            ->post(route('field_work.forms.attach', $entrega->slug), [
+                'files' => [UploadedFile::fake()->image('foto.jpg')],
+                'form_field_id' => $campo->id,
+            ])
+            ->assertSessionHas('error');
+
+        $this->assertSame(0, $entrega->attachments()->count());
+    }
+
+    /** El adjunto se puede VER: sin esto una firma es un lienzo en blanco. */
+    public function test_se_sirve_el_archivo_adjunto(): void
+    {
+        Storage::fake('local');
+        $entrega = $this->entrega();
+        $adjunto = app(FormSubmissionService::class)->adjuntar($entrega, 'la-foto', 'image/png');
+
+        $this->actingAs($this->actor())
+            ->get(route('field_work.forms.attachment', [$entrega->slug, $adjunto->id]))
+            ->assertOk();
+    }
+
+    /** Y el de otra entrega no se sirve: con el id en la mano seria mirar de más. */
+    public function test_no_se_sirve_el_adjunto_de_otra_entrega(): void
+    {
+        Storage::fake('local');
+        $entrega = $this->entrega();
+        $otra    = $this->entrega('PTF');
+        $ajeno   = app(FormSubmissionService::class)->adjuntar($otra, 'otra-foto', 'image/png');
+
+        $this->actingAs($this->actor())
+            ->getJson(route('field_work.forms.attachment', [$entrega->slug, $ajeno->id]))
+            ->assertNotFound();
+    }
+
     // ── Andamiaje ────────────────────────────────────────────────────────────
+
+    /**
+     * Una entrega de un formato estructurado con un campo de foto obligatorio.
+     *
+     * @return array{0: FormSubmission, 1: FormField}
+     */
+    private function entregaConCampoDeFoto(array $config = []): array
+    {
+        $base = ['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1];
+
+        $entrega   = $this->entrega('AST-FOTO');
+        $plantilla = $entrega->formTemplate;
+        $plantilla->update(['kind' => FormTemplate::STRUCTURED]);
+
+        $seccion = FormSection::create($base + [
+            'slug' => Str::random(22), 'form_template_id' => $plantilla->id,
+            'code' => 'general', 'position' => 1,
+        ]);
+
+        $campo = FormField::create($base + [
+            'slug' => Str::random(22), 'form_template_id' => $plantilla->id,
+            'form_section_id' => $seccion->id, 'code' => 'portada',
+            'label_es' => 'Foto de la portada', 'label_en' => 'Cover photo',
+            'field_type' => 'photo', 'is_required' => true, 'position' => 1,
+            'config' => $config ?: null,
+        ]);
+
+        return [$entrega, $campo];
+    }
 
     private function actor(): User
     {

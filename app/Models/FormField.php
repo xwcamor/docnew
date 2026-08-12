@@ -35,6 +35,19 @@ class FormField extends Model
             ?? ucfirst(str_replace('_', ' ', (string) $this->code));
     }
 
+    /**
+     * Los tipos cuyo valor NO vive en `form_answers` sino en `form_attachments`.
+     *
+     * Estaba escrito en `FormSubmissionPdfService`, que era el unico que lo
+     * sabia, y `faltantesDetallados()` no se habia enterado: un campo de foto
+     * obligatorio se contaba como sin responder para siempre —porque nunca
+     * tendra fila en `form_answers`— y el formato no se podia confirmar jamas.
+     *
+     * La firma entra aqui por lo mismo que la foto: es una imagen. El trazo
+     * llega del lienzo como PNG y se guarda igual que un archivo cualquiera.
+     */
+    public const CON_ARCHIVO = ['photo', 'file', 'signature'];
+
     /** Tipos simples y tipos compuestos que reproducen los formatos historicos. */
     public const TIPOS = [
         'text', 'textarea', 'number', 'date', 'time', 'select', 'multiselect',

@@ -43,8 +43,16 @@ class FormSubmissionPdfService
         'table', 'risk_matrix', 'person_checklist', 'tool_checklist', 'question_bank',
     ];
 
-    /** Tipos cuyo valor no esta en `form_answers` sino en `form_attachments`. */
-    protected const CON_ARCHIVO = ['photo', 'file'];
+    /**
+     * Tipos cuyo valor no esta en `form_answers` sino en `form_attachments`.
+     *
+     * La lista se mudo a `FormField` porque este servicio no era el unico que
+     * la necesitaba: `faltantesDetallados()` la ignoraba, y por eso un campo de
+     * foto obligatorio no dejaba confirmar el formato nunca. Referenciada y no
+     * copiada para que las dos no puedan volver a decir cosas distintas — y
+     * asi la firma, que se acaba de sumar, se pinta aqui sin tocar nada.
+     */
+    protected const CON_ARCHIVO = \App\Models\FormField::CON_ARCHIVO;
 
     /**
      * Genera el PDF listo para descargar, **en el idioma del pais del plan**.

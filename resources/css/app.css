@@ -1869,6 +1869,21 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 
 /* La zona de arrastre. En obra se usa con guantes: alto generoso a
    propósito, que el objetivo del dedo sea difícil de fallar. */
+/* Un campo de foto/archivo/firma que falta se marca como el resto: el borde
+   rojo es el mismo lenguaje que ya usan los demás campos pendientes. */
+.adj-campo--falta, .firma-campo--falta {
+    border-left: 3px solid var(--color-error, #BB0000); padding-left: 10px;
+}
+
+/* La firma ya hecha: se ve el trazo, no un lienzo en blanco que invita a
+   firmar encima. Fondo claro fijo porque la firma se traza en negro y
+   transparente — sobre el oscuro no se vería nada. */
+.firma-hecha { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.firma-hecha__img {
+    max-width: 100%; height: auto; background: #FFF;
+    border: 1px solid var(--color-border, #E5E5E5); border-radius: 6px;
+}
+
 .adj-dragger { padding: 8px 0; }
 .adj-dragger__icon { margin: 0 0 4px; font-size: 2rem; color: var(--color-primary, #0A6ED1); }
 .adj-dragger__text { margin: 0 0 2px; }

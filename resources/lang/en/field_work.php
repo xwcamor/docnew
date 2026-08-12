@@ -91,6 +91,13 @@ return [
     'no_attachments'  => 'No file was attached.',
     'detach_confirm'  => 'Remove this file from the form?',
     'detached_flash'  => 'File removed.',
+    'attach_full'     => '{1} This field takes a single file and already has it. Remove it to add another.|[2,*] This field takes :max files and already has them. Remove one to add another.',
+    'attach_max_files' => '“:label” takes at most :max files.',
+    'attach_field_mimes' => ':name does not belong here: this field only takes :mimes.',
+    'signature_save'   => 'Save signature',
+    'signature_redo'   => 'Sign again',
+    'signature_redo_confirm' => 'Delete this signature and sign again?',
+    'signature_none'   => 'Not signed.',
     // The ONLY action button in the footer: saving tries to confirm in the
     // same gesture and the server decides. The `confirm` key left with the
     // second button. Ver la nota en `es`.
