@@ -191,6 +191,34 @@ class CopiarImagenesPorDocumentoTest extends TestCase
         $this->assertSame(0, DB::table('person_photos')->count());
     }
 
+    /**
+     * Sin `--desde` la carpeta se busca sola.
+     *
+     * El corte de datos se hace con un solo comando y una bandera que hay que
+     * acordarse de escribir es una bandera que se olvida: el paso se saltaba
+     * sin ruido y la base quedaba migrada y sin una sola cara.
+     */
+    public function test_sin_bandera_la_carpeta_se_busca_sola(): void
+    {
+        $id = $this->persona('55556666');
+
+        $dir = storage_path('app/old_system/photo/55556666');
+        File::makeDirectory($dir, 0777, true);
+
+        try {
+            $png = imagecreatetruecolor(4, 4);
+            imagepng($png, $dir . '/f.png');
+            imagedestroy($png);
+
+            // Sin --desde, que es exactamente como se corre setup:project --datos.
+            $this->artisan('docufiz:migrate-data', ['paso' => 'archivos'])->assertSuccessful();
+
+            $this->assertSame(1, DB::table('person_photos')->where('person_id', $id)->count());
+        } finally {
+            File::deleteDirectory(storage_path('app/old_system'));
+        }
+    }
+
     /** Sin las carpetas no revienta: dice que no hay nada y sigue. */
     public function test_sin_carpetas_no_revienta(): void
     {

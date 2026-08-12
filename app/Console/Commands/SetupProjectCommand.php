@@ -28,7 +28,7 @@ class SetupProjectCommand extends Command
 {
     protected $signature = 'setup:project
         {--datos : Trae tambien los datos del sistema anterior (necesita LEGACY_DB_* en el .env)}
-        {--desde= : Carpeta con el public/images_uploads de la v1, para copiar las fotos}';
+        {--desde= : Carpeta con las fotos de la v1. Sin esto se busca sola en storage/app/old_system y public/old_system}';
 
     public function handle(): int
     {

@@ -162,16 +162,20 @@ class MigrateLegacyDataCommand extends Command
             $this->migrarEvidencias();
         }
 
-        // Los archivos solo si se dice de donde: no estan en el repositorio y
-        // el paso no puede fallar por su ausencia.
-        if ($paso === 'archivos' || ($paso === 'todo' && $this->option('desde'))) {
-            if (! $this->option('desde')) {
-                $this->error('El paso archivos necesita --desde=/ruta/con/photo/<doc>/ y signature/<doc>/.');
+        // Las imagenes, si hay de donde sacarlas. No estan en el repositorio,
+        // asi que el paso no puede fallar por su ausencia dentro de `todo`.
+        $imagenes = $this->carpetaDeImagenes();
+
+        if ($paso === 'archivos' || ($paso === 'todo' && $imagenes !== null)) {
+            if ($imagenes === null) {
+                $this->error('El paso archivos necesita una carpeta con photo/<doc>/ y signature/<doc>/.');
+                $this->line('  Pasala con --desde=, ponla en LEGACY_FILES_PATH del .env, o dejala en '
+                    . implode(' o ', $this->dondeSeBuscaSola()) . '.');
 
                 return self::FAILURE;
             }
 
-            $this->copiarArchivos((string) $this->option('desde'));
+            $this->copiarArchivos($imagenes);
         }
 
         return self::SUCCESS;
@@ -2006,8 +2010,15 @@ class MigrateLegacyDataCommand extends Command
             ));
         }
 
-        $this->line('  Los ficheros no estan en este repositorio. Cuando los tengas:');
-        $this->line('    php artisan docufiz:migrate-data archivos --desde=/ruta/v1/public/images_uploads');
+        // Solo se dice que faltan si de verdad faltan: si la carpeta esta, el
+        // paso `archivos` corre a continuacion y este aviso seria mentira.
+        if ($this->carpetaDeImagenes() !== null) {
+            return;
+        }
+
+        $this->line('  Los ficheros no estan en este repositorio. Cuando los tengas, dejalos en');
+        $this->line('    ' . storage_path('app/old_system') . '  con photo/<documento>/ y signature/<documento>/');
+        $this->line('  y se copian solos en el siguiente setup:project --datos.');
     }
 
     /**
@@ -2326,17 +2337,74 @@ class MigrateLegacyDataCommand extends Command
     // ── Archivos fisicos ─────────────────────────────────────────────────────
 
     /**
+     * Donde se busca la carpeta de imagenes cuando no se dice con `--desde`.
+     *
+     * @return list<string>
+     */
+    protected function dondeSeBuscaSola(): array
+    {
+        return [public_path('old_system'), storage_path('app/old_system'), base_path('old_system')];
+    }
+
+    /**
+     * La carpeta con las fotos y firmas del sistema viejo, o null si no hay.
+     *
+     * Se busca sola a proposito. El corte de datos se hace con **un** comando
+     * —`setup:project --datos`— y una bandera que hay que acordarse de escribir
+     * es una bandera que se olvida: el paso se salta sin ruido y la base queda
+     * migrada pero sin una sola cara. Poner la carpeta donde se busca es un
+     * gesto que se ve; escribir la ruta cada vez, no.
+     *
+     * El orden es: lo que se diga a mano, lo que diga el .env, y por ultimo los
+     * sitios donde se deja normalmente.
+     */
+    protected function carpetaDeImagenes(): ?string
+    {
+        $dicha = trim((string) $this->option('desde'));
+
+        // Si se dice a mano se devuelve tal cual, exista o no: que el error lo
+        // de `copiarArchivos()` diciendo cual es la carpeta que no encontro, y
+        // no un silencio que parece que la migracion fue bien.
+        if ($dicha !== '') {
+            return $dicha;
+        }
+
+        $delEntorno = trim((string) env('LEGACY_FILES_PATH', ''));
+
+        if ($delEntorno !== '' && is_dir($delEntorno)) {
+            return $delEntorno;
+        }
+
+        foreach ($this->dondeSeBuscaSola() as $candidata) {
+            if (is_dir($candidata)) {
+                return $candidata;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Copia las imagenes de la v1 al almacenamiento nuevo.
      *
      * Se ejecuta aparte porque los ficheros no viven en la base ni en el
-     * repositorio: hay que traerse el `public/images_uploads` del servidor
-     * viejo. Hasta entonces las filas de evidencia apuntan a un archivo que no
-     * esta, con su sha256 provisional; este paso lo copia, lo pesa y lo vuelve a
-     * hashear de verdad. Lo que no aparezca se marca como evidencia perdida.
+     * repositorio: hay que traerselos del servidor viejo. Hasta entonces las
+     * filas de evidencia apuntan a un archivo que no esta, con su sha256
+     * provisional; este paso lo copia, lo pesa y lo vuelve a hashear de verdad.
+     * Lo que no aparezca se marca como evidencia perdida.
      */
     protected function copiarArchivos(string $carpeta): void
     {
         $this->info('── Archivos de imagen ──');
+        $this->line("  Carpeta: {$carpeta}");
+
+        // Dejar caras y firmas bajo `public/` las sirve el servidor web a quien
+        // pida la URL, sin sesion y sin permiso. Como carpeta de paso para
+        // importar esta bien; olvidada ahi, no.
+        if (str_starts_with($carpeta, public_path())) {
+            $this->warn('  Esa carpeta esta dentro de public/: las imagenes quedan accesibles desde el navegador.');
+            $this->warn('  Borrala cuando termine la importacion, o muevela a storage/app/old_system.');
+        }
 
         if (! is_dir($carpeta)) {
             $this->error("  No existe la carpeta {$carpeta}. Nada que copiar.");
