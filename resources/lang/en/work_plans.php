@@ -191,6 +191,8 @@ return [
     'forms_not_in_plan'  => 'Not required on this plan',
     'forms_toggle_hint'  => 'Require form :code on this plan, or not',
     'forms_open_hint'    => 'Open form :code to fill it in',
+    // With the plan closed the form is looked at, not touched — the verb says so.
+    'forms_view_hint'    => 'View form :code',
     'forms_pdf_hint'     => 'Download :code as PDF',
     'forms_subtitle' => 'The work type sets them. Add or drop one here.',
     'forms_summary'  => '{0} None filled in|[1,*] :done of :total filled in',

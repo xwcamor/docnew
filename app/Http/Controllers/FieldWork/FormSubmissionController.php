@@ -87,6 +87,13 @@ class FormSubmissionController extends Controller
             // un boton que va a decir que no.
             'canReopen' => $request->user()?->can('form_submissions.edit')
                 && ! $work_plan->is_closed,
+            // Con el plan cerrado esta pantalla es de solo lectura, y tiene que
+            // saberlo: `exigirQueElPlanSigaAbierto()` rechaza cualquier
+            // escritura, asi que sin esto se abria editable y lo tecleado se
+            // perdia al guardar. Un formato en BORRADOR de un plan cerrado era
+            // el caso: la entrega no esta confirmada, que era lo unico que la
+            // pantalla miraba.
+            'planClosed' => (bool) $work_plan->is_closed,
             // Lo que ya esta subido. Faltaba: se adjuntaba un archivo y la
             // pantalla no cambiaba en nada, asi que la unica forma de saber si
             // habia entrado era darle a confirmar y ver si se quejaba. Con

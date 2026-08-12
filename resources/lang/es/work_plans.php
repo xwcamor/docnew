@@ -199,6 +199,9 @@ return [
     'forms_not_in_plan'  => 'No se exige en este plan',
     'forms_toggle_hint'  => 'Exigir o no el formato :code en este plan',
     'forms_open_hint'    => 'Abrir el :code para llenarlo',
+    // Con el plan cerrado el documento se mira y no se toca, y el botón lo dice
+    // desde el verbo: «ver», no «abrir para llenar».
+    'forms_view_hint'    => 'Ver el :code',
     'forms_pdf_hint'     => 'Descargar el :code en PDF',
     'forms_subtitle' => 'Los pone el tipo de trabajo. Aquí se suma o se quita uno.',
     'forms_summary'  => '{0} Ninguno completado|[1,*] :done de :total completados',

@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { Card, Tag, Button, Switch, Tooltip } from 'ant-design-vue';
-import { FileTextOutlined, FilePdfOutlined, EditOutlined } from '@ant-design/icons-vue';
+import { FileTextOutlined, FilePdfOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
@@ -34,6 +34,8 @@ const props = defineProps({
     canEdit:   { type: Boolean, default: false },
     canOpen:   { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
+    /** Plan cerrado: los documentos se miran, no se editan. */
+    planClosed: { type: Boolean, default: false },
     // Aquí vivía `workTypeCode`. Servía para un solo texto —«lo exige el tipo
     // MTTO»— que se decía en el tooltip del interruptor bloqueado, y ese
     // interruptor ya no se pinta: un documento obligatorio no lleva ninguno.
@@ -175,10 +177,33 @@ const alternar = (f, valor) => {
                             </a>
                         </Tooltip>
 
-                        <Tooltip v-if="canOpen" :title="$t('work_plans.forms_open_hint', { code: f.code })">
+                        <!-- Lápiz con el plan abierto, ojo con el plan cerrado.
+                             El lápiz salía siempre y en un plan cerrado sólo
+                             podía fallar: el servidor rechaza cualquier
+                             escritura (`exigirQueElPlanSigaAbierto`), así que
+                             era prometer una edición imposible — la regla de
+                             docs/UI.md §6.
+
+                             Y se queda un botón, no desaparece: la pantalla es
+                             de sólo lectura y es la única forma de MIRAR el
+                             documento para quien no tiene permiso de exportar
+                             el PDF, que pide dos permisos más. -->
+                        <Tooltip
+                            v-if="canOpen"
+                            :title="planClosed
+                                ? $t('work_plans.forms_view_hint', { code: f.code })
+                                : $t('work_plans.forms_open_hint', { code: f.code })"
+                        >
                             <Link :href="route('field_work.forms.open', [planSlug, f.slug])">
-                                <Button size="small" type="primary" :aria-label="$t('work_plans.forms_open')">
-                                    <template #icon><EditOutlined /></template>
+                                <Button
+                                    size="small"
+                                    :type="planClosed ? 'default' : 'primary'"
+                                    :aria-label="planClosed ? $t('global.view') : $t('work_plans.forms_open')"
+                                >
+                                    <template #icon>
+                                        <EyeOutlined v-if="planClosed" />
+                                        <EditOutlined v-else />
+                                    </template>
                                 </Button>
                             </Link>
                         </Tooltip>

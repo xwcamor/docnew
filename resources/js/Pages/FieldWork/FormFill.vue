@@ -41,6 +41,8 @@ const props = defineProps({
     // Lo que ya está subido, para poder verlo y quitar el que sobra.
     attachments: { type: Array, default: () => [] },
     canReopen: { type: Boolean, default: false },
+    /** El plan está cerrado: aquí no se escribe, se mira. */
+    planClosed: { type: Boolean, default: false },
     canViewPlan: { type: Boolean, default: false },
 });
 
@@ -83,8 +85,18 @@ const CON_ARCHIVO = {
 const campos = props.template.sections.flatMap((s) => s.fields);
 const porId = new Map(campos.map((c) => [c.id, c]));
 
-// Una entrega confirmada se mira, no se edita: lo firmado no se altera.
-const soloLectura = computed(() => props.submission.status === 'confirmed');
+/**
+ * Cuándo esta pantalla se mira en vez de rellenarse. Son DOS motivos.
+ *
+ * Una entrega confirmada se mira porque lo firmado no se altera — para eso está
+ * «Volver a editar», que deja rastro.
+ *
+ * Y un plan cerrado no se toca, esté como esté el documento. Faltaba: se miraba
+ * sólo el estado de la entrega, así que un formato en BORRADOR de un plan
+ * cerrado abría editable. Se rellenaba, se guardaba, y el servidor lo rechazaba
+ * con `plan_closed` — todo lo tecleado, perdido, después del trabajo.
+ */
+const soloLectura = computed(() => props.submission.status === 'confirmed' || props.planClosed);
 
 const valores = reactive({});
 
@@ -333,7 +345,13 @@ function reabrir() {
             <template #icon><FileOutlined /></template>
         </SectionHeader>
 
-        <a-alert v-if="soloLectura" type="success" show-icon class="mb-4"
+        <!-- El motivo importa y no es el mismo: un documento confirmado se
+             puede volver a editar, un plan cerrado hay que reabrirlo primero.
+             Con un solo texto, quien llega a un plan cerrado buscaba el botón
+             de reabrir el documento y no está. -->
+        <a-alert v-if="planClosed" type="info" show-icon class="mb-4"
+                 :message="$t('field_work.plan_closed')" />
+        <a-alert v-else-if="soloLectura" type="success" show-icon class="mb-4"
                  :message="$t('field_work.readonly_notice')" />
 
         <!-- Guardar a medias es lo NORMAL en obra: el aviso es informativo
