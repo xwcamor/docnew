@@ -480,10 +480,24 @@ class MigrateLegacyDataCommand extends Command
             ? $viejo->table('users')->orderBy('id')->get()
             : $nombres->values();
 
+        // `is_deleted` de la v1: la fila sigue en la tabla pero esta borrada.
+        // No se filtraba, y por eso entraban ACTIVOS usuarios que llevaban anos
+        // dados de baja alla.
+        //
+        // Se traen igual, pero borrados. NO se saltan, y esto importa: los
+        // planes guardan quien los creo (`plans.user_id`), y si el autor no
+        // existe aqui `usuarioDelPlan()` cae al usuario de respaldo — o sea que
+        // saltarselos no los quita de en medio, los cambia por otra persona en
+        // 3.712 planes firmados. Borrado los esconde de todas las pantallas
+        // —SoftDeletes— y deja la autoria intacta.
+        //
+        // Es el mismo criterio que ya usaban las empresas y los planes.
+        $tieneBorrado = $completos && $this->columnaExiste($viejo, 'users', 'is_deleted');
+
         $rolMinimo = Role::where('guard_name', 'web')->where('name', self::ROL_MINIMO)->first();
         $localeId = Country::find($this->countryId)?->default_locale_id ?? DB::table('locales')->min('id');
 
-        $creados = $actualizados = $conPerfil = 0;
+        $creados = $actualizados = $conPerfil = $borrados = 0;
         $sinPerfil = [];
 
         foreach ($viejos as $v) {
@@ -539,10 +553,45 @@ class MigrateLegacyDataCommand extends Command
                 $usuario->assignRole($rolMinimo);
                 $sinPerfil[] = $legacyId;
             }
+
+            // Borrado en la v1 → borrado aqui. Se aplica tambien al re-correr,
+            // que es lo que arregla las bases donde ya entraron activos.
+            //
+            // En un solo sentido: si la v1 dice que esta borrado se borra, pero
+            // si dice que NO lo esta y aqui si, se respeta lo de aqui. Dar de
+            // baja a alguien es una decision de esta aplicacion y volver a
+            // migrar no puede deshacerla — mismo criterio que el candado de los
+            // catalogos.
+            if ($tieneBorrado && (bool) ($v->is_deleted ?? false) && ! $usuario->trashed()) {
+                $usuario->forceFill([
+                    'is_active'           => false,
+                    // Literal y no traducido: es un dato que se guarda una vez
+                    // en la fila, no un texto de interfaz. Si la v1 dio un
+                    // motivo, ese manda.
+                    'deleted_description' => filled($v->deleted_description ?? null)
+                        ? $v->deleted_description
+                        : 'Estaba dado de baja en el sistema anterior.',
+                ])->saveQuietly();
+
+                $usuario->delete();
+                $borrados++;
+            }
         }
 
         $destino = User::withTrashed()->withoutGlobalScopes()->whereNotNull('legacy_id')->count();
-        $this->linea('usuarios', $viejos->count(), $destino, "{$creados} nuevos, {$actualizados} actualizados");
+        $detalle = "{$creados} nuevos, {$actualizados} actualizados";
+
+        if ($borrados > 0) {
+            $detalle .= ", {$borrados} borrados en la v1";
+        }
+
+        $this->linea('usuarios', $viejos->count(), $destino, $detalle);
+
+        // Si la v1 no tiene la columna, no se puede saber quien estaba de baja:
+        // se dice, en vez de dar por hecho que entraron todos bien.
+        if ($completos && ! $tieneBorrado) {
+            $this->warn('  `users` no tiene `is_deleted` en la v1: entran todos como activos.');
+        }
 
         $completos
             ? $this->resumenConBaseCompleta($conPerfil, $sinPerfil, count($viejos))

@@ -117,6 +117,97 @@ class MigrateLegacyDataTest extends TestCase
 
     // ── usuarios ─────────────────────────────────────────────────────────────
 
+    /**
+     * `is_deleted` de la v1 se respeta: entra, pero borrado.
+     *
+     * No se filtraba, asi que gente dada de baja hacia anos aparecia activa en
+     * el listado de usuarios. Y no basta con saltarselos: los planes guardan
+     * quien los creo, y sin el autor la migracion cae al usuario de respaldo —
+     * o sea que saltarselo no lo quita de en medio, lo cambia por otra persona
+     * en todos sus planes. Borrado los esconde y deja la autoria intacta.
+     */
+    public function test_un_usuario_borrado_en_la_v1_entra_borrado(): void
+    {
+        LegacyDatabaseFixture::conBaseCompleta();
+        $this->usuarioViejoDeBaja(4);
+
+        $this->artisan('docufiz:migrate-data', ['paso' => 'usuarios'])->assertSuccessful();
+
+        $baja = User::withTrashed()->withoutGlobalScopes()->where('legacy_id', 4)->sole();
+
+        $this->assertTrue($baja->trashed(), 'Tenia que entrar borrado.');
+        $this->assertFalse((bool) $baja->is_active);
+
+        // Y la columna esta escrita, que es lo que lo esconde de los listados.
+        // Se mira en crudo a proposito: `withoutGlobalScopes()` quita TODOS los
+        // scopes, tambien el de SoftDeletes, asi que por ahi un borrado vuelve
+        // a salir y la comprobacion no diria nada.
+        $this->assertNotNull(DB::table('users')->where('legacy_id', 4)->value('deleted_at'));
+
+        // Los que no estan de baja siguen entrando enteros.
+        $this->assertFalse(User::withTrashed()->withoutGlobalScopes()->where('legacy_id', 1)->sole()->trashed());
+    }
+
+    /**
+     * Y volver a correrlo arregla las bases donde ya entraron activos.
+     *
+     * Es el caso real: la migracion ya se habia corrido antes de arreglar esto,
+     * asi que el arreglo tiene que alcanzar a lo que ya esta dentro y no solo a
+     * lo que entre a partir de ahora.
+     */
+    public function test_re_correr_da_de_baja_a_quien_ya_habia_entrado_activo(): void
+    {
+        LegacyDatabaseFixture::conBaseCompleta();
+        $this->usuarioViejoDeBaja(4);
+
+        // Como si hubiera entrado con la version anterior del comando: activo.
+        User::withoutGlobalScopes()->create([
+            'name' => 'Ex empleado', 'email' => 'ex@empresa.test', 'password' => 'x',
+            'country_id' => 1, 'locale_id' => 1, 'tenant_id' => 1, 'legacy_id' => 4,
+        ]);
+
+        $this->artisan('docufiz:migrate-data', ['paso' => 'usuarios'])->assertSuccessful();
+
+        $this->assertTrue(
+            User::withTrashed()->withoutGlobalScopes()->where('legacy_id', 4)->sole()->trashed(),
+            'Re-correr tiene que dar de baja al que ya estaba dentro.',
+        );
+    }
+
+    /**
+     * En un solo sentido: la v1 no resucita a nadie.
+     *
+     * Dar de baja a alguien es una decision de ESTA aplicacion, y volver a
+     * migrar no puede deshacerla. Mismo criterio que el candado de los
+     * catalogos, que tampoco se vuelve a poner si alguien lo quito.
+     */
+    public function test_re_correr_no_resucita_a_quien_se_dio_de_baja_aqui(): void
+    {
+        LegacyDatabaseFixture::conBaseCompleta();
+
+        $this->artisan('docufiz:migrate-data', ['paso' => 'usuarios'])->assertSuccessful();
+
+        // El 1 esta ACTIVO en la v1, y aqui se le da de baja a mano.
+        User::withoutGlobalScopes()->where('legacy_id', 1)->sole()->delete();
+
+        $this->artisan('docufiz:migrate-data', ['paso' => 'usuarios'])->assertSuccessful();
+
+        $this->assertTrue(
+            User::withTrashed()->withoutGlobalScopes()->where('legacy_id', 1)->sole()->trashed(),
+            'La baja hecha aqui no la deshace una re-migracion.',
+        );
+    }
+
+    /** Un usuario de la v1 dado de baja, con el hash que escribe Devise. */
+    private function usuarioViejoDeBaja(int $id): void
+    {
+        \DB::connection('legacy')->table('users')->insert([
+            'id' => $id, 'email' => "baja{$id}@empresa.test",
+            'encrypted_password' => str_replace('$2y$', '$2a$', password_hash('x', PASSWORD_BCRYPT)),
+            'profile_id' => 3, 'country_id' => 1, 'is_hidden' => false, 'is_deleted' => true,
+        ]);
+    }
+
     public function test_los_usuarios_se_reconstruyen_desde_user_details(): void
     {
         $this->migrarTodo();

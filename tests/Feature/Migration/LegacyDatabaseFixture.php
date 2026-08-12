@@ -70,6 +70,11 @@ class LegacyDatabaseFixture
             $t->unsignedBigInteger('profile_id')->nullable();
             $t->unsignedBigInteger('country_id')->default(1);
             $t->boolean('is_hidden')->default(false);
+            // La baja de la v1. Faltaba aqui, y por eso ninguna prueba cubria
+            // que se respetara — y no se respetaba: los usuarios dados de baja
+            // hacia anos entraban activos.
+            $t->boolean('is_deleted')->default(false);
+            $t->text('deleted_description')->nullable();
         });
 
         $esquema->create('profiles', function ($t) {
