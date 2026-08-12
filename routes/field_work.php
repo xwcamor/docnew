@@ -48,6 +48,10 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
             ->name('forms.answer');
         Route::post('submissions/{form_submission}/attachments', [FormSubmissionController::class, 'attach'])
             ->name('forms.attach');
+        // Quitar el que se subio por error. Mismo permiso que subirlo, y el
+        // guardia de «en lo confirmado no se escribe» lo pone el servicio.
+        Route::delete('submissions/{form_submission}/attachments/{attachment}', [FormSubmissionController::class, 'detach'])
+            ->name('forms.detach');
         Route::post('submissions/{form_submission}/confirm', [FormSubmissionController::class, 'confirm'])
             ->name('forms.confirm');
 

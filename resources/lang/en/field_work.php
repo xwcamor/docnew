@@ -81,6 +81,16 @@ return [
     'plan_closed'     => 'The plan is closed: its forms are no longer editable.',
     'document'        => 'Document',
     'attach'          => 'Attach',
+    'attach_many'     => 'Attach :count files',
+    'attach_drag_strong'   => 'Drag your files here',
+    'attach_drag_or_click' => 'or tap to browse',
+    'attach_formats_hint'  => 'Photos (JPG, PNG, WEBP) or PDF. Up to 8 MB each.',
+    'attach_bad_type' => 'is neither a photo nor a PDF',
+    'attach_too_big'  => 'is over 8 MB',
+    'attach_rejected' => 'These files will not be uploaded',
+    'no_attachments'  => 'No file was attached.',
+    'detach_confirm'  => 'Remove this file from the form?',
+    'detached_flash'  => 'File removed.',
     // The ONLY action button in the footer: saving tries to confirm in the
     // same gesture and the server decides. The `confirm` key left with the
     // second button. Ver la nota en `es`.
@@ -89,7 +99,7 @@ return [
     'saved_partial'   => 'Changes saved.',
     'saved_confirmed' => 'Form saved and confirmed.',
     // Flashes that used to live hardcoded in the controller. Ver la nota en `es`.
-    'attached_flash'  => 'Document attached.',
+    'attached_flash'  => '{1} Document attached.|[2,*] :count documents attached.',
     'confirmed_flash' => 'Form confirmed.',
     'mark_all'        => 'Mark all',
 

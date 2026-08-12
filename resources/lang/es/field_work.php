@@ -84,6 +84,16 @@ return [
     'plan_closed'     => 'El plan está cerrado: sus formatos ya no se tocan.',
     'document'        => 'Documento',
     'attach'          => 'Adjuntar',
+    'attach_many'     => 'Adjuntar :count archivos',
+    'attach_drag_strong'   => 'Arrastra aquí los archivos',
+    'attach_drag_or_click' => 'o toca para buscarlos',
+    'attach_formats_hint'  => 'Fotos (JPG, PNG, WEBP) o PDF. Hasta 8 MB cada uno.',
+    'attach_bad_type' => 'no es una foto ni un PDF',
+    'attach_too_big'  => 'pesa más de 8 MB',
+    'attach_rejected' => 'Estos archivos no se van a subir',
+    'no_attachments'  => 'No se adjuntó ningún archivo.',
+    'detach_confirm'  => '¿Quitar este archivo del formato?',
+    'detached_flash'  => 'Archivo quitado.',
     // El ÚNICO botón de acción del pie. Eran dos —«Confirmar formato» y
     // «Guardar cambios»— y el dueño del producto lo dijo tal cual: nadie
     // guarda para después volver a confirmar. Ahora guardar intenta confirmar
@@ -95,7 +105,7 @@ return [
     'saved_confirmed' => 'Formato guardado y confirmado.',
     // Flashes que vivían escritos a pelo en el controlador («Documento
     // adjuntado.», «Formato confirmado.»): en inglés salían en castellano.
-    'attached_flash'  => 'Documento adjuntado.',
+    'attached_flash'  => '{1} Documento adjuntado.|[2,*] :count documentos adjuntados.',
     'confirmed_flash' => 'Formato confirmado.',
     'mark_all'        => 'Marcar todo',
 

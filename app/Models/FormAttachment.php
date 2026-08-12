@@ -11,7 +11,7 @@ class FormAttachment extends Model
     use HasFactory;
     use Auditable;
 
-    protected $fillable = ['form_submission_id', 'form_field_id', 'file_path', 'sha256',
+    protected $fillable = ['form_submission_id', 'form_field_id', 'original_name', 'file_path', 'sha256',
                            'mime_type', 'byte_size', 'uploaded_by', 'uploaded_at'];
     protected $casts = ['uploaded_at' => 'datetime'];
 

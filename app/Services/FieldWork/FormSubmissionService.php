@@ -120,8 +120,13 @@ class FormSubmissionService
      * El caso "HOJA X": el formato existe en papel y solo se le toma una foto.
      * Deduplica por hash para no guardar dos veces el mismo archivo.
      */
-    public function adjuntar(FormSubmission $entrega, string $contenido, string $mime, ?int $campoId = null): FormAttachment
-    {
+    public function adjuntar(
+        FormSubmission $entrega,
+        string $contenido,
+        string $mime,
+        ?int $campoId = null,
+        ?string $nombre = null,
+    ): FormAttachment {
         $this->exigirQueSePuedaEscribir($entrega);
 
         $hash = hash('sha256', $contenido);
@@ -136,6 +141,10 @@ class FormSubmissionService
 
         return $entrega->attachments()->create([
             'form_field_id' => $campoId,
+            // Con que nombre llego. La ruta en disco es una cadena al azar, asi
+            // que sin esto la pantalla no puede decir cual es cual — y con
+            // varios archivos por entrega hay que poder quitar el que sobra.
+            'original_name' => $nombre ? Str::limit(basename($nombre), 250, '') : null,
             'file_path'     => $ruta,
             'sha256'        => $hash,
             'mime_type'     => $mime,
@@ -143,6 +152,32 @@ class FormSubmissionService
             'uploaded_by'   => auth()->id(),
             'uploaded_at'   => now(),
         ]);
+    }
+
+    /**
+     * Quita un adjunto de la entrega.
+     *
+     * Pasa por el mismo guardia que `adjuntar()`: en una entrega confirmada no
+     * se escribe, y por tanto tampoco se borra. Para quitar una foto de un
+     * formato ya cerrado hay que reabrirlo, que es una accion que deja rastro
+     * — lo firmado no se altera por la puerta de atras.
+     *
+     * El fichero del disco se comparte entre entregas por hash (`adjuntar()`
+     * reutiliza la ruta cuando ese contenido ya estaba subido), asi que solo se
+     * borra de verdad cuando no queda ninguna fila apuntandolo. Borrarlo
+     * siempre dejaria a la otra entrega con un adjunto que no abre.
+     */
+    public function quitarAdjunto(FormSubmission $entrega, FormAttachment $adjunto): void
+    {
+        $this->exigirQueSePuedaEscribir($entrega);
+
+        $ruta = $adjunto->file_path;
+
+        $adjunto->delete();
+
+        if (! FormAttachment::where('file_path', $ruta)->exists()) {
+            Storage::disk('local')->delete($ruta);
+        }
     }
 
     /**

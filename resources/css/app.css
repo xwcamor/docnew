@@ -1845,6 +1845,35 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 .ff-select, .ff-input { width: 100%; }
 .ff-readonly { display: inline-block; padding: 6px 0; color: var(--color-text, #32363A); }
 
+/* ── Adjuntos del formato (la HOJA X) ─────────────────────────────────────
+   Se arrastran varios de una vez, así que hay dos listas: la de lo que ya
+   está subido y la de lo que está por mandar. Misma forma para las dos —
+   son lo mismo en dos momentos— y el pie de cada fila dice el tamaño, que
+   es lo que distingue dos fotos de la misma obra. */
+.adj { list-style: none; margin: 0 0 12px; padding: 0; }
+.adj--cola { margin-top: 12px; margin-bottom: 0; }
+.adj__item {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 10px; border: 1px solid var(--color-border, #E5E5E5); border-radius: 6px;
+    background: var(--color-surface, #FFF);
+}
+.adj__item + .adj__item { margin-top: 6px; }
+.adj__icon { color: var(--color-text-muted, #6A6D70); flex: none; }
+.adj__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adj__meta {
+    flex: none; font-family: ui-monospace, Consolas, monospace;
+    font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70);
+}
+.adj__empty { margin: 0; color: var(--color-text-muted, #6A6D70); }
+.adj__err { margin: 0; padding-left: 18px; }
+
+/* La zona de arrastre. En obra se usa con guantes: alto generoso a
+   propósito, que el objetivo del dedo sea difícil de fallar. */
+.adj-dragger { padding: 8px 0; }
+.adj-dragger__icon { margin: 0 0 4px; font-size: 2rem; color: var(--color-primary, #0A6ED1); }
+.adj-dragger__text { margin: 0 0 2px; }
+.adj-dragger__hint { margin: 0; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+
 /* ── Items del checklist ─────────────────────────────────────────────────── */
 .ff-items { list-style: none; margin: 0; padding: 0; }
 .ff-item {

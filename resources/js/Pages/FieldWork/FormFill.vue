@@ -7,7 +7,7 @@ import { Modal } from 'ant-design-vue';
 // única de la aplicación sin marca a la izquierda. Antes era peor: `SectionHeader`
 // pintaba el recuadro de color aunque no le pasaran nada, así que aquí salía un
 // cuadrado azul vacío que se lee como un icono que no cargó.
-import { ArrowLeftOutlined, FileOutlined } from '@ant-design/icons-vue';
+import { ArrowLeftOutlined, FileOutlined, InboxOutlined } from '@ant-design/icons-vue';
 import { router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -36,6 +36,8 @@ const props = defineProps({
     // El plan del que cuelga el formato: es a donde vuelve la salida del pie.
     plan: Object,
     people: { type: Array, default: () => [] },
+    // Lo que ya está subido, para poder verlo y quitar el que sobra.
+    attachments: { type: Array, default: () => [] },
     canReopen: { type: Boolean, default: false },
     canViewPlan: { type: Boolean, default: false },
 });
@@ -96,7 +98,6 @@ Object.entries(porCampo).forEach(([id, lista]) => {
     valores[campo.id] = r.value_text ?? r.value_number ?? r.value_json ?? r.value_boolean ?? r.value_datetime;
 });
 
-const archivo = ref(null);
 const guardando = ref(false);
 
 /**
@@ -227,14 +228,77 @@ function guardar() {
     });
 }
 
+// ─── Adjuntos ───────────────────────────────────────────────────────────────
+//
+// En obra un papel son tres hojas y cuatro fotos. Antes esto era un
+// `<input type="file">` suelto y un botón: de uno en uno, sin ver lo que ya
+// había subido y sin manera de quitar el que se coló.
+
+/** Lo que la tablet puede mandar. Se repite en el servidor, que es quien manda. */
+const TIPOS_OK = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+const TAMANO_MAX = 8 * 1024 * 1024;   // el `max:8192` (KB) de la validación
+
+const enCola = ref([]);
+const rechazados = ref([]);
+const subiendo = ref(false);
+
+/**
+ * Intercepta el arrastre: `false` para que Ant no suba por su cuenta.
+ *
+ * El filtro de aquí es una cortesía —decirle a quien arrastra una hoja de
+ * cálculo que ahí no va, en el momento, y no después de un viaje al servidor—,
+ * nunca un candado: el `accept` y esto se saltan con un `curl`, y por eso la
+ * lista de tipos vuelve a comprobarse entera en `attach()`.
+ */
+const alSoltar = (archivo) => {
+    const malTipo   = ! TIPOS_OK.includes(archivo.type);
+    const muyGrande = archivo.size > TAMANO_MAX;
+
+    if (malTipo || muyGrande) {
+        rechazados.value.push({
+            name: archivo.name,
+            reason: malTipo ? t('field_work.attach_bad_type') : t('field_work.attach_too_big'),
+        });
+    } else if (! enCola.value.some((f) => f.name === archivo.name && f.size === archivo.size)) {
+        enCola.value.push(archivo);
+    }
+
+    return false;
+};
+
+const quitarDeLaCola = (i) => enCola.value.splice(i, 1);
+
 function subir() {
-    if (! archivo.value) return;
+    if (! enCola.value.length) return;
 
     const datos = new FormData();
-    datos.append('file', archivo.value);
+    enCola.value.forEach((f) => datos.append('files[]', f));
 
-    router.post(route('field_work.forms.attach', props.submission.slug), datos, { preserveScroll: true });
+    subiendo.value = true;
+    router.post(route('field_work.forms.attach', props.submission.slug), datos, {
+        preserveScroll: true,
+        // La cola se vacía SOLO cuando el servidor ha dicho que sí. Si falla,
+        // lo arrastrado sigue ahí para reintentar sin volver a buscarlo.
+        onSuccess: () => { enCola.value = []; rechazados.value = []; },
+        onFinish:  () => { subiendo.value = false; },
+    });
 }
+
+function quitarAdjunto(a) {
+    router.delete(route('field_work.forms.detach', [props.submission.slug, a.id]), {
+        preserveScroll: true,
+    });
+}
+
+/** «1,2 MB» — el dato que distingue dos fotos de la misma obra. */
+const enTamano = (bytes) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+/** Los adjuntos viejos no tienen nombre: nunca se guardó. Se numeran. */
+const nombreDe = (a, i) => a.name || `${t('field_work.document')} ${i + 1}`;
 
 /**
  * La salida: de aqui se vuelve a la ficha del plan, que es de donde se viene.
@@ -321,11 +385,86 @@ function reabrir() {
                  :message="`${$t('field_work.missing')}: ${missing.join(', ')}`"
                  :description="$t('field_work.missing_help')" />
 
-        <!-- La HOJA X: el formato es el papel, solo se le toma la foto -->
-        <a-card v-if="template.kind !== 'structured' && !soloLectura"
+        <!-- La HOJA X: el formato es el papel, se le toman las fotos.
+             En plural: un permiso de trabajo son tres hojas, y de una en una
+             son tres viajes al servidor desde una tablet con mala señal. -->
+        <a-card v-if="template.kind !== 'structured'"
                 :title="$t('field_work.document')" size="small" class="mb-4">
-            <input type="file" accept="image/*,application/pdf" @change="archivo = $event.target.files[0]" />
-            <a-button type="primary" class="ml-2" @click="subir">{{ $t('field_work.attach') }}</a-button>
+
+            <!-- Lo que ya está subido. Antes no se veía nada: adjuntabas y la
+                 pantalla no cambiaba, así que la única forma de saber si había
+                 entrado era darle a confirmar y ver si se quejaba. -->
+            <ul v-if="attachments.length" class="adj">
+                <li v-for="(a, i) in attachments" :key="a.id" class="adj__item">
+                    <FileOutlined class="adj__icon" />
+                    <span class="adj__name">{{ nombreDe(a, i) }}</span>
+                    <span class="adj__meta">{{ enTamano(a.size) }}</span>
+                    <a-popconfirm
+                        v-if="!soloLectura"
+                        :title="$t('field_work.detach_confirm')"
+                        :ok-text="$t('global.delete')"
+                        :cancel-text="$t('global.cancel')"
+                        @confirm="quitarAdjunto(a)"
+                    >
+                        <a-button type="text" danger size="small">{{ $t('global.delete') }}</a-button>
+                    </a-popconfirm>
+                </li>
+            </ul>
+            <p v-else-if="soloLectura" class="adj__empty">{{ $t('field_work.no_attachments') }}</p>
+
+            <template v-if="!soloLectura">
+                <a-upload-dragger
+                    :before-upload="alSoltar"
+                    :show-upload-list="false"
+                    :multiple="true"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    :disabled="subiendo"
+                    class="adj-dragger"
+                >
+                    <p class="adj-dragger__icon"><InboxOutlined /></p>
+                    <p class="adj-dragger__text">
+                        <strong>{{ $t('field_work.attach_drag_strong') }}</strong>
+                        {{ $t('field_work.attach_drag_or_click') }}
+                    </p>
+                    <p class="adj-dragger__hint">{{ $t('field_work.attach_formats_hint') }}</p>
+                </a-upload-dragger>
+
+                <!-- Lo arrastrado, antes de mandarlo. Se puede quitar de aquí
+                     sin haber gastado un viaje al servidor. -->
+                <ul v-if="enCola.length" class="adj adj--cola">
+                    <li v-for="(f, i) in enCola" :key="`${f.name}-${f.size}`" class="adj__item">
+                        <FileOutlined class="adj__icon" />
+                        <span class="adj__name">{{ f.name }}</span>
+                        <span class="adj__meta">{{ enTamano(f.size) }}</span>
+                        <a-button type="text" size="small" @click="quitarDeLaCola(i)">
+                            {{ $t('global.cancel') }}
+                        </a-button>
+                    </li>
+                </ul>
+
+                <!-- Lo que NO se va a subir y por qué. Un archivo que
+                     desaparece en silencio se da por subido. -->
+                <a-alert v-if="rechazados.length" type="warning" show-icon class="mt-2">
+                    <template #message>{{ $t('field_work.attach_rejected') }}</template>
+                    <template #description>
+                        <ul class="adj__err">
+                            <li v-for="(r, i) in rechazados" :key="i">{{ r.name }} — {{ r.reason }}</li>
+                        </ul>
+                    </template>
+                </a-alert>
+
+                <a-button
+                    type="primary"
+                    class="mt-2"
+                    :disabled="!enCola.length"
+                    :loading="subiendo"
+                    @click="subir"
+                >
+                    {{ enCola.length > 1
+                        ? $t('field_work.attach_many', { count: enCola.length })
+                        : $t('field_work.attach') }}
+                </a-button>
+            </template>
         </a-card>
 
         <!-- El titulo del bloque, cuando lo tiene. En el papel el AST lleva

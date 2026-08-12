@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\FieldWork;
 
 use App\Http\Controllers\Controller;
+use App\Models\FormAttachment;
 use App\Models\FormSubmission;
 use App\Models\FormTemplate;
 use App\Models\WorkPlan;
 use App\Services\FieldWork\FormSubmissionPdfService;
 use App\Services\FieldWork\FormSubmissionService;
 use App\Services\FieldWork\WorkPlanExportService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
 class FormSubmissionController extends Controller
@@ -84,6 +86,17 @@ class FormSubmissionController extends Controller
             // un boton que va a decir que no.
             'canReopen' => $request->user()?->can('form_submissions.edit')
                 && ! $work_plan->is_closed,
+            // Lo que ya esta subido. Faltaba: se adjuntaba un archivo y la
+            // pantalla no cambiaba en nada, asi que la unica forma de saber si
+            // habia entrado era darle a confirmar y ver si se quejaba. Con
+            // varios archivos por entrega eso deja de ser un detalle.
+            'attachments' => $entrega->attachments()->orderBy('id')->get()->map(fn ($a) => [
+                'id'       => $a->id,
+                'name'     => $a->original_name,
+                'mime'     => $a->mime_type,
+                'size'     => (int) $a->byte_size,
+                'field_id' => $a->form_field_id,
+            ])->all(),
             // El formato, la seccion y el campo llevan su nombre en columnas
             // (`name_es`/`name_en`, `label_es`/`label_en`) y el accesor `label`
             // elige por el idioma en curso. Se arma a mano en vez de mandar el
@@ -206,25 +219,66 @@ class FormSubmissionController extends Controller
             ->with('success', __('field_work.saved_confirmed'));
     }
 
-    /** El caso "HOJA X": subir la foto del papel. */
+    /**
+     * El caso "HOJA X": subir la foto del papel. Varias de una vez.
+     *
+     * En obra un papel son tres hojas y cuatro fotos, y de una en una eso son
+     * siete viajes al servidor desde una tablet con mala señal. La pantalla
+     * manda `files[]` con todo lo que se arrastro.
+     *
+     * `file` a secas se mantiene aunque la pantalla ya no lo use: esta ruta es
+     * tambien la puerta de las integraciones, y romper un contrato publicado
+     * para ahorrarse tres lineas no compensa.
+     *
+     * Los tipos se comprueban AQUI y no solo en el navegador: el `accept` del
+     * arrastrar-y-soltar es una comodidad, no un candado — se salta con un
+     * `curl`. La lista es la misma que ya habia: imagenes y PDF.
+     */
     public function attach(Request $request, FormSubmission $form_submission)
     {
         $request->validate([
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'files'   => ['required_without:file', 'array', 'max:20'],
+            'files.*' => ['file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
+            'file'    => ['required_without:files', 'file', 'mimes:jpg,jpeg,png,webp,pdf', 'max:8192'],
         ]);
 
-        $archivo = $request->file('file');
+        $archivos = $request->file('files') ?: array_filter([$request->file('file')]);
+        $campoId  = $request->integer('form_field_id') ?: null;
 
-        $this->formatos->adjuntar(
-            $form_submission,
-            $archivo->get(),
-            $archivo->getMimeType(),
-            $request->integer('form_field_id') ?: null,
-        );
+        foreach ($archivos as $archivo) {
+            $this->formatos->adjuntar(
+                $form_submission,
+                $archivo->get(),
+                $archivo->getMimeType(),
+                $campoId,
+                $archivo->getClientOriginalName(),
+            );
+        }
 
         // Antes decia «Documento adjuntado.» escrito aqui dentro: texto de
         // interfaz a pelo en el controlador, que en ingles salia en castellano.
-        return back()->with('success', __('field_work.attached_flash'));
+        return back()->with('success', trans_choice('field_work.attached_flash', count($archivos), [
+            'count' => count($archivos),
+        ]));
+    }
+
+    /**
+     * Quitar un adjunto: el que se subio por error.
+     *
+     * Sin esto, arrastrar cinco fotos y colar una equivocada no tenia arreglo
+     * — y con la subida de una en una tampoco lo tenia, solo que costaba menos
+     * equivocarse. El guardia de «no se escribe en lo confirmado» vive en el
+     * servicio, que es quien sabe lo que es una entrega cerrada.
+     */
+    public function detach(FormSubmission $form_submission, FormAttachment $attachment): RedirectResponse
+    {
+        // El adjunto viaja por id y la entrega por slug: sin esto, el id de
+        // otra entrega borraria un adjunto ajeno.
+        abort_if($attachment->form_submission_id !== $form_submission->id, 404);
+
+        $this->formatos->quitarAdjunto($form_submission, $attachment);
+
+        return back()->with('success', __('field_work.detached_flash'));
     }
 
     /**
