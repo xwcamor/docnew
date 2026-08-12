@@ -6,6 +6,7 @@ import {
     MinusCircleOutlined, WarningFilled,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
+import { horaDeObra } from '@/Utils/horaDeObra';
 
 /**
  * Una fila del tablero del plan. **La misma para las tres columnas.**
@@ -37,6 +38,15 @@ const props = defineProps({
     state:    { type: String, required: true },
     title:    { type: String, required: true },
     subtitle: { type: String, default: '' },
+    /**
+     * La hora, en la misma línea que el subtítulo y en monoespaciada.
+     *
+     * Estaba suelta a la derecha, y ahí era una tercera columna de datos que
+     * empujaba los botones y dejaba la fila con tres alineaciones distintas.
+     * Junto al cargo y el país se lee de corrido: «Supervisor · Perú ·
+     * 12-08-2026 12:33» es una frase, no tres cosas repartidas por la fila.
+     */
+    subtitleTime: { type: String, default: '' },
     /** Cuándo pasó (firma, confirmación). Se pinta dentro de la etiqueta. */
     when:     { type: String, default: null },
     /** Texto de la etiqueta cuando no hay hora que enseñar. */
@@ -65,24 +75,6 @@ const props = defineProps({
      */
     doneVerb: { type: String, default: 'signed' },
     /**
-     * Dónde se cuenta el estado: `mark` o `tag`. **Nunca en los dos sitios.**
-     *
-     * Antes se contaba en los dos: la marca verde de la izquierda y, otra vez,
-     * dentro de la pastilla con la hora — que lleva el mismo icono. Dos checks
-     * verdes por fila diciendo lo mismo, y en una tarjeta con cuatro filas eso
-     * son ocho.
-     *
-     * - `mark` (trabajadores, aprobaciones): la marca, y la hora en su tooltip.
-     *   Ahí la fila es corta y una pastilla con la fecha en verde pesa más que
-     *   el nombre de la persona, que es lo que se viene a leer. El flujo de
-     *   aprobaciones **necesita** la marca de todas formas: es de donde cuelga
-     *   el hilo que encadena un paso con el siguiente.
-     * - `tag` (documentos): la pastilla con la hora a la vista, sin marca. Aquí
-     *   la fecha sí se lee — es cuándo se cerró el documento — y la fila ya
-     *   tiene su propia hilera de acciones a la derecha.
-     */
-    stateAs:  { type: String, default: 'tag' },
-    /**
      * Si esta fila puede decir «sin observaciones» cuando no tiene ninguna.
      *
      * Sólo tiene sentido en algo ya terminado: un documento en borrador no está
@@ -103,69 +95,49 @@ const MARCAS = {
 
 const marca = computed(() => MARCAS[props.state] ?? ClockCircleOutlined);
 
-// Color Y palabra, nunca sólo color: al sol se pierde el matiz y hay gente que
-// no distingue el rojo del verde (docs/UI.md §5).
-const color = computed(() => ({
-    done: 'success', pending: 'warning', blocked: 'default', optional: 'default',
-}[props.state] ?? 'default'));
-
-/** dd-mm-aaaa hh:mm, hora de obra: no se reinterpreta la zona. */
-const cuando = computed(() => {
-    if (!props.when) return '';
-    const s = String(props.when);
-    const [y, m, d] = s.slice(0, 10).split('-');
-    return d ? `${d}-${m}-${y} ${s.slice(11, 16)}` : s;
-});
-
-const etiqueta = computed(() => cuando.value || props.label);
-
-/** Lo que dice la marca al posarse encima: qué pasó y cuándo. */
+/**
+ * Lo que dice la marca al posarse encima: qué pasó y cuándo.
+ *
+ * Aquí vivía también una pastilla de estado con la hora dentro, y era el mismo
+ * icono otra vez: dos checks verdes por fila diciendo lo mismo. El estado lo
+ * cuenta la marca —forma distinta por estado, no sólo color, que al sol se
+ * pierde el matiz (docs/UI.md §5)— y la hora la pone la tarjeta en el
+ * subtítulo, donde se lee sin hover. El tooltip sólo añade el verbo.
+ */
 const tituloDeLaMarca = computed(() => (
-    props.when ? t(`work_plans.done_at_${props.doneVerb}`, { when: cuando.value }) : props.label
+    props.when
+        ? t(`work_plans.done_at_${props.doneVerb}`, { when: horaDeObra(props.when) })
+        : props.label
 ));
 </script>
 
 <template>
-    <li class="wp-row" :class="[`is-${state}`, { 'is-chained': chained, 'is-nomark': stateAs !== 'mark' }]">
-        <!-- La marca lleva el estado Y la hora en su tooltip: es la única cosa
-             verde de la fila, no la primera de dos. -->
-        <Tooltip v-if="stateAs === 'mark'" :title="tituloDeLaMarca">
+    <li class="wp-row" :class="[`is-${state}`, { 'is-chained': chained }]">
+        <!-- La única marca de estado de la fila. -->
+        <Tooltip :title="tituloDeLaMarca">
             <span class="wp-row__mark"><component :is="marca" /></span>
         </Tooltip>
 
         <div class="wp-row__body">
             <strong class="wp-row__title">{{ title }}</strong>
-            <span v-if="subtitle" class="wp-row__sub">{{ subtitle }}</span>
+            <!-- La hora va en el subtítulo pero como prop aparte, NUNCA
+                 concatenada con `v-html`: aquí dentro se pintan nombres de
+                 personas, que son datos de usuario. -->
+            <span v-if="subtitle || subtitleTime" class="wp-row__sub">
+                {{ subtitle }}<template v-if="subtitle && subtitleTime"> · </template><b v-if="subtitleTime">{{ subtitleTime }}</b>
+            </span>
             <span v-if="reason" class="wp-row__why">{{ reason }}</span>
         </div>
 
         <div class="wp-row__side">
-            <Tooltip v-if="stateAs === 'tag' && etiqueta" :title="tituloDeLaMarca || etiqueta">
-                <Tag :color="color" :bordered="false" class="wp-row__tag">
-                    <component :is="marca" /> {{ etiqueta }}
-                </Tag>
-            </Tooltip>
+            <!-- Aquí vivía una pastilla de estado con la hora dentro, y llevaba
+                 el mismo icono que la marca: dos veces lo mismo por fila. El
+                 estado lo cuenta la marca y la hora va en el subtítulo, donde
+                 se lee sin hover — que en una tablet no existe (docs/UI.md §3).
 
-            <!-- Con la marca, la hora va aquí en gris y NO dentro de un tooltip.
-                 Un tooltip se dispara con el hover, y en una tablet el hover no
-                 existe: lo que hay es un toque, que el navegador traduce a un
-                 pseudo-hover errático y que además compite con el clic de lo
-                 que haya debajo. Y el objetivo sería la marca, de 15px, cuando
-                 la guía pide 44 para acertar con guantes (docs/UI.md §3).
-
-                 La hora de firma es dato de auditoría —se consulta a
-                 propósito—, así que tiene que leerse sin pedir nada. En gris y
-                 sin pastilla: se lee, y no compite con el nombre, que es lo que
-                 se viene a buscar. -->
-            <span
-                v-else-if="stateAs === 'mark' && etiqueta"
-                class="wp-row__when"
-                :class="{ 'wp-row__when--dato': !!when }"
-            >{{ etiqueta }}</span>
-
-            <!-- Va junto a la etiqueta de estado, no en su lugar: las dos cosas
-                 son ciertas a la vez —el formato está confirmado Y tiene tres
-                 observaciones— y sustituir una por otra escondería una. -->
+                 Lo que sí se queda a la derecha es el RESULTADO, que no es el
+                 estado: un documento confirmado Y con tres observaciones son
+                 dos cosas ciertas a la vez, y una no sustituye a la otra. -->
             <Tooltip v-if="findings > 0" :title="tc('work_plans.findings_hint', findings, { count: findings })">
                 <Tag color="error" :bordered="false" class="wp-row__tag">
                     <WarningFilled /> {{ tc('work_plans.findings_count', findings, { count: findings }) }}
@@ -265,23 +237,16 @@ const tituloDeLaMarca = computed(() => (
 /* Debajo de todo y a lo ancho, alineado con el cuerpo. */
 .wp-row__wide  { flex: 0 0 calc(100% - 32px); margin-left: 32px; margin-top: 8px; }
 
-/* Sin marca (documentos) no hay 32px que compensar: la sangría era para
-   alinearse con el cuerpo cuando el lado baja de línea, y sin marca el cuerpo
-   empieza en el borde. Dejarla metía todo el bloque hacia dentro sin motivo. */
-.wp-row.is-nomark .wp-row__side { margin-left: 0; }
-.wp-row.is-nomark .wp-row__wide { flex-basis: 100%; margin-left: 0; }
 .wp-row__tag   { margin: 0; white-space: nowrap; }
 
-/* La hora, en gris y sin caja. Monoespaciada cuando es una fecha: son cuatro
-   filas con la misma forma —dd-mm-aaaa hh:mm— y alineadas por columna se leen
-   de un barrido en vez de una a una. El texto de estado («Pendiente») no, que
-   es una palabra y no un dato. */
-.wp-row__when {
-    white-space: nowrap;
-    font-size: 0.8125rem;
-    color: var(--color-text-muted, #6A6D70);
+/* La hora va dentro del subtítulo y en monoespaciada: son cuatro filas con la
+   misma forma —dd-mm-aaaa hh:mm— y alineadas por columna se leen de un barrido
+   en vez de una a una. Lo marca la tarjeta envolviéndola en un `<b>`, que es lo
+   único que el subtítulo deja pasar como marca. */
+.wp-row__sub :deep(b) {
+    font-weight: 400;
+    font-family: ui-monospace, Consolas, monospace;
 }
-.wp-row__when--dato { font-family: ui-monospace, Consolas, monospace; }
 /* El resultado limpio, en gris: es lo normal, no un logro, y en verde
    competiría con la pastilla de estado que ya lo es. */
 .wp-row__tag--clean {

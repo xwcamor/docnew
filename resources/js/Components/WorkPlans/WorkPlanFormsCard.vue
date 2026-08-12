@@ -5,6 +5,7 @@ import { Card, Tag, Button, Switch, Tooltip } from 'ant-design-vue';
 import { FileTextOutlined, FilePdfOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
+import { horaDeObra } from '@/Utils/horaDeObra';
 
 /**
  * Formatos de seguridad del plan. **Todos, con un interruptor cada uno.**
@@ -33,12 +34,12 @@ const props = defineProps({
     canEdit:   { type: Boolean, default: false },
     canOpen:   { type: Boolean, default: false },
     canExport: { type: Boolean, default: false },
-    /** Código del tipo de trabajo — se nombra al explicar por qué uno es obligatorio. */
-    workTypeCode: { type: String, default: '' },
+    // Aquí vivía `workTypeCode`. Servía para un solo texto —«lo exige el tipo
+    // MTTO»— que se decía en el tooltip del interruptor bloqueado, y ese
+    // interruptor ya no se pinta: un documento obligatorio no lleva ninguno.
 });
 
 const { t } = useI18n();
-const workTypeCode = computed(() => props.workTypeCode || '—');
 
 // Sólo cuentan los que el plan exige: los apagados no son trabajo pendiente.
 const enElPlan    = computed(() => props.forms.filter((f) => f.included));
@@ -76,14 +77,21 @@ const subtitulo = (f) => {
     return partes.join(' · ');
 };
 
-/** Por qué el interruptor está bloqueado. Son dos motivos y no son el mismo. */
-const motivoBloqueo = (f) => {
-    if (f.locked_by_work_type) {
-        return t('work_plans.form_required_by_work_type', { code: f.code, type: workTypeCode.value });
-    }
-
-    return f.has_content ? t('work_plans.form_filled_cannot_remove', { code: f.code }) : '';
-};
+/**
+ * Por qué no hay interruptor, cuando el motivo NO se ve solo.
+ *
+ * Son dos motivos y no son el mismo. Que un documento sea obligatorio se sabe
+ * sin que nadie lo diga —lo dijo el dueño mirando la pantalla, y tiene razón:
+ * es lo normal, y escribirlo en las cuatro filas es ruido repetido cuatro
+ * veces—. Que uno OPCIONAL no se pueda quitar porque ya está lleno, en cambio,
+ * no se deduce de nada: sin esta línea la fila es un documento opcional sin
+ * interruptor y parece que la pantalla se rompió.
+ */
+const motivoNoObvio = (f) => (
+    !f.can_toggle && !f.locked_by_work_type && f.has_content
+        ? t('work_plans.form_filled_cannot_remove', { code: f.code })
+        : ''
+);
 
 const cambiando = ref(null);
 
@@ -136,9 +144,11 @@ const alternar = (f, valor) => {
                 :title="f.name || f.code"
                 :subtitle="subtitulo(f)"
                 :when="f.status === 'confirmed' ? f.confirmed_at : null"
+                :subtitle-time="f.status === 'confirmed' ? horaDeObra(f.confirmed_at) : ''"
                 :label="f.included ? $t('field_work.status.' + f.status) : ''"
                 :findings="f.included ? (f.findings || 0) : 0"
                 :show-clean="f.included && f.status === 'confirmed'"
+                :reason="motivoNoObvio(f)"
                 done-verb="completed"
             >
                 <template #actions>
@@ -157,21 +167,25 @@ const alternar = (f, valor) => {
 
                         <Tooltip v-if="canOpen" :title="$t('work_plans.forms_open_hint', { code: f.code })">
                             <Link :href="route('field_work.forms.open', [planSlug, f.slug])">
-                                <Button size="small" type="primary">
+                                <Button size="small" type="primary" :aria-label="$t('work_plans.forms_open')">
                                     <template #icon><EditOutlined /></template>
-                                    {{ $t('work_plans.forms_open') }}
                                 </Button>
                             </Link>
                         </Tooltip>
                     </template>
 
-                    <!-- El interruptor de la v1: bloqueado cuando lo exige el
-                         tipo de trabajo o cuando ya hay trabajo hecho, y en los
-                         dos casos el tooltip dice cuál de los dos es. -->
-                    <Tooltip v-if="canEdit" :title="motivoBloqueo(f) || $t('work_plans.forms_toggle_hint', { code: f.code })">
+                    <!-- El interruptor de la v1, y SÓLO cuando se puede mover.
+                         Un documento obligatorio salía con el interruptor
+                         encendido y bloqueado en las cuatro filas: no dice nada
+                         —obligatorio ya se sabe— y es un objetivo de toque que
+                         sólo puede fallar, que es peor que no tenerlo
+                         (docs/UI.md §6). Cuando el bloqueo NO es obvio —el
+                         documento es opcional pero ya está lleno, y por eso no
+                         se puede quitar— se explica con una línea, que ahí sí
+                         hace falta. -->
+                    <Tooltip v-if="canEdit && f.can_toggle" :title="$t('work_plans.forms_toggle_hint', { code: f.code })">
                         <Switch
                             :checked="f.included"
-                            :disabled="!f.can_toggle"
                             :loading="cambiando === f.slug"
                             size="small"
                             @change="(v) => alternar(f, v)"

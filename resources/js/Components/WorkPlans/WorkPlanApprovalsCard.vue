@@ -128,6 +128,24 @@ const estado = (a) => {
     return a.required ? 'pending' : 'optional';
 };
 
+/**
+ * Firmada: manda la PERSONA. Sin firmar: manda el paso.
+ *
+ * El flujo se lee en dos momentos distintos y no preguntan lo mismo. Mientras
+ * está a medias, la pregunta es «¿qué paso toca?» y el título tiene que ser el
+ * paso — «Supervisor HSE»—, con quien lo va a firmar debajo. Una vez firmada,
+ * la pregunta pasa a ser **quién** lo autorizó: eso es lo que se busca en una
+ * auditoría, y el nombre del paso ya sólo hace de aclaración.
+ *
+ * Es el mismo criterio con el que se lee un documento firmado en papel: arriba
+ * la firma, debajo el cargo.
+ */
+const titulo = (a) => (a.signed && a.person ? a.person.name : nombre(a));
+
+const subtitulo = (a) => (
+    a.signed && a.person ? nombre(a) : (a.person ? a.person.name : t('work_plans.approval_unassigned'))
+);
+
 const etiqueta = (a) => {
     if (a.signed) return t('work_plans.approval_approved');
     // «En espera», no «Pendiente»: pendiente es la que se puede firmar y nadie
@@ -286,11 +304,11 @@ const firmar = (a) => router.get(
                 :key="a.slug"
                 chained
                 :state="estado(a)"
-                :title="nombre(a)"
-                :subtitle="a.person ? a.person.name : $t('work_plans.approval_unassigned')"
+                :title="titulo(a)"
+                :subtitle="subtitulo(a)"
                 :when="a.signed ? a.signed_at : null"
+                :subtitle-time="a.signed ? cuando(a.signed_at) : ''"
                 :label="etiqueta(a)"
-                state-as="mark"
             >
                 <template #actions>
                     <!-- Mientras el flujo esta bloqueado no sale ningun boton.

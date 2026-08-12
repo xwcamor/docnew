@@ -11,6 +11,7 @@ import {
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
+import { horaDeObra } from '@/Utils/horaDeObra';
 
 /**
  * Trabajadores del plan: quién sale a obra ese día.
@@ -60,6 +61,9 @@ const todosFirmaron = computed(() => props.crew.length > 0 && firmados.value ===
 const subtitulo = (fila) => [
     fila.position,
     fila.nationality,
+    // Sin firmar lo dice aquí, en la misma frase. La hora de quien SÍ firmó va
+    // aparte (`subtitle-time`), que es un dato y se pinta monoespaciado.
+    fila.signed ? null : t('work_plans.crew_pending'),
 ].filter(Boolean).join(' · ');
 
 const documento = ref('');
@@ -221,8 +225,8 @@ const guardarAlta = () => {
                 :title="fila.name"
                 :subtitle="subtitulo(fila)"
                 :when="fila.signed ? fila.signed_at : null"
+                :subtitle-time="fila.signed ? horaDeObra(fila.signed_at) : ''"
                 :label="fila.signed ? $t('work_plans.crew_signed') : $t('work_plans.crew_pending')"
-                state-as="mark"
             >
                 <template #actions>
                     <!-- La cara con la que firmo. Solo llega con

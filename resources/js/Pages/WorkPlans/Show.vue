@@ -658,7 +658,6 @@ const irAlRepresentante = () => {
                         :can-edit="canSetup"
                         :can-open="fieldWork.canOpenForms"
                         :can-export="fieldWork.canExport"
-                        :work-type-code="workPlan.work_type?.code || ''"
                     />
 
                     <!-- La tercera columna es «lo que toca ahora».
