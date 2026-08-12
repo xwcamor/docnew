@@ -464,6 +464,24 @@ class SignatureService
      *
      * @return array{0:string,1:?int,2:?int} imagen, ancho y alto finales
      */
+    /**
+     * Encoge una foto de referencia al tamaño con el que se enseña.
+     *
+     * Lo mismo que se le hace a cualquier cara capturada en obra, pero abierto
+     * para que la importacion del sistema viejo pase por aqui: sus fotos vienen
+     * tal cual salieron de una camara y en el listado se pintan a 34 pixeles.
+     * Copiarlas enteras es mandar megas por cada fila.
+     *
+     * Si GD no esta o la imagen no se deja procesar, devuelve la original: una
+     * foto grande es mejor que ninguna.
+     *
+     * @return array{0:string,1:?int,2:?int} imagen, ancho y alto finales
+     */
+    public function encogerFoto(string $binario): array
+    {
+        return $this->comprimir($binario);
+    }
+
     protected function comprimir(string $binario, int $lado = 320, int $calidad = 70): array
     {
         if (! function_exists('imagecreatefromstring') || ! function_exists('imagewebp')) {

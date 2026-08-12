@@ -2465,8 +2465,11 @@ class MigrateLegacyDataCommand extends Command
         // Las firmas y las fotos de referencia van por documento, cada una en
         // su carpeta. Se aceptan los dos idiomas porque la carpeta la arma una
         // persona a mano y equivocarse de idioma no puede costar la migracion.
+        // La firma NO se encoge: es un trazo sobre fondo transparente y pasarla
+        // por el compresor le pone fondo. La foto si — viene tal cual salio de
+        // una camara y en el listado se pinta a 34 pixeles.
         $this->copiarDeReferencia($carpeta, ['signature', 'firmas'], 'person_signatures', 'firmas/legacy/', 'migrated');
-        $this->copiarDeReferencia($carpeta, ['photo', 'fotos'], 'person_photos', 'fotos/legacy/', \App\Models\PersonPhoto::MIGRADA);
+        $this->copiarDeReferencia($carpeta, ['photo', 'fotos'], 'person_photos', 'fotos/legacy/', \App\Models\PersonPhoto::MIGRADA, true);
 
         $this->tirarLosMarcadoresSinArchivo();
     }
@@ -2562,8 +2565,9 @@ class MigrateLegacyDataCommand extends Command
      * su hash, de modo que dos personas con la misma imagen comparten archivo.
      *
      * @param  list<string>  $subcarpetas  nombres aceptados, en orden
+     * @param  bool  $encoger  pasar la imagen por el compresor antes de guardarla
      */
-    protected function copiarDeReferencia(string $carpeta, array $subcarpetas, string $tabla, string $prefijoNuevo, string $source): void
+    protected function copiarDeReferencia(string $carpeta, array $subcarpetas, string $tabla, string $prefijoNuevo, string $source, bool $encoger = false): void
     {
         $raiz = null;
 
@@ -2643,9 +2647,23 @@ class MigrateLegacyDataCommand extends Command
                 continue;
             }
 
+            $extension = strtolower(pathinfo($fuente, PATHINFO_EXTENSION));
+
+            // Encoger ANTES de hashear: el hash tiene que ser el de los bytes
+            // que se guardan, o la deduplicacion y el `?v=` de la URL mienten.
+            if ($encoger) {
+                [$encogida, $ancho] = app(\App\Services\FieldWork\SignatureService::class)->encogerFoto($contenido);
+
+                // `$ancho` en nulo significa que no se pudo procesar y devolvio
+                // la original: entonces tampoco cambia la extension.
+                if ($ancho !== null) {
+                    $contenido = $encogida;
+                    $extension = 'webp';
+                }
+            }
+
             $hash    = hash('sha256', $contenido);
-            $destino = $prefijoNuevo . substr($hash, 0, 2) . '/' . $hash . '.'
-                . strtolower(pathinfo($fuente, PATHINFO_EXTENSION));
+            $destino = $prefijoNuevo . substr($hash, 0, 2) . '/' . $hash . '.' . $extension;
 
             $porHash[$hash][] = $documento;
 

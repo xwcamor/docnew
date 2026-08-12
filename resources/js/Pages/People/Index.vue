@@ -636,6 +636,7 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
                                     :alt="$t('people.photo')"
                                     :width="34"
                                     :height="34"
+                                    loading="lazy"
                                     class="media-cell__foto"
                                 />
                             </Tooltip>
@@ -645,6 +646,7 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
                                     :alt="$t('people.signature')"
                                     :width="46"
                                     :height="34"
+                                    loading="lazy"
                                     class="media-cell__firma"
                                 />
                             </Tooltip>

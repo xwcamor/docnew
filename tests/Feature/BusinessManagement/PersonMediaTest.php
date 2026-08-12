@@ -238,6 +238,71 @@ class PersonMediaTest extends CatalogTestCase
     }
 
     /**
+     * La imagen se sirve con cache larga y ETag.
+     *
+     * Cada miniatura del listado es una peticion que arranca Laravel entero:
+     * veinticinco filas son cincuenta arranques por carga, y sin cabeceras se
+     * repiten en CADA carga. El año de cache es seguro porque la URL lleva el
+     * hash — si la imagen cambia, cambia la URL.
+     */
+    public function test_la_imagen_se_sirve_cacheada_y_con_etag(): void
+    {
+        $persona = $this->persona();
+        $foto = app(SignatureService::class)->guardarFoto($persona, $this->binario());
+
+        $r = $this->actingAs($this->conMedia())
+            ->get(route('business_management.people.media', [$persona->slug, 'photo']));
+
+        $r->assertOk();
+        $this->assertStringContainsString('max-age=31536000', $r->headers->get('Cache-Control'));
+        $this->assertStringContainsString('private', $r->headers->get('Cache-Control'));
+        $this->assertStringContainsString($foto->sha256, (string) $r->headers->get('ETag'));
+    }
+
+    /** Y si el navegador ya la tiene, 304 sin cuerpo en vez de la imagen. */
+    public function test_si_el_navegador_ya_la_tiene_no_se_reenvia(): void
+    {
+        $persona = $this->persona();
+        $foto = app(SignatureService::class)->guardarFoto($persona, $this->binario());
+
+        $this->actingAs($this->conMedia())
+            ->get(route('business_management.people.media', [$persona->slug, 'photo']),
+                ['If-None-Match' => '"' . $foto->sha256 . '"'])
+            ->assertStatus(304);
+    }
+
+    /**
+     * Y la URL lleva el hash, que es lo que hace segura esa cache.
+     *
+     * Sin esto, un año de cache serviria la foto vieja despues de reemplazarla.
+     */
+    public function test_la_url_cambia_cuando_cambia_la_imagen(): void
+    {
+        $persona = $this->persona();
+        app(SignatureService::class)->guardarFoto($persona, $this->binario(40));
+
+        $primera = $this->urlDeLaFoto($persona);
+
+        app(SignatureService::class)->guardarFoto($persona, $this->binario(200));
+
+        $this->assertNotSame($primera, $this->urlDeLaFoto($persona->fresh()),
+            'Al reemplazar la foto tiene que cambiar la URL, o el navegador sigue con la vieja.');
+    }
+
+    private function urlDeLaFoto(Person $persona): string
+    {
+        $url = null;
+
+        $this->actingAs($this->conMedia())
+            ->get(route('business_management.people.show', $persona->slug))
+            ->assertInertia(function ($page) use (&$url) {
+                $url = $page->toArray()['props']['person']['media']['photo_url'];
+            });
+
+        return (string) $url;
+    }
+
+    /**
      * El listado tambien las lleva, con la misma puerta.
      *
      * Revisar quien se quedo sin material despues de una importacion entrando

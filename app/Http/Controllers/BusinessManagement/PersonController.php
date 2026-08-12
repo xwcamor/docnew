@@ -306,7 +306,25 @@ class PersonController extends Controller
         abort_if($archivo === null, 404);
         abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($archivo->file_path), 404);
 
-        return \Illuminate\Support\Facades\Storage::disk('local')->response($archivo->file_path);
+        // Cada miniatura del listado es una peticion que arranca Laravel
+        // entero. Sin cabeceras de cache, veinticinco filas son cincuenta
+        // arranques en CADA carga de la pagina, y se nota.
+        //
+        // El ano de cache es seguro porque la URL lleva el hash (`?v=`): si la
+        // imagen cambia, cambia la URL, asi que no hay forma de servir una
+        // vieja. `private` para que no la guarde ningun intermediario — es la
+        // cara de una persona, no una imagen del sitio.
+        $respuesta = \Illuminate\Support\Facades\Storage::disk('local')
+            ->response($archivo->file_path, null, [
+                'Cache-Control' => 'private, max-age=31536000',
+            ]);
+
+        // Y el ETag para la primera visita de cada navegador: si ya la tiene,
+        // devuelve 304 sin cuerpo en vez de mandar la imagen otra vez.
+        $respuesta->setEtag($archivo->sha256);
+        $respuesta->isNotModified($request);
+
+        return $respuesta;
     }
 
     /**
@@ -893,13 +911,22 @@ class PersonController extends Controller
         $foto  = $existe($foto) ? $foto : null;
         $firma = $existe($firma) ? $firma : null;
 
+        // La URL lleva el hash del archivo. Es lo que permite que `media()`
+        // mande un año de cache sin riesgo: al reemplazar la foto cambia el
+        // hash, cambia la URL y el navegador pide la nueva. Es el mismo truco
+        // que ya usa el logo del workspace con su `updated_at`.
+        $url = fn ($fila, $kind) => $fila === null ? null : route(
+            'business_management.people.media',
+            ['person' => $m->slug, 'kind' => $kind, 'v' => substr((string) $fila->sha256, 0, 12)],
+        );
+
         return [
-            'photo_url' => $foto ? route('business_management.people.media', [$m->slug, 'photo']) : null,
+            'photo_url' => $url($foto, 'photo'),
             // De donde salio la foto. Importa: una «capturada» es la que se
             // tomo en obra a falta de otra, y es justo la que hay que
             // reemplazar por una decente.
             'photo_source'  => $foto?->source,
-            'signature_url' => $firma ? route('business_management.people.media', [$m->slug, 'signature']) : null,
+            'signature_url' => $url($firma, 'signature'),
         ];
     }
 
