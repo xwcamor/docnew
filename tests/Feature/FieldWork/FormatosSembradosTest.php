@@ -273,9 +273,13 @@ class FormatosSembradosTest extends TestCase
             'section.formTemplate', fn ($q) => $q->where('code', $plantilla)
         )->where('code', $campo)->firstOrFail()->config;
 
-        $this->assertSame(['Conforme', 'No conforme', 'No aplica'],
+        // Y en este orden: la buena, «no aplica», la mala. Es como se lee, y
+        // evita el toque equivocado por prisa — que en un EPP significa dar por
+        // bueno un arnes roto. Reordenar no toca nada de lo ya guardado: lo que
+        // se guarda es la etiqueta, y el tono se deduce del texto.
+        $this->assertSame(['Conforme', 'No aplica', 'No conforme'],
             $config('EPP', 'epp_por_trabajador')['answers']);
-        $this->assertSame(['Cumple', 'No cumple', 'No aplica'],
+        $this->assertSame(['Cumple', 'No aplica', 'No cumple'],
             $config('IHM', 'inspeccion_de_herramientas')['answers']);
 
         // El PTF tiene dos, no tres: el formulario de la v1 pinta dos radios.

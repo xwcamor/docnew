@@ -105,6 +105,45 @@ class FormFindingsTest extends TestCase
     }
 
     /**
+     * El PTF cuenta sus «No», que es donde nos separamos de la v1 a proposito.
+     *
+     * Alla `F2Document#set_completed` solo miraba la matriz de riesgo, asi que
+     * un Pare y Tome 5 con cuatro respuestas negativas salia en la ficha del
+     * plan como «sin observaciones», al lado de un EPP que si las enseñaba. Un
+     * «No» ahi es exactamente una observacion: alguien contesto que no a una
+     * pregunta de seguridad antes de empezar.
+     */
+    public function test_el_ptf_cuenta_una_observacion_por_cada_no(): void
+    {
+        [$entrega] = $this->entregaPtf();
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'preguntas_ptf', 'value' => [
+                ['question' => 'Conoces el trabajo a realizar', 'answer' => 'Si'],
+                ['question' => 'Tienes las herramientas adecuadas', 'answer' => 'No'],
+                ['question' => 'El area esta senalizada', 'answer' => 'No'],
+            ]],
+        ]);
+
+        $this->assertSame(2, $entrega->fresh()->nonconformities);
+    }
+
+    /** Y «No aplica» tampoco suma aqui: no es una respuesta negativa. */
+    public function test_en_el_ptf_no_aplica_tampoco_suma(): void
+    {
+        [$entrega] = $this->entregaPtf();
+
+        app(FormSubmissionService::class)->responder($entrega, [
+            ['code' => 'preguntas_ptf', 'value' => [
+                ['question' => 'Conoces el trabajo a realizar', 'answer' => 'Si'],
+                ['question' => 'Trabajas en altura', 'answer' => 'No aplica'],
+            ]],
+        ]);
+
+        $this->assertSame(0, $entrega->fresh()->nonconformities);
+    }
+
+    /**
      * «No aplica» no es una observacion. Aqui es donde la v1 se equivocaba.
      *
      * Alli `set_completed` contaba las respuestas con valor `0`, que en el
@@ -302,6 +341,20 @@ class FormFindingsTest extends TestCase
                     ['hasta' => 15, 'clave' => 'medio'],
                     ['hasta' => 25, 'clave' => 'bajo'],
                 ],
+            ],
+        ]);
+
+        return [$entrega];
+    }
+
+    /** @return array{0:FormSubmission} */
+    protected function entregaPtf(): array
+    {
+        [$entrega] = $this->entrega('PTF', [
+            'code' => 'preguntas_ptf', 'field_type' => 'question_bank', 'is_required' => true,
+            'config' => [
+                'questions' => ['Conoces el trabajo a realizar'],
+                'answers'   => ['Si', 'No', 'No aplica'],
             ],
         ]);
 

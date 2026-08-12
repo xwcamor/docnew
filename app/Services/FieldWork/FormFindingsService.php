@@ -36,9 +36,13 @@ use App\Models\FormSubmission;
  * Cuando un sistema que lleva anios en produccion y el codigo nuevo no
  * coinciden, el que suele estar mal es el nuevo.
  *
- * Lo que la v1 hacia y aqui NO se copia, a proposito: el banco de preguntas del
- * PTF no se cuenta, porque alli tampoco se contaba — `F2Document#set_completed`
- * solo mira la matriz de riesgo.
+ * Donde SI nos separamos de la v1, por decision del dueno del producto: el
+ * banco de preguntas del PTF cuenta sus «No». Alla no se contaban —
+ * `F2Document#set_completed` solo miraba la matriz de riesgo— y en la ficha del
+ * plan quedaba un PTF con cuatro respuestas negativas dicho como «sin
+ * observaciones», al lado de un EPP que si las enseñaba. Un «No» en el Pare y
+ * Tome 5 es exactamente una observacion: alguien contesto que no a una
+ * pregunta de seguridad antes de empezar.
  *
  * Lo que se cuenta NO bloquea nada. En la v1 tampoco: `lock_plan_if_all_-
  * conditions_met` solo exige `date_end` y las aprobaciones obligatorias
@@ -97,6 +101,9 @@ class FormFindingsService
         return match ($tipo) {
             'risk_matrix' => $this->esRiesgoNoTolerable($config, $valor) ? 1 : 0,
             'person_checklist', 'tool_checklist' => $this->respuestasMalas($valor['items'] ?? []),
+            // El banco de preguntas guarda la lista entera en UNA respuesta, no
+            // una fila por pregunta: aqui el valor ya es la lista.
+            'question_bank' => $this->respuestasMalas($valor),
             default => 0,
         };
     }

@@ -383,7 +383,10 @@ class MigrateLegacyFormatsCommand extends Command
             'code' => 'epp_por_trabajador', 'field_type' => 'person_checklist', 'is_required' => true,
             'config' => [
                 'items'   => $cat['epp'],
-                'answers' => ['Conforme', 'No conforme', 'No aplica'],
+                // De la buena a la mala, con «no aplica» en medio: es el orden
+                // en que se lee y evita el toque equivocado por prisa, que en
+                // un EPP significa dar por bueno un arnes roto.
+                'answers' => ['Conforme', 'No aplica', 'No conforme'],
                 // Campos de correccion que traia el formato original.
                 'extra'   => ['correction_measure', 'deadline_date', 'correction_verification'],
             ],
@@ -406,8 +409,12 @@ class MigrateLegacyFormatsCommand extends Command
             'config' => [
                 'tools'   => $cat['items_ihm'],
                 'items'   => $cat['herramientas'],
-                // 0 = no cumple, 1 = cumple, 2 = no aplica, como en el formato original.
-                'answers' => ['No cumple', 'Cumple', 'No aplica'],
+                // En el formato original el orden era 0 no cumple, 1 cumple,
+                // 2 no aplica: empezaba por la mala. Aqui van de la buena a la
+                // mala, igual que el EPP. La posicion no significa nada — lo
+                // que se guarda es la etiqueta y el tono se lee del texto — asi
+                // que reordenar no toca ni una respuesta ya dada.
+                'answers' => ['Cumple', 'No aplica', 'No cumple'],
             ],
         ]);
         $c->agregarCampo($s, ['code' => 'observaciones', 'field_type' => 'textarea']);

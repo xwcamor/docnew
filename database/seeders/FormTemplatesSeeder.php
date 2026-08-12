@@ -362,7 +362,11 @@ class FormTemplatesSeeder extends Seeder
                                 // Se guarda la etiqueta y nunca el numero: si se
                                 // guardara la posicion, reordenar la lista
                                 // cambiaria el significado de lo ya firmado.
-                                'answers' => ['Conforme', 'No conforme', 'No aplica'],
+                                // De la buena a la mala, con «no aplica» en
+                                // medio: es el orden en que se lee y evita el
+                                // toque equivocado por prisa, que en un EPP
+                                // significa dar por bueno un arnes roto.
+                                'answers' => ['Conforme', 'No aplica', 'No conforme'],
                                 // Las tres columnas del final del papel, que solo
                                 // se llenan cuando algo sale no conforme.
                                 'extra'   => ['correction_measure', 'deadline_date', 'correction_verification'],
@@ -400,7 +404,7 @@ class FormTemplatesSeeder extends Seeder
                                 // cumple, 0 no aplica— y por eso mismo orden: el
                                 // positivo primero. `docufiz:migrate-formats` los
                                 // listaba al reves solo en este formato.
-                                'answers' => ['Cumple', 'No cumple', 'No aplica'],
+                                'answers' => ['Cumple', 'No aplica', 'No cumple'],
                                 // `f4_document_tools.correction_measure` y
                                 // `responsible`, que no se estaban trayendo. La
                                 // tercera columna del papel, `is_enabled`, no hace
