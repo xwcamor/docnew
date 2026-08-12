@@ -73,6 +73,8 @@ return [
     'open_plans_none'     => 'Ningún plan abierto de este tipo. El cambio no afecta a nada que esté en obra.',
     'open_plans_warning'  => '{1} Hay 1 plan abierto de este tipo: cambiar los documentos cambia hoy mismo lo que se le pide. Los cerrados no se tocan.|[2,*] Hay :count planes abiertos de este tipo: cambiar los documentos cambia hoy mismo lo que se les pide. Los cerrados no se tocan.',
     'closed_plans_safe'   => 'Los planes cerrados no se tocan.',
+    'no_forms_title'      => 'Este tipo de trabajo no pide ningún documento',
+    'no_forms_warning'    => 'Sus planes no se van a poder dar por terminados: para cerrar un plan hace falta al menos un documento confirmado. Puedes guardarlo así y marcar los documentos más tarde.',
 
     // Mensajes
     'created' => 'Tipo de trabajo creado.',

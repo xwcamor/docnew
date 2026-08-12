@@ -209,6 +209,24 @@ const submit = () => {
                         :templates="catalogo"
                     />
 
+                    <!-- Sin ningún formato marcado, los planes de este tipo no
+                         se van a poder cerrar nunca: `WorkPlanCompletionService`
+                         exige al menos uno confirmado, y la persona que se topa
+                         con eso es la de obra, al final del día y sin saber por
+                         qué. Se dice aquí, que es donde se decide.
+
+                         Es un aviso y no un bloqueo a propósito: en el alta se
+                         crea el tipo de trabajo antes que sus formatos, y
+                         exigirlos aquí sería una trampa de orden. -->
+                    <Alert
+                        v-if="form.country_id && form.form_templates.length === 0"
+                        type="warning"
+                        show-icon
+                        class="mt-4"
+                        :message="$t('work_types.no_forms_title')"
+                        :description="$t('work_types.no_forms_warning')"
+                    />
+
                     <Alert v-if="erroresMatriz.length > 0" type="error" show-icon class="mt-4">
                         <template #message>{{ $t('global.fix_marked_fields') }}</template>
                         <template #description>

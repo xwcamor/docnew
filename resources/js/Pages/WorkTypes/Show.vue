@@ -173,6 +173,18 @@ const guardar = () => {
                         :disabled="!canEditForms || isDeleted"
                     />
 
+                    <!-- Ver Form.vue: sin ningún formato marcado los planes de
+                         este tipo no se pueden cerrar, y quien se topa con eso
+                         es la persona de obra al final del día. -->
+                    <Alert
+                        v-if="form.form_templates.length === 0"
+                        type="warning"
+                        show-icon
+                        class="mt-3"
+                        :message="$t('work_types.no_forms_title')"
+                        :description="$t('work_types.no_forms_warning')"
+                    />
+
                     <Alert v-if="erroresMatriz.length > 0" type="error" show-icon class="mt-3">
                         <template #message>{{ $t('global.fix_marked_fields') }}</template>
                         <template #description>

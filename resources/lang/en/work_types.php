@@ -73,6 +73,8 @@ return [
     'open_plans_none'     => 'No open plan of this type. The change affects nothing out on site.',
     'open_plans_warning'  => '{1} There is 1 open plan of this type: changing the documents changes what is asked of it today. Closed plans are left alone.|[2,*] There are :count open plans of this type: changing the documents changes what is asked of them today. Closed plans are left alone.',
     'closed_plans_safe'   => 'Closed plans are left alone.',
+    'no_forms_title'      => 'This work type asks for no document',
+    'no_forms_warning'    => 'Its plans will not be able to be marked as finished: closing a plan needs at least one confirmed document. You can save it like this and pick the documents later.',
 
     // Messages
     'created' => 'Work type created.',
