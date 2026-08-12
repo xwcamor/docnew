@@ -2467,6 +2467,60 @@ class MigrateLegacyDataCommand extends Command
         // persona a mano y equivocarse de idioma no puede costar la migracion.
         $this->copiarDeReferencia($carpeta, ['signature', 'firmas'], 'person_signatures', 'firmas/legacy/', 'migrated');
         $this->copiarDeReferencia($carpeta, ['photo', 'fotos'], 'person_photos', 'fotos/legacy/', \App\Models\PersonPhoto::MIGRADA);
+
+        $this->tirarLosMarcadoresSinArchivo();
+    }
+
+    /**
+     * Borra las filas que se quedaron apuntando a un archivo que no llego.
+     *
+     * El paso `personas` crea una fila por cada nombre de fichero que la v1
+     * tenia escrito en su columna, apuntando a `legacy/…` a la espera de que
+     * este paso traiga el archivo. Las que no lo reciben —porque su carpeta no
+     * estaba— quedan apuntando a un fichero que no existe, y eso no es «una
+     * firma que no se pudo copiar»: es una fila que miente.
+     *
+     * Hace dos daños, y el segundo es el serio:
+     *
+     *  1. En pantalla sale el icono de imagen rota, porque la URL se emite y el
+     *     servidor devuelve 404.
+     *  2. **La pantalla de firmar cree que esa persona ya tiene firma** y no le
+     *     pide el trazo. Firma, y su firma sigue sin existir. Para siempre, y
+     *     sin que nadie lo note hasta que alguien abra el PDF.
+     *
+     * Borrarlas es lo correcto: no se pierde nada —el archivo nunca estuvo— y
+     * la persona vuelve a estar en el estado honesto, «sin firma», que es el
+     * que hace que se le pida el trazo la primera vez.
+     */
+    protected function tirarLosMarcadoresSinArchivo(): void
+    {
+        foreach (['person_signatures' => 'firmas', 'person_photos' => 'fotos'] as $tabla => $que) {
+            $huerfanas = DB::table($tabla)
+                ->join('people', 'people.id', '=', "{$tabla}.person_id")
+                ->where("{$tabla}.file_path", 'like', 'legacy/%')
+                ->pluck('people.num_doc', "{$tabla}.id");
+
+            if ($huerfanas->isEmpty()) {
+                continue;
+            }
+
+            DB::table($tabla)->whereIn('id', $huerfanas->keys())->delete();
+
+            $this->warn(sprintf(
+                '  %d %s de la v1 se quedaron sin archivo y se quitan: esas personas figuraban con %s y no la tenian.',
+                $huerfanas->count(), $que, $que === 'firmas' ? 'firma' : 'foto',
+            ));
+
+            $documentos = array_values(array_unique($huerfanas->all()));
+
+            $this->anotarEnElInforme(array_merge([
+                sprintf('%s DE LA V1 SIN ARCHIVO — FILA RETIRADA (%d)', mb_strtoupper($que), count($documentos)),
+                'La v1 decia que estas personas tenian ' . ($que === 'firmas' ? 'firma' : 'foto') . ', pero el archivo no',
+                'llego en la carpeta. La fila se quita: dejarla hacia que la pantalla de firmar',
+                'creyera que ya la tienen y no les pidiera el trazo.',
+                '',
+            ], array_map(fn ($d) => '  ' . $d, $documentos)));
+        }
     }
 
     /**
@@ -2682,6 +2736,24 @@ class MigrateLegacyDataCommand extends Command
             foreach ($sinDueno as $doc) {
                 $lineas[] = '  ' . $doc;
             }
+        }
+
+        $this->anotarEnElInforme($lineas);
+    }
+
+    /**
+     * Anade un bloque al informe de la importacion de imagenes.
+     *
+     * En modo anadir a proposito: el fichero es el historial de lo que hay que
+     * revisar a mano, y sobrescribirlo en cada corrida borraria justo lo que se
+     * estaba mirando.
+     *
+     * @param  list<string>  $lineas
+     */
+    protected function anotarEnElInforme(array $lineas): void
+    {
+        if ($lineas === []) {
+            return;
         }
 
         $ruta = storage_path('logs/imagenes-importadas.log');

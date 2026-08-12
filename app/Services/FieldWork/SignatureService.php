@@ -282,6 +282,7 @@ class SignatureService
     {
         return $persona->signatures()
             ->whereNull('valid_to')
+            ->where('file_path', 'not like', self::MARCADOR . '%')
             ->latest('valid_from')
             ->first();
     }
@@ -298,9 +299,22 @@ class SignatureService
     {
         return $persona->photos()
             ->whereNull('valid_to')
+            ->where('file_path', 'not like', self::MARCADOR . '%')
             ->latest('valid_from')
             ->first();
     }
+
+    /**
+     * Prefijo de las filas que la migracion dejo apuntando a un archivo que
+     * todavia no habia llegado.
+     *
+     * Una fila asi NO es una firma ni una foto: es la anotacion de que la v1
+     * decia que existia. Mientras el archivo no se copie no vale como tal, y
+     * confundirlas es caro — la pantalla de firmar creeria que la persona ya
+     * tiene firma y no le pediria el trazo, con lo que firmaria y su firma
+     * seguiria sin existir.
+     */
+    private const MARCADOR = 'legacy/';
 
     /**
      * Guarda una foto de referencia nueva y jubila la anterior.

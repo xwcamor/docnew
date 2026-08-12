@@ -327,6 +327,78 @@ class CopiarImagenesPorDocumentoTest extends TestCase
         $this->assertFileDoesNotExist(storage_path('logs/imagenes-importadas.log'));
     }
 
+    /**
+     * Un marcador que se quedo sin archivo se retira.
+     *
+     * Es la fila que dejo el paso `personas` porque la v1 decia que esa persona
+     * tenia firma, y cuyo archivo no llego en la carpeta. Apunta a un fichero
+     * que no existe, asi que en pantalla sale el icono de imagen rota — pero lo
+     * grave es otra cosa: la pantalla de firmar la cuenta como firma y NO le
+     * pide el trazo a esa persona. Firma, y su firma sigue sin existir.
+     */
+    public function test_un_marcador_sin_archivo_se_retira(): void
+    {
+        $id = $this->persona('77778888');
+
+        DB::table('person_signatures')->insert([
+            'person_id' => $id, 'file_path' => 'legacy/firmas/nunca-llego.png',
+            'sha256' => hash('sha256', 'nunca-llego.png'), 'source' => 'migrated',
+            'valid_from' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        // Su carpeta no existe: nadie le trae el archivo.
+        $this->copiar();
+
+        $this->assertSame(0, DB::table('person_signatures')->where('person_id', $id)->count(),
+            'Una fila que apunta a un archivo que nunca existio no es una firma.');
+
+        $informe = file_get_contents(storage_path('logs/imagenes-importadas.log'));
+        $this->assertStringContainsString('FIRMAS DE LA V1 SIN ARCHIVO', $informe);
+        $this->assertStringContainsString('77778888', $informe);
+    }
+
+    /** Y si el archivo si llega, el marcador se convierte en firma y se queda. */
+    public function test_un_marcador_con_archivo_se_queda(): void
+    {
+        $id = $this->persona('99998888');
+
+        DB::table('person_signatures')->insert([
+            'person_id' => $id, 'file_path' => 'legacy/firmas/x.png',
+            'sha256' => hash('sha256', 'x.png'), 'source' => 'migrated',
+            'valid_from' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->imagen('signature', '99998888', 'firma.png', 'trazo');
+        $this->copiar();
+
+        $fila = DB::table('person_signatures')->where('person_id', $id)->first();
+
+        $this->assertNotNull($fila);
+        $this->assertStringStartsWith('firmas/legacy/', $fila->file_path);
+    }
+
+    /**
+     * Mientras tanto, un marcador no cuenta como firma para el servicio.
+     *
+     * Es la red por debajo: vale para la base que todavia no haya vuelto a
+     * importar.
+     */
+    public function test_un_marcador_no_cuenta_como_firma_vigente(): void
+    {
+        $id = $this->persona('12123434');
+
+        DB::table('person_signatures')->insert([
+            'person_id' => $id, 'file_path' => 'legacy/firmas/fantasma.png',
+            'sha256' => hash('sha256', 'fantasma.png'), 'source' => 'migrated',
+            'valid_from' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $persona = \App\Models\Person::find($id);
+
+        $this->assertNull(app(\App\Services\FieldWork\SignatureService::class)->firmaVigente($persona),
+            'Sin esto no se le pide el trazo y firma sin firma.');
+    }
+
     /** Sin las carpetas no revienta: dice que no hay nada y sigue. */
     public function test_sin_carpetas_no_revienta(): void
     {

@@ -881,6 +881,18 @@ class PersonController extends Controller
         $foto  = $m->relationLoaded('currentPhoto') ? $m->currentPhoto : $m->currentPhoto()->first();
         $firma = $m->relationLoaded('currentSignature') ? $m->currentSignature : $m->currentSignature()->first();
 
+        // Una fila que sigue apuntando a `legacy/…` es un marcador que dejo la
+        // migracion y cuyo archivo nunca llego. Emitir su URL pinta el icono de
+        // imagen rota en toda la tabla: el navegador la pide y recibe un 404.
+        //
+        // La importacion ya las retira, pero esto vale para la base que todavia
+        // no haya vuelto a importar, y no cuesta una consulta: es mirar el
+        // principio de una cadena que ya esta cargada.
+        $existe = fn ($fila) => $fila !== null && ! str_starts_with((string) $fila->file_path, 'legacy/');
+
+        $foto  = $existe($foto) ? $foto : null;
+        $firma = $existe($firma) ? $firma : null;
+
         return [
             'photo_url' => $foto ? route('business_management.people.media', [$m->slug, 'photo']) : null,
             // De donde salio la foto. Importa: una «capturada» es la que se

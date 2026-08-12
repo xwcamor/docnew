@@ -86,8 +86,15 @@ class SignatureController extends Controller
             ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99);
 
         // Quién tiene firma en archivo, en UNA consulta.
+        //
+        // Se descartan las que siguen apuntando a `legacy/…`: son marcadores
+        // que dejo la migracion porque la v1 decia que esa persona tenia firma,
+        // y cuyo archivo nunca llego. Contarlas como firma es el peor de los
+        // fallos posibles aqui — a esa persona no se le pide el trazo, firma,
+        // y su firma sigue sin existir. Nadie lo nota hasta abrir el PDF.
         $conFirma = \App\Models\PersonSignature::query()
             ->whereNull('valid_to')
+            ->where('file_path', 'not like', 'legacy/%')
             ->whereIn('person_id', $personas->pluck('person_id')->merge($aprobaciones->pluck('person_id'))->filter()->unique())
             ->pluck('person_id')
             ->flip();
