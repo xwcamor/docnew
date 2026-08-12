@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Card, Tag, Button, Tooltip, Space, Badge, Dropdown, Menu, MenuItem, Input, Drawer } from 'ant-design-vue';
+import { Card, Tag, Button, Tooltip, Space, Badge, Dropdown, Menu, MenuItem, Input, Drawer, Image } from 'ant-design-vue';
 import {
     PlusOutlined, EditOutlined, InboxOutlined,
     DownloadOutlined, UploadOutlined, QuestionCircleOutlined,
@@ -185,7 +185,11 @@ const { counterLabel } = useModuleListMeta({
 const { isMobile: isMobileScreen } = useViewport(768);
 
 const allColumns = computed(() =>
-    peopleTableColumns(t, { isSuper: isSuper.value, isMobile: isMobileScreen.value }),
+    peopleTableColumns(t, {
+        isSuper: isSuper.value,
+        isMobile: isMobileScreen.value,
+        canMedia: can('people.view_media'),
+    }),
 );
 const { visibleColumnKeys, columns } = useColumnPreferences(allColumns);
 
@@ -619,6 +623,35 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
                         <span class="doc"><span class="doc__type">{{ record.doc_type }}</span> <code class="mono">{{ record.safe_num_doc }}</code></span>
                     </template>
 
+                    <!-- La cara y la firma. `Image` de Ant trae su propio visor
+                         a pantalla completa: pulsar la miniatura la amplía, con
+                         zoom y giro, sin que esta pantalla monte ningún modal.
+                         Sólo se pinta lo que existe; si no hay ninguna de las
+                         dos, se dice, en vez de dejar dos huecos grises. -->
+                    <template v-else-if="column.key === 'media'">
+                        <div v-if="record.media?.photo_url || record.media?.signature_url" class="media-cell">
+                            <Tooltip v-if="record.media?.photo_url" :title="$t('people.photo')">
+                                <Image
+                                    :src="record.media.photo_url"
+                                    :alt="$t('people.photo')"
+                                    :width="34"
+                                    :height="34"
+                                    class="media-cell__foto"
+                                />
+                            </Tooltip>
+                            <Tooltip v-if="record.media?.signature_url" :title="$t('people.signature')">
+                                <Image
+                                    :src="record.media.signature_url"
+                                    :alt="$t('people.signature')"
+                                    :width="46"
+                                    :height="34"
+                                    class="media-cell__firma"
+                                />
+                            </Tooltip>
+                        </div>
+                        <span v-else class="muted">{{ $t('people.media_none') }}</span>
+                    </template>
+
                     <template v-else-if="column.key === 'country'">
                         <span v-if="record.country">{{ record.country.name }}</span>
                         <span v-else class="muted">—</span>
@@ -746,6 +779,29 @@ const goDelete = (record) => router.visit(route('business_management.people.dele
 </template>
 
 <style scoped>
+/* Cara y firma en la fila. Miniaturas pequeñas a propósito: la fila no puede
+   crecer de alto, y para mirarlas de verdad está el visor de Ant al pulsarlas. */
+.media-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+.media-cell :deep(.ant-image) { display: block; }
+.media-cell :deep(.ant-image-img) { display: block; cursor: zoom-in; }
+
+.media-cell__foto :deep(.ant-image-img) {
+    object-fit: cover;
+    border: 1px solid var(--color-border);
+    border-radius: 50%;
+}
+
+/* La firma es un trazo con fondo transparente: sin blanco detrás desaparece
+   en cuanto el tema es oscuro. */
+.media-cell__firma :deep(.ant-image-img) {
+    object-fit: contain;
+    padding: 2px;
+    background: #fff;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+}
+
 .page-header {
     display: flex;
     justify-content: space-between;

@@ -1,5 +1,5 @@
 import {
-    ApartmentOutlined, GlobalOutlined,
+    ApartmentOutlined, CameraOutlined, GlobalOutlined,
     IdcardOutlined, BankOutlined, ScanOutlined,
     ShopOutlined, SolutionOutlined,
 } from '@ant-design/icons-vue';
@@ -15,13 +15,18 @@ import {
  * `isSuper` agrega la columna Workspace (tenant): el super ve personas de
  * varios workspaces. Para el admin sería siempre el mismo.
  *
+ * `canMedia` agrega la columna con la cara y la firma. Va por permiso y no por
+ * rol: `people.view_media` es exactamente esa pregunta, y hoy sólo lo tiene el
+ * super porque el admin no lo recibe por defecto. Atarlo al rol duplicaría la
+ * regla y dejaría el permiso sin efecto aquí el día que se conceda a alguien.
+ *
  * Sobre el `sorter`: no es decorativo. La cabecera sale clicable **sólo** si
  * `Person::ordenesDelListado()` sabe resolver esa clave en el servidor; el
  * mismo `sorter` alimenta el desplegable de orden de las vistas guardadas, así
  * que una cabecera de adorno se convierte además en una opción de menú que no
  * hace nada. Las que se quedan sin él llevan escrito el motivo.
  */
-export const peopleTableColumns = (t, { isSuper = false, isMobile = false } = {}) => [
+export const peopleTableColumns = (t, { isSuper = false, isMobile = false, canMedia = false } = {}) => [
     // Sin sorter a propósito: los favoritos ya van pineados arriba SIEMPRE
     // (`orderByFavoriteFirst` manda sobre el orden que se elija), así que
     // ordenar por la estrella no podría cambiar nada.
@@ -44,6 +49,11 @@ export const peopleTableColumns = (t, { isSuper = false, isMobile = false } = {}
     { title: t('people.country'),        key: 'country',           width: 110, sorter: true, mobile: { role: 'meta', icon: GlobalOutlined } },
     { title: t('people.company'),        key: 'company',           width: 160, sorter: true, mobile: { role: 'meta', icon: ShopOutlined } },
     { title: t('people.biometric'),      key: 'biometric',         width: 118, align: 'center', sorter: true, mobile: { role: 'meta', icon: ScanOutlined } },
+    // La cara y la firma, sólo para quien puede verlas (`people.view_media`).
+    // Sin `sorter`: no es un dato con orden, son dos imágenes.
+    ...(canMedia ? [
+        { title: t('people.media_title'), key: 'media', width: 108, align: 'center', mobile: { role: 'meta', icon: CameraOutlined } },
+    ] : []),
     // Ordena por el PRIMER rol alfabéticamente, que es el que la celda enseña
     // primero: una persona lleva varios a la vez, así que no hay un valor único,
     // pero agrupar por rol es justo para lo que se pulsa esa cabecera.

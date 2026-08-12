@@ -47,10 +47,14 @@ return [
     // Reference photo and stored signature. Requires `people.view_media`.
     'media_title'  => 'Photo and signature',
     'media_file'   => 'file',
-    'media_help'   => 'Internal material: neither the worker nor the field profiles see it. The photo is for recognising the person; the signature is only printed in the PDFs, never shown on screen.',
+    'media_help'   => 'Internal material: neither the worker nor the field profiles see it. The photo is for recognising the person; the signature is printed in the PDFs.',
     'photo'        => 'Reference photo',
+    // It was missing, and the record printed «people.signature» raw under the trace.
+    'signature'    => 'Signature',
     'no_photo'     => 'No photo',
     'no_signature' => 'No signature',
+    'media_none'   => 'No material',
+    'media_open'   => 'Enlarge',
     'upload'       => 'Upload',
     'replace'      => 'Replace',
     'photo_saved'     => 'Photo saved.',

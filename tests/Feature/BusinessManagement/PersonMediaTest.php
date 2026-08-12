@@ -237,6 +237,51 @@ class PersonMediaTest extends CatalogTestCase
             ->assertInertia(fn ($page) => $page->missing('person.media'));
     }
 
+    /**
+     * El listado tambien las lleva, con la misma puerta.
+     *
+     * Revisar quien se quedo sin material despues de una importacion entrando
+     * ficha por ficha a 227 personas no es revisar. Y la puerta es el permiso,
+     * no el rol: si manana un admin recibe `people.view_media`, las ve aqui
+     * tambien sin tocar nada.
+     */
+    public function test_el_listado_lleva_la_cara_y_la_firma_a_quien_puede_verlas(): void
+    {
+        $persona = $this->persona();
+        app(SignatureService::class)->guardarFoto($persona, $this->binario());
+        app(SignatureService::class)->guardarFirma($persona, base64_encode($this->binario(90)));
+
+        $this->actingAs($this->conMedia())
+            ->get(route('business_management.people.index'))
+            ->assertInertia(fn ($page) => $page
+                ->where('people.data.0.media.photo_url', fn ($url) => filled($url))
+                ->where('people.data.0.media.signature_url', fn ($url) => filled($url)));
+
+        $this->actingAs($this->adminDeProduccion())
+            ->get(route('business_management.people.index'))
+            ->assertInertia(fn ($page) => $page->missing('people.data.0.media'));
+    }
+
+    /**
+     * Y la ruta real del archivo en disco no sale del servidor.
+     *
+     * Se cargan las relaciones para no disparar dos consultas por fila, y si
+     * viajaran enteras el JSON llevaria el `file_path` de cada una. Es la ruta
+     * en disco: no es un secreto grave, pero tampoco tiene nada que hacer en el
+     * navegador.
+     */
+    public function test_el_listado_no_filtra_la_ruta_del_archivo(): void
+    {
+        $persona = $this->persona();
+        app(SignatureService::class)->guardarFoto($persona, $this->binario());
+
+        $this->actingAs($this->conMedia())
+            ->get(route('business_management.people.index'))
+            ->assertInertia(fn ($page) => $page
+                ->missing('people.data.0.current_photo')
+                ->missing('people.data.0.current_signature'));
+    }
+
     // ── La primera captura se adopta ─────────────────────────────────────────
 
     /**

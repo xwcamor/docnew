@@ -47,10 +47,14 @@ return [
     // Foto de referencia y firma guardada. Solo con `people.view_media`.
     'media_title'  => 'Foto y firma',
     'media_file'   => 'archivo',
-    'media_help'   => 'Material interno: no lo ven ni el trabajador ni los perfiles de campo. La foto sirve para reconocer a la persona; la firma solo se imprime en los PDF, nunca se muestra en pantalla.',
+    'media_help'   => 'Material interno: no lo ven ni el trabajador ni los perfiles de campo. La foto sirve para reconocer a la persona; la firma se imprime en los PDF.',
     'photo'        => 'Foto de referencia',
+    // Faltaba, y la ficha imprimia «people.signature» en crudo debajo del trazo.
+    'signature'    => 'Firma',
     'no_photo'     => 'Sin foto',
     'no_signature' => 'Sin firma',
+    'media_none'   => 'Sin material',
+    'media_open'   => 'Ampliar',
     'upload'       => 'Subir',
     'replace'      => 'Reemplazar',
     'photo_saved'     => 'Foto guardada.',

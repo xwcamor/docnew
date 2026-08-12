@@ -82,6 +82,18 @@ class PersonController extends Controller
             $with[] = 'tenant:id,name';
         }
 
+        // La cara y la firma en el propio listado, para quien pueda verlas. Es
+        // como se revisa de un vistazo a quien le falta material despues de una
+        // importacion: entrar ficha por ficha a 227 personas no es revisar.
+        //
+        // Se cargan ANTES de paginar para no disparar dos consultas por fila.
+        $puedeVerMedia = $request->user()?->can('people.view_media') ?? false;
+
+        if ($puedeVerMedia) {
+            $with[] = 'currentPhoto';
+            $with[] = 'currentSignature';
+        }
+
         $people = Person::query()
             ->select('people.*')
             ->with($with)
@@ -96,6 +108,17 @@ class PersonController extends Controller
             ->filter($request)
             ->paginate($perPage)
             ->withQueryString();
+
+        // `media` se cuelga de la fila y las relaciones se sueltan: si viajaran
+        // enteras, el JSON llevaria el `file_path` de cada archivo, que es la
+        // ruta real en disco y no tiene por que salir del servidor.
+        if ($puedeVerMedia) {
+            $people->getCollection()->transform(function (Person $persona) {
+                $persona->setAttribute('media', $this->urlsDeMedia($persona));
+
+                return $persona->unsetRelation('currentPhoto')->unsetRelation('currentSignature');
+            });
+        }
 
         $totalUnfiltered = Person::count();
 
@@ -829,17 +852,7 @@ class PersonController extends Controller
         // entero al navegador y una imagen incrustada ahi la lee cualquiera que
         // abra las herramientas del navegador.
         if ($withAudit && auth()->user()?->can('people.view_media')) {
-            $foto = $m->relationLoaded('currentPhoto') ? $m->currentPhoto : $m->currentPhoto()->first();
-            $firma = $m->relationLoaded('currentSignature') ? $m->currentSignature : $m->currentSignature()->first();
-
-            $base['media'] = [
-                'photo_url'     => $foto ? route('business_management.people.media', [$m->slug, 'photo']) : null,
-                // De donde salio la foto. Importa: una «capturada» es la que se
-                // tomo en obra a falta de otra, y es justo la que hay que
-                // reemplazar por una decente.
-                'photo_source'  => $foto?->source,
-                'signature_url' => $firma ? route('business_management.people.media', [$m->slug, 'signature']) : null,
-            ];
+            $base['media'] = $this->urlsDeMedia($m);
         }
 
         if ($withAudit) {
@@ -848,6 +861,34 @@ class PersonController extends Controller
             $base['deleter'] = $m->deleter ? ['id' => $m->deleter->id, 'name' => $m->deleter->name, 'email' => $m->deleter->email] : null;
         }
         return $base;
+    }
+
+    /**
+     * Las URL de la foto y la firma vigentes de una persona.
+     *
+     * Se manda la URL, nunca el archivo: el JSON de Inertia viaja entero al
+     * navegador y una imagen incrustada ahi la lee cualquiera que abra las
+     * herramientas del navegador. La ruta que sirve el fichero exige
+     * `people.view_media`, asi que la URL sola no abre nada.
+     *
+     * Vive aqui y no dentro de `payload()` porque la usan la ficha Y el
+     * listado, y dos copias de esto acabarian ensenando cosas distintas.
+     *
+     * @return array{photo_url: ?string, photo_source: ?string, signature_url: ?string}
+     */
+    protected function urlsDeMedia(Person $m): array
+    {
+        $foto  = $m->relationLoaded('currentPhoto') ? $m->currentPhoto : $m->currentPhoto()->first();
+        $firma = $m->relationLoaded('currentSignature') ? $m->currentSignature : $m->currentSignature()->first();
+
+        return [
+            'photo_url' => $foto ? route('business_management.people.media', [$m->slug, 'photo']) : null,
+            // De donde salio la foto. Importa: una «capturada» es la que se
+            // tomo en obra a falta de otra, y es justo la que hay que
+            // reemplazar por una decente.
+            'photo_source'  => $foto?->source,
+            'signature_url' => $firma ? route('business_management.people.media', [$m->slug, 'signature']) : null,
+        ];
     }
 
     // ── EXPORTS ─────────────────────────────────────────────────────────
