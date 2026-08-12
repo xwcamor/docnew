@@ -135,43 +135,78 @@ class WorkPlanService
      * empresa, tipo, sede y descripción, pero NACE PENDIENTE y sin candado —
      * las firmas y los formatos del original no se heredan.
      *
-     * El código es único por tenant, así que se le agrega sufijo "-COPIA" (y
-     * -COPIA-2, -3…) con sanity guard de 100 intentos.
+     * Duplicar es **abrir el trabajo de hoy**, no archivar una copia del de la
+     * semana pasada, y de ahí salen las tres reglas:
+     *
+     *  - **Código nuevo**, el correlativo que le tocaría a un plan de hoy. Antes
+     *    era «PE26-0608-0001-COPIA», que no es un código de plan: no dice de qué
+     *    día es, se alarga con cada copia de la copia, y en obra nadie lo dicta
+     *    por radio.
+     *  - **Empieza ahora.** La fecha del original es la del trabajo del original.
+     *  - **Dura lo mismo.** Si aquel iba del 20 al 23 y hoy es 25, este va del 25
+     *    al 28. Se conserva el intervalo exacto, no los días redondos: un plan de
+     *    una jornada de 08:00 a 17:00 duplicado a las 14:30 dura las mismas nueve
+     *    horas.
+     *
+     * Y se le siembran sus aprobaciones, que es lo que faltaba: sin ellas el
+     * clon nacía sin ninguna firma exigida y se daba por terminado sin que nadie
+     * autorizara nada — el hueco no se veía porque «cero aprobaciones
+     * pendientes» y «ninguna aprobación» se cuentan igual.
      */
     public function duplicate(WorkPlan $workPlan): ?WorkPlan
     {
-        $base = $workPlan->code . '-' . strtoupper(__('global.duplicate_suffix'));
-
-        return DB::transaction(function () use ($workPlan, $base) {
-            $candidate = $base;
-            $i = 2;
-
-            while (true) {
-                $exists = WorkPlan::query()
-                    ->whereRaw('UPPER(code) = UPPER(?)', [$candidate])
-                    ->lockForUpdate()
-                    ->exists();
-
-                if (!$exists) break;
-                $candidate = $base . '-' . $i;
-                $i++;
-                if ($i > 100) return null;
-            }
+        return DB::transaction(function () use ($workPlan) {
+            // La hora de obra es la del reloj de quien duplica, no la del
+            // servidor: estas dos fechas se guardan y se leen literales.
+            $inicio = now()->setTimezone(\App\Support\Tz::for(auth()->user()));
 
             $clone = new WorkPlan($workPlan->only([
                 'country_id', 'company_id', 'work_type_id', 'work_location_id',
                 'workstation_id', 'work_area_id', 'num_os', 'description',
-                'date_start', 'date_end',
             ]));
-            $clone->code       = $candidate;
+
+            $clone->date_start = $inicio;
+            $clone->date_end   = $this->mismaDuracion($workPlan, $inicio);
+
+            try {
+                $clone->code = $this->codigos->siguiente(
+                    $workPlan->country_id, $workPlan->tenant_id, $inicio,
+                );
+            } catch (\RuntimeException) {
+                // Se agotaron los intentos de correlativo. Devolver null es el
+                // contrato que ya esperaba el controlador: sale un aviso, no un
+                // error 500 con la pantalla en blanco.
+                return null;
+            }
+
             $clone->user_id    = auth()->id() ?? $workPlan->user_id;
             $clone->is_done    = false;
             $clone->is_closed  = false;
             $clone->created_by = auth()->id();
             $clone->save();
 
+            $this->armado->seedApprovalsFromRules($clone);
+
             return $clone;
         });
+    }
+
+    /**
+     * El fin del clon: el mismo rato que duraba el original, desde ahora.
+     *
+     * Nulo si el original no tenía fin —no hay duración que copiar— y también
+     * si sus fechas estaban al revés, que es dato malo y no una duración
+     * negativa. Es el mismo criterio que `WorkPlan::worked_hours`.
+     */
+    protected function mismaDuracion(WorkPlan $original, \Illuminate\Support\Carbon $inicio): ?\Illuminate\Support\Carbon
+    {
+        if ($original->date_start === null || $original->date_end === null) {
+            return null;
+        }
+
+        $segundos = (int) $original->date_start->diffInSeconds($original->date_end, absolute: false);
+
+        return $segundos < 0 ? null : (clone $inicio)->addSeconds($segundos);
     }
 
     // ─── Bulk ops ──────────────────────────────────────────────────────────
