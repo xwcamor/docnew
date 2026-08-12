@@ -37,7 +37,7 @@ return [
     'forms_not_demanded' => 'Not demanded',
     'required'         => 'Mandatory',
     'optional'         => 'Optional',
-    'required_help'    => 'Mandatory: it cannot be removed from a plan, not even from a single one. Optional: it is proposed on every plan and can be removed.',
+    'required_help'    => 'Required: cannot be removed from a plan, not even from a single one. Optional: proposed in every plan and removable if it does not apply that day. Note: if left in, it still has to be filled in before the plan can be closed.',
     'forms_empty'      => 'This type does not demand any document yet.',
     'forms_empty_country' => 'This country has no active documents yet. Create them under Documents before demanding them here.',
     'forms_none_warning' => 'A plan of this type would be created without a single safety document.',
@@ -47,6 +47,7 @@ return [
     'forms_draft'      => 'Draft',
     'forms_draft_hint' => 'A draft document cannot be filled in yet, so it cannot be demanded as mandatory. Publish it first.',
     'forms_search'     => 'Search document',
+    'forms_reorder_hint' => 'Drag to change the order they are asked for. With the keyboard: Alt + arrow up or down',
     'forms_no_results' => 'No document matches the search.',
 
     // A document this type demands that is no longer available under Documents

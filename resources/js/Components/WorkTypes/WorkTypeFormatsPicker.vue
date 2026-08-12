@@ -20,7 +20,7 @@
  */
 import { computed, ref } from 'vue';
 import { Alert, Input, Switch, Segmented, Tag, Tooltip, Empty } from 'ant-design-vue';
-import { SearchOutlined, WarningOutlined, StopOutlined } from '@ant-design/icons-vue';
+import { SearchOutlined, WarningOutlined, StopOutlined, HolderOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 
 const { t } = useI18n();
@@ -37,12 +37,73 @@ const seleccion = defineModel({ type: Array, default: () => [] });
 
 const busqueda = ref('');
 
+/**
+ * Los exigidos primero y EN SU ORDEN; detrás, el resto del catálogo.
+ *
+ * El orden es el de `seleccion`, que es exactamente lo que se guarda en el
+ * pivote. Se recalcula en vivo —al marcar uno sube arriba, al quitarlo baja—
+ * porque si la lista no se reordena sola, arrastrar una fila no querría decir
+ * nada: la secuencia no se vería por ningún lado.
+ */
 const visibles = computed(() => {
+    const porId = new Map(props.templates.map((f) => [f.id, f]));
+
+    const elegidos = seleccion.value.map((s) => porId.get(s.id)).filter(Boolean);
+    const yaEstan  = new Set(elegidos.map((f) => f.id));
+    const resto    = props.templates.filter((f) => !yaEstan.has(f.id));
+
     const q = busqueda.value.trim().toLowerCase();
-    if (!q) return props.templates;
-    return props.templates.filter((f) =>
-        (f.code ?? '').toLowerCase().includes(q) || (f.name ?? '').toLowerCase().includes(q));
+    const coincide = (f) => !q
+        || (f.code ?? '').toLowerCase().includes(q)
+        || (f.name ?? '').toLowerCase().includes(q);
+
+    return [...elegidos, ...resto].filter(coincide);
 });
+
+/** El sitio que ocupa en la secuencia, 1..n. Vacío si no está exigido. */
+const puestoEnLaSecuencia = (id) => {
+    const i = seleccion.value.findIndex((f) => f.id === id);
+
+    return i < 0 ? '' : String(i + 1);
+};
+
+// ── Arrastrar para ordenar ──────────────────────────────────────────────────
+//
+// Nativo, sin librería: es el mismo camino que ya usa `ColumnSelector` para
+// reordenar columnas, y traer un paquete para mover cuatro filas no sale a
+// cuenta. Sólo se arrastran los exigidos — mover uno que no está en el tipo no
+// significaría nada.
+const arrastrando = ref(null);
+
+const empezarArrastre = (id) => { arrastrando.value = id; };
+
+const soltarSobre = (id) => {
+    const desde = seleccion.value.findIndex((f) => f.id === arrastrando.value);
+    const hasta = seleccion.value.findIndex((f) => f.id === id);
+    arrastrando.value = null;
+
+    if (desde < 0 || hasta < 0 || desde === hasta) return;
+
+    const copia = [...seleccion.value];
+    const [movida] = copia.splice(desde, 1);
+    copia.splice(hasta, 0, movida);
+    seleccion.value = copia;
+};
+
+/**
+ * Y con el teclado, que arrastrar no es para todo el mundo — ni funciona igual
+ * en una tablet. Alt+↑ / Alt+↓ mueve la fila enfocada.
+ */
+const moverConTeclado = (id, salto) => {
+    const desde = seleccion.value.findIndex((f) => f.id === id);
+    const hasta = desde + salto;
+
+    if (desde < 0 || hasta < 0 || hasta >= seleccion.value.length) return;
+
+    const copia = [...seleccion.value];
+    [copia[desde], copia[hasta]] = [copia[hasta], copia[desde]];
+    seleccion.value = copia;
+};
 
 const marcado = (id) => seleccion.value.find((f) => f.id === id) ?? null;
 const estaExigido = (id) => marcado(id) !== null;
@@ -138,8 +199,30 @@ const opcionesCaracter = (formato) => [
                 :class="{
                     'fmx__row--on': estaExigido(formato.id),
                     'fmx__row--gone': noDisponible(formato),
+                    'fmx__row--drag': arrastrando === formato.id,
                 }"
+                :draggable="estaExigido(formato.id) && !disabled"
+                @dragstart="empezarArrastre(formato.id)"
+                @dragover.prevent
+                @drop.prevent="soltarSobre(formato.id)"
             >
+                <!-- El asa y el número de orden, sólo en los que el tipo pide:
+                     mover uno que no está dentro no significaría nada. Alt+↑ y
+                     Alt+↓ hacen lo mismo con el teclado, que arrastrar no
+                     funciona igual para todo el mundo ni en una tablet. -->
+                <button
+                    v-if="estaExigido(formato.id) && !disabled"
+                    type="button"
+                    class="fmx__grip"
+                    :title="$t('work_types.forms_reorder_hint')"
+                    :aria-label="$t('work_types.forms_reorder_hint')"
+                    @keydown.alt.up.prevent="moverConTeclado(formato.id, -1)"
+                    @keydown.alt.down.prevent="moverConTeclado(formato.id, 1)"
+                >
+                    <HolderOutlined />
+                    <span class="fmx__pos">{{ puestoEnLaSecuencia(formato.id) }}</span>
+                </button>
+
                 <div class="fmx__id">
                     <span class="fmx__name">{{ formato.name || formato.code }}</span>
                     <span class="fmx__meta">
@@ -220,6 +303,21 @@ const opcionesCaracter = (formato) => [
     border-color: rgba(200, 40, 29, 0.35);
     background: rgba(200, 40, 29, 0.04);
 }
+
+/* El asa de arrastre, con el número de orden dentro. 44px de alto porque es un
+   objetivo de toque de verdad (docs/UI.md §3), y el cursor lo dice antes de
+   tocarlo. */
+.fmx__grip {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-height: 44px; padding: 0 8px;
+    border: 0; background: none; cursor: grab;
+    color: var(--color-text-muted);
+    font-size: 0.8125rem; font-weight: 600;
+}
+.fmx__grip:active { cursor: grabbing; }
+.fmx__pos { font-variant-numeric: tabular-nums; }
+/* La fila que se está moviendo se atenúa: dice cuál llevas cogida. */
+.fmx__row--drag { opacity: 0.5; }
 
 .fmx__id { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 260px; }
 .fmx__name { font-weight: 500; color: var(--color-text); line-height: 1.35; }

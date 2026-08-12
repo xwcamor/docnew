@@ -32,8 +32,8 @@ export const workPlansTableColumns = (t, { isSuper = false, isMobile = false } =
     { title: t('work_plans.work_type'),      key: 'work_type',         width: 170, sorter: true, mobile: { role: 'meta', icon: ToolOutlined } },
     { title: t('work_plans.forms_count'),    dataIndex: 'submissions_count', key: 'submissions_count', width: 120, align: 'center', mobile: { role: 'meta', icon: FileTextOutlined, hideWhenZero: true } },
     { title: t('work_plans.workstation'),    key: 'workstation',       width: 170, mobile: { role: 'meta', icon: BlockOutlined } },
-    { title: t('work_plans.company'),        key: 'company',           width: 240, sorter: true, ellipsis: true, mobile: { role: 'subtitle', icon: BankOutlined } },
     { title: t('work_plans.is_done'),        dataIndex: 'is_done',     key: 'status',     width: 150, sorter: true, mobile: { role: 'status' } },
+    { title: t('work_plans.company'),        key: 'company',           width: 190, sorter: true, ellipsis: true, mobile: { role: 'subtitle', icon: BankOutlined } },
     { title: t('work_plans.description'),    dataIndex: 'description', key: 'description', width: 320, ellipsis: true, mobile: { role: 'subtitle' } },
 
     ...(isSuper ? [

@@ -131,9 +131,12 @@ class WorkTypeService
      */
     public function matrizDeFormatos(WorkType $tipo): array
     {
-        $marcados = $tipo->formTemplates()
-            ->get(['form_templates.id'])
-            ->mapWithKeys(fn ($f) => [$f->id => (bool) $f->pivot->is_required]);
+        // `formTemplates()` ya viene ordenada por `position`, asi que el indice
+        // de cada uno ES su sitio en la secuencia.
+        $enElTipo = $tipo->formTemplates()->get(['form_templates.id']);
+
+        $marcados = $enElTipo->mapWithKeys(fn ($f) => [$f->id => (bool) $f->pivot->is_required]);
+        $orden    = $enElTipo->pluck('id')->flip();   // id => posicion
 
         $yaExigidos = $marcados->keys()->all();
 
@@ -161,6 +164,13 @@ class WorkTypeService
                 // y sólo deja quitarlo.
                 'is_available' => (bool) $f->is_active && (int) $f->country_id === (int) $tipo->country_id,
             ])
+            // Los marcados primero y EN SU ORDEN —que es lo que se arrastra—, y
+            // detras el resto del catalogo por codigo. Con todo mezclado
+            // alfabeticamente, arrastrar una fila no querria decir nada: la
+            // secuencia no se veria.
+            ->sortBy(fn ($f) => $orden->has($f['id'])
+                ? [0, $orden[$f['id']], '']
+                : [1, 0, (string) $f['code']])
             ->values()
             ->all();
     }
@@ -189,11 +199,21 @@ class WorkTypeService
      */
     public function sincronizarFormatos(WorkType $tipo, array $formatos): array
     {
+        // El ORDEN del array es el orden en que se van a pedir los documentos:
+        // la pantalla manda las filas como quedaron tras arrastrarlas y aqui se
+        // numeran. Antes no se guardaba ninguno y salian como los devolviera la
+        // base —por el id del pivote, o sea el orden en que alguien fue
+        // marcando casillas hace meses—, y en obra los papeles se llenan en una
+        // secuencia.
         $deseado = [];
+        $posicion = 0;
         foreach ($formatos as $f) {
             $id = (int) ($f['id'] ?? 0);
             if ($id > 0) {
-                $deseado[$id] = ['is_required' => (bool) ($f['is_required'] ?? false)];
+                $deseado[$id] = [
+                    'is_required' => (bool) ($f['is_required'] ?? false),
+                    'position'    => ++$posicion,
+                ];
             }
         }
 

@@ -298,17 +298,20 @@ class MigrateLegacyDataTest extends TestCase
     }
 
     /**
-     * Lo que trae la migracion llega bloqueado.
+     * Lo que trae la migracion llega EDITABLE.
      *
-     * Un catalogo no es como un plan: renombrar un tipo de trabajo cambia de
-     * golpe lo que dicen todos los planes que lo citan, cerrados y firmados
-     * incluidos. El candado no impide corregirlo, obliga a quitarlo primero.
+     * Llegaba bloqueado, con candado de nivel `super`, y la idea era una pausa
+     * antes de renombrar algo que citan miles de planes firmados. En el papel se
+     * sostenia; en la practica el catalogo entero llegaba intocable y con un
+     * candado que un admin NO puede quitar —`canBeUnlockedBy()` solo le deja con
+     * los de nivel 'tenant'—, asi que quien acababa de migrar su sistema no
+     * podia editar sus propios tipos de trabajo, ni sus sedes, ni sus cargos.
      *
-     * Nivel `super` porque el que bloquea es el sistema, no una persona: un
-     * admin de workspace no deshace la referencia del sistema anterior desde su
-     * panel.
+     * Decision del dueno mirando la pantalla: «desbloquea los tipos, no me deja
+     * modificarlos». Lo que se pierde es la pausa; lo que se gana es poder
+     * trabajar. El candado sigue estando a mano en la ficha, fila a fila.
      */
-    public function test_los_catalogos_que_trae_la_migracion_llegan_bloqueados(): void
+    public function test_los_catalogos_que_trae_la_migracion_llegan_editables(): void
     {
         $this->migrarTodo();
 
@@ -317,28 +320,25 @@ class MigrateLegacyDataTest extends TestCase
 
             $this->assertNotEmpty($filas, "{$tabla} deberia haber traido algo de la v1");
             foreach ($filas as $fila) {
-                $this->assertNotNull($fila->locked_at, "{$tabla} #{$fila->id} deberia llegar bloqueada");
-                $this->assertSame('super', $fila->lock_scope);
+                $this->assertNull($fila->locked_at, "{$tabla} #{$fila->id} tiene que llegar sin candado");
             }
         }
 
-        // Los planes NO: tienen su propio cierre, que es otra cosa y la pone el
-        // supervisor cuando termina la jornada.
         $this->assertSame(0, DB::table('work_plans')->whereNotNull('locked_at')->count());
     }
 
     /**
-     * Una fila que ya existia a mano y la migracion reconoce como suya tambien
-     * se bloquea.
+     * Una fila que ya existia a mano se ADOPTA, no se duplica.
      *
      * No es un caso raro: es lo que paso de verdad. `Position::$fillable` no
      * incluia `legacy_id`, asi que los cargos llegaban de la v1 pero sin de
      * donde venian; al volver a migrar se les reconoce por el codigo y es
-     * entonces cuando se les pone la marca. Ese momento —el primero en que la
-     * fila se declara «viene de la v1»— es el que tiene que bloquearla, o esas
-     * filas se quedan sueltas para siempre.
+     * entonces cuando se les pone la marca. Sin eso, cada pasada crearia otra
+     * copia.
+     *
+     * Y se queda editable, como todo lo migrado.
      */
-    public function test_una_fila_que_ya_existia_se_bloquea_al_reconocerla_como_de_la_v1(): void
+    public function test_una_fila_que_ya_existia_se_adopta_al_reconocerla_como_de_la_v1(): void
     {
         // Alguien dio de alta el mismo tipo de trabajo a mano, antes de migrar.
         $aMano = \App\Models\WorkType::create([
@@ -353,8 +353,8 @@ class MigrateLegacyDataTest extends TestCase
 
         $aMano->refresh();
         $this->assertNotNull($aMano->legacy_id, 'la migracion deberia reconocerla por el codigo');
-        $this->assertTrue($aMano->is_locked);
-        $this->assertSame('super', $aMano->lock_scope);
+        $this->assertFalse($aMano->is_locked, 'y no le pone candado: se sigue pudiendo editar');
+        $this->assertSame(1, \App\Models\WorkType::where('code', 'Estandar')->count(), 'no debe duplicarla');
     }
 
     /** Volver a migrar no le vuelve a poner el candado a lo que se desbloqueo. */

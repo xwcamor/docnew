@@ -76,10 +76,23 @@ class WorkType extends Model
         return $this->belongsTo(User::class, 'deleted_by')->withTrashed();
     }
 
+    /**
+     * Los documentos que este tipo de trabajo pide, EN ORDEN.
+     *
+     * El orden lo decide quien configura el tipo, arrastrando las filas. Antes
+     * no habia ninguno: salian como los devolviera la base —por el id del
+     * pivote, o sea el orden en que alguien fue marcando casillas hace meses—
+     * y en obra los papeles se llenan en una secuencia.
+     *
+     * `position` desempata por id para que dos filas con la misma posicion
+     * —posible en datos migrados— no bailen entre recargas.
+     */
     public function formTemplates()
     {
         return $this->belongsToMany(FormTemplate::class, 'work_type_form_templates')
-            ->withPivot('is_required');
+            ->withPivot('is_required', 'position')
+            ->orderBy('work_type_form_templates.position')
+            ->orderBy('work_type_form_templates.id');
     }
 
     public function workPlans(): HasMany

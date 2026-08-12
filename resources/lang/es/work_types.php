@@ -37,7 +37,7 @@ return [
     'forms_not_demanded' => 'No se exige',
     'required'         => 'Obligatorio',
     'optional'         => 'Opcional',
-    'required_help'    => 'Obligatorio: no se puede quitar del plan, ni siquiera de uno suelto. Opcional: se propone en cada plan y se puede quitar.',
+    'required_help'    => 'Obligatorio: no se puede quitar del plan, ni siquiera de uno suelto. Opcional: se propone en cada plan y se puede quitar si ese día no aplica. Ojo: si se deja puesto, hay que llenarlo igual para poder cerrar el plan.',
     'forms_empty'      => 'Este tipo no exige ningún documento todavía.',
     'forms_empty_country' => 'Este país no tiene documentos activos todavía. Créalos en Documentos antes de exigirlos aquí.',
     'forms_none_warning' => 'Un plan de este tipo se crearía sin ningún documento de seguridad.',
@@ -47,6 +47,7 @@ return [
     'forms_draft'      => 'Borrador',
     'forms_draft_hint' => 'Un documento en borrador no se puede llenar todavía, así que no puede exigirse como obligatorio. Publícalo primero.',
     'forms_search'     => 'Buscar documento',
+    'forms_reorder_hint' => 'Arrastra para cambiar el orden en que se piden. Con el teclado: Alt + flecha arriba o abajo.',
     'forms_no_results' => 'Ningún documento coincide con la búsqueda.',
 
     // Un documento que este tipo exige y que en Documentos ya no está disponible

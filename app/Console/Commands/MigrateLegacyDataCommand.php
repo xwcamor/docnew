@@ -1410,11 +1410,6 @@ class MigrateLegacyDataCommand extends Command
 
             $columnas['legacy_id'] = $f->id;
 
-            // ¿Es la primera vez que esta fila se declara «viene de la v1»? Lo
-            // es si acaba de crearse, y tambien si ya existia a mano y es ahora
-            // cuando se le pone el `legacy_id`. En los dos casos hay que
-            // bloquearla; en ninguno mas.
-            $esNuevaDeLaV1 = ! $fila || $fila->legacy_id === null;
 
             if ($fila) {
                 $fila->update($columnas);
@@ -1424,24 +1419,21 @@ class MigrateLegacyDataCommand extends Command
                 ]);
             }
 
-            if ($esNuevaDeLaV1) {
-                // Nace bloqueada. Un catalogo no es como un plan: renombrar una
-                // fila de aqui cambia de golpe lo que dicen los 3.712 planes que
-                // la citan, cerrados y firmados incluidos. El candado no impide
-                // corregirla, obliga a quitarlo primero, que es la pausa que
-                // faltaba.
-                //
-                // Nivel 'super' porque el que bloquea es el sistema, no una
-                // persona: es el mismo caso que «Bloqueado por el sistema» del
-                // resto de modulos. Y solo la primera vez — si alguien la
-                // desbloqueo a proposito, volver a migrar no se lo deshace.
-                $fila->forceFill([
-                    'locked_at'  => now(),
-                    'locked_by'  => 1,
-                    'lock_scope' => 'super',
-                ])->saveQuietly();
-            }
-
+            // Aqui las filas migradas nacian BLOQUEADAS, con candado de nivel
+            // 'super'. La idea era una pausa antes de renombrar algo que citan
+            // miles de planes firmados, y en el papel se sostenia; en la
+            // practica el catalogo entero llegaba intocable y —peor— con un
+            // candado que un admin NO puede quitar, porque `canBeUnlockedBy()`
+            // solo le deja con los de nivel 'tenant'. O sea que quien acababa
+            // de migrar su sistema no podia editar sus propios tipos de
+            // trabajo, ni sus sedes, ni sus cargos, y sin ninguna forma de
+            // arreglarlo desde la aplicacion.
+            //
+            // Se quita. Lo que se pierde es la pausa: renombrar un tipo de
+            // trabajo cambia lo que dicen todos los planes que lo citan, y eso
+            // sigue siendo cierto. Lo que se gana es poder trabajar. Quien
+            // quiera la pausa tiene el candado a mano en la ficha, que es donde
+            // se decide fila a fila y no de golpe para todo lo migrado.
             $mapa[$f->id] = $fila->id;
         }
 

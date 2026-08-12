@@ -249,6 +249,48 @@ class WorkTypeCrudTest extends TestCase
         );
     }
 
+    /**
+     * El ORDEN en que se mandan es el orden en que se van a pedir.
+     *
+     * No se guardaba: el pivote no tenia `position` y los documentos salian
+     * como los devolviera la base —por el id de la fila, o sea el orden en que
+     * alguien fue marcando casillas hace meses—. En obra los papeles se llenan
+     * en una secuencia: primero el AST, despues el permiso, al final las
+     * inspecciones.
+     *
+     * La pantalla manda las filas como quedaron tras arrastrarlas, asi que el
+     * indice del array ES la posicion.
+     */
+    public function test_el_orden_en_que_se_mandan_los_formatos_es_el_que_se_guarda(): void
+    {
+        $this->actingAs($this->admin());
+        $tipo = $this->tipo('IZAJE');
+        $ast  = $this->formato('AST');
+        $epp  = $this->formato('EPP');
+        $ptf  = $this->formato('PTF');
+
+        $guardar = fn (array $ids) => $this->put(
+            route('business_management.work_types.form_templates.update', $tipo->slug),
+            ['form_templates' => array_map(fn ($id) => ['id' => $id, 'is_required' => true], $ids)],
+        )->assertSessionHasNoErrors();
+
+        $guardar([$ast->id, $epp->id, $ptf->id]);
+
+        $this->assertSame(
+            [$ast->id, $epp->id, $ptf->id],
+            $tipo->fresh()->formTemplates()->pluck('form_templates.id')->all(),
+        );
+
+        // Y se puede cambiar: el PTF pasa a primero.
+        $guardar([$ptf->id, $ast->id, $epp->id]);
+
+        $this->assertSame(
+            [$ptf->id, $ast->id, $epp->id],
+            $tipo->fresh()->formTemplates()->pluck('form_templates.id')->all(),
+            'Reordenar y volver a guardar tiene que cambiar la secuencia.',
+        );
+    }
+
     /** Vaciar la lista es una orden legitima, no un formulario a medio mandar. */
     public function test_se_pueden_quitar_todos_los_formatos_de_un_tipo(): void
     {

@@ -49,10 +49,15 @@ class MigracionAdoptaCatalogosTest extends TestCase
      * El caso que estaba roto: el cargo ya está migrado y le falta la marca.
      *
      * Es exactamente el estado en el que quedó la base tras la primera pasada
-     * con el `fillable` incompleto. La segunda pasada tiene que adoptarlo: misma
-     * fila, con `legacy_id` y con candado.
+     * con el `fillable` incompleto. La segunda pasada tiene que adoptarlo:
+     * misma fila, con su `legacy_id`, sin duplicar.
+     *
+     * Ya NO nace bloqueado. Lo estuvo, y el dueño lo quitó: el candado era de
+     * nivel 'super' y un admin no puede quitarlo, así que quien acababa de
+     * migrar su sistema no podía editar sus propios cargos ni sus tipos de
+     * trabajo, sin ninguna salida desde la aplicación.
      */
-    public function test_un_cargo_ya_migrado_sin_marca_se_adopta_y_se_bloquea(): void
+    public function test_un_cargo_ya_migrado_sin_marca_se_adopta(): void
     {
         $cargo = Position::create([
             'slug' => Str::random(22), 'tenant_id' => 1, 'country_id' => 1, 'created_by' => 1,
@@ -67,9 +72,8 @@ class MigracionAdoptaCatalogosTest extends TestCase
         $cargo->refresh();
 
         $this->assertSame(1, Position::count(), 'no debe duplicar: adopta la fila que ya estaba');
-        $this->assertSame(7, (int) $cargo->legacy_id, 'sin esto el backfill del candado nunca lo encuentra');
-        $this->assertNotNull($cargo->locked_at, 'un catálogo migrado nace bloqueado');
-        $this->assertSame('super', $cargo->lock_scope, 'bloquea el sistema, no una persona');
+        $this->assertSame(7, (int) $cargo->legacy_id, 'sin esto la siguiente pasada lo duplicaria');
+        $this->assertNull($cargo->locked_at, 'lo migrado llega editable: el candado se pone a mano si se quiere');
     }
 
     // Aqui habia un test de que la adopcion se traia `is_signature_approver`
@@ -79,26 +83,28 @@ class MigracionAdoptaCatalogosTest extends TestCase
     // adopta en vez de duplicarse, que era el fallo de verdad.
 
     /**
-     * Volver a migrar NO le devuelve el candado a quien se lo quitó a propósito.
+     * Y volver a migrar tampoco bloquea nada.
      *
-     * Es la mitad que se olvida: si el candado se repusiera en cada pasada, el
-     * que corrige un cargo mal escrito se lo encontraría bloqueado otra vez y no
-     * sabría por qué.
+     * El candado que alguien ponga a mano en la ficha SÍ se respeta: la
+     * migración ya no toca esas columnas en ningún sentido.
      */
-    public function test_migrar_otra_vez_no_vuelve_a_bloquear_lo_que_alguien_desbloqueo(): void
+    public function test_migrar_otra_vez_no_bloquea_ni_desbloquea(): void
     {
         $this->correrCatalogoDeCargos();
 
         $cargo = Position::first();
-        $cargo->forceFill(['locked_at' => null, 'locked_by' => null, 'lock_scope' => null])->saveQuietly();
+        $this->assertNull($cargo->locked_at, 'lo migrado llega editable');
+
+        // Alguien lo bloquea a mano desde la ficha, que es donde se decide.
+        $cargo->forceFill(['locked_at' => now(), 'locked_by' => 1, 'lock_scope' => 'tenant'])->saveQuietly();
 
         $this->correrCatalogoDeCargos();
 
-        $this->assertNull($cargo->fresh()->locked_at, 'el desbloqueo hecho a mano se respeta');
+        $this->assertNotNull($cargo->fresh()->locked_at, 'el candado puesto a mano se respeta');
     }
 
-    /** Un cargo que no estaba se crea, con su marca y su candado. */
-    public function test_un_cargo_nuevo_se_crea_marcado_y_bloqueado(): void
+    /** Un cargo que no estaba se crea, con su marca de origen y editable. */
+    public function test_un_cargo_nuevo_se_crea_marcado_y_editable(): void
     {
         $this->correrCatalogoDeCargos();
 
@@ -106,7 +112,7 @@ class MigracionAdoptaCatalogosTest extends TestCase
 
         $this->assertNotNull($cargo, 'el cargo de la v1 tiene que aparecer');
         $this->assertSame(7, (int) $cargo->legacy_id);
-        $this->assertNotNull($cargo->locked_at);
+        $this->assertNull($cargo->locked_at);
     }
 
     // ── apoyo ────────────────────────────────────────────────────────────────
