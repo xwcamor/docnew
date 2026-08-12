@@ -17,6 +17,7 @@ import EntityShowTabs from '@/Components/Common/EntityShowTabs.vue';
 import EntityShowActions from '@/Components/Common/EntityShowActions.vue';
 import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import RecordHistory from '@/Components/Common/RecordHistory.vue';
+import { diaLiteral, horaLiteral } from '@/Utils/fechaLiteral';
 import WorkPlanCrewCard from '@/Components/WorkPlans/WorkPlanCrewCard.vue';
 import WorkPlanRepresentativeCard from '@/Components/WorkPlans/WorkPlanRepresentativeCard.vue';
 import WorkPlanFormsCard from '@/Components/WorkPlans/WorkPlanFormsCard.vue';
@@ -49,7 +50,7 @@ const props = defineProps({
 });
 
 const { can, isSuper, canSeeAudit } = useAuth();
-const { formatDateTimeFull } = useDateFormat();
+const { formatDateTimeFull, formatDateTime } = useDateFormat();
 const { t, tc } = useI18n();
 
 const isDeleted = computed(() => !!props.workPlan.deleted_at);
@@ -58,20 +59,20 @@ const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--c
 // Wrapper local para mantener call-sites compactos (fmt(...) en templates).
 const fmt = (d) => formatDateTimeFull(d);
 
-// Las fechas del plan llevan hora y son hora de obra (llegan «Y-m-d H:i»): no
-// se convierten de zona horaria, sólo se reordenan a dd-mm-aaaa hh:mm.
-const fmtDay = (v) => {
-    if (!v) return '—';
-    const [y, m, d] = String(v).slice(0, 10).split('-');
-    return d ? `${d}-${m}-${y}` : String(v);
-};
-
-/** Fecha con hora. La hora es media información del plan, no un adorno. */
-const fmtMoment = (v) => {
-    if (!v) return '—';
-    const hora = String(v).slice(11, 16);
-    return hora ? `${fmtDay(v)} ${hora}` : fmtDay(v);
-};
+/**
+ * Las dos clases de fecha de esta pantalla, y no se pueden mezclar.
+ *
+ * `date_start` y `date_end` los ESCRIBE una persona y significan la hora del
+ * reloj de la obra: llegan sin zona («2026-08-12 07:00») y se leen literales.
+ *
+ * `reopened_at`, `updated_at` y `deleted_at` los estampa el servidor con
+ * `now()`: llegan en UTC explícito y hay que convertirlos al huso del usuario.
+ * `reopened_at` estaba con los primeros y enseñaba la hora UTC.
+ *
+ * Ver `Utils/fechaLiteral.js`.
+ */
+const fmtDay    = (v) => diaLiteral(v) || '—';
+const fmtMoment = (v) => horaLiteral(v) || '—';
 
 // Armar el plan (trabajadores, formatos, aprobadores) exige permiso Y que el
 // plan siga abierto; lo decide el servidor y aquí solo se obedece. Un plan

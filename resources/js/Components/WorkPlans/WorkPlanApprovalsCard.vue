@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
+import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
  * Flujo de aprobaciones del plan.
@@ -72,13 +73,17 @@ const rotulo = (rol) => (rol ? t('work_plans.approver_role.' + rol) : '—');
  */
 const nombre = (a) => a.rule_name || rotulo(a.role);
 
-/** dd-mm-aaaa hh:mm, hora de obra: no se reinterpreta la zona. */
-const cuando = (v) => {
-    if (!v) return '';
-    const s = String(v);
-    const [y, m, d] = s.slice(0, 10).split('-');
-    return d ? `${d}-${m}-${y} ${s.slice(11, 16)}` : s;
-};
+/**
+ * `signed_at` lo estampa el servidor con `now()` y viaja en UTC explícito
+ * (`2026-08-12T06:06:00.000000Z`). Aquí se troceaba la cadena a mano —«no se
+ * reinterpreta la zona», decía el comentario— y lo que salía en pantalla era la
+ * hora UTC: cinco horas de más en Lima, en el dato que dice a qué hora se
+ * autorizó el trabajo.
+ *
+ * Lo literal vale para lo que escribe una persona (`date_start` del plan), no
+ * para un instante. Ver `Utils/fechaLiteral.js`.
+ */
+const { formatDateTime: cuando } = useDateFormat();
 
 /**
  * Nadie autoriza hasta que alguien responda por los trabajadores, y aquí se

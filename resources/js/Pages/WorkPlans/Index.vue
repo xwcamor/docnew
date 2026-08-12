@@ -30,6 +30,7 @@ import WorkPlansActionsCell from '@/Components/WorkPlans/WorkPlansActionsCell.vu
 import WorkPlansEmptyState from '@/Components/WorkPlans/WorkPlansEmptyState.vue';
 
 import { useAuth } from '@/Composables/useAuth';
+import { diaLiteral } from '@/Utils/fechaLiteral';
 import { useColumnPreferences } from '@/Composables/useColumnPreferences';
 import { useModuleFilters } from '@/Composables/useModuleFilters';
 import { useModuleBulkActions } from '@/Composables/useModuleBulkActions';
@@ -63,13 +64,9 @@ defineOptions({ layout: AppLayout });
 const { t } = useI18n();
 const { can, isSuper, canSeeAudit } = useAuth();
 
-// Las fechas del plan llegan ya como Y-m-d (son días de calendario, no
-// instantes): se muestran dd-mm-aaaa sin pasarlas por ninguna zona horaria.
-const plainDate = (v) => {
-    if (!v) return '—';
-    const [y, m, d] = String(v).slice(0, 10).split('-');
-    return d ? `${d}-${m}-${y}` : String(v);
-};
+// Las fechas del plan son de calendario, no instantes: las escribe una persona
+// y se leen literales, sin pasarlas por ningún huso. Ver `Utils/fechaLiteral`.
+const plainDate = (v) => diaLiteral(v) || '—';
 
 const props = defineProps({
     work_plans:      { type: Object, required: true },

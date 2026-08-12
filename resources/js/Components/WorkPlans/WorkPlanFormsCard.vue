@@ -5,7 +5,7 @@ import { Card, Tag, Button, Switch, Tooltip } from 'ant-design-vue';
 import { FileTextOutlined, FilePdfOutlined, EditOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
-import { horaDeObra } from '@/Utils/horaDeObra';
+import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
  * Formatos de seguridad del plan. **Todos, con un interruptor cada uno.**
@@ -40,6 +40,9 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+// `confirmed_at` es `submitted_at`, que el servidor estampa con `now()` y viaja
+// en UTC: se convierte al huso del usuario, no se trocea la cadena.
+const { formatDateTime } = useDateFormat();
 
 // Sólo cuentan los que el plan exige: los apagados no son trabajo pendiente.
 const enElPlan    = computed(() => props.forms.filter((f) => f.included));
@@ -151,7 +154,7 @@ const alternar = (f, valor) => {
                 :title="f.name || f.code"
                 :subtitle="subtitulo(f)"
                 :when="f.status === 'confirmed' ? f.confirmed_at : null"
-                :subtitle-time="f.status === 'confirmed' ? horaDeObra(f.confirmed_at) : ''"
+                :subtitle-time="f.status === 'confirmed' ? formatDateTime(f.confirmed_at) : ''"
                 :label="f.included ? $t('field_work.status.' + f.status) : ''"
                 :findings="f.included ? (f.findings || 0) : 0"
                 :show-clean="f.included && f.status === 'confirmed'"

@@ -5,7 +5,7 @@ import {
     CheckCircleFilled, ClockCircleOutlined, LockOutlined, MinusCircleOutlined, WarningFilled,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
-import { horaDeObra } from '@/Utils/horaDeObra';
+import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
  * Una fila del tablero del plan. **La misma para las tres columnas.**
@@ -84,6 +84,10 @@ const props = defineProps({
 });
 
 const { t, tc } = useI18n();
+// `when` es SIEMPRE un instante estampado por el servidor —una firma, una
+// confirmación— y viaja en UTC explícito. Va por el conversor del huso del
+// usuario, nunca troceando la cadena: eso enseñaba la hora UTC.
+const { formatDateTime } = useDateFormat();
 
 const MARCAS = {
     done:     CheckCircleFilled,
@@ -105,7 +109,7 @@ const marca = computed(() => MARCAS[props.state] ?? ClockCircleOutlined);
  */
 const tituloDeLaMarca = computed(() => (
     props.when
-        ? t(`work_plans.done_at_${props.doneVerb}`, { when: horaDeObra(props.when) })
+        ? t(`work_plans.done_at_${props.doneVerb}`, { when: formatDateTime(props.when) })
         : props.label
 ));
 

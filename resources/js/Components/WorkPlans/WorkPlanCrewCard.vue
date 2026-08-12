@@ -11,7 +11,7 @@ import {
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
-import { horaDeObra } from '@/Utils/horaDeObra';
+import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
  * Trabajadores del plan: quién sale a obra ese día.
@@ -40,6 +40,10 @@ const props = defineProps({
 });
 
 const { t } = useI18n();
+// `signed_at` lo estampa el servidor con `now()` y viaja en UTC: se convierte
+// al huso del usuario. Trocear la cadena enseñaba la hora UTC — cinco horas de
+// más en Lima, sobre una firma que es prueba de a qué hora se estuvo en obra.
+const { formatDateTime } = useDateFormat();
 
 // El dato de la tarjeta es cuántos firmaron, no cuántos hay: eso es lo que
 // decide si el plan puede cerrarse.
@@ -225,7 +229,7 @@ const guardarAlta = () => {
                 :title="fila.name"
                 :subtitle="subtitulo(fila)"
                 :when="fila.signed ? fila.signed_at : null"
-                :subtitle-time="fila.signed ? horaDeObra(fila.signed_at) : ''"
+                :subtitle-time="fila.signed ? formatDateTime(fila.signed_at) : ''"
                 :label="fila.signed ? $t('work_plans.crew_signed') : $t('work_plans.crew_pending')"
             >
                 <template #actions>
