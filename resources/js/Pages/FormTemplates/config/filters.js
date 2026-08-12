@@ -20,6 +20,10 @@ export const formTemplatesFilterFields = (t) => [
         { value: false, label: t('global.inactive') },
     ]},
     { key: 'created_at',     label: t('global.created_at'),     type: 'date_range' },
+    // Apagado = solo la versión vigente de cada documento, que es el
+    // comportamiento por defecto del listado. Encendido se ve el histórico:
+    // cada versión es una fila y con tres ediciones el AST ocupa cuatro.
+    { key: 'all_versions',   label: t('form_templates.filter_all_versions'), type: 'switch' },
     { key: 'only_favorites', label: t('global.only_favorites'), type: 'switch' },
 ];
 
@@ -30,6 +34,7 @@ export const formTemplatesEmptyFilters = () => ({
     status: null,
     is_active: null,
     created_at: null,
+    all_versions: false,
     only_favorites: false,
 });
 
@@ -42,6 +47,7 @@ export const hydrateFormTemplatesFilters = (server) => ({
     created_at: (server.created_from && server.created_to)
         ? [dayjs(server.created_from), dayjs(server.created_to)]
         : null,
+    all_versions:   server.all_versions ?? false,
     only_favorites: server.only_favorites ?? false,
 });
 
@@ -53,6 +59,7 @@ export const formTemplatesFiltersToQuery = (f) => ({
     is_active:      f.is_active ?? undefined,
     created_from:   f.created_at?.[0]?.format('YYYY-MM-DD') ?? undefined,
     created_to:     f.created_at?.[1]?.format('YYYY-MM-DD') ?? undefined,
+    all_versions:   f.all_versions ? 1 : undefined,
     only_favorites: f.only_favorites ? 1 : undefined,
 });
 
@@ -66,6 +73,9 @@ export const formTemplatesFiltersSummary = (f, t) => {
         parts.push(`${t('form_templates.is_active')}: ${f.is_active ? t('global.active') : t('global.inactive')}`);
     }
     if (f.created_at)          parts.push(`${t('global.created_at')}: ${f.created_at[0]?.format('YYYY-MM-DD')} → ${f.created_at[1]?.format('YYYY-MM-DD')}`);
+    // Se dice en la portada del export solo cuando está encendido: apagado es
+    // el comportamiento normal y no hace falta anunciarlo.
+    if (f.all_versions)        parts.push(t('form_templates.filter_all_versions'));
     return parts.join(' · ');
 };
 
@@ -81,6 +91,7 @@ export const serializeSavedFilters = (f) => ({
     created_at:     f.created_at?.[0]
         ? [f.created_at[0].format('YYYY-MM-DD'), f.created_at[1]?.format('YYYY-MM-DD')]
         : null,
+    all_versions:   !!f.all_versions,
     only_favorites: !!f.only_favorites,
 });
 

@@ -548,12 +548,23 @@ const goDelete = (record) => router.visit(route('business_management.form_templa
 
                     <!-- Publicación: lo que decide si un plan puede usar el
                          documento. Color Y palabra — naranja borrador, verde
-                         publicado. Nunca sólo el color. -->
+                         publicado, gris archivado. Nunca sólo el color.
+                         Archivado es una versión relevada por otra más nueva:
+                         ni se usa ni está a medias, y por eso va en gris y no
+                         en el naranja de borrador. -->
                     <template v-else-if="column.key === 'publication'">
-                        <span class="pill" :class="record.status === 'published' ? 'pill--ok' : 'pill--draft'">
+                        <span class="pill" :class="{
+                            'pill--ok':    record.status === 'published',
+                            'pill--off':   record.status === 'archived',
+                            'pill--draft': record.status !== 'published' && record.status !== 'archived',
+                        }">
                             <span class="pill__dot" />
                             {{ $t(`form_templates.status_${record.status ?? 'draft'}`) }}
                         </span>
+                    </template>
+
+                    <template v-else-if="column.key === 'version'">
+                        <code class="mono">v{{ record.version ?? 1 }}</code>
                     </template>
 
                     <template v-else-if="column.key === 'kind'">

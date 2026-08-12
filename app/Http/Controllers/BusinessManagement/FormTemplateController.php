@@ -96,6 +96,10 @@ class FormTemplateController extends Controller
                     : null,
                 'created_from' => $request->get('created_from', ''),
                 'created_to'   => $request->get('created_to', ''),
+                // Apagado (lo normal) = solo la version vigente de cada
+                // documento. Cada version es una fila, y sin esto el listado
+                // crece con cada edicion.
+                'all_versions' => $request->boolean('all_versions'),
                 'only_favorites' => $request->boolean('only_favorites'),
                 'sort'         => $request->get('sort', 'id'),
                 'direction'    => $request->get('direction', 'desc'),
@@ -251,11 +255,16 @@ class FormTemplateController extends Controller
      * Deja de ofrecerse en los planes nuevos; los que ya lo tienen conservan lo
      * que se lleno, porque la entrega guarda su version de la plantilla.
      */
-    public function unpublish(FormTemplate $formTemplate): RedirectResponse
+    public function unpublish(FormTemplate $formTemplate, \App\Services\FieldWork\FormTemplateBuilder $constructor): RedirectResponse
     {
         abort_if($formTemplate->is_locked, 403, __('locks.cannot_edit_locked'));
 
-        $formTemplate->update(['status' => 'draft']);
+        // Va por el constructor y no con un update suelto: publicar archiva la
+        // version anterior y le quita las exigencias de los tipos de trabajo,
+        // asi que despublicar tiene que devolverle las dos cosas. Con el update
+        // suelto quedaba la anterior archivada y el pivote apuntando a un
+        // borrador: tipos de trabajo exigiendo un documento inservible.
+        $constructor->despublicar($formTemplate);
 
         return back()->with('success', __('form_templates.unpublished'));
     }

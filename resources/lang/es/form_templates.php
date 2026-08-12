@@ -77,6 +77,8 @@ return [
     'requires_signature' => 'Necesita firma',
     'filter_name' => 'Nombre',
     'filter_status' => 'Publicación',
+    'filter_all_versions' => 'Ver todas las versiones',
+    'filter_all_versions_help' => 'Normalmente el listado enseña solo la versión vigente de cada documento. Enciéndelo para ver también las anteriores.',
 
     'edit_hint'   => 'Modificar este registro',
     'delete_hint' => 'Eliminar (queda en papelera)',

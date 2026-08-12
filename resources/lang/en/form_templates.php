@@ -67,6 +67,8 @@ return [
     'requires_signature' => 'Needs a signature',
     'filter_name' => 'Name',
     'filter_status' => 'Publication',
+    'filter_all_versions' => 'Show every version',
+    'filter_all_versions_help' => 'The listing normally shows only the current version of each document. Turn this on to see the earlier ones too.',
 
     'edit_hint'   => 'Edit this record',
     'delete_hint' => 'Delete (goes to trash)',

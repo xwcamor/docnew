@@ -110,6 +110,25 @@ class FormTemplateBuilder
     /**
      * Publica el formato. A partir de aqui no se puede editar: para cambiarlo se
      * saca una version nueva, porque lo ya firmado no se puede alterar.
+     *
+     * Publicar es tambien el RELEVO de la version anterior, y son dos cosas,
+     * ninguna de las cuales pasaba:
+     *
+     *  1. La vieja se archiva. `nuevaVersion()` ya prometia esto en su docblock
+     *     —«la anterior se archiva cuando la nueva se publica»— pero no lo hacia
+     *     nadie: `archived` existia solo como etiqueta del desplegable de
+     *     filtros. Quedaban dos filas diciendo «Publicado», mismo nombre, mismo
+     *     codigo, indistinguibles en el listado.
+     *
+     *  2. Se mueve el pivote con los tipos de trabajo. `WorkPlan::
+     *     documentosEstandar()` resuelve por `work_type_form_templates`, que
+     *     apunta al `form_template_id` de la fila vieja. Sin moverlo, publicar
+     *     la version nueva no cambiaba absolutamente nada de lo que reciben los
+     *     planes: se seguia sirviendo la v1, en silencio.
+     *
+     * Lo ya firmado no se toca — las entregas guardan `template_version` y el
+     * PDF busca esa fila por codigo y version (`FormSubmissionPdfService`), asi
+     * que archivar la vieja no altera ningun documento entregado.
      */
     public function publicar(FormTemplate $plantilla): FormTemplate
     {
@@ -117,9 +136,103 @@ class FormTemplateBuilder
             throw new \InvalidArgumentException('Un formato con campos no puede publicarse vacio.');
         }
 
-        $plantilla->update(['status' => 'published', 'published_at' => now()]);
+        return DB::transaction(function () use ($plantilla) {
+            $anteriores = $this->versionesAnteriores($plantilla, 'published');
 
-        return $plantilla->fresh();
+            $plantilla->update(['status' => 'published', 'published_at' => now()]);
+
+            foreach ($anteriores as $vieja) {
+                $this->moverTiposDeTrabajo($vieja, $plantilla);
+                $vieja->update(['status' => 'archived']);
+            }
+
+            return $plantilla->fresh();
+        });
+    }
+
+    /**
+     * Deshace la publicacion.
+     *
+     * Es el inverso de `publicar()` y tiene que deshacer las dos cosas que
+     * aquel hace, o deja el documento en un estado que no existia antes: la
+     * version anterior archivada y el pivote de los tipos de trabajo apuntando
+     * a un borrador — o sea, tipos de trabajo que exigen un documento que
+     * ningun plan puede usar.
+     *
+     * Si no hay predecesora no hay nada que devolver, y entonces esto es lo que
+     * era: poner el estado en borrador.
+     */
+    public function despublicar(FormTemplate $plantilla): FormTemplate
+    {
+        return DB::transaction(function () use ($plantilla) {
+            $plantilla->update(['status' => 'draft']);
+
+            $predecesora = $this->versionesAnteriores($plantilla, 'archived')
+                ->sortByDesc('version')
+                ->first();
+
+            if ($predecesora) {
+                $predecesora->update(['status' => 'published']);
+                $this->moverTiposDeTrabajo($plantilla, $predecesora);
+            }
+
+            return $plantilla->fresh();
+        });
+    }
+
+    /**
+     * Pasa las exigencias de los tipos de trabajo de una version a otra.
+     *
+     * `WorkPlan::documentosEstandar()` resuelve por `work_type_form_templates`,
+     * que guarda un `form_template_id` — el de una FILA, o sea el de una
+     * version concreta. Sin mover esto, publicar una version nueva no cambiaba
+     * nada de lo que reciben los planes.
+     *
+     * Los tipos que ya apuntan al destino se saltan y su fila de origen se
+     * borra: moverla reventaria el unique (work_type_id, form_template_id).
+     */
+    protected function moverTiposDeTrabajo(FormTemplate $desde, FormTemplate $hacia): void
+    {
+        $yaApuntan = DB::table('work_type_form_templates')
+            ->where('form_template_id', $hacia->id)
+            ->pluck('work_type_id')
+            ->all();
+
+        DB::table('work_type_form_templates')
+            ->where('form_template_id', $desde->id)
+            ->whereNotIn('work_type_id', $yaApuntan)
+            ->update(['form_template_id' => $hacia->id, 'updated_at' => now()]);
+
+        DB::table('work_type_form_templates')
+            ->where('form_template_id', $desde->id)
+            ->delete();
+    }
+
+    /**
+     * Las versiones mas viejas del mismo documento, en el estado que se pida.
+     *
+     * La identidad de un documento a lo largo de sus versiones es
+     * (workspace, pais, codigo) — la clave unica de la tabla lleva esos tres
+     * mas `version`. `tenant_id` es nullable para el catalogo global, y por eso
+     * la comparacion se parte en dos ramas: `WHERE tenant_id = NULL` no empareja
+     * nada.
+     *
+     * @return \Illuminate\Support\Collection<int, FormTemplate>
+     */
+    protected function versionesAnteriores(FormTemplate $plantilla, string $estado)
+    {
+        return FormTemplate::query()
+            ->where('id', '!=', $plantilla->id)
+            ->where('country_id', $plantilla->country_id)
+            ->where('version', '<', $plantilla->version)
+            ->where('status', $estado)
+            ->whereRaw('UPPER(code) = ?', [mb_strtoupper((string) $plantilla->code)])
+            ->when(
+                $plantilla->tenant_id === null,
+                fn ($q) => $q->whereNull('tenant_id'),
+                fn ($q) => $q->where('tenant_id', $plantilla->tenant_id),
+            )
+            ->get();
     }
 
     /**

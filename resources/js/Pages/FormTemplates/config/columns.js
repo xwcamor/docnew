@@ -21,6 +21,11 @@ export const formTemplatesTableColumns = (t, { isSuper = false, isMobile = false
     // Celda principal "rica": nombre + código como subtítulo (el código
     // ya no es columna aparte, va fundido aquí).
     { title: t('form_templates.name'),     dataIndex: 'name',        key: 'name',       sorter: (a, b) => a.name.localeCompare(b.name), alwaysVisible: true, mobile: { role: 'title' } },
+    // Versión. Cada una es una fila propia de `form_templates`, así que sin
+    // esta columna el mismo documento sale dos y tres veces sin nada que lo
+    // distinga. El backend ya ordenaba por `version` (FormTemplate::scopeFilter)
+    // desde antes: lo único que faltaba era la columna que se pulsa.
+    { title: t('form_templates.version'),  dataIndex: 'version',     key: 'version',    width: 110, align: 'center', sorter: true, mobile: { role: 'meta' } },
     { title: t('form_templates.status'),   dataIndex: 'status',      key: 'publication', width: 150, sorter: true, mobile: { role: 'status' } },
     { title: t('form_templates.kind'),     dataIndex: 'kind',        key: 'kind',       width: 200, sorter: true, mobile: { role: 'subtitle' } },
     ...(isSuper ? [

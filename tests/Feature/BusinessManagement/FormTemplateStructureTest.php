@@ -649,4 +649,126 @@ class FormTemplateStructureTest extends CatalogTestCase
         $this->assertSame(2, $nueva->fresh()->fields()->count());
         $this->assertSame(1, $plantilla->fresh()->fields()->count());
     }
+
+    // ── El relevo de una version por la siguiente ────────────────────────────
+    //
+    // Sacar una version nueva no servia de nada por si solo: la vieja se
+    // quedaba publicada —`archived` no lo escribia nadie, existia solo como
+    // etiqueta del desplegable de filtros— y el pivote de los tipos de trabajo
+    // seguia apuntando a su fila. O sea, dos filas identicas en el listado y
+    // los planes recibiendo la version vieja.
+
+    /**
+     * Deja una v1 publicada con un tipo de trabajo que la exige, saca la v2 y
+     * la publica. Devuelve las tres piezas para mirarlas.
+     *
+     * @return array{0: FormTemplate, 1: FormTemplate, 2: WorkType}
+     */
+    private function relevoPublicado(string $code = 'aud_relevo'): array
+    {
+        $v1 = $this->plantilla('AUD Relevo', $code, 'published');
+        $seccion = $v1->sections()->create(['position' => 1]);
+        $seccion->fields()->create([
+            'code' => 'actividad', 'field_type' => 'text', 'is_required' => true, 'position' => 1,
+        ]);
+
+        $tipo = WorkType::firstOrCreate(['code' => 'MTTO'], $this->base());
+        DB::table('work_type_form_templates')->insert([
+            'work_type_id' => $tipo->id, 'form_template_id' => $v1->id,
+            'is_required' => true, 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        $this->actingAs($this->admin())
+            ->post(route('business_management.form_templates.new_version', $v1->slug))
+            ->assertRedirect();
+
+        $v2 = FormTemplate::where('code', $code)->where('version', 2)->firstOrFail();
+
+        $this->actingAs($this->admin())
+            ->post(route('business_management.form_templates.publish', $v2->slug))
+            ->assertRedirect();
+
+        return [$v1, $v2, $tipo];
+    }
+
+    /** Publicar la v2 archiva la v1: dejaban de ser dos filas «Publicado». */
+    public function test_publicar_una_version_archiva_la_anterior(): void
+    {
+        [$v1, $v2] = $this->relevoPublicado();
+
+        $this->assertSame('archived', $v1->fresh()->status, 'La v1 tenia que quedar archivada.');
+        $this->assertSame('published', $v2->fresh()->status);
+    }
+
+    /**
+     * Y se lleva las exigencias de los tipos de trabajo.
+     *
+     * Sin esto `WorkPlan::documentosEstandar()` seguia sirviendo la v1: se
+     * publicaba la version nueva y no cambiaba nada para nadie.
+     */
+    public function test_publicar_una_version_se_lleva_los_tipos_de_trabajo(): void
+    {
+        [, $v2, $tipo] = $this->relevoPublicado();
+
+        $this->assertSame(
+            [$v2->id],
+            DB::table('work_type_form_templates')->where('work_type_id', $tipo->id)
+                ->pluck('form_template_id')->all(),
+            'El tipo de trabajo tiene que exigir la version nueva.',
+        );
+    }
+
+    /**
+     * Y despublicar lo deshace. Es la otra mitad: sin ella, quitarle la
+     * publicacion a la v2 dejaba la v1 archivada y el pivote apuntando a un
+     * borrador, o sea un tipo de trabajo exigiendo un documento que ningun plan
+     * puede usar.
+     */
+    public function test_despublicar_devuelve_la_version_anterior_y_sus_tipos_de_trabajo(): void
+    {
+        [$v1, $v2, $tipo] = $this->relevoPublicado();
+
+        $this->actingAs($this->admin())
+            ->post(route('business_management.form_templates.unpublish', $v2->slug))
+            ->assertRedirect();
+
+        $this->assertSame('draft', $v2->fresh()->status);
+        $this->assertSame('published', $v1->fresh()->status, 'La v1 tenia que volver a publicarse.');
+        $this->assertSame(
+            [$v1->id],
+            DB::table('work_type_form_templates')->where('work_type_id', $tipo->id)
+                ->pluck('form_template_id')->all(),
+            'El tipo de trabajo tiene que volver a exigir la v1.',
+        );
+    }
+
+    /**
+     * El listado enseña una fila por documento, no una por version.
+     *
+     * Cada version es una fila de `form_templates`, asi que el AST editado tres
+     * veces son cuatro filas con el mismo nombre y el mismo codigo. Por defecto
+     * se ve solo la vigente; el historico esta detras del interruptor.
+     */
+    public function test_el_indice_solo_enseña_la_version_vigente(): void
+    {
+        $this->plantilla('AUD Vigente', 'aud_vigente', 'archived');
+        $v2 = $this->plantilla('AUD Vigente', 'aud_vigente', 'published');
+        $v2->update(['version' => 2]);
+
+        $versiones = function (array $params) {
+            $resp = $this->actingAs($this->admin())
+                ->get(route('business_management.form_templates.index', $params))
+                ->assertOk();
+
+            return collect($resp->viewData('page')['props']['form_templates']['data'])
+                ->where('code', 'aud_vigente')
+                ->pluck('version')
+                ->sort()
+                ->values()
+                ->all();
+        };
+
+        $this->assertSame([2], $versiones([]), 'Por defecto solo va la version vigente.');
+        $this->assertSame([1, 2], $versiones(['all_versions' => 1]), 'Con el interruptor van todas.');
+    }
 }

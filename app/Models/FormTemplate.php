@@ -162,6 +162,36 @@ class FormTemplate extends Model
             $q->where("{$tbl}.kind", (string) $request->kind);
         });
 
+        // Solo la version vigente, y por defecto que si.
+        //
+        // Cada version es una FILA propia de esta tabla —`FormTemplateBuilder::
+        // nuevaVersion()` replica el documento con `version + 1`— asi que sin
+        // esto el listado crece con cada edicion: el AST editado tres veces son
+        // cuatro filas con el mismo nombre y el mismo codigo.
+        //
+        // El criterio de «vigente» es la version mas alta del mismo codigo
+        // dentro del mismo workspace y pais, que es exactamente la clave unica
+        // de la tabla (`form_templates_code_version_unique_active`).
+        if (! filter_var($request->get('all_versions', false), FILTER_VALIDATE_BOOLEAN)) {
+            $query->whereNotExists(function ($q) use ($tbl) {
+                $q->select(\DB::raw(1))
+                  ->from("{$tbl} as posterior")
+                  ->whereNull('posterior.deleted_at')
+                  ->whereColumn('posterior.country_id', "{$tbl}.country_id")
+                  ->whereColumn('posterior.version', '>', "{$tbl}.version")
+                  ->whereRaw("UPPER(posterior.code) = UPPER({$tbl}.code)")
+                  // `tenant_id` es nullable y NULL = NULL es falso: los globales
+                  // del catalogo necesitan su propia rama o se cuelan todos.
+                  ->where(function ($qq) use ($tbl) {
+                      $qq->whereColumn('posterior.tenant_id', "{$tbl}.tenant_id")
+                         ->orWhere(function ($q3) use ($tbl) {
+                             $q3->whereNull('posterior.tenant_id')
+                                ->whereNull("{$tbl}.tenant_id");
+                         });
+                  });
+            });
+        }
+
         $query->when($request->filled('created_from'), fn ($q) => $q->where("{$tbl}.created_at", '>=', $request->created_from . ' 00:00:00'));
         $query->when($request->filled('created_to'),   fn ($q) => $q->where("{$tbl}.created_at", '<=', $request->created_to . ' 23:59:59'));
         $query->when($request->filled('updated_from'), fn ($q) => $q->where("{$tbl}.updated_at", '>=', $request->updated_from . ' 00:00:00'));
