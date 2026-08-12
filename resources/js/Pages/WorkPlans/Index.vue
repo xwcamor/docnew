@@ -30,7 +30,7 @@ import WorkPlansActionsCell from '@/Components/WorkPlans/WorkPlansActionsCell.vu
 import WorkPlansEmptyState from '@/Components/WorkPlans/WorkPlansEmptyState.vue';
 
 import { useAuth } from '@/Composables/useAuth';
-import { diaLiteral } from '@/Utils/fechaLiteral';
+import { horaLiteral } from '@/Utils/fechaLiteral';
 import { useColumnPreferences } from '@/Composables/useColumnPreferences';
 import { useModuleFilters } from '@/Composables/useModuleFilters';
 import { useModuleBulkActions } from '@/Composables/useModuleBulkActions';
@@ -66,7 +66,12 @@ const { can, isSuper, canSeeAudit } = useAuth();
 
 // Las fechas del plan son de calendario, no instantes: las escribe una persona
 // y se leen literales, sin pasarlas por ningún huso. Ver `Utils/fechaLiteral`.
-const plainDate = (v) => diaLiteral(v) || '—';
+//
+// CON HORA. `date_start` y `date_end` son «Fecha y Hora de Inicio/Fin» —de su
+// diferencia sale el tiempo trabajado— y el listado enseñaba solo el día: dos
+// planes del mismo martes salían idénticos, y a qué hora entró la cuadrilla es
+// justo lo que se viene a mirar.
+const plainDate = (v) => horaLiteral(v) || '—';
 
 const props = defineProps({
     work_plans:      { type: Object, required: true },
@@ -333,22 +338,26 @@ const exportEndpoints   = computed(() => workPlansExportEndpoints());
 //
 // No son «vistas guardadas» —esas las crea cada quien y viven en su cuenta—:
 // son las tres preguntas que se le hacen SIEMPRE a este listado, así que van
-// escritas y a la vista. Por debajo son los filtros que ya existían; lo que se
-// ahorra es abrir el cajón y saber qué campo mirar.
+// escritas. Por debajo son los filtros que ya existían; lo que se ahorra es
+// abrir el cajón y saber qué campo mirar.
+//
+// Van como `presets` de `SavedViews`, que es el hueco que el componente ya
+// tenía para esto: comparten barra y forma con «Solo favoritos». Yo las había
+// puesto en una tira de botones aparte encima, y eran dos barras de vistas una
+// encima de otra diciendo lo mismo de dos formas distintas.
 const vistasDeEstado = computed(() => [
-    { key: 'todos',      label: t('global.all') },
-    { key: 'pendientes', label: t('work_plans.state_pending') },
-    { key: 'terminados', label: t('work_plans.state_done') },
-    { key: 'reabiertos', label: t('work_plans.state_reopened') },
+    { value: 'pendientes', label: t('work_plans.state_pending') },
+    { value: 'terminados', label: t('work_plans.state_done') },
+    { value: 'reabiertos', label: t('work_plans.state_reopened') },
 ]);
 
-/** Qué vista refleja el filtro actual. Ninguna combinación rara cuenta. */
+/** Qué vista refleja el filtro actual. `null` = «Todos», que ya pinta el chip. */
 const vistaActiva = computed(() => {
     if (filters.value.reopened === true) return 'reabiertos';
     if (filters.value.is_done === true)  return 'terminados';
     if (filters.value.is_done === false) return 'pendientes';
 
-    return 'todos';
+    return null;
 });
 
 /**
@@ -357,6 +366,9 @@ const vistaActiva = computed(() => {
  * Es lo que espera quien la pulsa: «enséñame los terminados», no «los
  * terminados de lo que ya tenía puesto». Si alguien quiere cruzar dos cosas
  * tiene el cajón de filtros, que para eso está.
+ *
+ * `null` llega al volver a pulsar la vista activa: es apagarla, y entonces se
+ * queda el listado entero.
  */
 const verVista = (clave) => {
     suspendReload(() => {
@@ -422,27 +434,6 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
             />
         </div>
 
-        <!-- Las tres preguntas que se le hacen a este listado, de un toque.
-             «¿Qué queda por cerrar?», «¿qué se terminó?» y «¿cuáles se
-             volvieron a abrir?». Se respondían con el cajón de filtros, tres
-             gestos y saber qué campo mirar; aquí son un botón.
-
-             Reabiertos no es un tercer estado —esos planes siguen en curso— y
-             por eso va aparte y no dentro de los otros dos: son los únicos cuyo
-             documento cambió DESPUÉS de darse por terminado, y ese es el grupo
-             que hay que poder enseñar entero. -->
-        <div class="wp-views" role="group" :aria-label="$t('work_plans.views_label')">
-            <button
-                v-for="v in vistasDeEstado"
-                :key="v.key"
-                type="button"
-                class="wp-views__btn"
-                :class="{ 'is-on': vistaActiva === v.key }"
-                :aria-pressed="vistaActiva === v.key"
-                @click="verVista(v.key)"
-            >{{ v.label }}</button>
-        </div>
-
         <!-- Consola de filtros: búsqueda + builder + controles. -->
         <div class="mi-console mi-console--v2">
             <div v-if="canUsePlanFeature('saved_views')" class="mi-viewsbar" data-tour="saved-views">
@@ -455,9 +446,12 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                     :current-state="currentViewState"
                     :show-favorites="true"
                     :favorites-active="onlyFavorites"
+                    :presets="vistasDeEstado"
+                    :preset-active="vistaActiva"
                     @apply="applySavedState"
                     @default-loaded="applySavedState"
                     @toggle-favorites="toggleOnlyFavorites"
+                    @toggle-preset="verVista"
                 />
             </div>
 
@@ -744,35 +738,6 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
 </template>
 
 <style scoped>
-/* ── Las tres vistas de estado ───────────────────────────────────────────── */
-/* Botones de verdad y no pastillas: esto se pulsa, y algo que se pulsa tiene
-   que parecerlo. Objetivo de 40px de alto, que es lo que pide una tablet con
-   guantes (docs/UI.md §3). */
-.wp-views {
-    display: flex; flex-wrap: wrap; gap: 6px;
-    margin-bottom: 12px;
-}
-.wp-views__btn {
-    min-height: 40px;
-    padding: 0 16px;
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-size: 0.875rem; font-weight: 600;
-    cursor: pointer;
-}
-.wp-views__btn:hover { background: var(--color-surface-hover); }
-/* La activa se distingue por relleno Y por peso, no sólo por color: al sol se
-   pierde el matiz (docs/UI.md §5).
-   Sin respaldos en hexadecimal: los tokens son la fuente y escribir el color a
-   mano al lado es justo lo que vigila `UiStandardTest`. */
-.wp-views__btn.is-on {
-    background: var(--color-primary);
-    border-color: var(--color-primary);
-    color: var(--color-on-primary, #fff);
-}
-
 .page-header {
     display: flex;
     justify-content: space-between;
