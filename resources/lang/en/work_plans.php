@@ -22,6 +22,7 @@ return [
     // ── Fields ──────────────────────────────────────────────────────────────
     'code'                 => 'Code',
     'num_os'               => 'Service order',
+    'num_os_none'          => 'This job has no service order',
     'num_os_help'          => "Customer's service order number.",
     'num_os_placeholder'   => 'E.g.: OS-2024-1187',
     'description'          => 'Work description',

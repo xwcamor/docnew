@@ -62,7 +62,10 @@ class StoreWorkPlanRequest extends FormRequest
                     }
                 },
             ],
-            'num_os'           => ['required', 'string', 'max:255'],
+            // La orden de servicio es OPCIONAL: hay trabajos que entran sin ella —una
+            // emergencia, un correctivo del dia— y exigirla obligaba a inventarse un
+            // numero para poder guardar el plan, que es peor que no tenerlo.
+            'num_os'           => ['nullable', 'string', 'max:255'],
             'description'      => ['required', 'string', 'max:5000'],
             'country_id'       => ['required', 'integer', Rule::exists('countries', 'id')],
             'company_id'       => ['required', 'integer', Rule::exists('companies', 'id')->whereNull('deleted_at')],

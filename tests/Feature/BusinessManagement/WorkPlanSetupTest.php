@@ -104,8 +104,6 @@ class WorkPlanSetupTest extends TestCase
             'work_area_id'     => $this->area()->id,
             'country_id'       => 1,
             'description'      => 'Bobinado AT',
-            // La orden de servicio es obligatoria: decision del dueno del
-            // producto, «la OC si es obligatorio». En la v1 era opcional.
             'num_os'           => 'OS-2026-0001',
             'date_start'       => '2026-08-08 08:00',
         ]);
@@ -116,6 +114,38 @@ class WorkPlanSetupTest extends TestCase
 
         $this->assertNotNull($plan, 'no se creo el plan');
         $respuesta->assertRedirect(route('business_management.work_plans.show', $plan->slug));
+    }
+
+    /**
+     * La orden de servicio es OPCIONAL. El dueño la habia pedido obligatoria y
+     * cambio de opinion mirando la pantalla, que es donde se ve: hay trabajos
+     * que entran sin ella —una emergencia, un correctivo del dia— y exigirla
+     * obligaba a inventarse un numero para poder guardar el plan. Un dato
+     * inventado es peor que un hueco, porque el hueco se puede preguntar.
+     *
+     * La ficha lo dice con todas las letras en vez de dejar un guion: «este
+     * trabajo no tiene orden de servicio».
+     */
+    public function test_un_plan_se_crea_sin_orden_de_servicio(): void
+    {
+        $usuario = $this->supervisor();
+        $usuario->givePermissionTo('work_plans.create');
+        $this->actingAs($usuario);
+
+        $sede = $this->sede();
+
+        $this->post(route('business_management.work_plans.store'), [
+            'company_id'       => $this->empresa()->id,
+            'work_type_id'     => $this->tipoDeTrabajo()->id,
+            'work_location_id' => $sede->id,
+            'workstation_id'   => $this->puestoDeTrabajo($sede)->id,
+            'work_area_id'     => $this->area()->id,
+            'country_id'       => 1,
+            'description'      => 'Correctivo de emergencia',
+            'date_start'       => '2026-08-08 08:00',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertNull(WorkPlan::latest('id')->first()?->num_os);
     }
 
     /**

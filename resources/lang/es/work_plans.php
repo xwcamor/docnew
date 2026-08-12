@@ -22,6 +22,10 @@ return [
     // ── Campos ──────────────────────────────────────────────────────────────
     'code'                 => 'Código',
     'num_os'               => 'Orden de servicio',
+    // Se dice, en vez de esconder el campo o poner un guión: un trabajo sin
+    // orden es una pregunta abierta —¿no la tiene, o no se apuntó?— y un hueco
+    // vacío no la responde.
+    'num_os_none'          => 'Este trabajo no tiene orden de servicio',
     'num_os_help'          => 'Número de la orden de servicio del cliente.',
     'num_os_placeholder'   => 'Ej: OS-2024-1187',
     'description'          => 'Descripción del trabajo',

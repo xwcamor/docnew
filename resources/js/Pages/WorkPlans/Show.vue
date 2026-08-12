@@ -310,8 +310,8 @@ const irAlRepresentante = () => {
             <template #icon><ScheduleOutlined /></template>
             <template #subtitle>
                 <Space :size="6" wrap>
-                    <Tag v-if="isDeleted" color="red" :bordered="false">{{ $t('global.deleted') }}</Tag>
-                    <Tag v-else :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
+                    <Tag v-if="isDeleted" color="red" :bordered="false" class="wp-statetag">{{ $t('global.deleted') }}</Tag>
+                    <Tag v-else :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false" class="wp-statetag">
                         {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
                     </Tag>
                     <!-- El `is_locked` del sistema anterior: el plan se cerró y
@@ -320,20 +320,24 @@ const irAlRepresentante = () => {
                          dos de `is_closed`: la misma cosa contada dos veces. El
                          candado administrativo es otro y lo enseña la barra de
                          acciones. -->
-                    <Tag v-if="workPlan.is_closed" color="gold" :bordered="false">
+                    <Tag v-if="workPlan.is_closed" color="gold" :bordered="false" class="wp-statetag">
                         <LockOutlined /> {{ $t('work_plans.state_closed') }}
                     </Tag>
 
                     <!-- Reabierto: en curso, pero no porque falte algo — porque
                          alguien lo abrio para corregirlo. Se dice quien, que es
                          lo que hay que poder explicar despues. -->
-                    <Tag v-if="reabierto" color="processing" :bordered="false">
+                    <Tag v-if="reabierto" color="processing" :bordered="false" class="wp-statetag">
                         <UnlockOutlined />
                         {{ workPlan.reopened_by
                             ? $t('work_plans.reopened_by', { name: workPlan.reopened_by, when: fmtMoment(workPlan.reopened_at) })
                             : $t('work_plans.state_reopened') }}
                     </Tag>
-                    <span v-if="workPlan.company" class="muted">{{ workPlan.company.name }}</span>
+                    <!-- Aquí iba el nombre de la contratista. Se ha ido: esta
+                         línea es el ESTADO del plan, y la empresa ya está dos
+                         veces más abajo —en el resumen y en la vista larga—.
+                         Metida entre las etiquetas, empujaba lo que sí cambia
+                         y hay que mirar. -->
                 </Space>
             </template>
             <template #actions>
@@ -411,7 +415,16 @@ const irAlRepresentante = () => {
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
                     <template #title>
                         <ScheduleOutlined />
-                        {{ vista === 'summary' ? $t('work_plans.summary_work') : $t('global.general_info') }}
+                        <!-- El titulo es el trabajo que se va a hacer, no la
+                             palabra «El trabajo». Ese texto es lo primero que
+                             se viene a leer y estaba de parrafo suelto debajo,
+                             con una cabecera genérica encima ocupando la línea
+                             que le tocaba. «El trabajo» se queda sólo de
+                             respaldo, para el plan al que nadie le escribió
+                             descripción. -->
+                        {{ vista === 'summary'
+                            ? (workPlan.description || $t('work_plans.summary_work'))
+                            : $t('global.general_info') }}
                     </template>
                     <template #extra>
                         <Segmented
@@ -426,8 +439,9 @@ const irAlRepresentante = () => {
 
                     <!-- Vista por defecto: lo que se necesita de un vistazo. -->
                     <template v-if="vista === 'summary'">
-                        <p class="wp-headline">{{ workPlan.description || $t('work_plans.summary_no_desc') }}</p>
-
+                        <!-- Aquí vivía la descripción, de párrafo suelto y con
+                             «El trabajo» de cabecera justo encima. Ahora es el
+                             título de la tarjeta: es lo mismo dicho una vez. -->
                         <div class="wp-facts">
                             <div class="wp-fact">
                                 <span class="wp-fact__label"><BankOutlined /> {{ $t('work_plans.company') }}</span>
@@ -463,11 +477,17 @@ const irAlRepresentante = () => {
                                     </Tag>
                                 </span>
                             </div>
-                            <!-- La orden de servicio solo cuando existe: un campo
-                                 vacío en la vista corta es ruido. -->
-                            <div v-if="workPlan.num_os" class="wp-fact">
+                            <!-- La orden de servicio SIEMPRE, la haya o no.
+                                 Antes desaparecía cuando estaba vacía, y ese es
+                                 justo el caso en que hay que verla: un trabajo
+                                 sin orden es una pregunta abierta —¿no la
+                                 tiene, o no se apuntó?—, y un hueco que no
+                                 existe no se puede responder. Ahora lo dice. -->
+                            <div class="wp-fact">
                                 <span class="wp-fact__label"><FormOutlined /> {{ $t('work_plans.num_os') }}</span>
-                                <span class="wp-fact__value">{{ workPlan.num_os }}</span>
+                                <span class="wp-fact__value" :class="{ muted: !workPlan.num_os }">
+                                    {{ workPlan.num_os || $t('work_plans.num_os_none') }}
+                                </span>
                             </div>
                         </div>
                     </template>
@@ -484,7 +504,12 @@ const irAlRepresentante = () => {
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.num_os') }}</span>
-                            <span class="spec-cell__value">{{ workPlan.num_os || '—' }}</span>
+                            <!-- Un guión no distingue «no la tiene» de «no se
+                                 apuntó», y aquí sí importa: es el dato con el
+                                 que el cliente reconoce el trabajo. -->
+                            <span class="spec-cell__value" :class="{ muted: !workPlan.num_os }">
+                                {{ workPlan.num_os || $t('work_plans.num_os_none') }}
+                            </span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.company') }}</span>
@@ -715,11 +740,8 @@ const irAlRepresentante = () => {
 }
 
 /* ── Resumen: el trabajo ─────────────────────────────────────────────────── */
-.wp-headline {
-    margin: 0 0 16px;
-    font-size: 1.25rem; line-height: 1.35; font-weight: 600;
-    color: var(--color-text-strong, #1f2329);
-}
+/* `.wp-headline` vivía aquí: era el párrafo con la descripción, que ahora es el
+   título de la tarjeta y hereda su estilo. */
 .wp-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
 .wp-fact {
     display: flex; flex-direction: column; gap: 4px; min-width: 0;
@@ -739,7 +761,16 @@ const irAlRepresentante = () => {
 .wp-fact__value small { display: block; font-weight: 400; }
 
 /* ── La franja de estado ─────────────────────────────────────────────────── */
-.wp-statetag { font-size: 0.875rem; padding: 4px 12px; }
+/* Esta clase existía y no la usaba nadie: las etiquetas de estado salían con el
+   tamaño por defecto de Ant —12px— justo debajo de un título de 24, y el dato
+   más importante de la ficha acababa siendo el más pequeño de la pantalla. Es
+   lo primero que se mira al abrir un plan: en curso, terminado o cerrado. */
+.wp-statetag {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    line-height: 1.7;
+    padding: 3px 12px;
+}
 
 .wp-bar {
     display: flex; align-items: center; justify-content: space-between;
@@ -808,7 +839,6 @@ const irAlRepresentante = () => {
 /* ── Tablet en vertical y móvil: una columna, nada de scroll horizontal ─── */
 @media (max-width: 768px) {
     .wp-facts { grid-template-columns: 1fr; }
-    .wp-headline { font-size: 1.125rem; }
     .wp-viewswitch { width: 100%; }
     .wp-bar { align-items: stretch; }
     .wp-bar__acts { width: 100%; }
