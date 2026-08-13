@@ -169,12 +169,33 @@ const alternar = (f, valor) => {
                             <!-- Sólo el icono: el de PDF es de los pocos que se
                                  reconocen sin leer, y la palabra al lado
                                  ocupaba en cada fila el sitio que necesita el
-                                 nombre del documento. El tooltip lo nombra. -->
-                            <a :href="route('field_work.forms.pdf', f.submission)">
-                                <Button size="small" :aria-label="$t('work_plans.forms_pdf')">
-                                    <template #icon><FilePdfOutlined /></template>
-                                </Button>
-                            </a>
+                                 nombre del documento. El tooltip lo nombra.
+
+                                 EL ENLACE ES EL BOTÓN, no va dentro de uno.
+                                 Estaba montado como un enlace con un botón
+                                 dentro, que es HTML inválido —contenido
+                                 interactivo anidado dentro de un enlace— y cada
+                                 navegador lo resuelve como quiere: el primer
+                                 clic se lo quedaba el botón, que no hace nada, y
+                                 sólo el segundo activaba el enlace. Se sentía
+                                 como que la primera descarga se colgaba y no
+                                 bajaba nada. `Button` con `href` pinta un `<a>`
+                                 de verdad y el clic va a un sitio solo.
+
+                                 Y en pestaña aparte: el PDF lo genera el
+                                 servidor y navegando en la misma pestaña la
+                                 página se queda congelada mientras tanto. Con
+                                 `Content-Disposition: attachment` la pestaña se
+                                 cierra sola en cuanto llega el archivo. -->
+                            <Button
+                                size="small"
+                                :href="route('field_work.forms.pdf', f.submission)"
+                                target="_blank"
+                                rel="noopener"
+                                :aria-label="$t('work_plans.forms_pdf')"
+                            >
+                                <template #icon><FilePdfOutlined /></template>
+                            </Button>
                         </Tooltip>
 
                         <!-- Lápiz con el plan abierto, ojo con el plan cerrado.

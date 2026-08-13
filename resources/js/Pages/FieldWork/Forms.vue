@@ -36,16 +36,20 @@ const conPdf = (item) => item.submission && item.status === 'confirmed';
                     </a-list-item-meta>
                     <a-tag :color="color[item.status]">{{ etiqueta[item.status] }}</a-tag>
 
-                    <a
+                    <!-- El enlace ES el botón: un botón dentro de un enlace es
+                         HTML inválido y el primer clic se perdía. Ver la nota
+                         larga en WorkPlanFormsCard.vue. -->
+                    <a-button
                         v-if="canExport && conPdf(item)"
-                        :href="route('field_work.forms.pdf', item.submission)"
+                        size="small"
                         class="mr-2"
+                        :href="route('field_work.forms.pdf', item.submission)"
+                        target="_blank"
+                        rel="noopener"
                     >
-                        <a-button size="small">
-                            <template #icon><FilePdfOutlined /></template>
-                            PDF
-                        </a-button>
-                    </a>
+                        <template #icon><FilePdfOutlined /></template>
+                        PDF
+                    </a-button>
 
                     <Link :href="route('field_work.forms.open', [plan.slug, item.slug])">
                         <a-button type="primary" size="small">Abrir</a-button>

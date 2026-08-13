@@ -34,8 +34,11 @@
         .rm-tabla th.rm-c-sev     { width: 11%; }
         .rm-tabla th.rm-c-nivel   { width: 10%; }
 
-        .rm-tabla th { text-align: center; }
-        .rm-tabla th.rm-c-peligro, .rm-tabla th.rm-c-riesgo, .rm-tabla th.rm-c-control { text-align: left; }
+        /* Centradas, como en todo el documento: el rotulo es el sombrero de la
+           columna y no la primera fila de datos. Las tres de texto largo
+           —peligro, riesgo, control— tambien, aunque su contenido vaya a la
+           izquierda: mezclar las dos alineaciones en la misma cabecera es lo
+           que hacia que la tabla se viera torcida. */
 
         /* Una fila partida entre dos páginas deja el peligro arriba y su
            control abajo, que es exactamente el error que este formato viene a

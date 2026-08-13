@@ -92,12 +92,19 @@ class FormSubmissionPdfTest extends TestCase
 
         $texto = $this->textoDelPdf($pdf);
 
-        // 1 · Membrete: la marca, el TITULO del formato y el descargo. La
-        // direccion del workspace ya no sale —el sitio que importa en un
-        // formato de obra es donde se hizo el trabajo, y ese va en la cabecera
-        // del plan— y el titulo es el NOMBRE del documento, no su sigla: en la
-        // esquina salia «AST» y el nombre completo no aparecia en ningun sitio.
-        $this->assertStringContainsString('Contratistas del Sur', $texto);
+        // 1 · Membrete: la marca, el TITULO del formato y el descargo.
+        //
+        // Este workspace tiene logo, asi que el NOMBRE no se imprime: el logo
+        // ya dice de quien es el documento —para eso se sube— y repetirlo
+        // debajo es decirlo dos veces en la esquina donde menos sitio hay. El
+        // caso sin logo tiene su propia prueba.
+        //
+        // La direccion tampoco: el sitio que importa en un formato de obra es
+        // donde se hizo el trabajo, y ese va en la cabecera del plan.
+        //
+        // Y el titulo es el NOMBRE del documento, no su sigla: en la esquina
+        // salia «AST» y el nombre completo no aparecia en ningun sitio.
+        $this->assertStringNotContainsString('Contratistas del Sur', $texto);
         $this->assertStringNotContainsString('Av. Los Talleres 120', $texto);
         $this->assertStringContainsString('Su validez depende de las firmas', $texto);
         $this->assertStringContainsString('ANALISIS DE SEGURIDAD EN EL TRABAJO', $texto);
@@ -511,6 +518,29 @@ class FormSubmissionPdfTest extends TestCase
         foreach ($datos['firmas']['aprobadores'] as $firma) {
             $this->assertNotNull($firma['rol'], 'un aprobador sin rol no dice quien autorizo el trabajo');
         }
+    }
+
+    /**
+     * Sin logo, el membrete lleva el nombre del workspace.
+     *
+     * Es la otra mitad de la regla: el logo manda, pero un workspace que
+     * todavia no ha subido ninguno no puede sacar el membrete en blanco.
+     */
+    public function test_sin_logo_el_membrete_dice_el_nombre(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+        app()->setLocale('es');
+
+        $escenario = $this->escenario();
+
+        \App\Models\Tenant::withoutGlobalScopes()->where('id', 1)->update(['logo' => null]);
+
+        $texto = $this->textoDelPdf(
+            app(FormSubmissionPdfService::class)->generar($escenario['entrega'], $escenario['usuario'])->output(),
+        );
+
+        $this->assertStringContainsString('Contratistas del Sur', $texto);
     }
 
     /**

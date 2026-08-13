@@ -64,9 +64,11 @@
     .pc-legend__n { font-weight: bold; color: #1F3B57; }
 
     /* La cuadrícula aprieta: con veinticinco ítems son veintinueve columnas
-       incluso en horizontal. De ahí el cuerpo a 7pt y las marcas centradas. */
-    table.data.pc-matrix thead th { text-align: center; padding: 3px 2px; }
-    table.data.pc-matrix thead th.pc-h { text-align: left; padding: 4px 6px; }
+       incluso en horizontal. De ahí el cuerpo a 7pt. Las cabeceras van
+       centradas como en todo el documento; aquí sólo se aprieta el relleno, que
+       con veinticinco columnas es lo que decide si entran o no. */
+    table.data.pc-matrix thead th { padding: 3px 2px; }
+    table.data.pc-matrix thead th.pc-h { padding: 4px 6px; }
     table.data.pc-matrix tbody td { font-size: 7pt; vertical-align: middle; }
     table.data.pc-matrix tbody td.pc-cell { text-align: center; padding: 3px 2px; }
 

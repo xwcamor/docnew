@@ -61,8 +61,13 @@
         table.kv td.k { background: #EEF2F6; font-weight: bold; width: 22%; color: #46596B; }
 
         table.data { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
+        /* Cabeceras centradas. Iban a la izquierda, alineadas con el texto de
+           su columna, y en una tabla de columnas estrechas —«Nº», «1», «10»,
+           «Hora»— el rótulo quedaba pegado al borde izquierdo con el hueco
+           entero a la derecha. Centrado, cada rótulo se lee como el sombrero de
+           su columna y no como la primera fila de datos. */
         table.data thead th { background: #EEF2F6; color: #1F3B57; font-weight: bold; font-size: 8pt;
-                              text-align: left; padding: 4px 6px; border: 1px solid #C9D3DC;
+                              text-align: center; padding: 4px 6px; border: 1px solid #C9D3DC;
                               border-bottom: 1.5px solid #1F3B57; }
         table.data tbody td { padding: 4px 6px; border: 1px solid #C9D3DC; font-size: 8pt; }
         /* Sin filas alternas. Un AST de quince peligros con la mitad de las
@@ -97,7 +102,8 @@
            tabla para que no se quede huerfano al pie de una pagina. Se pinta
            como un subtitulo, no como una cabecera de columna. */
         table.data.firmas thead th.firmas__grupo { background: #ffffff; color: #1F3B57;
-            font-size: 8.5pt; border: none; border-bottom: none; padding: 6px 0 3px 0; }
+            font-size: 8.5pt; text-align: left; border: none; border-bottom: none;
+            padding: 6px 0 3px 0; }
         /* Y el grupo entero no se parte si cabe: con dos o tres firmas —lo
            normal— evita que el rotulo se quede al pie de una pagina y la tabla
            empiece en la siguiente. Cuando NO cabe, DomPDF parte igual y ahi es
@@ -171,11 +177,17 @@
      obra es donde se hizo el trabajo, y ese va en la cabecera del plan. --}}
 <table class="letterhead">
     <tr>
+        {{-- El logo O el nombre, nunca los dos. Un logo YA dice de quién es el
+             documento —para eso se sube— y repetir el nombre debajo es decirlo
+             dos veces en la esquina donde menos sitio hay. El nombre se queda
+             como reserva de quien todavía no ha subido logo, que es la única
+             manera de que ese membrete no salga en blanco. --}}
         <td class="letterhead__brand">
             @if (!empty($membrete['logo']))
-                <img src="{{ $membrete['logo'] }}" alt=""><br>
+                <img src="{{ $membrete['logo'] }}" alt="{{ $membrete['nombre'] }}">
+            @else
+                <span class="letterhead__org">{{ $membrete['nombre'] }}</span>
             @endif
-            <span class="letterhead__org">{{ $membrete['nombre'] }}</span>
         </td>
         <td class="letterhead__title">
             <h1>{{ $formato['nombre'] ?: __('form_submissions.pdf.title') }}</h1>

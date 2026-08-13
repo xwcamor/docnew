@@ -61,10 +61,11 @@
     .tc-legend td { padding: 2px 6px; border: 1px solid #C9D3DC; font-size: 7.5pt; vertical-align: top; }
     .tc-legend__n { font-weight: bold; color: #1F3B57; }
 
-    /* La matriz aprieta: con diez puntos de inspección hay dieciséis columnas
-       en A4 vertical. De ahí el cuerpo a 7pt y los rótulos alineados al centro. */
-    table.data.tc-matrix thead th { text-align: center; }
-    table.data.tc-matrix thead th.tc-h { text-align: left; }
+    /* La matriz aprieta: con diez puntos de inspección hay dieciséis columnas.
+       De ahí el cuerpo a 7pt. Las cabeceras van centradas en todo el documento
+       y aquí tampoco se excepciona la de la herramienta: una tabla con un
+       rótulo a la izquierda y quince centrados se lee desalineada. */
+    table.data.tc-matrix thead th.tc-h { padding: 4px 6px; }
     table.data.tc-matrix tbody td { font-size: 7pt; vertical-align: middle; }
     table.data.tc-matrix tbody td.tc-tool { font-size: 7.5pt; }
 

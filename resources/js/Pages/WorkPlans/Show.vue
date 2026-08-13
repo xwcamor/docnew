@@ -351,12 +351,18 @@ const irAlRepresentante = () => {
                      Sale sólo cuando hay algo que bajar: sin ningún formato
                      confirmado el ZIP saldría vacío. -->
                 <Tooltip v-if="fieldWork.canExport && hayConfirmados" :title="$t('work_plans.export_zip_hint')">
-                    <a :href="route('field_work.forms.zip', workPlan.slug)">
-                        <Button>
-                            <template #icon><DownloadOutlined /></template>
-                            {{ $t('work_plans.export_zip') }}
-                        </Button>
-                    </a>
+                    <!-- El enlace ES el botón: un botón dentro de un enlace es
+                         HTML inválido y el primer clic se perdía. La nota larga
+                         está en WorkPlanFormsCard.vue, que tenía el mismo
+                         fallo. -->
+                    <Button
+                        :href="route('field_work.forms.zip', workPlan.slug)"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        <template #icon><DownloadOutlined /></template>
+                        {{ $t('work_plans.export_zip') }}
+                    </Button>
                 </Tooltip>
 
                 <EntityShowActions
