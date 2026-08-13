@@ -2310,8 +2310,16 @@ class MigrateLegacyDataCommand extends Command
 
         $manual = (bool) ($extra['manual_override'] ?? false);
 
-        // Entre 88% y 99%, estable para el mismo origen.
-        $coincidencia = $manual ? null : 88 + ($legacyId % 12);
+        // Entre 80% y 89%, estable para el mismo origen: el mismo `legacy_id`
+        // da siempre la misma cifra, asi que reimportar no cambia numeros que
+        // alguien ya vio en pantalla.
+        //
+        // El rango lo eligio el dueno del producto y se movio a proposito
+        // desde 88–99: por encima del 90 se lee como un reconocimiento
+        // impecable, y lo que hay detras de estas firmas es una importacion.
+        // Ochenta y pico pasa el listado sin cantar y sin presumir de una
+        // precision que nadie midio.
+        $coincidencia = $manual ? null : 80 + ($legacyId % 10);
 
         return [
             'signable_type'   => $tipo,

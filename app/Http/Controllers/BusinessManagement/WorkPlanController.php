@@ -547,9 +547,11 @@ class WorkPlanController extends Controller
                     'ip'              => $e->ip_address,
                     'user_agent'      => $e->user_agent,
                     'device_id'       => $e->device_id,
-                    'coords'          => $e->latitude !== null && $e->longitude !== null
-                        ? round((float) $e->latitude, 5) . ', ' . round((float) $e->longitude, 5)
-                        : null,
+                    // Las coordenadas van en numero, no solo en texto: la ficha
+                    // pinta un mapa con ellas. El texto se sigue enseñando
+                    // debajo, que es lo que se copia y se pega en un informe.
+                    'latitude'        => $e->latitude === null ? null : round((float) $e->latitude, 6),
+                    'longitude'       => $e->longitude === null ? null : round((float) $e->longitude, 6),
                     'override_reason' => $e->override_reason,
                 ] : null,
             ]);

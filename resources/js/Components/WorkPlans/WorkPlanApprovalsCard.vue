@@ -11,7 +11,7 @@ import {
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
-import SignerFacePopover from '@/Components/WorkPlans/SignerFacePopover.vue';
+import SignerFaceModal from '@/Components/WorkPlans/SignerFaceModal.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
@@ -326,7 +326,7 @@ const firmar = (a) => router.get(
                     <!-- La cara y el rastro de la firma. Faltaba aquí, y es de
                          quien más interesa saber que estuvo: el servidor ni
                          siquiera mandaba la URL para las aprobaciones. -->
-                    <SignerFacePopover
+                    <SignerFaceModal
                         v-if="a.signed"
                         :face-url="a.face_url"
                         :signature="a.signature"

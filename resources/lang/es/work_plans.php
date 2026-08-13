@@ -218,6 +218,11 @@ return [
     'sign_audit_coords'    => 'Dónde',
     'sign_audit_browser'   => 'Navegador',
     'sign_audit_reason'    => 'Motivo de la firma manual',
+    // El dato en crudo detrás del resumen: el user-agent entero y el UUID
+    // completo del aparato. Ilegibles, y a la vez lo único que vale si un
+    // día hay que discutir una firma.
+    'sign_audit_full'      => 'ver completo',
+    'sign_audit_map_open'  => 'abrir el mapa',
     'crew_sign_hint'    => 'Firmar por :name con reconocimiento facial',
     'crew_added'    => ':name se añadió al plan.',
     'crew_removed'  => 'El trabajador se quitó del plan.',

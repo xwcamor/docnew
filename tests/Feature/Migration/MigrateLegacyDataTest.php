@@ -811,8 +811,12 @@ class MigrateLegacyDataTest extends TestCase
         $reconocidas = $eventos->where('method', 'face_recognition');
         $porcentajes = $reconocidas->map(fn ($e) => (int) round((1 - (float) $e->match_distance) * 100));
 
-        $this->assertTrue($porcentajes->every(fn ($p) => $p >= 88 && $p <= 99),
-            'el relleno tiene que quedar en la banda alta: ' . $porcentajes->implode(', '));
+        // La banda la eligio el dueno del producto: 80–89, y se bajo desde
+        // 88–99 a proposito. Por encima del 90 se lee como un reconocimiento
+        // impecable, y detras de estas firmas no hay una medicion, hay una
+        // importacion.
+        $this->assertTrue($porcentajes->every(fn ($p) => $p >= 80 && $p <= 89),
+            'el relleno tiene que quedar entre 80 y 89: ' . $porcentajes->implode(', '));
 
         // La manual no lleva porcentaje: no se comparo nada.
         $this->assertNull($eventos->firstWhere('method', 'manual')->match_distance);

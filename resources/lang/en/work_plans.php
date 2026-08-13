@@ -209,6 +209,11 @@ return [
     'sign_audit_coords'    => 'Where',
     'sign_audit_browser'   => 'Browser',
     'sign_audit_reason'    => 'Reason for the manual signature',
+    // The raw value behind the summary: the full user-agent and the full
+    // device UUID. Unreadable, and at the same time the only thing that
+    // counts if a signature is ever disputed.
+    'sign_audit_full'      => 'see full',
+    'sign_audit_map_open'  => 'open the map',
 
     'crew_sign_hint'    => 'Sign for :name with face recognition',
     'crew_added'    => ':name was added to the plan.',

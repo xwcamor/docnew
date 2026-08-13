@@ -251,6 +251,54 @@ class FirmaEnLaFichaTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('approvals.0.signature.used_ai', false));
     }
 
+    /**
+     * Las coordenadas viajan en numero, no solo en texto.
+     *
+     * La ficha las pinta en un mapa, y un mapa no se arma con la cadena
+     * «-12.046374, -77.042793». El texto se sigue componiendo en la pantalla
+     * —es lo que se copia a un informe— pero el dato que se manda es el numero.
+     */
+    public function test_la_ficha_manda_las_coordenadas_para_el_mapa(): void
+    {
+        $plan = $this->plan();
+        $aprobacion = $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
+
+        SignatureEvent::where('signable_id', $aprobacion->id)->update([
+            'latitude' => -12.046374, 'longitude' => -77.042793,
+            'device_id' => '6f1c9a2e-4b77-4c31-9a0d-77f2b1c0e5aa',
+            'user_agent' => 'Mozilla/5.0 (Linux; Android 13) Chrome/126.0.0.0 Mobile Safari/537.36',
+        ]);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('approvals.0.signature.audit.latitude', -12.046374)
+                ->where('approvals.0.signature.audit.longitude', -77.042793)
+                // El aparato y el navegador van ENTEROS. La pantalla los
+                // resume —«Chrome 126 · Android 13»— y deja el crudo
+                // desplegable detras; recortarlos aqui seria tirar el unico
+                // dato que vale si un dia hay que discutir la firma.
+                ->where('approvals.0.signature.audit.device_id', '6f1c9a2e-4b77-4c31-9a0d-77f2b1c0e5aa')
+                ->where(
+                    'approvals.0.signature.audit.user_agent',
+                    'Mozilla/5.0 (Linux; Android 13) Chrome/126.0.0.0 Mobile Safari/537.36',
+                ));
+    }
+
+    /** Sin ubicacion no hay mapa que pintar, y el resto del rastro sigue igual. */
+    public function test_una_firma_sin_ubicacion_manda_las_coordenadas_en_nulo(): void
+    {
+        $plan = $this->plan();
+        $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('approvals.0.signature.audit.latitude', null)
+                ->where('approvals.0.signature.audit.longitude', null)
+                ->where('approvals.0.signature.verified', true));
+    }
+
     /** La cuadrilla tambien lo lleva: es la misma pregunta en la otra columna. */
     public function test_la_cuadrilla_tambien_dice_como_se_firmo(): void
     {

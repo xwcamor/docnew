@@ -136,4 +136,34 @@ class FirmaDesdeDondeYConQueTest extends TestCase
         $this->assertStringContainsString('onMounted(() => pedirUbicacion())', $pantalla,
             'el permiso de ubicación se pide al abrir la pantalla, no en mitad de la firma');
     }
+
+    /**
+     * El mapa no se pide hasta que alguien abre la ficha de esa firma.
+     *
+     * El recuadro es OpenStreetMap incrustado, y eso significa que el navegador
+     * de quien mira le pide las baldosas a un tercero **con las coordenadas de
+     * la firma dentro de la URL**. Es la contrapartida de tener mapa y se
+     * acepta, pero sólo cuando alguien va a mirarlo: si el iframe se montara
+     * con la pagina, abrir un plan de veinte firmas mandaria fuera veinte
+     * ubicaciones que nadie pidio ver.
+     *
+     * Lo que lo garantiza es el `destroy-on-close` del modal mas el `v-if`: sin
+     * ninguno de los dos, Ant deja el contenido montado.
+     */
+    public function test_el_mapa_solo_se_carga_al_abrir_la_ficha(): void
+    {
+        $ficha = file_get_contents(
+            resource_path('js/Components/WorkPlans/SignerFaceModal.vue'),
+        );
+
+        $this->assertStringContainsString('destroy-on-close', $ficha,
+            'sin destroy-on-close el iframe del mapa queda montado tras cerrar la ventana');
+
+        $this->assertMatchesRegularExpression('/<iframe\s+v-if="mapaUrl"/', $ficha,
+            'el iframe del mapa tiene que colgar de que haya coordenadas');
+
+        // Y las coordenadas siguen escritas debajo: sin internet el recuadro se
+        // queda en blanco y lo que se copia a un informe tiene que seguir ahi.
+        $this->assertStringContainsString('firmante__coords', $ficha);
+    }
 }

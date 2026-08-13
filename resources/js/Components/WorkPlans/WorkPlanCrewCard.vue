@@ -12,7 +12,7 @@ import {
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
-import SignerFacePopover from '@/Components/WorkPlans/SignerFacePopover.vue';
+import SignerFaceModal from '@/Components/WorkPlans/SignerFaceModal.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
@@ -249,7 +249,7 @@ const guardarAlta = () => {
                          cuadrilla es de una contratista que no conoce. La firma
                          trazada NO se enseña aquí ni en ningún otro sitio: sólo
                          se imprime en el PDF. -->
-                    <SignerFacePopover
+                    <SignerFaceModal
                         v-if="fila.signed"
                         :face-url="fila.face_url"
                         :signature="fila.signature"
