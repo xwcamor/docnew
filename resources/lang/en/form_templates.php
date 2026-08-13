@@ -136,6 +136,12 @@ return [
     'move_up'   => 'Move up',
     'move_down' => 'Move down',
 
+    // Checklist groups — see the Spanish file.
+    'group_add'               => 'Add group',
+    'group_name_placeholder'  => 'e.g. Hands',
+    'group_items_placeholder' => 'Pick the points in this group',
+    'group_ungrouped'         => 'Not in any group, printed last: :items',
+
     'list_add'              => 'Add',
     'list_empty'            => 'No entries yet.',
     'list_item_placeholder' => 'Type and press Add',
@@ -184,6 +190,8 @@ return [
         'options'       => 'Options',
         'columns'       => 'Columns',
         'items'         => 'Points to check',
+        // Only the PPE sheet uses them — see the Spanish file.
+        'groups'        => 'Groups',
         'tools'         => 'Tools',
         'questions'     => 'Questions',
         'answers'       => 'Possible answers',

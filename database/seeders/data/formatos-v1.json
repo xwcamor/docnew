@@ -443,6 +443,73 @@
       "P3",
       "p4",
       "p5"
+    ],
+    "epp_grupos": [
+      {
+        "nombre": "Cabeza",
+        "items": [
+          "Casco",
+          "Barbiquejo"
+        ]
+      },
+      {
+        "nombre": "Cara",
+        "items": [
+          "Careta de esmerilar",
+          "Careta para revelado",
+          "Careta de soldar"
+        ]
+      },
+      {
+        "nombre": "Cuerpo",
+        "items": [
+          "Camisa / Polo",
+          "Pantalon",
+          "Mandil de cuero",
+          "Escarpines de cuero",
+          "Traje anti arco eléctrico"
+        ]
+      },
+      {
+        "nombre": "Ojos",
+        "items": [
+          "Lentes",
+          "Sobrelente"
+        ]
+      },
+      {
+        "nombre": "Manos",
+        "items": [
+          "Guantes de cuero",
+          "Guantes de nitrilo",
+          "Guantes dieléctricos",
+          "Guantes de hilo",
+          "Guantes anti arco eléctrico"
+        ]
+      },
+      {
+        "nombre": "Oídos",
+        "items": [
+          "Tapones auditivos",
+          "Orejeras"
+        ]
+      },
+      {
+        "nombre": "Sist. respiratorio",
+        "items": [
+          "Mascarilla descartable",
+          "Resp. con filtro para polvo",
+          "Resp. con filtro para gases",
+          "Resp. con filtro para humos"
+        ]
+      },
+      {
+        "nombre": "Pies",
+        "items": [
+          "Botines dieléctricos",
+          "Botas de jebe"
+        ]
+      }
     ]
   },
   "matriz": {

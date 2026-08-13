@@ -70,7 +70,9 @@ final class PersonChecklistPdf
     {
         $config = $campo->config ?? [];
         $filas  = self::filas($respuestas);
-        $items  = self::items($config, $filas);
+        // En el orden de los grupos, que es el que hace que cada rotulo de la
+        // cabecera cubra columnas seguidas. Sin grupos es el del catalogo.
+        $items  = self::ordenados($config, self::items($config, $filas));
         $nombres = self::nombresPorPersona($filas);
         $extra  = self::clavesExtra($config);
 
@@ -84,17 +86,123 @@ final class PersonChecklistPdf
             $trabajadores[] = $trabajador;
         }
 
+        $numerados = array_map(
+            fn (int $i, string $texto) => ['numero' => $i + 1, 'texto' => $texto],
+            array_keys($items),
+            $items,
+        );
+
         return [
-            'items' => array_map(
-                fn (int $i, string $texto) => ['numero' => $i + 1, 'texto' => $texto],
-                array_keys($items),
-                $items,
-            ),
+            'items'        => $numerados,
+            // Y cuantas columnas cubre cada rotulo de grupo, para la fila que
+            // va encima de la cuadricula. Vacio = sin grupos, y la cabecera se
+            // queda como en los demas checklists.
+            'grupos'       => self::grupos($config, $items),
             'trabajadores' => $trabajadores,
             'no_conformes' => $noConformes,
             // Que significa cada marca, con las palabras de esta plantilla.
             'leyenda' => Simbolos::leyenda($config['answers'] ?? []),
         ];
+    }
+
+    // ── Los grupos (cabeza, cara, manos…) ───────────────────────────────────
+
+    /**
+     * Los items repartidos en sus grupos, en el orden de los grupos.
+     *
+     * El EPP del sistema anterior agrupaba los equipos por parte del cuerpo
+     * (`epp_categories`) y es la unica de las cuatro listas que lo hace. En una
+     * cuadricula de veinticinco columnas el rotulo de grupo es lo que convierte
+     * una fila de numeros en algo que se recorre: se busca «manos» y se miran
+     * esas cinco, en vez de leer las veinticinco.
+     *
+     * LA AGRUPACION ES UNA VISTA SOBRE `items`, NO OTRA LISTA. `config.items`
+     * sigue siendo el catalogo —es lo que se guarda en cada respuesta y contra
+     * lo que casa la migracion— y `config.groups` solo dice bajo que rotulo va
+     * cada uno. Un item que alguien añada al catalogo y olvide meter en un
+     * grupo sale igual, al final y sin rotulo, en vez de desaparecer.
+     *
+     * Es la misma regla que aplica la pantalla de llenado (`agrupar()` en
+     * `respuestas.js`): el papel y la tablet reparten igual o no se pueden
+     * cotejar.
+     *
+     * @param  array<int, string>  $items  el catalogo, en su orden
+     * @return array<int, array{nombre: ?string, items: array<int, string>}>
+     */
+    protected static function agrupar(array $config, array $items): array
+    {
+        $declarados = is_array($config['groups'] ?? null) ? $config['groups'] : [];
+
+        if ($declarados === []) {
+            return $items === [] ? [] : [['nombre' => null, 'items' => $items]];
+        }
+
+        $disponibles = array_fill_keys($items, true);
+        $grupos = [];
+
+        foreach ($declarados as $grupo) {
+            $suyos = [];
+
+            foreach ((array) ($grupo['items'] ?? []) as $item) {
+                $item = (string) $item;
+
+                // Un item declarado en dos grupos se queda en el primero:
+                // repetirlo pediria dos respuestas para la misma casilla.
+                if (isset($disponibles[$item])) {
+                    $suyos[] = $item;
+                    unset($disponibles[$item]);
+                }
+            }
+
+            if ($suyos !== []) {
+                $nombre = trim((string) ($grupo['name'] ?? ''));
+                $grupos[] = ['nombre' => $nombre !== '' ? $nombre : null, 'items' => $suyos];
+            }
+        }
+
+        $sueltos = array_values(array_filter($items, fn (string $i) => isset($disponibles[$i])));
+
+        if ($sueltos !== []) {
+            $grupos[] = ['nombre' => null, 'items' => $sueltos];
+        }
+
+        return $grupos;
+    }
+
+    /**
+     * El catalogo reordenado por grupos: cada rotulo cubre columnas seguidas.
+     *
+     * @param  array<int, string>  $items
+     * @return array<int, string>
+     */
+    protected static function ordenados(array $config, array $items): array
+    {
+        return array_merge(...array_column(self::agrupar($config, $items), 'items')) ?: [];
+    }
+
+    /**
+     * Cuantas columnas cubre cada rotulo, para el `colspan` de la cabecera.
+     *
+     * Devuelve vacio cuando no hay ni un rotulo —el caso de los demas
+     * checklists— y asi la plantilla no pinta una fila de grupos en blanco.
+     *
+     * @param  array<int, string>  $items
+     * @return array<int, array{nombre: ?string, columnas: int}>
+     */
+    protected static function grupos(array $config, array $items): array
+    {
+        $grupos = self::agrupar($config, $items);
+
+        $hayRotulos = array_filter($grupos, fn (array $g) => $g['nombre'] !== null) !== [];
+
+        if (! $hayRotulos) {
+            return [];
+        }
+
+        return array_map(
+            fn (array $g) => ['nombre' => $g['nombre'], 'columnas' => count($g['items'])],
+            $grupos,
+        );
     }
 
     // ── Las filas guardadas ─────────────────────────────────────────────────

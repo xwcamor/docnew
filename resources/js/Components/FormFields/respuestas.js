@@ -130,3 +130,57 @@ export function catalogo(config, ...claves) {
 
     return [];
 }
+
+/**
+ * Los items de un checklist repartidos en sus grupos.
+ *
+ * El EPP del sistema anterior agrupaba los equipos por parte del cuerpo —cabeza,
+ * cara, manos, oidos, vias respiratorias, pies— con una fila de cabecera por
+ * grupo (`epp_categories`). Es la unica de las cuatro listas que se agrupa, y
+ * no es decoracion: veinticinco items seguidos se recorren leyendo uno a uno,
+ * y agrupados se recorren mirando la parte del cuerpo que interesa.
+ *
+ * LA AGRUPACION ES UNA VISTA SOBRE `items`, NO OTRA LISTA.
+ *
+ * `config.items` sigue siendo EL catalogo: es lo que se guarda en cada
+ * respuesta, lo que alinea las columnas del PDF y contra lo que casa la
+ * migracion. `config.groups` solo dice bajo que rotulo va cada uno. Asi las dos
+ * cosas no pueden contradecirse: un item que alguien añada al catalogo y olvide
+ * meter en un grupo aparece igual —al final, sin rotulo— en vez de desaparecer
+ * de la pantalla, que es lo que pasaria si el grupo mandara.
+ *
+ * Sin `groups` devuelve un unico grupo sin nombre con todo dentro, que es
+ * exactamente como se pintaba antes de que esto existiera.
+ *
+ * @param {string[]} items   catalogo del campo, en su orden
+ * @param {Array}    groups  [{ name, items: [...] }]
+ * @returns {Array<{name: string|null, items: string[]}>}
+ */
+export function agrupar(items, groups) {
+    const todos = Array.isArray(items) ? items.map(String) : [];
+    const declarados = Array.isArray(groups) ? groups : [];
+
+    if (! declarados.length) return todos.length ? [{ name: null, items: todos }] : [];
+
+    const disponibles = new Set(todos);
+    const grupos = [];
+
+    for (const grupo of declarados) {
+        const suyos = (Array.isArray(grupo?.items) ? grupo.items : [])
+            .map(String)
+            .filter((x) => disponibles.has(x));
+
+        // Un item declarado en dos grupos se queda en el primero: repetirlo
+        // pediria dos respuestas para la misma casilla.
+        suyos.forEach((x) => disponibles.delete(x));
+
+        if (suyos.length) grupos.push({ name: String(grupo?.name ?? '') || null, items: suyos });
+    }
+
+    // Lo que no reclamo ningun grupo, al final y sin rotulo.
+    const sueltos = todos.filter((x) => disponibles.has(x));
+
+    if (sueltos.length) grupos.push({ name: null, items: sueltos });
+
+    return grupos;
+}

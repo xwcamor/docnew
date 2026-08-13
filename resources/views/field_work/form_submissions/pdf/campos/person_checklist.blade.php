@@ -37,6 +37,7 @@
     $datos = $campo['datos'] ?? [];
     $trabajadores = $datos['trabajadores'] ?? [];
     $items = $datos['items'] ?? [];
+    $grupos = $datos['grupos'] ?? [];
 
     /* La marca de cada celda y su color. `sin` —nadie respondió ese ítem— cae al
        interrogante, que es lo que hay que distinguir de un «no aplica»: uno es
@@ -71,6 +72,16 @@
     table.data.pc-matrix thead th.pc-h { padding: 4px 6px; }
     table.data.pc-matrix tbody td { font-size: 7pt; vertical-align: middle; }
     table.data.pc-matrix tbody td.pc-cell { text-align: center; padding: 3px 2px; }
+
+    /* La fila de grupos: mismo azul que la barra de bloque, para que se lea
+       como un piso por encima de los números y no como otra fila de columnas.
+       Las divisorias verticales son lo que hace visible dónde acaba un grupo y
+       empieza el siguiente, así que se marcan a los lados y no abajo. */
+    table.data.pc-matrix thead th.pc-group {
+        background: #1F3B57; color: #ffffff; font-size: 7pt; font-weight: bold;
+        text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 2px;
+        border: 1px solid #ffffff; border-bottom: none;
+    }
 
     .pc-num    { width: 16px; text-align: center; color: #63748A; }
     .pc-worker { font-size: 7.5pt; }
@@ -128,6 +139,23 @@
 
     <table class="data pc-matrix">
         <thead>
+            {{-- Los grupos, encima de sus columnas: cabeza, cara, cuerpo, ojos,
+                 manos, oídos, vías respiratorias, pies. Es lo que convierte una
+                 fila de veinticinco números en algo que se recorre — se busca
+                 «manos» y se miran esas cinco, en vez de leer las veinticinco.
+
+                 Sólo si el formato los declara: los demás checklists no tienen
+                 grupos y `PersonChecklistPdf` devuelve la lista vacía. --}}
+            @if (!empty($grupos))
+                <tr>
+                    <th class="pc-num"></th>
+                    <th class="pc-h"></th>
+                    @foreach ($grupos as $grupo)
+                        <th class="pc-group" colspan="{{ $grupo['columnas'] }}">{{ $grupo['nombre'] }}</th>
+                    @endforeach
+                    <th></th>
+                </tr>
+            @endif
             <tr>
                 <th class="pc-num">{{ __('form_submissions.pdf.person_checklist.number') }}</th>
                 <th class="pc-h">{{ __('form_submissions.pdf.person_checklist.worker') }}</th>

@@ -36,7 +36,8 @@ import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
 import {
-    catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
+    agrupar, catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaPositiva,
+    textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -58,6 +59,24 @@ const config = computed(() => props.field?.config ?? {});
 const items = computed(() => catalogo(config.value, 'items'));
 const respuestas = computed(() => catalogo(config.value, 'answers'));
 const extras = computed(() => catalogo(config.value, 'extra'));
+
+/**
+ * Los items repartidos por parte del cuerpo: cabeza, cara, manos, oídos…
+ *
+ * Es como estaba el EPP en el sistema anterior (`epp_categories`) y es la única
+ * de las cuatro listas que se agrupa. No es decoración: veinticinco casillas
+ * seguidas se recorren leyendo una a una, y agrupadas se recorren mirando la
+ * parte del cuerpo que interesa — que además es como el trabajador se revisa a
+ * sí mismo, de arriba abajo.
+ *
+ * `agrupar()` es una VISTA sobre `items`, no otra lista: sin `config.groups`
+ * devuelve un solo grupo sin rótulo con todo dentro, que es exactamente como se
+ * pintaba antes. Así los otros checklists no cambian.
+ */
+const grupos = computed(() => agrupar(items.value, config.value?.groups));
+
+/** ¿Hay rótulos que pintar, o es la lista de siempre? */
+const conGrupos = computed(() => grupos.value.some((g) => g.name));
 
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo } =
     usePlegado(`epp-${props.field?.id ?? 'x'}`);
@@ -131,6 +150,18 @@ function cambiarExtra(indice, clave, valor) {
 }
 
 const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length}`;
+
+/**
+ * La respuesta de cada item, por nombre.
+ *
+ * Los grupos pintan los items en SU orden, que no tiene por qué ser el de
+ * `fila.items` —el catálogo manda ahí y los grupos son una vista— así que no
+ * vale con recorrer por posición. Un mapa por fila y se acabó; buscar con
+ * `find()` dentro del `v-for` serían 625 recorridos por trabajador.
+ */
+const respuestaPorItem = computed(() => filas.value.map(
+    (fila) => new Map((fila.items ?? []).map((x) => [x.item, x.answer])),
+));
 
 const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [])));
 
@@ -258,14 +289,22 @@ function siguientePendiente(indice) {
             </button>
 
             <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
-                <ul class="ff-items">
-                    <li v-for="x in (fila.items ?? [])" :key="x.item" class="ff-item">
-                        <span class="ff-item__name">{{ x.item }}</span>
-                        <AnswerToggle
-                            :value="x.answer" :answers="respuestas" :readonly="readonly" :label="x.item"
-                            @update:value="responder(i, x.item, $event)" />
-                    </li>
-                </ul>
+                <!-- Por parte del cuerpo, con su rótulo. Sin `config.groups`
+                     sale un único grupo sin nombre con todo dentro: la lista de
+                     siempre, que es lo que siguen viendo los demás checklists. -->
+                <template v-for="grupo in grupos" :key="grupo.name ?? '_'">
+                    <h5 v-if="conGrupos" class="ff-group">{{ grupo.name || $t('field_work.person_checklist.other_group') }}</h5>
+
+                    <ul class="ff-items">
+                        <li v-for="item in grupo.items" :key="item" class="ff-item">
+                            <span class="ff-item__name">{{ item }}</span>
+                            <AnswerToggle
+                                :value="respuestaPorItem[i].get(item) ?? null"
+                                :answers="respuestas" :readonly="readonly" :label="item"
+                                @update:value="responder(i, item, $event)" />
+                        </li>
+                    </ul>
+                </template>
 
                 <!-- Los campos de correccion solo tienen sentido si algo salio mal. -->
                 <section v-if="extras.length && !fila.conforme" class="ff-correction">

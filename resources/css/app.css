@@ -1928,6 +1928,24 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-items--questions .ff-item { border-top: 1px solid var(--color-border-soft, #f0f0f0); }
 .ff-items--questions .ff-item:first-child { border-top: 0; }
 
+/* Rotulo de grupo del EPP: cabeza, cara, manos, oidos, pies.
+   Es un separador y no un titulo de seccion: pequeño y en mayusculas para que
+   se lea como el sombrero de las casillas que lleva debajo y no compita con el
+   nombre del trabajador, que es lo que manda en la tarjeta. */
+.ff-group {
+    margin: 0;
+    padding: 8px 12px 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-muted, #6A6D70);
+    background: var(--color-bg-subtle, #FAFBFC);
+    border-top: 1px solid var(--color-border-soft, #f0f0f0);
+}
+/* Justo debajo de un rotulo la linea sobra: ya separa el propio rotulo. */
+.ff-group + .ff-items .ff-item:first-child { border-top: 0; }
+
 /* ── Botones de respuesta ────────────────────────────────────────────────── */
 .ff-answers { display: flex; gap: 6px; flex-shrink: 0; }
 .ff-answer {

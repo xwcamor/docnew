@@ -374,6 +374,22 @@ class FormTemplatesSeeder extends Seeder
                             'label_es' => 'EPP por trabajador', 'label_en' => 'PPE per worker',
                             'config' => [
                                 'items'   => $this->cat['epp'],
+                                // Los equipos, repartidos por parte del cuerpo,
+                                // que es como estaban en la v1
+                                // (`epp_categories`) y como se revisa uno a si
+                                // mismo: de la cabeza a los pies. Es el UNICO
+                                // formato con grupos, y por eso `groups` es
+                                // opcional en el tipo de campo.
+                                //
+                                // Es una VISTA sobre `items`, no otra lista: el
+                                // catalogo sigue siendo `items` —es lo que se
+                                // guarda en cada respuesta y lo que alinea las
+                                // columnas del PDF— y esto solo dice bajo que
+                                // rotulo va cada uno. Un equipo que alguien
+                                // añada al catalogo y olvide meter en un grupo
+                                // sale igual, al final y sin rotulo, en vez de
+                                // desaparecer de la pantalla.
+                                'groups'  => $this->gruposDeEpp(),
                                 // 1 conforme, 2 no conforme, 0 no aplica en la v1.
                                 // Se guarda la etiqueta y nunca el numero: si se
                                 // guardara la posicion, reordenar la lista
@@ -393,6 +409,34 @@ class FormTemplatesSeeder extends Seeder
                 ],
             ],
         ];
+    }
+
+    /**
+     * Los grupos del EPP, del catalogo que viaja en el repositorio.
+     *
+     * DOS COSAS QUE HAY QUE SABER DE ESTOS DATOS
+     * ------------------------------------------
+     * 1. En la v1 los grupos son `epp_categories`, una tabla con su pantalla de
+     *    mantenimiento. Aqui no hay tabla nueva: es configuracion de un campo
+     *    del motor, editable desde el editor de formatos como el resto.
+     *
+     * 2. El seed de la v1 tiene un ERROR en tres de los veinticinco equipos:
+     *    «Mandil de cuero», «Escarpines de cuero» y «Traje anti arco electrico»
+     *    estan en la categoria 4, que es «Ojos». Un mandil no es proteccion
+     *    ocular; lo que paso es que alguien corrio el limite de la categoria
+     *    tres al copiar la lista. Aqui van en «Cuerpo», que es donde tienen
+     *    sentido. Se dice por escrito para que nadie lo «corrija» de vuelta
+     *    comparando con la base vieja, y porque si el cliente prefiere lo otro
+     *    es una linea del JSON.
+     *
+     * @return array<int, array{name: string, items: array<int, string>}>
+     */
+    protected function gruposDeEpp(): array
+    {
+        return array_map(
+            fn (array $grupo) => ['name' => $grupo['nombre'], 'items' => $grupo['items']],
+            $this->cat['epp_grupos'] ?? [],
+        );
     }
 
     /** IHM — inspeccion de herramientas manuales y electricas portatiles. */

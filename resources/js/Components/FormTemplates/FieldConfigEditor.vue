@@ -20,6 +20,7 @@
 import { computed } from 'vue';
 import { InputNumber, Input } from 'ant-design-vue';
 import StringListEditor from './StringListEditor.vue';
+import GroupListEditor from './GroupListEditor.vue';
 
 const props = defineProps({
     // [{ key, label, control: 'list'|'number'|'text', required }]
@@ -67,6 +68,17 @@ function lista(clave) {
             <StringListEditor
                 v-if="item.control === 'list'"
                 :model-value="lista(item.key)"
+                :disabled="disabled"
+                @update:model-value="fijar(item.key, $event)"
+            />
+
+            <!-- Los grupos no son textos sueltos: cada uno lleva rótulo y su
+                 propia lista, que se elige del catálogo del campo. Con el
+                 editor de listas se guardarían como «[object Object]». -->
+            <GroupListEditor
+                v-else-if="item.control === 'groups'"
+                :model-value="Array.isArray(modelValue?.[item.key]) ? modelValue[item.key] : []"
+                :items="lista('items')"
                 :disabled="disabled"
                 @update:model-value="fijar(item.key, $event)"
             />

@@ -425,7 +425,11 @@ class FormTemplateController extends Controller
      * respuestas propias sale en la tablet con las de otro formato.
      */
     protected const CONFIG_OPCIONAL = [
-        'person_checklist' => ['answers', 'extra'],
+        // `groups` es solo del EPP: reparte los equipos por parte del cuerpo
+        // (cabeza, cara, manos…) como hacia `epp_categories` en la v1. Es
+        // OPCIONAL a proposito — los otros checklists no agrupan nada, y el
+        // EPP de un cliente que no quiera grupos se pinta igual que antes.
+        'person_checklist' => ['answers', 'extra', 'groups'],
         'tool_checklist'   => ['tools', 'answers', 'extra'],
         'risk_matrix'      => ['activities', 'dangers', 'risks', 'controls'],
         'question_bank'    => ['answers'],
@@ -498,6 +502,14 @@ class FormTemplateController extends Controller
      */
     protected function controlDeClave(string $clave): string
     {
+        // Los grupos NO son una lista de textos: cada uno tiene rotulo y su
+        // propia lista dentro. Con el control de lista se guardarian como
+        // «[object Object]» y el reparto del EPP se perderia al primer guardado
+        // desde la pantalla, sin avisar.
+        if ($clave === 'groups') {
+            return 'groups';
+        }
+
         if (in_array($clave, ['min', 'max', 'decimals', 'max_files'], true)) {
             return 'number';
         }

@@ -148,6 +148,13 @@ return [
     'move_up'   => 'Subir',
     'move_down' => 'Bajar',
 
+    // Grupos de un checklist. Hoy sólo el EPP: reparte los equipos por parte
+    // del cuerpo, como `epp_categories` en el sistema anterior.
+    'group_add'               => 'Añadir grupo',
+    'group_name_placeholder'  => 'ej: Manos',
+    'group_items_placeholder' => 'Elige los puntos de este grupo',
+    'group_ungrouped'         => 'Sin grupo, se imprimen al final: :items',
+
     'list_add'              => 'Añadir',
     'list_empty'            => 'Sin elementos todavía.',
     'list_item_placeholder' => 'Escribe y pulsa Añadir',
@@ -200,6 +207,10 @@ return [
         'options'       => 'Opciones',
         'columns'       => 'Columnas',
         'items'         => 'Puntos a revisar',
+        // Solo el EPP los usa: agrupa los equipos por parte del cuerpo, como
+        // en el sistema anterior. Es una vista sobre «Puntos a revisar», no
+        // otra lista — lo que no se meta en un grupo sale igual, al final.
+        'groups'        => 'Grupos',
         'tools'         => 'Herramientas',
         'questions'     => 'Preguntas',
         'answers'       => 'Respuestas posibles',
