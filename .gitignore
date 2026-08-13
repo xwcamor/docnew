@@ -47,3 +47,4 @@ __pycache__/
 
 # Artefactos temporales de las exportaciones a Excel.
 /storage/framework/cache/laravel-excel
+storage/app/muestras-pdf/
