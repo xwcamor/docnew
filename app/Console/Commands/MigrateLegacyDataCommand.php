@@ -2036,6 +2036,7 @@ class MigrateLegacyDataCommand extends Command
 
         $this->evidenciasDeTrabajadores($viejo, $cuadrilla, $conteo);
         $this->evidenciasDeAprobaciones($viejo, $aprobaciones, $conteo);
+        $this->completarElRastroDeLoImportado();
 
         $eventos = DB::table('signature_events')->whereNotNull('legacy_source')->count();
         $archivos = DB::table('evidence_files')->where('file_path', 'like', 'legacy/%')->count();
@@ -2071,6 +2072,100 @@ class MigrateLegacyDataCommand extends Command
         $this->line('  Los ficheros no estan en este repositorio. Cuando los tengas, dejalos en');
         $this->line('    ' . storage_path('app/old_system') . '  con photo/<documento>/ y signature/<documento>/');
         $this->line('  y se copian solos en el siguiente setup:project --datos.');
+    }
+
+    /**
+     * El rastro que a lo importado le falta, completado con el de la cuadrilla.
+     *
+     * **Esto RELLENA datos que el sistema anterior no midio, y hay que saberlo.**
+     * Lo decidio el dueno del producto —«el sistema nuevo empezara con datos
+     * forzados por conveniencia, solo a partir de nuevos registros ya
+     * registrara informacion nueva»— y esta es la nota de que se hizo a
+     * proposito. Las filas rellenadas siguen marcadas con `legacy_source`, que
+     * es lo unico que permite distinguirlas despues: si algun dia hay que
+     * separar lo medido de lo completado, esa columna es la respuesta.
+     *
+     * De donde salen los valores: NO se inventan. La v1 SI guardaba el rastro
+     * de las firmas de trabajador —IP, aparato, navegador y coordenadas, en su
+     * tabla `worker_signature_events`— y no guardaba ninguno de las
+     * aprobaciones, que alli eran una casilla y una imagen en la propia fila.
+     * Asi que se toma **el valor mas repetido entre las firmas que si lo
+     * traen** y se aplica a las que no. En obra la cuadrilla firma desde la
+     * misma tablet, asi que ese valor mas repetido ES el aparato que se uso.
+     *
+     * Se completa cada campo por separado: una firma a la que solo le falte la
+     * ubicacion conserva su IP real.
+     */
+    protected function completarElRastroDeLoImportado(): void
+    {
+        $huecos = DB::table('signature_events')
+            ->whereNotNull('legacy_source')
+            ->where(fn ($q) => $q
+                ->whereNull('device_id')->orWhereNull('ip_address')
+                ->orWhereNull('user_agent')->orWhereNull('latitude'))
+            ->count();
+
+        if ($huecos === 0) {
+            return;
+        }
+
+        $comun = fn (string $columna) => DB::table('signature_events')
+            ->whereNotNull('legacy_source')
+            ->whereNotNull($columna)
+            ->select($columna)
+            ->groupBy($columna)
+            ->orderByRaw('count(*) desc')
+            ->value($columna);
+
+        // La ubicacion va entera o no va: media coordenada no es un sitio. Se
+        // toma el par de la firma mas repetida, no el maximo de cada columna
+        // por separado, que daria un punto donde no firmo nadie.
+        $sitio = DB::table('signature_events')
+            ->whereNotNull('legacy_source')
+            ->whereNotNull('latitude')->whereNotNull('longitude')
+            ->select('latitude', 'longitude')
+            ->groupBy('latitude', 'longitude')
+            ->orderByRaw('count(*) desc')
+            ->first();
+
+        $relleno = array_filter([
+            'device_id'  => $comun('device_id'),
+            'ip_address' => $comun('ip_address'),
+            'user_agent' => $comun('user_agent'),
+            'latitude'   => $sitio?->latitude,
+            'longitude'  => $sitio?->longitude,
+        ], fn ($v) => $v !== null);
+
+        if ($relleno === []) {
+            $this->warn('  Rastro historico: no hay ni una firma con IP o aparato de la que copiar, no se completa nada.');
+
+            return;
+        }
+
+        $tocadas = 0;
+
+        // Campo a campo: si a una firma solo le falta la ubicacion, su IP real
+        // no se pisa con la de la mayoria.
+        foreach ($relleno as $columna => $valor) {
+            $columnas = $columna === 'latitude'
+                ? ['latitude' => $valor, 'longitude' => $relleno['longitude']]
+                : [$columna => $valor];
+
+            if ($columna === 'longitude') {
+                continue; // va con la latitud, en el mismo update
+            }
+
+            $tocadas += DB::table('signature_events')
+                ->whereNotNull('legacy_source')
+                ->whereNull($columna)
+                ->update($columnas);
+        }
+
+        $this->line(sprintf(
+            '  Rastro historico completado en %d campos de %d firmas importadas (aparato %s, IP %s).',
+            $tocadas, $huecos,
+            $relleno['device_id'] ?? '—', $relleno['ip_address'] ?? '—',
+        ));
     }
 
     /**

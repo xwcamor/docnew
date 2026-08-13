@@ -818,6 +818,37 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertTrue($porcentajes->every(fn ($p) => $p >= 80 && $p <= 89),
             'el relleno tiene que quedar entre 80 y 89: ' . $porcentajes->implode(', '));
 
+        // ── El rastro que la v1 no guardo, completado ────────────────────
+        //
+        // La v1 guardaba IP, aparato, navegador y coordenadas SOLO en su tabla
+        // de eventos, y esa tabla colgaba unicamente de las firmas de
+        // trabajador. Lo demas —las aprobaciones, y las firmas de cuadrilla que
+        // se dedujeron de `plan_workers` sin evento, como esta— llegaba a cero.
+        //
+        // Decision del dueño del producto: el sistema arranca con las fichas
+        // llenas y a partir de las firmas nuevas se registra de verdad. Los
+        // valores NO se inventan: se copia el mas repetido entre las firmas que
+        // SI lo traen, porque en obra la cuadrilla firma desde la misma tablet
+        // y ese valor mas repetido es el aparato que se uso. La regla es la
+        // misma venga la fila de donde venga.
+        $sinEvento = $eventos->firstWhere('legacy_source', 'plan_workers');
+
+        $this->assertNotNull($sinEvento, 'la fixture tiene una firma sin evento de origen');
+        $this->assertSame('dev-5528afcf', $sinEvento->device_id);
+        $this->assertSame('190.238.40.88', $sinEvento->ip_address);
+        $this->assertStringContainsString('SamsungBrowser', (string) $sinEvento->user_agent);
+        $this->assertEqualsWithDelta(-12.298051, (float) $sinEvento->latitude, 0.000001);
+        $this->assertEqualsWithDelta(-76.836012, (float) $sinEvento->longitude, 0.000001);
+
+        // Y sigue marcada como importada: es lo unico que despues permite
+        // separar lo que se midio de lo que se completo.
+        $this->assertSame('plan_workers', $sinEvento->legacy_source);
+
+        // El que SI traia rastro propio conserva el suyo, no el de la mayoria:
+        // se completa campo a campo, no la fila entera.
+        $conEvento = $eventos->firstWhere('legacy_source', 'worker_signature_events');
+        $this->assertSame('190.238.40.88', $conEvento->ip_address);
+
         // La manual no lleva porcentaje: no se comparo nada.
         $this->assertNull($eventos->firstWhere('method', 'manual')->match_distance);
 

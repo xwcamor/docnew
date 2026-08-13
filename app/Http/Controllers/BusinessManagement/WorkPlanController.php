@@ -326,10 +326,28 @@ class WorkPlanController extends Controller
                         ->whereIn('signable_id', $aprobaciones))))
                 ->select('id'))
             ->where('kind', \App\Models\EvidenceFile::FACE)
+            // Las filas que apuntan a `legacy/…` son un MARCADOR, no un
+            // archivo: la importacion escribe ahi el nombre que la v1 tenia en
+            // su columna, y el paso `archivos` lo cambia por la ruta real
+            // cuando la foto aparece en la carpeta. Si nunca aparecio, la fila
+            // se queda apuntando a un fichero que no existe.
+            //
+            // Sin esta condicion esa fila ganaba, la ruta no resolvia y la
+            // ficha de la firma se abria con la imagen rota — teniendo la foto
+            // buena de la persona ahi al lado, que es la que se enseña ahora.
+            ->where('file_path', 'not like', 'legacy/%')
             ->latest('id')
             ->first();
 
         $ruta = $evidencia?->file_path ?? $firmas->fotoVigente($person)?->file_path;
+
+        // Y si la evidencia consta en la base pero el fichero se perdio del
+        // disco, tampoco se devuelve un 404 pudiendo enseñar la foto de la
+        // ficha: la pregunta que contesta esta imagen —quien es esta persona—
+        // la contesta igual de bien.
+        if ($ruta !== null && ! \Illuminate\Support\Facades\Storage::disk('local')->exists($ruta)) {
+            $ruta = $firmas->fotoVigente($person)?->file_path;
+        }
 
         abort_if($ruta === null, 404);
         abort_unless(\Illuminate\Support\Facades\Storage::disk('local')->exists($ruta), 404);

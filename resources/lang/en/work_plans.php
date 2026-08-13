@@ -218,7 +218,7 @@ return [
     // system recorded IP, browser, device and coordinates ONLY for worker
     // signatures; an approval was a checkbox and an image, with no trail
     // columns at all. Nothing was lost in the migration: it was never kept.
-    'sign_audit_legacy_gap' => 'Signature brought over from the previous system. That system did not record where or from which device a signature was made, so only the date survives here. New signatures do record it.',
+    'sign_audit_imported'  => 'Imported',
 
     'crew_sign_hint'    => 'Sign for :name with face recognition',
     'crew_added'    => ':name was added to the plan.',

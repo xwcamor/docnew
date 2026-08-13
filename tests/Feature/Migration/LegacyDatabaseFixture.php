@@ -462,10 +462,10 @@ class LegacyDatabaseFixture
         ]);
 
         $viejo->table('worker_signature_events')->insert([
-            ['id' => 1, 'signable_type' => 'PlanWorker', 'signable_id' => 1, 'role_signed' => 'worker', 'signed_at' => $ahora, 'used_ai' => true, 'manual_override' => false, 'method' => 'face_recognition', 'created_at' => $ahora, 'updated_at' => $ahora],
-            ['id' => 2, 'signable_type' => 'PlanWorker', 'signable_id' => 2, 'role_signed' => 'worker', 'signed_at' => $ahora, 'used_ai' => false, 'manual_override' => true, 'method' => 'manual', 'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 1, 'signable_type' => 'PlanWorker', 'signable_id' => 1, 'role_signed' => 'worker', 'signed_at' => $ahora, 'device_id' => 'dev-5528afcf', 'ip_address' => '190.238.40.88', 'user_agent' => 'Mozilla/5.0 (Linux; Android 10; SM-A105M) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/30.0 Chrome/117.0.0.0 Mobile Safari/537.36', 'latitude' => -12.298051, 'longitude' => -76.836012, 'used_ai' => true, 'manual_override' => false, 'method' => 'face_recognition', 'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 2, 'signable_type' => 'PlanWorker', 'signable_id' => 2, 'role_signed' => 'worker', 'signed_at' => $ahora, 'device_id' => 'dev-5528afcf', 'ip_address' => '190.238.40.88', 'user_agent' => 'Mozilla/5.0 (Linux; Android 10; SM-A105M) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/30.0 Chrome/117.0.0.0 Mobile Safari/537.36', 'latitude' => -12.298051, 'longitude' => -76.836012, 'used_ai' => false, 'manual_override' => true, 'method' => 'manual', 'created_at' => $ahora, 'updated_at' => $ahora],
             // Apunta a un plan_worker que ya no existe: se descarta y se cuenta.
-            ['id' => 3, 'signable_type' => 'PlanWorker', 'signable_id' => 999, 'role_signed' => 'worker', 'signed_at' => $ahora, 'used_ai' => false, 'manual_override' => false, 'method' => 'manual', 'created_at' => $ahora, 'updated_at' => $ahora],
+            ['id' => 3, 'signable_type' => 'PlanWorker', 'signable_id' => 999, 'role_signed' => 'worker', 'signed_at' => $ahora, 'device_id' => 'dev-5528afcf', 'ip_address' => '190.238.40.88', 'user_agent' => 'Mozilla/5.0 (Linux; Android 10; SM-A105M) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/30.0 Chrome/117.0.0.0 Mobile Safari/537.36', 'latitude' => -12.298051, 'longitude' => -76.836012, 'used_ai' => false, 'manual_override' => false, 'method' => 'manual', 'created_at' => $ahora, 'updated_at' => $ahora],
         ]);
 
         // ── un formato de cada tipo, sobre el plan 1 ──────────────────────────

@@ -150,6 +150,46 @@ class FirmaEnLaFichaTest extends TestCase
     }
 
     /**
+     * Con la evidencia sin archivo detras se cae a la foto de la ficha.
+     *
+     * Las filas de evidencia que apuntan a `legacy/…` son un MARCADOR y no un
+     * fichero: la importacion escribe ahi el nombre que la v1 tenia en su
+     * columna, y el paso `archivos` lo cambia por la ruta real cuando la foto
+     * aparece en la carpeta. Si nunca aparecio —y en la v1 el 60 % de esas
+     * referencias eran «detected_by_IA», que jamas fue un archivo— la fila se
+     * queda apuntando a la nada.
+     *
+     * Esa fila ganaba sobre la foto de la ficha, la ruta no resolvia y la
+     * ventana de la firma se abria con la imagen rota. Teniendo la foto buena
+     * de la persona ahi al lado.
+     */
+    public function test_si_la_evidencia_es_un_marcador_se_enseña_la_foto_de_la_ficha(): void
+    {
+        $plan = $this->plan();
+        $persona = $this->persona('44445555');
+        $aprobacion = $this->aprobacionFirmada($plan, $persona, SignatureEvent::FACE_RECOGNITION);
+
+        // La evidencia queda como la deja la importacion cuando el fichero no
+        // llego nunca, y la persona tiene su foto de referencia.
+        EvidenceFile::whereIn('signature_event_id', SignatureEvent::where('signable_id', $aprobacion->id)->select('id'))
+            ->update(['file_path' => 'legacy/images_uploads/detected_by_IA']);
+
+        Storage::disk('local')->put('fotos/ana.webp', 'bytes-de-la-ficha');
+
+        \App\Models\PersonPhoto::create([
+            'person_id' => $persona->id, 'file_path' => 'fotos/ana.webp',
+            'sha256' => str_repeat('b', 64),
+            'source' => \App\Models\PersonPhoto::MIGRADA, 'valid_from' => now(),
+        ]);
+
+        $respuesta = $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.signer_face', [$plan->slug, $persona->slug]));
+
+        $respuesta->assertOk();
+        $this->assertSame('bytes-de-la-ficha', $respuesta->streamedContent());
+    }
+
+    /**
      * Y a alguien que no pinta nada en el plan se le sigue negando.
      *
      * El controlador aborta con 404, y para un usuario con sesion la
@@ -300,21 +340,21 @@ class FirmaEnLaFichaTest extends TestCase
     }
 
     /**
-     * De una firma importada se dice que lo es, para explicar el hueco.
+     * De una firma importada se dice que lo es.
      *
-     * Es la pregunta que hizo el dueño del producto mirando un plan: «¿por que
-     * en los aprobadores no sale lo mismo que en trabajadores? Solo veo la
-     * fecha y el porcentaje». No es un fallo de la pantalla — es que **la v1
-     * solo guardaba el rastro de las firmas de trabajador**. Su tabla
-     * `worker_signature_events` (IP, navegador, aparato, coordenadas) colgaba
-     * unicamente de `PlanWorker`; una aprobacion era una casilla y una imagen
-     * en la propia fila de `plan_approvals`, sin una sola columna de rastro. No
-     * se perdio al migrar: nunca se registro.
+     * Viene de la pregunta del dueño del producto mirando un plan: «¿por que en
+     * los aprobadores no sale lo mismo que en trabajadores?». La causa era que
+     * **la v1 solo guardaba el rastro de las firmas de trabajador** —su tabla
+     * `worker_signature_events` colgaba unicamente de `PlanWorker`; una
+     * aprobacion era una casilla y una imagen en la propia fila, sin una sola
+     * columna de rastro—, y la decision fue completar esos huecos al importar
+     * con el aparato que la cuadrilla usaba de verdad.
      *
-     * Un hueco explicado no es un hueco, asi que la ficha lo dice. Y las firmas
-     * nuevas de las dos clases pasan por el mismo sitio y guardan lo mismo.
+     * Completar no es medir, asi que la fila se marca. En la ficha es una
+     * etiqueta de una palabra al lado de la fecha; en la base es
+     * `legacy_source`, que es lo que permite separarlas despues.
      */
-    public function test_una_firma_importada_se_marca_para_explicar_lo_que_le_falta(): void
+    public function test_una_firma_importada_se_marca_como_tal(): void
     {
         $plan = $this->plan();
         $aprobacion = $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
@@ -325,10 +365,7 @@ class FirmaEnLaFichaTest extends TestCase
         $this->actingAs($this->admin())
             ->get(route('business_management.work_plans.show', $plan->slug))
             ->assertInertia(fn ($page) => $page
-                ->where('approvals.0.signature.audit.migrated', true)
-                // Y sigue sin rastro, que es justo lo que hay que explicar.
-                ->where('approvals.0.signature.audit.ip', null)
-                ->where('approvals.0.signature.audit.user_agent', null));
+                ->where('approvals.0.signature.audit.migrated', true));
     }
 
     /** Una firma dada en este sistema no lleva esa marca. */
