@@ -52,6 +52,12 @@ return [
     'kind_hybrid'     => 'Fields and photo of the paper',
     'kind_locked_published' => 'Already published: how it is filled in cannot change. Unpublish it first, or issue a new version.',
 
+    'pdf_orientation'           => 'PDF orientation',
+    'pdf_orientation_help'      => 'How the page is laid out when this document is printed. Wide grids — the PPE sheet, the tool inspection — read better in landscape; a questionnaire of long questions, in portrait.',
+    'pdf_orientation_auto'      => 'Automatic (based on the content)',
+    'pdf_orientation_portrait'  => 'Portrait',
+    'pdf_orientation_landscape' => 'Landscape',
+
     'name'      => 'Name',
     'name_help' => 'The full name, as it is called on site (e.g. "JSA (Job Safety Analysis)").',
     'code'      => 'Code',

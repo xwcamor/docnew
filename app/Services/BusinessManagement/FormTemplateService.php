@@ -133,7 +133,10 @@ class FormTemplateService
             }
 
             $clone = new FormTemplate($formTemplate->only([
-                'country_id', 'kind', 'requires_signature', 'pdf_template', 'is_active',
+                // `pdf_orientation` viaja con la copia: duplicar un AST y que
+                // la copia saliera en vertical es una diferencia que nadie
+                // pidio y que no se ve hasta que alguien saca el PDF.
+                'country_id', 'kind', 'requires_signature', 'pdf_template', 'pdf_orientation', 'is_active',
             ]));
             $clone->name         = $candidate;
             $clone->code         = $this->codigoLibre($formTemplate->code);

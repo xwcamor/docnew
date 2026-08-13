@@ -116,6 +116,12 @@ class UpdateFormTemplateRequest extends FormRequest
             // en uno publicado alteraría la forma de rellenar un documento que
             // ya tiene entregas. Ver `withValidator()`.
             'kind'       => ['sometimes', 'required', Rule::in(\App\Models\FormTemplate::KINDS)],
+            // Cómo se imprime. A diferencia de `kind`, esto SÍ se cambia en un
+            // documento publicado: no altera lo que se le pide a nadie ni lo que
+            // hay guardado, sólo cómo se coloca la hoja al imprimirlo. Que un
+            // formato con entregas viejas salga mal impreso y no se pueda
+            // arreglar sin sacar una versión nueva no tendría sentido.
+            'pdf_orientation' => ['sometimes', 'nullable', Rule::in(\App\Models\FormTemplate::ORIENTACIONES)],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

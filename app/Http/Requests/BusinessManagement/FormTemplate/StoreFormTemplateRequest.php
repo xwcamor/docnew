@@ -87,6 +87,11 @@ class StoreFormTemplateRequest extends FormRequest
             // módulo sin ninguna salida: nada de lo que se creara aquí llegaba
             // nunca a un plan.
             'kind'       => ['sometimes', 'required', Rule::in(\App\Models\FormTemplate::KINDS)],
+            // Cómo se imprime. Vacío significa «decídelo tú»: el generador mira
+            // el contenido, que es lo que hacía cuando esto no se podía elegir.
+            // Nullable a propósito — el selector tiene esa opción y manda cadena
+            // vacía, que el middleware de Laravel convierte en null.
+            'pdf_orientation' => ['sometimes', 'nullable', Rule::in(\App\Models\FormTemplate::ORIENTACIONES)],
             'is_active'  => ['sometimes', 'boolean'],
         ];
     }

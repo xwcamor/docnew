@@ -99,21 +99,30 @@ class FormSubmissionPdfService
      * idioma equivocado.
      */
     /**
-     * Que formatos se imprimen apaisados.
+     * Como se imprime este formato: lo dice el formato.
      *
-     * La matriz de riesgo son SEIS columnas de texto —peligro, riesgo, control,
-     * probabilidad, severidad, nivel— y en A4 vertical les tocan 17 cm entre
-     * todas: el control, que suele ser la frase mas larga, sale en cuatro
-     * lineas y la tabla se lee a saltos. En horizontal hay 26 cm y cada fila
-     * cabe en una linea, que es como esta el AST en el papel de la v1.
+     * Aqui se deducia —«si lleva matriz de riesgo, apaisado»— y eso servia para
+     * el AST y era falso para todo lo demas: el EPP y la inspeccion de
+     * herramientas son cuadriculas anchas sin ninguna matriz, y en vertical
+     * salen con las columnas en tiras de dos letras.
      *
-     * Se decide por el CAMPO y no por el codigo del formato: quien configure
-     * mañana un formato nuevo con matriz de riesgo va a tener el mismo
-     * problema, y atarlo a «AST» lo dejaria fuera.
+     * Ahora es un ajuste del documento (`pdf_orientation`), que es donde tiene
+     * que estar: el motor deja definir formatos desde la pantalla y adivinar
+     * como se imprime uno nuevo mirando que campos lleva es adivinar.
+     *
+     * En nulo se sigue deduciendo, que es lo que hacia antes: un formato viejo
+     * o uno recien creado por alguien que no lo penso no cambia de aspecto solo
+     * porque exista la columna.
      */
     protected function orientacion(FormSubmission $entrega): string
     {
         $plantilla = $entrega->formTemplate;
+
+        $dicho = $plantilla?->pdf_orientation;
+
+        if (in_array($dicho, ['portrait', 'landscape'], true)) {
+            return $dicho;
+        }
 
         $apaisado = $plantilla && $plantilla->sections()
             ->whereHas('fields', fn ($q) => $q->where('field_type', 'risk_matrix'))

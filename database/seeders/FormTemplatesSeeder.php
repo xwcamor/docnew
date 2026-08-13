@@ -103,6 +103,10 @@ class FormTemplatesSeeder extends Seeder
                 'name_es'    => $formato['name_es'],
                 'name_en'    => $formato['name_en'],
                 'kind'       => FormTemplate::STRUCTURED,
+                // Como se imprime, dicho y no deducido. Los cuatro son
+                // cuadriculas anchas —actividades, trabajadores, herramientas—
+                // y en vertical salen con las columnas en tiras de dos letras.
+                'pdf_orientation' => $formato['orientacion'] ?? null,
                 // Nacen publicados: son los formatos que la obra usa desde el
                 // primer dia, no un borrador que alguien tenga que revisar.
                 'status'       => 'published',
@@ -112,10 +116,14 @@ class FormTemplatesSeeder extends Seeder
                 'is_active'  => true,
             ]);
         } else {
+            // `array_filter` es lo que hace que esto repare sin pisar: lo que ya
+            // tiene valor se queda, y la orientacion que el cliente haya elegido
+            // desde la pantalla sobrevive a volver a sembrar.
             $plantilla->fill(array_filter([
                 'name'    => $plantilla->name ?: $formato['name_es'],
                 'name_es' => $plantilla->name_es ?: $formato['name_es'],
                 'name_en' => $plantilla->name_en ?: $formato['name_en'],
+                'pdf_orientation' => $plantilla->pdf_orientation ?: ($formato['orientacion'] ?? null),
             ]))->save();
 
             if ($plantilla->fields()->exists()) {
@@ -230,6 +238,9 @@ class FormTemplatesSeeder extends Seeder
             'code'    => 'AST',
             'name_es' => 'AST (Análisis de Seguridad en el Trabajo)',
             'name_en' => 'JSA (Job Safety Analysis)',
+            // Apaisado: la matriz de riesgo son cinco columnas de texto
+            // largo por actividad, y en vertical no entra ninguna.
+            'orientacion' => 'landscape',
             'secciones' => [
                 [
                     'name_es' => 'Permisos',
@@ -307,6 +318,8 @@ class FormTemplatesSeeder extends Seeder
             'code'    => 'PTF',
             'name_es' => 'Pare Tome 5',
             'name_en' => 'Stop and Take 5',
+            // Apaisado por la matriz de riesgo del final, igual que el AST.
+            'orientacion' => 'landscape',
             'secciones' => [
                 [
                     'name_es' => 'Cuestionario',
@@ -348,6 +361,9 @@ class FormTemplatesSeeder extends Seeder
             'code'    => 'EPP',
             'name_es' => 'Inspección de EPP (Equipos de Protección de Seguridad)',
             'name_en' => 'PPE Inspection (Personal Protective Equipment)',
+            // Apaisado: una columna por equipo de proteccion y una fila por
+            // trabajador. En vertical los rotulos salen en tiras de dos letras.
+            'orientacion' => 'landscape',
             'secciones' => [
                 [
                     'name_es' => 'Inspección',
@@ -386,6 +402,8 @@ class FormTemplatesSeeder extends Seeder
             'code'    => 'IHM',
             'name_es' => 'Inspección de Herramientas Manuales y Eléctricas Portátiles',
             'name_en' => 'Hand and Portable Power Tool Inspection',
+            // Apaisado: veinte puntos de inspeccion por herramienta.
+            'orientacion' => 'landscape',
             'secciones' => [
                 [
                     'name_es' => 'Inspección',

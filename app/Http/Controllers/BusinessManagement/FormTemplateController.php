@@ -760,6 +760,9 @@ class FormTemplateController extends Controller
             // siempre vacia. La version de una plantilla es `version`.
             'version'    => $m->version,
             'kind'       => $m->kind,
+            // Como se imprime. Nulo = lo deduce el generador; el selector lo
+            // enseña como «Automatica».
+            'pdf_orientation' => $m->pdf_orientation,
             // Sin el estado no se puede ni saber si el formato esta publicado,
             // que es lo que decide si un plan puede usarlo.
             'status'     => $m->status,

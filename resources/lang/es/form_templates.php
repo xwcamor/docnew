@@ -62,6 +62,13 @@ return [
     'kind_hybrid'     => 'Campos y foto del papel',
     'kind_locked_published' => 'Ya está publicado: no se cambia cómo se llena. Despublícalo primero, o saca una versión nueva.',
 
+    // Cómo se imprime
+    'pdf_orientation'           => 'Orientación del PDF',
+    'pdf_orientation_help'      => 'Cómo se coloca la hoja al imprimir este documento. Las cuadrículas anchas —el EPP, la inspección de herramientas— se leen en horizontal; un cuestionario de preguntas largas, en vertical.',
+    'pdf_orientation_auto'      => 'Automática (según el contenido)',
+    'pdf_orientation_portrait'  => 'Vertical',
+    'pdf_orientation_landscape' => 'Horizontal',
+
     'name'      => 'Nombre',
     'name_help' => 'El nombre completo, como se dice en obra (ej: «AST (Análisis de Seguridad en el Trabajo)»).',
     'code'      => 'Código',

@@ -274,7 +274,7 @@ class FormTemplate extends Model
     // las pantallas ya escritas, y quitarlo seria romperlas sin necesidad.
     protected $fillable = ['slug', 'country_id', 'code', 'name', 'name_es', 'name_en',
                            'kind', 'status', 'version',
-                           'requires_signature', 'pdf_template', 'published_at', 'is_active',
+                           'requires_signature', 'pdf_template', 'pdf_orientation', 'published_at', 'is_active',
                            'tenant_id', 'created_by', 'deleted_by', 'deleted_description'];
     protected $casts = ['requires_signature' => 'boolean', 'is_active' => 'boolean',
                         'published_at' => 'datetime'];
@@ -300,6 +300,20 @@ class FormTemplate extends Model
 
     /** Los tres, para validar el formulario y pintar el selector. */
     public const KINDS = [self::STRUCTURED, self::UPLOAD_ONLY, self::HYBRID];
+
+    /**
+     * Como se coloca la hoja al imprimir el PDF.
+     *
+     * `pdf_orientation` a nulo —el tercer valor, que no es una constante porque
+     * no es un valor sino su ausencia— significa que lo deduce el generador
+     * mirando el contenido. Es lo que hacia siempre antes de que esto se
+     * pudiera elegir, asi que un formato que nadie toque se imprime igual.
+     */
+    public const PORTRAIT  = 'portrait';
+    public const LANDSCAPE = 'landscape';
+
+    /** Las dos que se pueden decir, para validar y para pintar el selector. */
+    public const ORIENTACIONES = [self::PORTRAIT, self::LANDSCAPE];
 
     public function sections() { return $this->hasMany(FormSection::class)->orderBy('position'); }
     public function fields() { return $this->hasManyThrough(FormField::class, FormSection::class); }

@@ -35,6 +35,12 @@ const form = useForm({
     // ninguno no se puede publicar — o sea, nada de lo creado aquí llegaba a un
     // plan. Los campos se definen luego, en «Secciones y campos» desde la ficha.
     kind:       props.formTemplate?.kind ?? 'structured',
+    // Cómo se coloca la hoja al imprimir. Estaba cableado en el generador: salía
+    // apaisado si el documento llevaba una matriz de riesgo, y vertical en
+    // cualquier otro caso. Acertaba con el AST y fallaba con el resto — un EPP es
+    // una cuadrícula de doce columnas y no tiene ninguna matriz. Vacío deja la
+    // deducción de antes, así que quien no lo toque no nota el cambio.
+    pdf_orientation: props.formTemplate?.pdf_orientation ?? null,
     is_active:  props.formTemplate?.is_active ?? true,
 });
 
@@ -42,6 +48,12 @@ const kindOptions = computed(() => [
     { value: 'structured',  label: t('form_templates.kind_structured') },
     { value: 'upload_only', label: t('form_templates.kind_upload_only') },
     { value: 'hybrid',      label: t('form_templates.kind_hybrid') },
+]);
+
+const orientationOptions = computed(() => [
+    { value: null,        label: t('form_templates.pdf_orientation_auto') },
+    { value: 'portrait',  label: t('form_templates.pdf_orientation_portrait') },
+    { value: 'landscape', label: t('form_templates.pdf_orientation_landscape') },
 ]);
 
 // Publicado = no se cambia cómo se llena: hay entregas que se rellenaron con
@@ -97,9 +109,9 @@ const submit = () => {
                 <!-- Un campo por línea, y en el orden en que se decide: primero
                      el país —acota qué documentos se pueden exigir y en qué
                      idioma sale el PDF—, luego el código, luego el nombre, y al
-                     final cómo se llena. No van en pares: son cuatro decisiones
-                     seguidas, no dos parejas, y en la tablet una fila partida
-                     obliga a leer en zigzag. -->
+                     final cómo se llena y cómo se imprime. No van en pares: son
+                     decisiones seguidas, no parejas, y en la tablet una fila
+                     partida obliga a leer en zigzag. -->
                 <FormItem
                     :label="$t('form_templates.country')"
                     :tooltip="$t('form_templates.country_help')"
@@ -163,6 +175,24 @@ const submit = () => {
                         size="large"
                         :options="kindOptions"
                         :disabled="kindLocked"
+                    />
+                </FormItem>
+
+                <!-- Cómo se imprime. No se bloquea al publicar, al revés que
+                     «cómo se llena»: cambiar la orientación no altera nada de lo
+                     ya guardado, sólo cómo se coloca la hoja, y un formato con
+                     años de entregas que sale mal impreso tiene que poder
+                     arreglarse sin sacar una versión nueva. -->
+                <FormItem
+                    :label="$t('form_templates.pdf_orientation')"
+                    :tooltip="$t('form_templates.pdf_orientation_help')"
+                    :validate-status="form.errors.pdf_orientation ? 'error' : ''"
+                    :help="form.errors.pdf_orientation"
+                >
+                    <Select
+                        v-model:value="form.pdf_orientation"
+                        size="large"
+                        :options="orientationOptions"
                     />
                 </FormItem>
 
