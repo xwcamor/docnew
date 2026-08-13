@@ -68,6 +68,19 @@ class SignatureService
             default      => SignatureEvent::TIMEOUT_CAPTURE,
         };
 
+        // La cara coincidio PERO no se completo el gesto de vida.
+        //
+        // El metodo sigue siendo reconocimiento, porque eso es lo que paso: la
+        // distancia entre descriptores es real y no tiene ni rastro del gesto.
+        // Lo que cambia es que esta firma no vale por si sola — una cara que
+        // coincide sin gesto es exactamente lo que da una foto puesta delante
+        // del objetivo, que es contra lo que existe el reto.
+        //
+        // Lo manda el navegador y el servidor no lo puede recomprobar, asi que
+        // **solo puede empeorar el resultado**: decir que el gesto salio bien no
+        // consigue nada que no consiguiera ya callandose.
+        $sospechosa = $reconocida && (bool) ($contexto['liveness_failed'] ?? false);
+
         // La foto se guarda SIEMPRE, reconozca o no.
         //
         // En un documento de seguridad la prueba util a los dos anios es la cara
@@ -91,12 +104,30 @@ class SignatureService
         // Y la decision la toma el servidor, no el navegador: la camara manda
         // la foto igual, asi que si aqui no se descartara, apagar el ajuste no
         // cambiaria nada.
-        if (! $exigirFoto && $metodo === SignatureEvent::FACE_RECOGNITION) {
+        //
+        // Salvo la sospechosa, y ese `&& ! $sospechosa` es el punto entero: esa
+        // firma se va a la bandeja del supervisor, y descartarle la foto lo
+        // mandaba a revisar una cara que no existe. Habia que verlo en ese
+        // orden para notarlo — el controlador marcaba «pendiente» DESPUES de
+        // que esta linea ya hubiera tirado la unica prueba que se iba a mirar.
+        //
+        // Y tampoco se descarta la de quien todavia no tiene foto de
+        // referencia. Es la unica manera de que esa persona llegue a tener una
+        // sin que nadie se la suba a mano: se enrolo antes de que el
+        // enrolamiento guardara el fotograma, o entro por una via que no pasa
+        // por ahi. La primera que se le toma se queda como suya
+        // (`adoptarFotoSiNoTiene`, mas abajo) y a partir de la firma siguiente
+        // ya hay cara que enseñar y esta linea vuelve a descartar. Es una foto,
+        // una vez, por persona.
+        $sinCara = $this->fotoVigente($persona) === null;
+
+        if (! $exigirFoto && $metodo === SignatureEvent::FACE_RECOGNITION && ! $sospechosa && ! $sinCara) {
             $foto = null;
         }
 
         return DB::transaction(function () use (
-            $firmable, $persona, $rolFirmado, $metodo, $reconocida, $distancia, $umbral, $manual, $foto, $contexto
+            $firmable, $persona, $rolFirmado, $metodo, $reconocida, $distancia,
+            $umbral, $manual, $sospechosa, $foto, $contexto
         ) {
             $evento = SignatureEvent::create([
                 'signable_type'   => $firmable->getMorphClass(),
@@ -108,7 +139,7 @@ class SignatureService
                 'used_ai'         => $reconocida,
                 'match_distance'  => $distancia,
                 'threshold_used'  => $umbral,
-                'pending_review'  => $metodo !== SignatureEvent::FACE_RECOGNITION,
+                'pending_review'  => $metodo !== SignatureEvent::FACE_RECOGNITION || $sospechosa,
                 'manual_override' => $manual,
                 'override_reason' => $contexto['override_reason'] ?? null,
                 'override_by'     => $manual ? ($contexto['override_by'] ?? auth()->id()) : null,

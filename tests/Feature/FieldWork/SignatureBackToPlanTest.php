@@ -84,12 +84,46 @@ class SignatureBackToPlanTest extends TestCase
     {
         [$usuario, $persona, $asignado] = $this->escenario();
 
+        // Con foto de referencia ya puesta: sin ella la primera captura SI se
+        // guarda, y a proposito — ver la prueba de aqui debajo.
+        app(\App\Services\FieldWork\SignatureService::class)
+            ->guardarFoto($persona, $this->imagen(), \App\Models\PersonPhoto::SUBIDA);
+
         $this->actingAs($usuario)
             ->postJson(route('field_work.signatures.store'), $this->firmaDe($persona, $asignado))
             ->assertCreated()->assertJson(['verified' => true]);
 
         $this->assertSame(0, \App\Models\EvidenceFile::count(),
             'reconocio: la foto sobra, y la camara la manda igual');
+    }
+
+    /**
+     * Pero a quien NO tiene foto de referencia, la primera se le queda.
+     *
+     * Es la unica manera de que esa persona llegue a tener cara sin que nadie
+     * se la suba a mano. Sin esto se cerraba un circulo del que no se salia:
+     * reconoce siempre → no se guarda foto → nunca tiene foto de referencia →
+     * la ficha del plan dice «reconocimiento facial» y no hay una sola cara que
+     * enseñar, por muchas veces que firme.
+     *
+     * Pasa una vez por persona: en la firma siguiente ya tiene, y la captura
+     * vuelve a descartarse.
+     */
+    public function test_la_primera_captura_de_quien_no_tiene_foto_se_queda_como_suya(): void
+    {
+        [$usuario, $persona, $asignado] = $this->escenario();
+        $firmas = app(\App\Services\FieldWork\SignatureService::class);
+
+        $this->assertNull($firmas->fotoVigente($persona), 'el caso es que no tiene ninguna');
+
+        $this->actingAs($usuario)
+            ->postJson(route('field_work.signatures.store'), $this->firmaDe($persona, $asignado))
+            ->assertCreated()->assertJson(['verified' => true]);
+
+        $suya = $firmas->fotoVigente($persona->fresh());
+
+        $this->assertNotNull($suya, 'sin esto no llega a tener foto nunca');
+        $this->assertSame(\App\Models\PersonPhoto::CAPTURADA, $suya->source);
     }
 
     /** Pero la que NO reconoce se guarda siempre: esa es la que hay que mirar. */
@@ -170,6 +204,32 @@ class SignatureBackToPlanTest extends TestCase
         $this->assertSame(__('field_work.sign.left_pending'), session('warning'));
         $this->assertFalse(session()->has('success'));
         $this->assertFalse(session()->has('error'));
+    }
+
+    /**
+     * Y la que va a revision se queda con la foto, aunque haya reconocido.
+     *
+     * Este es el fallo que se veia solo poniendolo en orden. `firmar()` tiraba
+     * la foto de toda firma reconocida —correcto: si el servidor comparo la
+     * cara, la foto no aporta nada y llena el disco— y el controlador marcaba
+     * «pendiente de revision» DESPUES. O sea que la unica firma que un
+     * supervisor iba a ir a mirar era exactamente la unica que llegaba a su
+     * bandeja sin nada que mirar.
+     *
+     * Una cara que coincide sin gesto de vida es lo que da una foto puesta
+     * delante del objetivo. Sin la imagen, revisarla es imposible.
+     */
+    public function test_la_firma_que_va_a_revision_conserva_su_foto(): void
+    {
+        [$usuario, $persona, $asignado] = $this->escenario();
+
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.store'),
+            $this->firmaDe($persona, $asignado) + ['liveness_failed' => true],
+        )->assertCreated()->assertJson(['verified' => true, 'pending_review' => true]);
+
+        $this->assertSame(1, \App\Models\EvidenceFile::count(),
+            'a la bandeja del supervisor no se manda una firma sin cara que revisar');
     }
 
     /** Sin coincidencia de cara: la firma se guarda igual, pero pendiente. */

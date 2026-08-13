@@ -244,25 +244,18 @@ class SignatureController extends Controller
             $datos['descriptor'] ?? null,
             $datos['photo'] ?? null,
             $request->only(['latitude', 'longitude', 'device_id', 'manual_override', 'override_reason'])
-                + ['override_by' => $request->user()->id],
+                + [
+                    'override_by' => $request->user()->id,
+                    // El gesto de vida lo corre el navegador y el servidor no lo
+                    // puede recalcular con el descriptor: si no se supero, hay
+                    // que decirselo. Va DENTRO de `firmar()` y no despues
+                    // —antes se marcaba el evento ya creado— porque de eso
+                    // depende tambien si se guarda la foto, y para cuando el
+                    // controlador ponia la marca la foto ya estaba descartada.
+                    'liveness_failed' => $request->boolean('liveness_failed'),
+                ],
         );
 
-        // El gesto de vida fallido deja la firma pendiente de revision.
-        //
-        // La cara coincidio, asi que `firmar()` la da por reconocida: mide la
-        // distancia entre descriptores y ahi no hay ni rastro del gesto. Pero
-        // una cara que coincide sin gesto es exactamente lo que da una foto
-        // puesta delante del objetivo, que es contra lo que existe el reto. Que
-        // eso saliera «verificada» y no pasara por la bandeja del supervisor
-        // hacia del reto un adorno.
-        //
-        // Fiarse del cliente aqui no abre nada: **solo puede empeorar** el
-        // resultado. Una peticion hecha a mano diciendo `liveness_failed=false`
-        // no consigue nada que no consiguiera ya callandose, y diciendo `true`
-        // lo unico que logra es mandar su propia firma a revision.
-        if ($request->boolean('liveness_failed') && ! $evento->pending_review) {
-            $evento->forceFill(['pending_review' => true])->save();
-        }
 
         // Los dos textos salen de `resources/lang`, no escritos aqui.
         //
