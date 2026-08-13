@@ -2,15 +2,16 @@
 import { computed, reactive, ref } from 'vue';
 import { router } from '@inertiajs/vue3';
 import {
-    Alert, Card, Tag, Button, Input, Tooltip, Popover,
+    Alert, Card, Tag, Button, Input, Tooltip,
 } from 'ant-design-vue';
 import {
     SafetyCertificateOutlined, EditOutlined, SolutionOutlined,
-    IdcardOutlined, LoadingOutlined, CameraOutlined,
+    IdcardOutlined, LoadingOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
+import SignerFacePopover from '@/Components/WorkPlans/SignerFacePopover.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
@@ -322,19 +323,15 @@ const firmar = (a) => router.get(
                 </template>
 
                 <template #actions>
-                    <!-- La cara con la que firmó. Faltaba aquí, y es de quien
-                         más interesa saber que estuvo: el servidor ni siquiera
-                         mandaba la URL para las aprobaciones. -->
-                    <Popover v-if="a.face_url && a.signed" trigger="click" placement="left">
-                        <template #content>
-                            <img :src="a.face_url" class="wp-approval-face" alt="">
-                        </template>
-                        <Tooltip :title="$t('people.signer_face')">
-                            <Button size="small" type="text">
-                                <template #icon><CameraOutlined /></template>
-                            </Button>
-                        </Tooltip>
-                    </Popover>
+                    <!-- La cara y el rastro de la firma. Faltaba aquí, y es de
+                         quien más interesa saber que estuvo: el servidor ni
+                         siquiera mandaba la URL para las aprobaciones. -->
+                    <SignerFacePopover
+                        v-if="a.signed"
+                        :face-url="a.face_url"
+                        :signature="a.signature"
+                        :name="a.person?.name ?? ''"
+                    />
 
                     <!-- Mientras el flujo esta bloqueado no sale ningun boton.
                          «Asignar firmante» abria un buscador para elegir a
@@ -423,9 +420,5 @@ const firmar = (a) => router.get(
    usan las otras dos columnas del tablero, para que no vuelvan a divergir. */
 .wp-rows { list-style: none; margin: 0; padding: 0; }
 .wp-block { margin-bottom: 14px; }
-
-/* La misma medida que la cara de la cuadrilla: es la misma foto y en las dos
-   columnas del tablero se mira para lo mismo. */
-.wp-approval-face { display: block; width: 220px; height: 220px; object-fit: cover; border-radius: 8px; }
 .wp-assign { width: 100%; }
 </style>

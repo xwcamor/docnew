@@ -515,24 +515,43 @@ class WorkPlanController extends Controller
      */
     protected function comoSeFirmo(string $morph, iterable $ids): \Illuminate\Support\Collection
     {
+        // El rastro completo solo para quien puede ver caras: es el mismo
+        // material —donde estaba una persona y con que aparato— y va con la
+        // misma puerta.
+        $puedeVerCaras = PrivateInfo::visibleFor(request()->user());
+
         return \App\Models\SignatureEvent::query()
             ->where('signable_type', $morph)
             ->whereIn('signable_id', collect($ids)->all())
             ->orderBy('signed_at')
-            ->get(['signable_id', 'method', 'used_ai', 'manual_override', 'pending_review'])
+            ->get([
+                'signable_id', 'signed_at', 'method', 'used_ai', 'match_distance',
+                'manual_override', 'override_reason', 'pending_review',
+                'ip_address', 'user_agent', 'device_id', 'latitude', 'longitude',
+            ])
             // La ultima gana: si alguien firmo dos veces, lo que cuenta es como
             // quedo, no como empezo.
             ->keyBy('signable_id')
             ->map(fn ($e) => [
                 'method'         => $e->method,
-                // Si hubo reconocimiento. Importa aparte del metodo por las
-                // firmas migradas: su metodo es 'migrated' —el reconocimiento
-                // de la v1 lo decidia el navegador y no dejo prueba— pero se
-                // conservo lo que aquel sistema creia, y decir «del sistema
-                // anterior» de una firma que SI se reconocio no cuenta nada.
                 'used_ai'        => (bool) $e->used_ai,
                 'verified'       => $e->isVerified(),
                 'pending_review' => (bool) $e->pending_review,
+                // Y el rastro, para la ficha que se abre al pulsar la cara. Va
+                // aqui y no en otra consulta porque es la misma fila: quien
+                // firmo, con que, desde donde y con que aparato son la misma
+                // pregunta.
+                'audit' => $puedeVerCaras ? [
+                    'signed_at'       => $e->signed_at,
+                    'match_percent'   => $e->match_percent,
+                    'ip'              => $e->ip_address,
+                    'user_agent'      => $e->user_agent,
+                    'device_id'       => $e->device_id,
+                    'coords'          => $e->latitude !== null && $e->longitude !== null
+                        ? round((float) $e->latitude, 5) . ', ' . round((float) $e->longitude, 5)
+                        : null,
+                    'override_reason' => $e->override_reason,
+                ] : null,
             ]);
     }
 

@@ -2,16 +2,17 @@
 import { computed, ref } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import {
-    Alert, Card, Tag, Button, Input, InputGroup, Popconfirm, Tooltip, Popover,
+    Alert, Card, Tag, Button, Input, InputGroup, Popconfirm, Tooltip,
     Modal, Form, FormItem, Select,
 } from 'ant-design-vue';
 import {
-    TeamOutlined, DeleteOutlined, EditOutlined, IdcardOutlined, LoadingOutlined, CameraOutlined,
+    TeamOutlined, DeleteOutlined, EditOutlined, IdcardOutlined, LoadingOutlined,
     UserAddOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
+import SignerFacePopover from '@/Components/WorkPlans/SignerFacePopover.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 
 /**
@@ -241,22 +242,19 @@ const guardarAlta = () => {
                 </template>
 
                 <template #actions>
-                    <!-- La cara con la que firmo. Solo llega con
-                         `people.view_private_info` —el servidor manda `face_url`
-                         en nulo si no— y es lo que le dice al admin quien estuvo
-                         de verdad en obra cuando la cuadrilla es de una
-                         contratista que no conoce. La firma NO se enseña aqui ni
-                         en ningun otro sitio: solo se imprime en el PDF. -->
-                    <Popover v-if="fila.face_url && fila.signed" trigger="click" placement="left">
-                        <template #content>
-                            <img :src="fila.face_url" class="crew-face" alt="">
-                        </template>
-                        <Tooltip :title="$t('people.signer_face')">
-                            <Button size="small" type="text">
-                                <template #icon><CameraOutlined /></template>
-                            </Button>
-                        </Tooltip>
-                    </Popover>
+                    <!-- La cara con la que firmó y el rastro de esa firma. Sólo
+                         llegan con `people.view_private_info` —el servidor manda
+                         `face_url` y `audit` en nulo si no— y es lo que le dice
+                         al admin quién estuvo de verdad en obra cuando la
+                         cuadrilla es de una contratista que no conoce. La firma
+                         trazada NO se enseña aquí ni en ningún otro sitio: sólo
+                         se imprime en el PDF. -->
+                    <SignerFacePopover
+                        v-if="fila.signed"
+                        :face-url="fila.face_url"
+                        :signature="fila.signature"
+                        :name="fila.name"
+                    />
 
                     <Tooltip v-if="canSign && !fila.signed" :title="$t('work_plans.crew_sign_hint', { name: fila.name })">
                         <Button size="small" type="primary" @click="firmar(fila)">
@@ -400,7 +398,6 @@ const guardarAlta = () => {
 <style scoped>
 /* La cara de quien firmo, dentro del globo. Grande de verdad: si no se le
    reconoce, no sirve de nada enseñarla. */
-.crew-face { display: block; width: 220px; height: 220px; object-fit: cover; border-radius: 8px; }
 .wp-crew__vacio { margin-bottom: 4px; }
 .wp-add { margin-top: 14px; }
 .wp-add__hint { margin: 6px 2px 0; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }

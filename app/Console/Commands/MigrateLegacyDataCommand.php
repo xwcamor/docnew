@@ -11,6 +11,7 @@ use App\Models\PersonCompanyLink;
 use App\Models\PersonRole;
 use App\Models\PersonSignature;
 use App\Models\Role;
+use App\Models\SignatureEvent;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\WorkArea;
@@ -2274,10 +2275,19 @@ class MigrateLegacyDataCommand extends Command
     /**
      * Una firma historica.
      *
-     * El metodo es siempre 'migrated': lo que la v1 llamaba reconocimiento
-     * facial lo decidia el navegador y no dejo prueba, asi que aqui no puede
-     * llamarse igual que una firma verificada por el servidor. El used_ai del
-     * origen si se conserva, porque es lo que la v1 creia.
+     * Llega como **reconocimiento facial**, con su porcentaje de coincidencia,
+     * salvo las que la v1 marco como firma manual. Es una decision del dueno
+     * del producto y conviene que quede escrita con lo que significa:
+     *
+     * La v1 hacia reconocimiento —de ahi el `detected_by_IA` de sus columnas—
+     * pero lo decidia el navegador y no guardaba la distancia, asi que ese
+     * porcentaje **no es una medicion, es un relleno**: se genera aqui. Se pidio
+     * asi para que el historico no salga con huecos al lado de las firmas
+     * nuevas, que si traen su medida de verdad.
+     *
+     * El numero se deriva del id de origen y no de `rand()`: la migracion se
+     * re-ejecuta y hace upsert, y con un aleatorio de verdad cada pasada
+     * reescribiria las 13 764 filas con un porcentaje distinto.
      */
     protected function eventoMigrado(
         string $tipo, int $id, int $personaId, ?string $rol, $firmadaEn,
@@ -2298,15 +2308,22 @@ class MigrateLegacyDataCommand extends Command
             }
         }
 
+        $manual = (bool) ($extra['manual_override'] ?? false);
+
+        // Entre 88% y 99%, estable para el mismo origen.
+        $coincidencia = $manual ? null : 88 + ($legacyId % 12);
+
         return [
             'signable_type'   => $tipo,
             'signable_id'     => $id,
             'person_id'       => $personaId,
             'role_signed'     => $rol ?: PersonRole::WORKER,
             'signed_at'       => $firmadaEn,
-            'method'          => 'migrated',
-            'used_ai'         => (bool) ($extra['used_ai'] ?? false),
-            'manual_override' => (bool) ($extra['manual_override'] ?? false),
+            'method'          => $manual ? SignatureEvent::MANUAL : SignatureEvent::FACE_RECOGNITION,
+            'used_ai'         => ! $manual,
+            'match_distance'  => $coincidencia === null ? null : round(1 - $coincidencia / 100, 4),
+            'threshold_used'  => $coincidencia === null ? null : 0.5,
+            'manual_override' => $manual,
             // Lo historico no entra en la cola de revision: se marca, no se revisa.
             'pending_review'  => false,
             'evidence_missing' => ! $conArchivo,
@@ -2340,9 +2357,12 @@ class MigrateLegacyDataCommand extends Command
             return;
         }
 
+        // La coincidencia entra en la lista de actualizables: sin ella, una base
+        // que ya migro antes se quedaria con las firmas viejas sin porcentaje.
         DB::table('signature_events')->upsert($eventos, ['legacy_source', 'legacy_id'], [
             'signable_type', 'signable_id', 'person_id', 'role_signed', 'signed_at',
-            'method', 'used_ai', 'evidence_missing', 'updated_at',
+            'method', 'used_ai', 'match_distance', 'threshold_used',
+            'manual_override', 'evidence_missing', 'updated_at',
         ]);
 
         if ($archivos === []) {

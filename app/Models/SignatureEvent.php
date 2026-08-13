@@ -67,4 +67,26 @@ class SignatureEvent extends Model
     {
         return $this->method === self::FACE_RECOGNITION && ! $this->manual_override;
     }
+
+    /**
+     * Cuanto se parecio la cara, en porcentaje.
+     *
+     * Por dentro se guarda una **distancia** euclidiana: 0 es la misma cara y
+     * cuanto mas alto, mas distinta. Es lo correcto para comparar y lo peor
+     * posible para leer — «distancia 0,32 · umbral 0,50» no le dice nada a
+     * quien esta revisando una firma, y encima se lee al reves de como se
+     * piensa: el numero bueno es el bajo.
+     *
+     * Hacia fuera se cuenta como coincidencia, donde 100% es identica. La
+     * distancia se sigue guardando: es el dato con el que se compara y con el
+     * que se ajusta el umbral.
+     */
+    public function getMatchPercentAttribute(): ?int
+    {
+        if ($this->match_distance === null) {
+            return null;
+        }
+
+        return max(0, min(100, (int) round((1 - (float) $this->match_distance) * 100)));
+    }
 }

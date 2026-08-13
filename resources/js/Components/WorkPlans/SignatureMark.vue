@@ -39,28 +39,15 @@ const CLASES = {
 /**
  * Qué marca le toca a esta firma.
  *
- * Las migradas son el caso que hay que tratar aparte. Su método es `migrated`
- * porque el reconocimiento de la v1 lo decidía el navegador y no dejó prueba,
- * pero sí se conservó lo que aquel sistema creía (`used_ai`). Decir «del
- * sistema anterior» de una firma que **sí** se reconoció no cuenta nada: lo que
- * se pregunta mirando la fila es cómo se comprobó a esa persona, y la respuesta
- * es que por la cara. La salvedad —que no la verificó este servidor— va en el
- * tooltip, que es donde cabe sin quitarle sitio a lo que importa.
- *
- * Un método que no esté en el mapa tampoco deja el hueco en blanco.
+ * `migrated` sigue en el mapa aunque la importación ya no lo escriba —las firmas
+ * del sistema anterior llegan como reconocimiento facial— porque puede haber
+ * bases cargadas antes de ese cambio, y un método que el mapa no conozca dejaría
+ * el hueco en blanco. Es la salida por defecto, no un caso normal.
  */
 const marca = computed(() => {
-    const firma = props.signature;
+    if (!props.signature?.method) return null;
 
-    if (!firma?.method) return null;
-
-    if (firma.method === 'migrated') {
-        return firma.used_ai
-            ? { ...CLASES.face_recognition, clave: 'migrated_recognised' }
-            : CLASES.migrated;
-    }
-
-    return CLASES[firma.method] ?? CLASES.migrated;
+    return CLASES[props.signature.method] ?? CLASES.migrated;
 });
 </script>
 

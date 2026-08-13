@@ -217,5 +217,8 @@ return [
         'remove_tool' => 'Remove this tool',
         'empty'       => 'No tools yet. Add the first one.',
     ],
+    // Face match as a percentage. Internally it is a distance —0 is the same
+    // face— which reads backwards from how people think about it.
+    'match_percent' => 'Face match: :percent%',
     'signature_reason_placeholder' => 'Reason (optional)',
 ];

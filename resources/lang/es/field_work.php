@@ -249,5 +249,8 @@ return [
         'remove_tool' => 'Quitar esta herramienta',
         'empty'       => 'Todavía no hay herramientas. Añade la primera.',
     ],
+    // Coincidencia de la cara, en porcentaje. Por dentro se guarda una
+    // distancia —0 es la misma cara— que se lee al reves de como se piensa.
+    'match_percent' => 'Coincidencia de la cara: :percent%',
     'signature_reason_placeholder' => 'Motivo (opcional)',
 ];

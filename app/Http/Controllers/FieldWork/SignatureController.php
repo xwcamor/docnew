@@ -324,8 +324,10 @@ class SignatureController extends Controller
                 'person' => $this->personaVisible($e->person),
                 'method' => $e->method,
                 'signed_at' => $e->signed_at,
-                'match_distance' => $e->match_distance,
-                'threshold_used' => $e->threshold_used,
+                // En porcentaje de coincidencia y no en distancia: «0,32» se lee
+                // al reves de como se piensa —el numero bueno es el bajo— y no
+                // le dice nada a quien esta decidiendo si acepta una firma.
+                'match_percent'  => $e->match_percent,
                 'manual_override' => $e->manual_override,
                 'override_reason' => $e->override_reason,
                 'evidence' => $e->files->map(fn ($f) => [

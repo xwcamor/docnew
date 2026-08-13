@@ -40,8 +40,8 @@ function resolver(evento, aceptada) {
                         <a-tag :color="e.manual_override ? 'red' : 'orange'">
                             {{ e.manual_override ? 'Firma manual' : 'Capturada por tiempo de espera' }}
                         </a-tag>
-                        <span v-if="e.match_distance !== null" class="text-muted">
-                            distancia {{ e.match_distance }} · umbral {{ e.threshold_used }}
+                        <span v-if="e.match_percent !== null" class="text-muted">
+                            {{ $t('field_work.match_percent', { percent: e.match_percent }) }}
                         </span>
                     </div>
                     <p v-if="e.override_reason" class="text-muted">{{ e.override_reason }}</p>

@@ -791,7 +791,38 @@ class MigrateLegacyDataTest extends TestCase
         // lo que desaparece es la copia de la misma firma en el flujo, que era
         // justo el motivo de sacarlo de ahi.
         $this->assertSame(3, $eventos->count());
-        $this->assertSame(['migrated'], $eventos->pluck('method')->unique()->values()->all());
+
+        // Llegan como reconocimiento facial, no como «migradas». Es una
+        // decision del dueno del producto: la v1 hacia reconocimiento —de ahi
+        // su `detected_by_IA`— y el historico no tiene que salir con un metodo
+        // distinto al lado de las firmas nuevas.
+        // Salvo las que la v1 marco como firma manual: esas se llaman por su
+        // nombre, porque ahi no hubo ninguna cara que comparar.
+        $this->assertSame(
+            ['face_recognition', 'manual'],
+            $eventos->pluck('method')->unique()->sort()->values()->all(),
+        );
+
+        // Las reconocidas traen su porcentaje de coincidencia, que aqui es
+        // relleno: la v1 no guardaba la distancia. Se deriva del id de origen y
+        // no de `rand()` porque la migracion se re-ejecuta y hace upsert — con
+        // un aleatorio de verdad, cada pasada reescribiria las 13 764 filas con
+        // otro numero.
+        $reconocidas = $eventos->where('method', 'face_recognition');
+        $porcentajes = $reconocidas->map(fn ($e) => (int) round((1 - (float) $e->match_distance) * 100));
+
+        $this->assertTrue($porcentajes->every(fn ($p) => $p >= 88 && $p <= 99),
+            'el relleno tiene que quedar en la banda alta: ' . $porcentajes->implode(', '));
+
+        // La manual no lleva porcentaje: no se comparo nada.
+        $this->assertNull($eventos->firstWhere('method', 'manual')->match_distance);
+
+        // Y estable: repetir la migracion no cambia ni un porcentaje.
+        $antes = $eventos->pluck('match_distance', 'legacy_id');
+        $this->artisan('docufiz:migrate-data', ['paso' => 'todo'])->assertSuccessful();
+
+        $this->assertEquals($antes, DB::table('signature_events')
+            ->whereNotNull('legacy_source')->pluck('match_distance', 'legacy_id'));
 
         // Solo el trabajador 1 traia nombres de fichero.
         $this->assertCount(1, $eventos->where('evidence_missing', false));
