@@ -2,20 +2,10 @@
 
 namespace Tests\Feature\FieldWork;
 
-use App\Models\Company;
-use App\Models\Person;
-use App\Models\PersonBiometric;
 use App\Models\SignatureEvent;
-use App\Models\User;
-use App\Models\WorkLocation;
-use App\Models\WorkPlan;
-use App\Models\WorkPlanPerson;
-use App\Models\WorkType;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
-use Spatie\Permission\Models\Permission;
+use Tests\Concerns\ArmaUnaFirma;
 use Tests\TestCase;
 
 /**
@@ -42,6 +32,7 @@ use Tests\TestCase;
 class SignatureBackToPlanTest extends TestCase
 {
     use RefreshDatabase;
+    use ArmaUnaFirma;
 
     protected function setUp(): void
     {
@@ -52,11 +43,7 @@ class SignatureBackToPlanTest extends TestCase
             \Mcamara\LaravelLocalization\Middleware\LocaleSessionRedirect::class,
         ]);
 
-        DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
-        DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_AR', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
-        DB::table('regions')->insertOrIgnore([['id' => 999, 'slug' => Str::random(22), 'name' => '__bs__', 'is_active' => false, 'deleted_at' => now(), 'deleted_description' => 'bs', 'created_at' => now(), 'updated_at' => now()]]);
-        DB::table('countries')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'region_id' => 999, 'name' => 'Peru', 'iso_code' => 'PE', 'currency' => 'PEN', 'timezone' => 'UTC', 'default_locale_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
-        DB::table('tenants')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Empresa 1', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        $this->sembrarPadresDeFirma();
 
         Storage::fake('local');
     }
@@ -239,95 +226,5 @@ class SignatureBackToPlanTest extends TestCase
 
         $this->assertStringNotContainsString('setInterval', $pantalla,
             'la pantalla de firma no cuenta segundos: la limpia se va sola y la pendiente espera al botón');
-    }
-
-    // ── apoyo ────────────────────────────────────────────────────────────────
-
-    /**
-     * Lo que manda la pantalla al firmar, menos el descriptor cuando la prueba
-     * quiere otro. La firma trazada viaja porque la persona no tiene ninguna en
-     * archivo: es su primera vez.
-     *
-     * @return array<string, mixed>
-     */
-    protected function firmaDe(Person $persona, WorkPlanPerson $asignado): array
-    {
-        return [
-            'signable_type' => 'work_plan_person',
-            'signable_slug' => $asignado->slug,
-            'person_slug'   => $persona->slug,
-            'role_signed'   => 'worker',
-            'descriptor'    => $this->descriptorEnrolado(),
-            'photo'         => $this->imagen(),
-            'signature'     => $this->imagen(),
-        ];
-    }
-
-    /** El vector que quedo enrolado: comparado consigo mismo, distancia 0. */
-    protected function descriptorEnrolado(): array
-    {
-        return array_map(fn (int $i) => round($i / 128, 4), range(0, 127));
-    }
-
-    /** @return array{0:User,1:Person,2:WorkPlanPerson} */
-    protected function escenario(): array
-    {
-        $base = ['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1];
-
-        $usuario = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
-        $usuario->givePermissionTo(
-            Permission::firstOrCreate(['name' => 'form_submissions.sign', 'guard_name' => 'web']),
-        );
-
-        $empresa = Company::create($base + [
-            'num_doc' => (string) random_int(20000000000, 20999999999),
-            'name' => 'Contratista', 'complete_name' => 'Contratista SAC', 'is_active' => true,
-        ]);
-
-        $persona = Person::create($base + [
-            'doc_type' => 'DNI', 'num_doc' => '40000002', 'name' => 'Ana', 'lastname' => 'Quispe',
-        ]);
-
-        PersonBiometric::create([
-            'person_id'       => $persona->id,
-            'face_descriptor' => [$this->descriptorEnrolado()],
-            'enrolled_at'     => now(),
-            'enrolled_by'     => $usuario->id,
-            'is_active'       => true,
-        ]);
-
-        $tipo = WorkType::create(['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1, 'code' => 'MTTO']);
-        $lugar = WorkLocation::create(['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1, 'created_by' => 1, 'name' => 'Planta']);
-
-        $plan = WorkPlan::create($base + [
-            'slug'             => Str::random(22),
-            'company_id'       => $empresa->id,
-            'work_type_id'     => $tipo->id,
-            'work_location_id' => $lugar->id,
-            'user_id'          => $usuario->id,
-            'code'             => 'OT-' . random_int(1000, 9999),
-            'description'      => 'Mantenimiento programado',
-            'date_start'       => today(),
-        ]);
-
-        $asignado = WorkPlanPerson::create([
-            'slug' => Str::random(22), 'work_plan_id' => $plan->id, 'person_id' => $persona->id,
-        ]);
-
-        return [$usuario, $persona, $asignado];
-    }
-
-    /** Una imagen minima y valida: vale de foto de evidencia y de firma trazada. */
-    protected function imagen(): string
-    {
-        $img = imagecreatetruecolor(40, 20);
-        imagefilledrectangle($img, 0, 0, 39, 19, imagecolorallocate($img, 120, 40, 200));
-
-        ob_start();
-        imagejpeg($img, null, 85);
-        $jpeg = ob_get_clean();
-        imagedestroy($img);
-
-        return 'data:image/jpeg;base64,' . base64_encode($jpeg);
     }
 }

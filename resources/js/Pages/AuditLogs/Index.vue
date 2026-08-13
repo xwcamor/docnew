@@ -105,6 +105,11 @@ const eventColor = (event) => ({
     restored:       'cyan',
     login:          'purple',
     logout:         'default',
+    // Lo que hay que poder ver bajando la lista sin leerla: varios «intento
+    // fallido» seguidos y, sobre todo, el freno que viene detrás.
+    login_failed:   'orange',
+    login_lockout:  'red',
+    login_blocked:  'red',
     export_queued:  'geekblue',
     terms_accepted: 'green',
     personal_data_exported:     'geekblue',

@@ -3,6 +3,7 @@
 namespace Tests;
 
 use App\Models\Plan;
+use App\Models\Setting;
 use App\Scopes\HideSuperScope;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 use Tests\Concerns\DetectaColumnasInventadas;
@@ -29,6 +30,14 @@ abstract class TestCase extends BaseTestCase
         // estatica. Con RefreshDatabase los roles se recrean con IDs nuevos por
         // test; sin resetear, el scope filtraria por el id viejo (rol equivocado).
         HideSuperScope::flushCache();
+
+        // Y el tercero: Setting::get() cachea cada clave en un array estatico
+        // para no ir a la base en cada llamada dentro de una peticion. En las
+        // pruebas ese «dentro de una peticion» es TODO el proceso, asi que una
+        // clase que apaga un ajuste para comprobar que se respeta —el historial
+        // de accesos, sin ir mas lejos— se lo deja apagado a la clase
+        // siguiente, que arranca con la base limpia y no tiene como enterarse.
+        Setting::flushCache();
     }
 
     protected function tearDown(): void

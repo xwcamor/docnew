@@ -33,6 +33,12 @@ return [
     'event_restored'      => 'Restaurado',
     'event_login'         => 'Inicio de sesión',
     'event_logout'        => 'Cierre de sesión',
+    // De un intento fallido se guarda el correo con el que se probó, nunca la
+    // contraseña. Varios seguidos desde la misma IP es lo que hay que poder ver.
+    'event_login_failed'  => 'Intento fallido',
+    'event_login_lockout' => 'Cuenta frenada por intentos',
+    // Contraseña correcta, cuenta dada de baja: no llegó a entrar.
+    'event_login_blocked' => 'Acceso rechazado (cuenta desactivada)',
     'event_purged'        => 'Purgado',
     'event_export_queued' => 'Exportación solicitada',
     'event_terms_accepted' => 'Términos aceptados',

@@ -12,7 +12,14 @@ use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 
+use Illuminate\Support\Facades\Event;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Lockout;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+
 // Models and Observers
+use App\Listeners\RegistraElAccesoAlSistema;
 use App\Models\SystemModule;
 use App\Observers\SystemModuleObserver;
 
@@ -58,6 +65,15 @@ class AppServiceProvider extends ServiceProvider
 
         // Register Observers
         SystemModule::observe(SystemModuleObserver::class);
+
+        // Quien entra al sistema, cuándo y desde dónde. `Auditable` registra
+        // con detalle lo que cada uno CAMBIA, y de las sesiones no guardaba
+        // nada: ni quién entró ni cuántas veces se falló la contraseña antes de
+        // acertar. Es la primera pregunta de cualquier revisión de accesos.
+        Event::listen(Login::class,   [RegistraElAccesoAlSistema::class, 'entro']);
+        Event::listen(Logout::class,  [RegistraElAccesoAlSistema::class, 'salio']);
+        Event::listen(Failed::class,  [RegistraElAccesoAlSistema::class, 'fallo']);
+        Event::listen(Lockout::class, [RegistraElAccesoAlSistema::class, 'seFreno']);
 
         // Super admin bypass: any user with role "super" passes ALL gates.
         Gate::before(function ($user, $ability) {

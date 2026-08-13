@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onBeforeUnmount } from 'vue';
+import { computed, ref, onBeforeUnmount, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { Card, Tag, Button, Alert, Result } from 'ant-design-vue';
 import { CameraOutlined, CheckCircleFilled, EditOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue';
@@ -7,6 +7,7 @@ import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
 import SignaturePad from '@/Components/FieldWork/SignaturePad.vue';
 import { useFaceVerify } from '@/Composables/useFaceVerify';
+import { useDondeYConQue } from '@/Composables/useDondeYConQue';
 import { useI18n } from '@/Plugins/i18n';
 
 /**
@@ -56,6 +57,10 @@ const cara = useFaceVerify({
     sinMatchSegundos: props.settings?.timeoutSeconds ?? 20,
     retoDeVida: props.settings?.liveness ?? false,
 });
+
+// Desde qué aparato y desde dónde se firma. Las dos de mejor esfuerzo: si no
+// se consiguen, se firma igual y los campos quedan vacíos.
+const { coords, dispositivo, pedirUbicacion } = useDondeYConQue();
 
 // ── Sobre quién se abre ──────────────────────────────────────────────────────
 
@@ -205,6 +210,14 @@ async function firmar() {
             // Sólo sirve para dejar la firma pendiente de revisión, nunca para
             // darla por buena — ver SignatureController::store().
             liveness_failed: resultado.retoFallido === true,
+
+            // Desde qué aparato y desde dónde. Las tres columnas existían desde
+            // el primer día y esta pantalla nunca las mandaba, así que estaban
+            // vacías en todas las firmas. Van de mejor esfuerzo: si el
+            // navegador no da la ubicación o no hay permiso, se firma igual.
+            device_id: dispositivo(),
+            latitude:  coords.value?.latitude ?? null,
+            longitude: coords.value?.longitude ?? null,
         });
 
         // Firmada: al plan, y punto. Las dos — la limpia y la que queda
@@ -231,6 +244,11 @@ async function firmar() {
         reto.value = null;
     }
 }
+
+// La ubicación se pide al ABRIR y no al firmar: el permiso puede abrir un
+// diálogo del navegador, y ese diálogo encima de la cámara, con la persona ya
+// mirando al objetivo, sería lo peor posible.
+onMounted(() => pedirUbicacion());
 
 onBeforeUnmount(() => cara.cerrarCamara(stream));
 </script>

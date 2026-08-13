@@ -5,6 +5,7 @@ namespace App\Http\Controllers\AuthManagement\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\Setting;
+use Illuminate\Auth\Events\Lockout;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
@@ -50,6 +51,14 @@ class LoginController extends Controller
         $lockoutSecs   = max(60, Setting::getInt('security.lockout_minutes', 15) * 60);
 
         if (RateLimiter::tooManyAttempts($throttleKey, $maxAttempts)) {
+            // Que una cuenta se frene por intentos es el evento MÁS interesante
+            // de todo el acceso —es la firma de alguien probando contraseñas— y
+            // no se anunciaba: el freno se lanzaba como un error de validación
+            // y ahí moría. Laravel tiene un evento para esto y es el que espera
+            // App\Listeners\RegistraElAccesoAlSistema para dejarlo en el
+            // historial. Sin esta línea el freno no lo ve nadie.
+            event(new Lockout($request));
+
             $seconds = RateLimiter::availableIn($throttleKey);
             throw ValidationException::withMessages([
                 'email' => __('auth.locked', [

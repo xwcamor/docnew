@@ -33,6 +33,12 @@ return [
     'event_restored'      => 'Restored',
     'event_login'         => 'Sign in',
     'event_logout'        => 'Sign out',
+    // A failed attempt stores the email it was tried with, never the password.
+    // Several in a row from the same IP is what you need to be able to see.
+    'event_login_failed'  => 'Failed attempt',
+    'event_login_lockout' => 'Account throttled',
+    // Right password, deactivated account: never actually got in.
+    'event_login_blocked' => 'Access denied (account deactivated)',
     'event_purged'        => 'Purged',
     'event_export_queued' => 'Export requested',
     'event_terms_accepted' => 'Terms accepted',
