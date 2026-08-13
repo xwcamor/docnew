@@ -941,7 +941,7 @@ Esta es la tabla que explica **de dónde saca sus datos cada campo y a qué afec
 | `person_checklist` (EPP) | **la cuadrilla del plan**, en vivo. Añadir un trabajador al plan le añade su fila | cada fila no conforme suma una **observación**, y sin corrección verificada **bloquea el cierre del plan** |
 | `tool_checklist` (IHM) | el catálogo de herramientas del campo **+ lo aprendido** de entregas anteriores. La herramienta la escribe el usuario | igual: observaciones y bloqueo del cierre |
 | `risk_matrix` (AST/PTF) | actividad, peligro, riesgo y control se **autocompletan con lo escrito antes** en ese mismo documento | el nivel de riesgo sale de la tabla configurada, no de multiplicar. Suma observaciones si es no tolerable |
-| `question_bank` | el catálogo de preguntas del campo | **no cuenta como observación**, a propósito |
+| `question_bank` | el catálogo de preguntas del campo | **cada «No» es una observación**. Decisión del dueño del producto: «en formato PARE TOME 5 me debería salir observación y cantidad, así como haces en AST, cuando alguien marcó NO» |
 | `photo`, `file`, `signature` | nada: los llena el usuario | su valor **son los adjuntos**, no una respuesta. Un `photo` obligatorio se satisface con un archivo |
 | Adjunto del formato entero | solo existe en `upload_only` y `hybrid` | en `upload_only` es **lo único** que se exige para confirmar |
 | **Empresa** del plan | catálogo de empresas | filtra el cargo que se enseña de cada trabajador (el vínculo de *esa* empresa), y es la empresa que se asigna al dar de alta a alguien desde el plan |

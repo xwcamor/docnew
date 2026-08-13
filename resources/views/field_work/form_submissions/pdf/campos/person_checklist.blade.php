@@ -49,12 +49,12 @@
 <style>
     /* Todo prefijado `pc-`: lo compartido (.data, .block__sub, .muted, .req)
        vive en template.blade.php y esto no lo pisa. */
-    .pc-index { width: 100%; border-collapse: collapse; margin: 0 0 10px 0; }
-    .pc-index th { background: #354A5F; color: #ffffff; font-weight: bold; font-size: 8pt;
-                   text-align: left; padding: 4px 6px; border: 1px solid #2B3B4C; }
-    .pc-index td { padding: 3px 6px; border: 1px solid #E5E5E5; font-size: 8pt; }
-    .pc-index td.pc-num { width: 22px; text-align: right; color: #6A6D70; }
-    .pc-index td.pc-state { width: 34%; }
+    .pc-summary { font-size: 8.5pt; color: #475569; margin: 0 0 6px 0; }
+
+    /* El índice es una `.data` normal —así se ve igual que el resto de tablas
+       del documento— con dos anchos propios. */
+    .pc-num   { width: 22px; text-align: right; color: #6A6D70; }
+    .pc-state { width: 34%; }
 
     /* Un trabajador entero, sin partirse entre dos páginas si cabe. */
     .pc-worker { page-break-inside: avoid; margin: 0 0 10px 0; }
@@ -63,6 +63,9 @@
     .pc-worker__name { font-weight: bold; color: #354A5F; }
     .pc-worker__doc { color: #6A6D70; font-size: 7.5pt; }
 
+    /* La rejilla de items no puede ser `.data`: seis columnas a 8 pt con 4 px de
+       relleno no entran en la hoja vertical, y los rótulos largos («Resp. con
+       filtro para humos») empiezan a partirse en tres líneas. */
     .pc-items { width: 100%; border-collapse: collapse; }
     .pc-items td { border: 1px solid #E5E5E5; font-size: 7.5pt; padding: 2px 5px;
                    vertical-align: top; }
@@ -87,7 +90,10 @@
 @if (empty($trabajadores))
     <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
 @else
-    <p class="muted" style="margin: 0 0 6px 0;">
+    {{-- El titular. Va en rojo en cuanto hay una sola no conformidad, y la
+         frase la nombra: quien abre el documento tiene que saber en la primera
+         línea si esta inspección salió limpia o no. --}}
+    <p class="pc-summary {{ ($datos['no_conformes'] ?? 0) > 0 ? 'pc-bad' : '' }}">
         {{ __('form_submissions.pdf.person_checklist.summary', [
             'people' => count($trabajadores),
             'issues' => $datos['no_conformes'] ?? 0,
@@ -97,7 +103,7 @@
     {{-- Índice. Con un solo trabajador sobra: su bloque ya lo dice todo, igual
          que en la pantalla de llenado. --}}
     @if (count($trabajadores) > 1)
-        <table class="pc-index">
+        <table class="data">
             <thead>
                 <tr>
                     <th colspan="2">{{ __('form_submissions.pdf.person_checklist.worker') }}</th>

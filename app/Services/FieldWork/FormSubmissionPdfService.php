@@ -40,9 +40,37 @@ use Illuminate\Support\Facades\Storage;
  */
 class FormSubmissionPdfService
 {
-    /** Tipos que se pintan como tabla; el resto son pares etiqueta/valor. */
+    /** Tipos que se pintan como tabla generica; el resto son pares etiqueta/valor. */
     protected const COMPUESTOS = [
         'table', 'risk_matrix', 'person_checklist', 'tool_checklist', 'question_bank',
+    ];
+
+    /**
+     * Los que tienen plantilla propia, y por que hizo falta.
+     *
+     * Los cuatro campos de obra caian en `tabla()`, que es un volcador
+     * generico: saca las cabeceras de las CLAVES del JSON guardado. En el papel
+     * eso salia como «Person id | Legacy plan worker id | Correction measure |
+     * Deadline date | Correction verification | Items» —en ingles, porque son
+     * los nombres de las columnas de la base— y la ultima columna era un
+     * parrafo con los veinticinco items del EPP concatenados por comas. El
+     * dueño del producto, viendolo: «que carajos es eso y por que esta en
+     * ingles».
+     *
+     * No era un fallo de formato: es que estos cuatro **nunca se maquetaron**
+     * para el papel. Cada uno tiene ahora su clase, que resuelve el dato con
+     * las etiquetas del catalogo y sin identificadores internos, y su parcial,
+     * que lo pinta como el formato correspondiente de la v1.
+     *
+     * `table` NO esta aqui a proposito: es el campo generico del motor, sus
+     * columnas las define quien configura el formato y no hay forma de saber
+     * como se pinta. Para ese, el volcador generico es lo correcto.
+     */
+    protected const CON_PARCIAL = [
+        'risk_matrix'      => \App\Services\FieldWork\Pdf\RiskMatrixPdf::class,
+        'person_checklist' => \App\Services\FieldWork\Pdf\PersonChecklistPdf::class,
+        'tool_checklist'   => \App\Services\FieldWork\Pdf\ToolChecklistPdf::class,
+        'question_bank'    => \App\Services\FieldWork\Pdf\QuestionBankPdf::class,
     ];
 
     /**
@@ -342,6 +370,19 @@ class FormSubmissionPdfService
             ];
         }
 
+        // Los cuatro de obra se resuelven en su clase y se pintan en su
+        // parcial. El modelo `FormField` entero y no la etiqueta ya resuelta:
+        // lo que necesitan esta en su `config` —los items del catalogo, las
+        // severidades, las bandas de riesgo, los mapas de etiquetas— y de ahi
+        // no sale hoy nada del servicio.
+        if ($parcial = self::CON_PARCIAL[$campo->field_type] ?? null) {
+            return $base + [
+                'render'  => 'campo',
+                'parcial' => 'field_work.form_submissions.pdf.campos.' . $campo->field_type,
+                'datos'   => $parcial::datos($campo, $respuestas),
+            ];
+        }
+
         if (in_array($campo->field_type, self::COMPUESTOS, true)) {
             return $base + ['render' => 'tabla'] + $this->tabla($campo, $respuestas);
         }
@@ -359,14 +400,26 @@ class FormSubmissionPdfService
      */
     protected function etiqueta(FormField $campo): string
     {
-        $config = $campo->config ?? [];
-        $rotulo = $config['label'] ?? $config['title'] ?? null;
+        // El accesor del modelo, que es el que sabe de idiomas.
+        //
+        // Aqui habia una copia que solo miraba `config['label']` y `title`, y
+        // se escribio antes de que el campo tuviera columnas `label_es` y
+        // `label_en`. Resultado: el campo del PTF esta sembrado con «Preguntas»
+        // y «Questions», y el PDF en ingles imprimia «Preguntas» — porque la
+        // copia no leia esas columnas y caia a humanizar el `code`, que esta en
+        // español. Un formato que se pide en ingles y sale medio en español.
+        //
+        // `config['title']` se conserva porque hay plantillas viejas que lo
+        // llevan ahi y el accesor no lo mira.
+        $rotulo = $campo->label;
 
-        if (filled($rotulo) && is_string($rotulo)) {
+        if (filled($rotulo) && $rotulo !== ucfirst(str_replace('_', ' ', (string) $campo->code))) {
             return $rotulo;
         }
 
-        return ucfirst(str_replace('_', ' ', $campo->code));
+        $titulo = $campo->config['title'] ?? null;
+
+        return filled($titulo) && is_string($titulo) ? $titulo : $rotulo;
     }
 
     /** Valor de un campo simple, formateado segun su tipo. */

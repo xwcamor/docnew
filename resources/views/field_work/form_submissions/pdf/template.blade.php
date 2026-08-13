@@ -204,7 +204,15 @@
             @endif
 
             @foreach ($seccion['campos'] as $campo)
-                @if ($campo['render'] === 'tabla')
+                {{-- Los cuatro campos de obra —matriz de riesgo, EPP,
+                     herramientas y banco de preguntas— tienen cada uno su
+                     parcial, porque cada uno es un formato distinto y ninguno
+                     se parece a una tabla de columnas sueltas. Antes caian en
+                     el volcador generico de aqui abajo y salian con las claves
+                     del JSON de cabecera. --}}
+                @if ($campo['render'] === 'campo')
+                    @include($campo['parcial'], ['campo' => $campo])
+                @elseif ($campo['render'] === 'tabla')
                     <h3 class="block__sub">
                         {{ $campo['etiqueta'] }}@if ($campo['requerido'])<span class="req"> *</span>@endif
                     </h3>

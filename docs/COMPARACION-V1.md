@@ -251,7 +251,7 @@ salieron mal) e `is_confirmed`. Las reglas:
 | Formato | Regla de la v1 | Aquí |
 | --- | --- | --- |
 | AST (`f1`) | cuenta los peligros con `risk_value <= 15` | igual, pero contra la última banda que declare la plantilla, no contra un 15 escrito a mano: un formato de otro país puede traer otra matriz |
-| PTF (`f2`) | lo mismo — el banco de preguntas **no** cuenta | igual, incluido que el banco de preguntas no cuenta |
+| PTF (`f2`) | lo mismo — el banco de preguntas **no** cuenta, y el documento no dice en ninguna parte cuántos «No» hay | aquí **cada «No» es una observación** (`FormFindingsService::deLaFila()`), y el PDF lo dice arriba con los números de las preguntas señaladas |
 | EPP (`f3`) | cuenta las respuestas con valor `0` | cuenta las **negativas**. Ver abajo |
 | IHM (`f4`) | igual que EPP | igual que EPP |
 

@@ -56,6 +56,110 @@ return [
         'match'           => 'Coincidencia de la cara :value %',
         'override_reason' => 'Motivo',
 
+        // ── Matriz de riesgo (AST y PTF) ─────────────────────────────────
+        // El papel de la v1 imprimia la evaluacion en crudo: `severity_id` (el
+        // id numerico) y el ranking 1-25 a secas, sin decir la banda. Aqui va
+        // el nombre del catalogo y la banda con su palabra.
+        'risk_matrix' => [
+            'activity_n'         => 'Actividad :n',
+            'unnamed_activity'   => 'Actividad sin nombre',
+            'no_hazards'         => 'Esta actividad no registró peligros.',
+            'evaluation'         => 'Evaluación',
+            'col_danger'         => 'Peligro',
+            'col_risk'           => 'Riesgo',
+            'col_control'        => 'Control',
+            'col_probability'    => 'Probabilidad',
+            'col_severity'       => 'Severidad',
+            'col_level'          => 'Nivel',
+            'total_hazards'      => 'Peligros: :count',
+            'hazards_rated'      => ':done de :total evaluados',
+            'worst'              => 'Peor: :level',
+            'not_assessed'       => 'Sin evaluar',
+            'not_assessed_count' => ':count sin evaluar',
+            'incomplete_count'   => ':count sin completar',
+            'missing'            => 'Falta',
+            // El sufijo es la CLAVE de banda de `config.levels`, no una
+            // palabra: por eso es española tambien en el fichero en ingles. Con
+            // bandas propias el parcial cae a la clave y sigue imprimiendo
+            // palabra junto al color.
+            'level_alto'         => 'Alto',
+            'level_medio'        => 'Medio',
+            'level_bajo'         => 'Bajo',
+        ],
+
+        // ── Banco de preguntas (PTF «Pare, Tome 5») ──────────────────────
+        // En la v1 las columnas se rotulaban «Sí» y «N/A» cuando lo que se
+        // guarda es Sí/No, y el documento no decia en ninguna parte cuantos
+        // «No» habia: habia que recorrer 17 filas buscando equis.
+        'question_bank' => [
+            'number'          => 'Nº',
+            'question'        => 'Pregunta',
+            'answer'          => 'Respuesta',
+            'answered'        => ':done de :total preguntas respondidas',
+            'unanswered'      => ':count sin responder',
+            'observations'    => '{1} 1 observación — pregunta :list|[2,*] :count observaciones — preguntas :list',
+            'no_observations' => 'Sin observaciones',
+            'observation'     => 'OBSERVACIÓN',
+            // El aviso solo cuando hay algun «No». En la v1 salia siempre, y un
+            // aviso que sale siempre deja de leerse.
+            'notice'          => 'Cada «No» es una observación: no inicie el trabajo hasta resolverla con el supervisor HSE.',
+            'untitled'        => 'Pregunta sin enunciado',
+            'outside_catalog' => 'Respuesta a una pregunta que ya no está en esta versión del formato.',
+        ],
+
+        // ── EPP por trabajador ───────────────────────────────────────────
+        // La v1 pintaba una cuadricula de trabajadores × items, apaisada y con
+        // los nombres de los items girados en vertical a 6 px. DomPDF no sabe
+        // girar texto, asi que aqui es un bloque por trabajador con sus items
+        // en tres columnas — ver la cabecera del parcial.
+        'person_checklist' => [
+            'summary'                 => ':people trabajadores inspeccionados · :issues no conformidades',
+            'worker'                  => 'Trabajador',
+            'status'                  => 'Estado',
+            'issues'                  => ':count no conforme|:count no conformes',
+            'pending'                 => ':count sin responder|:count sin responder',
+            'all_ok'                  => 'Sin observaciones',
+            'unnamed_worker'          => 'Trabajador :number',
+            'unknown_item'            => 'Ítem sin identificar',
+            // Los rotulos de `config.extra`, buscados por el nombre de la
+            // clave: una plantilla que añada una columna desde la interfaz se
+            // pinta sola, con el codigo humanizado si no hay traduccion.
+            'correction_measure'      => 'Medida de corrección',
+            'deadline_date'           => 'Fecha límite',
+            'correction_verification' => 'Verificación de la corrección',
+            'answers' => [
+                'compliant'      => 'Conforme',
+                'not_applicable' => 'No aplica',
+                'non_compliant'  => 'No conforme',
+            ],
+        ],
+
+        // ── Inspección de herramientas (IHM) ─────────────────────────────
+        // La v1 ponía el nombre de cada punto girado 90º en la cabecera y un
+        // símbolo por celda (✔ / - / x) con leyenda al pie. DomPDF no gira
+        // texto y esos símbolos no están en las core fonts, así que aquí las
+        // columnas van numeradas con su leyenda arriba y la celda lleva la
+        // palabra — que además sobrevive a una fotocopia.
+        'tool_checklist' => [
+            'points'                  => 'Puntos de inspección',
+            'number'                  => 'Nº',
+            'tool'                    => 'Herramienta',
+            'status'                  => 'Estado',
+            'conforming'              => 'Conforme',
+            'nonconforming'           => 'No conforme',
+            'incomplete'              => 'Sin completar',
+            'unanswered'              => 'Sin responder',
+            'unnamed_point'           => 'Punto sin nombre',
+            'unnamed_tool'            => 'Herramienta sin nombre',
+            'code'                    => 'Cód.',
+            'quantity'                => 'Cant.',
+            'not_recorded'            => 'sin registrar',
+            'correction_measure'      => 'Medida de corrección',
+            'deadline_date'           => 'Fecha límite',
+            'responsible'             => 'Responsable',
+            'correction_verification' => 'Verificación de la corrección',
+        ],
+
         'methods' => [
             'face_recognition' => 'Reconocimiento facial',
             'timeout_capture'  => 'Captura por tiempo de espera',

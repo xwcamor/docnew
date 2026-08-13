@@ -220,7 +220,16 @@ class FormSubmissionPdfTest extends TestCase
         ]);
         $seccion->fields()->create([
             'code' => 'preguntas', 'field_type' => 'question_bank', 'position' => 2,
-            'config' => ['questions' => ['¿Detente?'], 'answers' => ['Si', 'No']],
+            // El catalogo tiene las MISMAS dos preguntas que se contestan mas
+            // abajo. Antes traia un «¿Detente?» suelto que no casaba con
+            // ninguna respuesta: al volcador generico le daba igual —pintaba lo
+            // guardado— pero el parcial recorre el catalogo congelado, que es
+            // lo correcto (una pregunta sin contestar tiene que salir en el
+            // papel), y las dos respuestas caian al bloque de «fuera del
+            // catalogo». La fixture era la incoherente.
+            'config' => ['questions' => [
+                'Detente y piensa antes de actuar', 'El area esta senalizada',
+            ], 'answers' => ['Si', 'No']],
         ]);
         $campoFoto = $seccion->fields()->create([
             'code' => 'foto_del_area', 'field_type' => 'photo', 'position' => 3,
@@ -254,20 +263,43 @@ class FormSubmissionPdfTest extends TestCase
         $datos = app(FormSubmissionPdfService::class)->datos($entrega->fresh(), $escenario['usuario']);
         $campos = collect($datos['secciones'])->flatMap(fn ($s) => $s['campos'])->keyBy('codigo');
 
+        // ── El EPP ───────────────────────────────────────────────────────
+        //
+        // Aqui se fijaba el volcado generico, que es lo que el dueño del
+        // producto rechazo: se exigia que la cabecera dijera «Person name» y
+        // que los items salieran concatenados en una celda. Eran las claves
+        // crudas del JSON convertidas en columnas — en ingles, porque son los
+        // nombres de las columnas de la base— y por eso su captura del PDF
+        // decia «Person id | Legacy plan worker id | Correction measure».
         $epp = $campos['epp_real'];
-        $this->assertSame('tabla', $epp['render']);
-        $this->assertCount(1, $epp['filas'], 'la fila borrada no se imprime');
-        $this->assertNotContains('Person slug', $epp['cabeceras']);
-        $this->assertContains('Person name', $epp['cabeceras']);
-        // El checklist anidado se lee como en papel, no clave por clave.
-        $this->assertContains('Casco: Conforme · Guantes: No conforme', $epp['filas'][0]);
-        $this->assertContains('No', $epp['filas'][0]);   // conforme = false
+        $this->assertSame('campo', $epp['render']);
+        $this->assertSame('field_work.form_submissions.pdf.campos.person_checklist', $epp['parcial']);
 
+        $this->assertCount(1, $epp['datos']['trabajadores'], 'la fila borrada no se imprime');
+
+        $ana = $epp['datos']['trabajadores'][0];
+        $this->assertSame('Ana Quispe', $ana['nombre']);
+        $this->assertSame(1, $ana['no_conformes']);
+
+        // Ni un identificador interno en lo que se manda a pintar: se leen las
+        // claves que se imprimen y no las que trae el JSON, asi que ya no
+        // pueden colarse.
+        $serializadoEpp = json_encode($epp['datos']);
+        foreach (['person_id', 'person_slug', 'legacy_plan_worker_id', 'item_id'] as $interno) {
+            $this->assertStringNotContainsString($interno, $serializadoEpp);
+        }
+
+        // ── El banco de preguntas ────────────────────────────────────────
         $preguntas = $campos['preguntas'];
-        $this->assertSame(['Question', 'Answer'], $preguntas['cabeceras']);
+        $this->assertSame('campo', $preguntas['render']);
+        $this->assertSame('field_work.form_submissions.pdf.campos.question_bank', $preguntas['parcial']);
+
+        // Un «No» del PTF es una observacion, y el papel lo dice: era lo unico
+        // que el documento de la v1 no contaba en ninguna parte.
+        $this->assertSame(1, $preguntas['datos']['observaciones']);
         $this->assertSame(
-            [['Detente y piensa antes de actuar', 'Si'], ['El area esta senalizada', 'No']],
-            $preguntas['filas'],
+            ['Detente y piensa antes de actuar', 'El area esta senalizada'],
+            array_column($preguntas['datos']['preguntas'], 'texto'),
         );
 
         // La foto de un campo `photo` se pinta dentro de su campo y no vuelve a

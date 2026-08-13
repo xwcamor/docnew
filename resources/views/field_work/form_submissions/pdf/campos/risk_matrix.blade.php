@@ -118,6 +118,14 @@
         @foreach ($datos['niveles'] as $nivel)
             · <span class="rm-pill rm-pill--{{ $nivel['tono'] }}">{{ $nombreNivel($nivel['clave']) }}: {{ $nivel['cuenta'] }}</span>
         @endforeach
+        {{-- Un peligro declarado y sin puntuar es un agujero en el documento,
+             no un cero: se cuenta aparte porque en el desglose por nivel no
+             aparece en ninguna banda y se perdería de vista. --}}
+        @if ($datos['total'] > $datos['evaluados'])
+            · <span class="rm-pill rm-pill--off">{{ __($prefijo . 'not_assessed_count', [
+                'count' => $datos['total'] - $datos['evaluados'],
+            ]) }}</span>
+        @endif
         @if ($datos['incompletos'] > 0)
             · <span class="req">{{ __($prefijo . 'incomplete_count', ['count' => $datos['incompletos']]) }}</span>
         @endif

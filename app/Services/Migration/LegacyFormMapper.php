@@ -76,6 +76,33 @@ class LegacyFormMapper
      * orden 'No cumple, Cumple, No aplica'. Por eso aqui se guarda la etiqueta
      * y nunca el numero: si se guardara el indice, un cambio de orden en el
      * catalogo cambiaria el significado de lo ya firmado.
+     *
+     * ── Por que el IHM parece decir lo contrario, y no lo dice ──────────────
+     *
+     * En la v1 los ids de los radios del IHM estan MAL PUESTOS y llevan a la
+     * conclusion contraria a la buena. `_f4_document_tool_fields.html.erb`:
+     *
+     *     radio_button :answer, 1, id: "answer_yes_…",  class: 'img1'
+     *     radio_button :answer, 2, id: "answer_no_…",   class: 'img2'
+     *     radio_button :answer, 0, id: "answer_none_…", class: 'img0'
+     *
+     * Leyendo solo los ids sale «2 = no», que es justo lo que este mapa NO
+     * dice. Pero el id es un nombre que se puso un programador; lo que el
+     * trabajador ve y pulsa es la imagen, y la imagen la fija la clase
+     * (`show.html.erb`, `edit.html.erb`, `new.html.erb` y el propio PDF, los
+     * cuatro iguales):
+     *
+     *     .img0 → equis.png   .img1 → check.png   .img2 → minus.png
+     *
+     * O sea que el 0 es la EQUIS y el 2 es la RAYA. El mapa de arriba es
+     * correcto: 0 = No cumple, 2 = No aplica. Coincide ademas con
+     * `F4DocumentItem#str_answer` —`{0=>'x', 1=>'✔', 2=>'-'}`— y con
+     * `f4_documents.js.erb`, que al marcar 0 quita `is_enabled` y obliga a
+     * escribir la medida de correccion.
+     *
+     * Queda escrito aqui porque la duda ya se levanto una vez, y sin la prueba
+     * delante se vuelve a levantar: si alguien «arreglara» esto, los 14 000 IHM
+     * migrados cambiarian sus «no aplica» por incumplimientos reales.
      */
     public const RESPUESTAS_PTF = [1 => 'Si', 0 => 'No'];
     public const RESPUESTAS_EPP = [1 => 'Conforme', 0 => 'No conforme', 2 => 'No aplica'];
