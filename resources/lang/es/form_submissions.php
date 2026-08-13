@@ -29,7 +29,6 @@ return [
         ],
 
         'content'   => 'Contenido del formato',
-        'section'   => 'Sección :number',
         'no_answer' => 'Sin respuesta',
         'observations' => 'Observaciones',
 
@@ -42,13 +41,14 @@ return [
         // Firmas registradas.
         'signatures'      => 'Firmas registradas',
         'no_signatures'   => 'Esta entrega no tiene firmas registradas.',
-        'evidence'        => 'Evidencia',
+        // La firma trazada, no la cara: es lo que se espera ver al lado de
+        // un nombre en un documento firmado, y ademas la cara solo existe
+        // cuando el reconocimiento fallo.
+        'signature'       => 'Firma',
         'signer'          => 'Firmante',
         'document_number' => 'Documento',
-        'role'            => 'Rol firmado',
         'signed_at'       => 'Hora',
         'col_method'      => 'Método',
-        'no_evidence'     => 'Sin foto',
         'pending_review'  => 'PENDIENTE DE REVISIÓN',
         'reviewed'        => 'Verificada',
         // El porcentaje y no la distancia: quien lee el informe no tiene por
@@ -64,11 +64,6 @@ return [
             'migrated'         => 'Migrada del sistema anterior',
         ],
 
-        'roles' => [
-            'worker'         => 'Trabajador',
-            'supervisor'     => 'Supervisor',
-            'hse_supervisor' => 'Supervisor HSE',
-        ],
 
         // Pie de firmas formales del workspace.
         'formal_signers' => 'Firmas del workspace',

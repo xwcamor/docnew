@@ -12,6 +12,8 @@ use App\Models\SignatureEvent;
 use App\Models\User;
 use App\Models\WorkPlanApproval;
 use App\Models\WorkPlanPerson;
+use App\Services\FieldWork\SignatureService;
+use App\Support\PrivateInfo;
 use App\Support\Tz;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
@@ -68,6 +70,30 @@ class FormSubmissionPdfService
      * idioma de la peticion a medias dejaria la respuesta siguiente en el
      * idioma equivocado.
      */
+    /**
+     * Que formatos se imprimen apaisados.
+     *
+     * La matriz de riesgo son SEIS columnas de texto —peligro, riesgo, control,
+     * probabilidad, severidad, nivel— y en A4 vertical les tocan 17 cm entre
+     * todas: el control, que suele ser la frase mas larga, sale en cuatro
+     * lineas y la tabla se lee a saltos. En horizontal hay 26 cm y cada fila
+     * cabe en una linea, que es como esta el AST en el papel de la v1.
+     *
+     * Se decide por el CAMPO y no por el codigo del formato: quien configure
+     * mañana un formato nuevo con matriz de riesgo va a tener el mismo
+     * problema, y atarlo a «AST» lo dejaria fuera.
+     */
+    protected function orientacion(FormSubmission $entrega): string
+    {
+        $plantilla = $entrega->formTemplate;
+
+        $apaisado = $plantilla && $plantilla->sections()
+            ->whereHas('fields', fn ($q) => $q->where('field_type', 'risk_matrix'))
+            ->exists();
+
+        return $apaisado ? 'landscape' : 'portrait';
+    }
+
     public function generar(FormSubmission $entrega, ?User $usuario = null): \Barryvdh\DomPDF\PDF
     {
         $anterior = app()->getLocale();
@@ -82,7 +108,7 @@ class FormSubmissionPdfService
                 'field_work.form_submissions.pdf.template',
                 $this->datos($entrega, $usuario),
             )
-                ->setPaper('a4', 'portrait')
+                ->setPaper('a4', $this->orientacion($entrega))
                 ->setOptions([
                     // DomPDF solo conoce las core fonts sin instalar: Helvetica,
                     // Times-Roman, Courier, Symbol, ZapfDingbats.
@@ -279,9 +305,15 @@ class FormSubmissionPdfService
             }
 
             $salida[] = [
-                // Las secciones no tienen rotulo propio en la plantilla: se
-                // numeran por su posicion, que es lo que ordena el formato.
-                'titulo' => __('form_submissions.pdf.section', ['number' => $seccion->position ?: $indice + 1]),
+                // El titulo de la seccion si lo tiene, y nada si no.
+                //
+                // Aqui se numeraban: «SECCION 1», «SECCION 2». El dueño del
+                // producto: «no tiene sentido si no tienen titulos». Y es
+                // cierto — esa numeracion no es del documento, es del orden
+                // interno de la plantilla, y en el papel de la v1 no existe. Un
+                // encabezado que solo dice el numero de si mismo gasta una
+                // linea para no informar de nada.
+                'titulo' => $seccion->label ?: null,
                 'campos' => $campos,
             ];
         }
@@ -583,10 +615,18 @@ class FormSubmissionPdfService
             ->orderBy('id')
             ->get();
 
+        // Quien puede ver el documento entero y la firma trazada. Es el mismo
+        // permiso que en pantalla (`people.view_private_info`, super y admin) y
+        // se resuelve UNA vez: da igual quien pulse el boton, lo que decide es
+        // quien lo pulsa, y son 231 personas posibles en un plan grande.
+        $aCara = PrivateInfo::visibleFor($usuario);
+
         return $eventos->map(fn (SignatureEvent $e) => [
             'nombre'     => $e->person?->full_name,
-            'documento'  => $e->person?->num_doc,
-            'rol'        => $this->traducir('form_submissions.pdf.roles.' . $e->role_signed, $e->role_signed),
+            // Enmascarado en el SERVICIO, no en la plantilla: un PDF se
+            // descarga y se reenvia, y taparlo al pintar dejaria el numero
+            // entero en cualquier sitio donde se pase el dato sin pintarlo.
+            'documento'  => PrivateInfo::documento($e->person?->num_doc, $usuario),
             'hora'       => Tz::format($e->signed_at, $usuario),
             'metodo'     => $this->traducir('form_submissions.pdf.methods.' . $e->method, $e->method),
             'pendiente'  => (bool) $e->pending_review,
@@ -597,7 +637,18 @@ class FormSubmissionPdfService
             // quedado atras y contaba lo mismo de otra manera.
             'coincidencia' => $e->match_percent,
             'motivo'     => $e->manual_override ? $e->override_reason : null,
-            'foto'       => $this->fotoDeEvidencia($e),
+            // La FIRMA TRAZADA, no la foto de evidencia.
+            //
+            // La columna se llamaba «Evidencia» y traia la cara capturada al
+            // firmar. Dos problemas: en un documento firmado lo que se espera
+            // ver al lado de un nombre es su firma, que es lo que hay en el
+            // papel de la v1; y la cara solo existe cuando el reconocimiento
+            // FALLO, asi que en la mayoria de las filas la columna salia vacia
+            // —«Sin foto» repetido— justo en las firmas que mejor salieron.
+            //
+            // Va con el mismo permiso que el documento: sin el, ni imagen ni
+            // hueco reservado.
+            'firma'      => $aCara ? $this->firmaTrazada($e) : null,
         ])->all();
     }
 
@@ -607,6 +658,30 @@ class FormSubmissionPdfService
         $archivo = $evento->files->firstWhere('kind', EvidenceFile::FACE);
 
         return $archivo ? $this->imagenDelDisco('local', $archivo->file_path) : null;
+    }
+
+    /**
+     * La firma trazada de quien firmo, que es lo que va en el papel.
+     *
+     * Se busca la vigente de la persona y no una copia por evento: la firma se
+     * dibuja UNA vez y a partir de ahi se reutiliza —esa es la regla de la
+     * pantalla de firmar—, asi que guardarla otra vez por cada plan seria la
+     * misma imagen repetida miles de veces.
+     *
+     * Las que apuntan a `legacy/` no valen: son el marcador que dejo la
+     * importacion a la espera de un fichero que en muchos casos no llego.
+     */
+    protected function firmaTrazada(SignatureEvent $evento): ?string
+    {
+        $persona = $evento->person;
+
+        if (! $persona) {
+            return null;
+        }
+
+        $firma = app(SignatureService::class)->firmaVigente($persona);
+
+        return $firma ? $this->imagenDelDisco('local', $firma->file_path) : null;
     }
 
     /** Los slots de firma formal del workspace, con su relacion traducida. */

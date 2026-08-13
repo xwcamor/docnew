@@ -289,10 +289,10 @@ class FormSubmissionPdfTest extends TestCase
 
         $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
 
-        $conFoto = collect($datos['firmas'])->filter(fn ($f) => $f['foto'] !== null);
+        $conFirma = collect($datos['firmas'])->filter(fn ($f) => $f['firma'] !== null);
 
-        $this->assertCount(2, $conFoto, 'las dos firmas del plan tienen su captura');
-        $conFoto->each(fn ($f) => $this->assertStringStartsWith('data:image/', $f['foto']));
+        $this->assertCount(2, $conFirma, 'las dos firmas del plan traen su trazo');
+        $conFirma->each(fn ($f) => $this->assertStringStartsWith('data:image/', $f['firma']));
 
         // Ninguna ruta del disco privado ni URL de evidencia viaja en el documento.
         $serializado = json_encode($datos);
@@ -417,6 +417,48 @@ class FormSubmissionPdfTest extends TestCase
 
     // ── apoyo ────────────────────────────────────────────────────────────────
 
+    /**
+     * Sin `people.view_private_info` no hay firma ni documento entero.
+     *
+     * Es la misma regla que en pantalla y en la ficha del plan, aplicada al
+     * papel: super y admin lo ven, el resto no. Y se aplica en el SERVICIO y no
+     * en la plantilla, que es lo que importa — un PDF se descarga y se
+     * reenvia, y taparlo al pintar dejaria el numero entero en cualquier sitio
+     * donde el dato se pase sin pintarlo.
+     *
+     * La firma no se sustituye por «Sin firma»: la firma existe, lo que pasa
+     * es que este lector no la ve. Decir lo contrario seria mentir en un
+     * documento de seguridad.
+     */
+    public function test_sin_permiso_no_salen_ni_la_firma_ni_el_documento_entero(): void
+    {
+        $escenario = $this->escenario();
+
+        $deCampo = $this->usuarioCon(['form_submissions.view', 'form_submissions.export']);
+
+        $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $deCampo);
+
+        $this->assertNotEmpty($datos['firmas']);
+
+        foreach ($datos['firmas'] as $firma) {
+            $this->assertNull($firma['firma'], 'la firma trazada no sale sin permiso');
+            $this->assertMatchesRegularExpression('/^\*+\d{2}$/', (string) $firma['documento'],
+                'el documento sale enmascarado menos los dos ultimos digitos');
+        }
+    }
+
+    /** Y el rol firmado ya no viaja: en el papel de la v1 no esta. */
+    public function test_el_pdf_no_habla_de_roles(): void
+    {
+        $escenario = $this->escenario();
+
+        $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
+
+        foreach ($datos['firmas'] as $firma) {
+            $this->assertArrayNotHasKey('rol', $firma);
+        }
+    }
+
     protected function usuarioCon(array $permisos): User
     {
         $rol = Role::firstOrCreate(
@@ -439,7 +481,12 @@ class FormSubmissionPdfTest extends TestCase
     {
         $base = ['country_id' => 1, 'tenant_id' => 1, 'created_by' => 1];
 
-        $usuario = $this->usuarioCon(['form_submissions.view', 'form_submissions.export']);
+        // Con `people.view_private_info`: quien baja el informe de su plan es el
+        // admin del workspace, y es el unico que ve la firma trazada y el
+        // documento entero. El caso contrario tiene su propia prueba.
+        $usuario = $this->usuarioCon([
+            'form_submissions.view', 'form_submissions.export', 'people.view_private_info',
+        ]);
 
         // Membrete: logo en el disco publico y dos slots de firma formal.
         $tenant = Tenant::find(1);
@@ -622,6 +669,22 @@ class FormSubmissionPdfTest extends TestCase
             'file_path' => $ruta, 'sha256' => hash('sha256', $binario),
             'byte_size' => strlen($binario), 'width' => 160, 'height' => 160, 'taken_at' => now(),
         ]);
+
+        // Y su firma trazada, que es lo que el PDF pinta al lado del nombre.
+        // Se dibuja una vez por persona y se reutiliza en todos sus planes, asi
+        // que aqui tambien: `firstOrCreate` y no `create`.
+        \App\Models\PersonSignature::firstOrCreate(
+            ['person_id' => $persona->id],
+            (function () use ($persona) {
+                $trazo = 'firmas/' . now()->format('Y/m') . '/' . Str::random(24) . '.png';
+                Storage::disk('local')->put($trazo, $this->imagenPng(240, 80));
+
+                return [
+                    'file_path' => $trazo, 'sha256' => hash('sha256', $persona->id . 'firma'),
+                    'source' => 'drawn', 'valid_from' => now(),
+                ];
+            })(),
+        );
 
         $firmable->forceFill(['is_approved' => true])->save();
 

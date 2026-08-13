@@ -29,7 +29,6 @@ return [
         ],
 
         'content'   => 'Form content',
-        'section'   => 'Section :number',
         'no_answer' => 'No answer',
         'observations' => 'Observations',
 
@@ -39,13 +38,14 @@ return [
 
         'signatures'      => 'Recorded signatures',
         'no_signatures'   => 'This submission has no recorded signatures.',
-        'evidence'        => 'Evidence',
+        // The drawn signature, not the face: it is what you expect to see
+        // next to a name on a signed document, and the face only exists
+        // when recognition failed.
+        'signature'       => 'Signature',
         'signer'          => 'Signer',
         'document_number' => 'ID number',
-        'role'            => 'Signed role',
         'signed_at'       => 'Time',
         'col_method'      => 'Method',
-        'no_evidence'     => 'No photo',
         'pending_review'  => 'PENDING REVIEW',
         'reviewed'        => 'Verified',
         // The percentage, not the distance: whoever reads the report has no
@@ -61,11 +61,6 @@ return [
             'migrated'         => 'Migrated from the previous system',
         ],
 
-        'roles' => [
-            'worker'         => 'Worker',
-            'supervisor'     => 'Supervisor',
-            'hse_supervisor' => 'HSE supervisor',
-        ],
 
         'formal_signers' => 'Workspace signatures',
 

@@ -707,7 +707,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                  dueño: etiqueta arriba y textarea abajo gastaba una linea).
                  En angosto la fila parte sola y vuelven a quedar una encima
                  de la otra. -->
-            <div class="ff-group__name">
+            <div class="ff-group__name" :class="{ 'is-readonly': readonly }">
                 <label class="ff-label">
                     {{ $t('field_work.risk_matrix.activity') }}<span class="ff-block__req"> *</span>
                 </label>

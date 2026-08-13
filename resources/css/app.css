@@ -1762,6 +1762,12 @@ button.ff-group__toggle { cursor: pointer; }
     padding: 12px 12px 0;
 }
 .ff-group__name > .ff-label { margin: 15px 0 0; flex-shrink: 0; }
+/* Solo lectura: el valor deja de ser un control de 44px y pasa a ser texto, asi
+   que los 15px que alineaban la etiqueta con la PRIMERA LINEA del desplegable
+   la dejan quince pixeles por debajo del texto. Se ve como una etiqueta
+   descolgada de su valor — que es justo lo que el dueño rodeo en rojo. */
+.ff-group__name.is-readonly { align-items: baseline; }
+.ff-group__name.is-readonly > .ff-label { margin: 0; }
 .ff-group__texto { flex: 1 1 260px; min-width: 0; }
 .ff-group__name .ff-cardhint { margin: 6px 0 0; }
 /* El desplegable «grande» de Ant mide 40 px y aqui el minimo son 44: son los

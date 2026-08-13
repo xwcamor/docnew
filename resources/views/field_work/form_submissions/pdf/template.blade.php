@@ -29,6 +29,7 @@
 
         .disclaimer { background: #F8FAFC; border-left: 3px solid #94A3B8; padding: 6px 10px;
                       font-size: 7.5pt; color: #475569; margin: 0 0 12px 0; }
+        .disclaimer--pie { margin: 14px 0 0 0; }
 
         /* Bloques */
         .block { margin: 0 0 14px 0; }
@@ -44,7 +45,11 @@
         table.data thead th { background: #354A5F; color: #ffffff; font-weight: bold; font-size: 8pt;
                               text-align: left; padding: 4px 6px; border: 1px solid #2B3B4C; }
         table.data tbody td { padding: 4px 6px; border: 1px solid #E5E5E5; font-size: 8pt; }
-        table.data tbody tr:nth-child(even) td { background: #F8FAFC; }
+        /* Sin filas alternas. Un AST de quince peligros con la mitad de las
+           filas tintadas se lee como si el color significara algo, y no
+           significa nada: en este documento el color es el nivel de riesgo y
+           el «no conforme». Gastarlo en decorar quita el unico sitio donde
+           informa. Las lineas ya separan las filas. */
 
         .muted { color: #94A3B8; font-style: italic; }
         .req { color: #C8281D; font-weight: bold; }
@@ -53,8 +58,11 @@
                 font-weight: bold; padding: 1px 5px; letter-spacing: 0.04em; }
         .ok { color: #1D7044; font-weight: bold; }
 
-        .evidence { width: 68px; }
-        .evidence img { width: 62px; border: 1px solid #CBD5E1; }
+        /* La firma trazada es un trazo sobre transparente: se pinta a su
+           tamaño natural dentro de la celda, sin marco. Un marco alrededor de
+           una firma la convierte en un sello, que es otra cosa. */
+        .firma { width: 96px; }
+        .firma img { max-width: 90px; max-height: 34px; }
 
         .sheet { page-break-before: always; text-align: center; }
         .sheet img { max-width: 100%; max-height: 940px; }
@@ -115,10 +123,6 @@
     </tr>
 </table>
 
-@if (!empty($membrete['disclaimer']))
-    <p class="disclaimer">{{ $membrete['disclaimer'] }}</p>
-@endif
-
 {{-- 2 · Cabecera del plan --}}
 @if (!empty($plan))
     <div class="block">
@@ -171,7 +175,12 @@
         <h2 class="block__title">{{ __('form_submissions.pdf.content') }}</h2>
 
         @foreach ($secciones as $seccion)
-            <h3 class="block__sub">{{ $seccion['titulo'] }}</h3>
+            {{-- Solo si la seccion tiene titulo de verdad. Aqui salia «SECCION
+                 1», «SECCION 2»: el numero del orden interno de la plantilla
+                 disfrazado de encabezado. --}}
+            @if (filled($seccion['titulo']))
+                <h3 class="block__sub">{{ $seccion['titulo'] }}</h3>
+            @endif
 
             @php $pares = array_filter($seccion['campos'], fn ($c) => $c['render'] === 'par'); @endphp
 
@@ -250,11 +259,14 @@
     @else
         <table class="data">
             <thead>
+                {{-- Sin la columna «Rol»: en el papel de la v1 no esta, y lo
+                     que dice —«Worker», «Supervisor»— ya lo dice el flujo del
+                     plan. En una tabla de cinco firmas eran cinco veces la
+                     misma palabra gastando ancho. --}}
                 <tr>
-                    <th>{{ __('form_submissions.pdf.evidence') }}</th>
+                    <th>{{ __('form_submissions.pdf.signature') }}</th>
                     <th>{{ __('form_submissions.pdf.signer') }}</th>
                     <th>{{ __('form_submissions.pdf.document_number') }}</th>
-                    <th>{{ __('form_submissions.pdf.role') }}</th>
                     <th>{{ __('form_submissions.pdf.signed_at') }}</th>
                     <th>{{ __('form_submissions.pdf.col_method') }}</th>
                 </tr>
@@ -262,16 +274,19 @@
             <tbody>
                 @foreach ($firmas as $firma)
                     <tr>
-                        <td class="evidence">
-                            @if (!empty($firma['foto']))
-                                <img src="{{ $firma['foto'] }}" alt="">
-                            @else
-                                <span class="muted">{{ __('form_submissions.pdf.no_evidence') }}</span>
+                        {{-- La firma trazada, que es lo que se espera ver al
+                             lado de un nombre en un documento firmado. Sin
+                             permiso para verla la celda queda vacia y no dice
+                             «Sin firma»: la firma existe, lo que pasa es que
+                             este lector no la ve, y decir lo contrario seria
+                             mentir en un documento de seguridad. --}}
+                        <td class="firma">
+                            @if (!empty($firma['firma']))
+                                <img src="{{ $firma['firma'] }}" alt="">
                             @endif
                         </td>
                         <td>{{ $firma['nombre'] ?: '—' }}</td>
                         <td>{{ $firma['documento'] ?: '—' }}</td>
-                        <td>{{ $firma['rol'] }}</td>
                         <td>{{ $firma['hora'] }}</td>
                         <td>
                             {{ $firma['metodo'] }}
@@ -345,6 +360,15 @@
         </p>
     </div>
 @endforeach
+
+{{-- 7 · El descargo, al final.
+     Estaba arriba, debajo del membrete, y ahi es lo primero que se lee de un
+     documento cuyo contenido todavia no se ha visto. Un descargo se lee
+     DESPUES: dice bajo que condiciones vale lo que acabas de leer, y por eso
+     en cualquier informe va al pie. --}}
+@if (!empty($membrete['disclaimer']))
+    <p class="disclaimer disclaimer--pie">{{ $membrete['disclaimer'] }}</p>
+@endif
 
 </body>
 </html>
