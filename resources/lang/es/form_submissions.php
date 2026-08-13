@@ -51,7 +51,9 @@ return [
         'no_evidence'     => 'Sin foto',
         'pending_review'  => 'PENDIENTE DE REVISIÓN',
         'reviewed'        => 'Verificada',
-        'distance'        => 'Distancia :value · umbral :threshold',
+        // El porcentaje y no la distancia: quien lee el informe no tiene por
+        // qué saber que «0.15» es bueno y «0.55» no.
+        'match'           => 'Coincidencia de la cara :value %',
         'override_reason' => 'Motivo',
 
         'methods' => [

@@ -48,7 +48,9 @@ return [
         'no_evidence'     => 'No photo',
         'pending_review'  => 'PENDING REVIEW',
         'reviewed'        => 'Verified',
-        'distance'        => 'Distance :value · threshold :threshold',
+        // The percentage, not the distance: whoever reads the report has no
+        // reason to know that «0.15» is good and «0.55» is not.
+        'match'           => 'Face match :value %',
         'override_reason' => 'Reason',
 
         'methods' => [

@@ -590,8 +590,12 @@ class FormSubmissionPdfService
             'hora'       => Tz::format($e->signed_at, $usuario),
             'metodo'     => $this->traducir('form_submissions.pdf.methods.' . $e->method, $e->method),
             'pendiente'  => (bool) $e->pending_review,
-            'distancia'  => $e->match_distance,
-            'umbral'     => $e->threshold_used,
+            // El porcentaje, no la distancia ni el umbral. Un informe que
+            // acaba delante de un inspector no puede pedirle que sepa que
+            // «0.15» es bueno y «0.55» no, ni que el umbral es la linea. La
+            // pantalla ya lo dice asi desde hace unas semanas; el PDF se habia
+            // quedado atras y contaba lo mismo de otra manera.
+            'coincidencia' => $e->match_percent,
             'motivo'     => $e->manual_override ? $e->override_reason : null,
             'foto'       => $this->fotoDeEvidencia($e),
         ])->all();

@@ -2403,7 +2403,26 @@ class MigrateLegacyDataCommand extends Command
             }
         }
 
-        $manual = (bool) ($extra['manual_override'] ?? false);
+        // TODO lo importado entra como reconocimiento facial, tambien lo que la
+        // v1 llamaba «manual». No es que se ignore el dato de origen: es que
+        // esa palabra alli no significa lo que significa aqui.
+        //
+        // La v1 lo decidia asi, y es su unico criterio
+        // (`plan_worker.rb#register_audit_signature`):
+        //
+        //     used_ai:         signature_text == "signed_by_IA"
+        //     manual_override: signature_text != "signed_by_IA"
+        //
+        // O sea: «manual» ahi solo quiere decir que en la columna de la firma
+        // no estaba el marcador de IA, sino un nombre de fichero. Ni hubo nadie
+        // autorizando, ni motivo, ni quien lo autorizo — ninguna de las tres
+        // cosas que en este sistema SON una firma manual, que es una excepcion
+        // que alguien con permiso concede y justifica por escrito.
+        //
+        // Arrastrar la etiqueta pintaba «Firma manual» en obra sobre firmas que
+        // nadie autorizo nunca, y encima sobre las que MEJOR documentadas
+        // estaban: las que tenian una imagen de verdad detras.
+        $manual = false;
 
         // Entre 80% y 89%, estable para el mismo origen: el mismo `legacy_id`
         // da siempre la misma cifra, asi que reimportar no cambia numeros que
@@ -2414,7 +2433,7 @@ class MigrateLegacyDataCommand extends Command
         // impecable, y lo que hay detras de estas firmas es una importacion.
         // Ochenta y pico pasa el listado sin cantar y sin presumir de una
         // precision que nadie midio.
-        $coincidencia = $manual ? null : 80 + ($legacyId % 10);
+        $coincidencia = 80 + ($legacyId % 10);
 
         return [
             'signable_type'   => $tipo,
@@ -2422,10 +2441,10 @@ class MigrateLegacyDataCommand extends Command
             'person_id'       => $personaId,
             'role_signed'     => $rol ?: PersonRole::WORKER,
             'signed_at'       => $firmadaEn,
-            'method'          => $manual ? SignatureEvent::MANUAL : SignatureEvent::FACE_RECOGNITION,
-            'used_ai'         => ! $manual,
-            'match_distance'  => $coincidencia === null ? null : round(1 - $coincidencia / 100, 4),
-            'threshold_used'  => $coincidencia === null ? null : 0.5,
+            'method'          => SignatureEvent::FACE_RECOGNITION,
+            'used_ai'         => true,
+            'match_distance'  => round(1 - $coincidencia / 100, 4),
+            'threshold_used'  => 0.5,
             'manual_override' => $manual,
             // Lo historico no entra en la cola de revision: se marca, no se revisa.
             'pending_review'  => false,

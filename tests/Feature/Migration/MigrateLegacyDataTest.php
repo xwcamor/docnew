@@ -792,16 +792,29 @@ class MigrateLegacyDataTest extends TestCase
         // justo el motivo de sacarlo de ahi.
         $this->assertSame(3, $eventos->count());
 
-        // Llegan como reconocimiento facial, no como «migradas». Es una
-        // decision del dueno del producto: la v1 hacia reconocimiento —de ahi
-        // su `detected_by_IA`— y el historico no tiene que salir con un metodo
-        // distinto al lado de las firmas nuevas.
-        // Salvo las que la v1 marco como firma manual: esas se llaman por su
-        // nombre, porque ahi no hubo ninguna cara que comparar.
+        // TODAS llegan como reconocimiento facial, no como «migradas» ni como
+        // manuales. Es una decision del dueno del producto: la v1 hacia
+        // reconocimiento —de ahi su `detected_by_IA`— y el historico no tiene
+        // que salir con un metodo distinto al lado de las firmas nuevas.
+        //
+        // Y las que la v1 llamaba «manual» tampoco se quedan asi, porque esa
+        // palabra alli no significa lo que significa aqui. Su unico criterio
+        // era `manual_override: signature_text != "signed_by_IA"`
+        // (`plan_worker.rb#register_audit_signature`): «manual» solo queria
+        // decir que en la columna habia un nombre de fichero en vez del
+        // marcador de IA. Ni hubo alguien autorizando, ni motivo, ni quien lo
+        // autorizo — las tres cosas que en este sistema SON una firma manual.
+        // Arrastrar la etiqueta pintaba «Firma manual» en obra sobre firmas que
+        // nadie autorizo, y encima sobre las mejor documentadas: las que tenian
+        // una imagen de verdad detras.
         $this->assertSame(
-            ['face_recognition', 'manual'],
+            ['face_recognition'],
             $eventos->pluck('method')->unique()->sort()->values()->all(),
         );
+
+        // Y sin la marca de excepcion, que es la que abre la puerta a firmar
+        // sin cara: ninguna de estas se concedio, se importaron.
+        $this->assertTrue($eventos->every(fn ($e) => ! $e->manual_override));
 
         // Las reconocidas traen su porcentaje de coincidencia, que aqui es
         // relleno: la v1 no guardaba la distancia. Se deriva del id de origen y
@@ -849,8 +862,8 @@ class MigrateLegacyDataTest extends TestCase
         $conEvento = $eventos->firstWhere('legacy_source', 'worker_signature_events');
         $this->assertSame('190.238.40.88', $conEvento->ip_address);
 
-        // La manual no lleva porcentaje: no se comparo nada.
-        $this->assertNull($eventos->firstWhere('method', 'manual')->match_distance);
+        // Y ninguna se queda sin porcentaje: todas entran como reconocidas.
+        $this->assertTrue($eventos->every(fn ($e) => $e->match_distance !== null));
 
         // Y estable: repetir la migracion no cambia ni un porcentaje.
         $antes = $eventos->pluck('match_distance', 'legacy_id');

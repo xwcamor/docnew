@@ -280,10 +280,9 @@
                             @else
                                 <br><span class="ok">{{ __('form_submissions.pdf.reviewed') }}</span>
                             @endif
-                            @if ($firma['distancia'] !== null)
-                                <br><span class="muted">{{ __('form_submissions.pdf.distance', [
-                                    'value' => $firma['distancia'],
-                                    'threshold' => $firma['umbral'],
+                            @if ($firma['coincidencia'] !== null)
+                                <br><span class="muted">{{ __('form_submissions.pdf.match', [
+                                    'value' => $firma['coincidencia'],
                                 ]) }}</span>
                             @endif
                             @if (filled($firma['motivo']))
