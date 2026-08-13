@@ -677,14 +677,23 @@ class FormSubmissionPdfService
 
         $trabajadores = WorkPlanPerson::where('work_plan_id', $planId)->pluck('id')->all();
 
-        // Con el rol de cada aprobacion: ahi la palabra SI informa —«Supervisor
-        // HSE», «Jefe de obra»— al reves que en la tabla de trabajadores, donde
-        // eran cinco veces «Trabajador» gastando ancho.
+        // Con el rotulo de cada aprobacion: ahi la palabra SI informa, al reves
+        // que en la tabla de trabajadores, donde eran quince veces «Trabajador»
+        // gastando ancho.
+        //
+        // Y el rotulo es el NOMBRE DE LA REGLA —«Supervisor Autorizante -
+        // HITACHI»— no el rol generico. El rol dice que clase de persona firma;
+        // el nombre dice por parte de quien, que es lo que se busca en un
+        // documento que va a manos de la contratista principal. Salia
+        // «Supervisor» a secas, y en un plan con dos supervisores de empresas
+        // distintas eso no distingue nada. Es ademas el mismo texto que ya
+        // enseña la ficha del plan (`rule_name` en WorkPlanController), asi que
+        // el papel y la pantalla dejan de contar cosas distintas.
         $aprobaciones = WorkPlanApproval::with('approvalRule.role')
             ->where('work_plan_id', $planId)
             ->get()
             ->mapWithKeys(fn (WorkPlanApproval $a) => [
-                $a->id => $a->approvalRule?->role?->label ?? $a->approvalRule?->name,
+                $a->id => $a->approvalRule?->name ?: $a->approvalRule?->role?->label,
             ])
             ->all();
 

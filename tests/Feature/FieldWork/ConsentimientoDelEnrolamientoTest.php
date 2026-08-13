@@ -1,0 +1,169 @@
+<?php
+
+namespace Tests\Feature\FieldWork;
+
+use App\Models\PersonBiometric;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Storage;
+use Spatie\Permission\Models\Permission;
+use Tests\Concerns\ArmaUnaFirma;
+use Tests\TestCase;
+
+/**
+ * Registrar una cara exige consentimiento, y el consentimiento queda escrito.
+ *
+ * EL AGUJERO QUE CIERRA
+ * ---------------------
+ * `enroll()` ya validaba `'consent' => ['accepted']`, pero la pantalla mandaba
+ * `consent: true` a pelo: nadie preguntaba nada. Y aunque se hubiera
+ * preguntado, no habia donde apuntarlo — el si de la persona vivia dentro de
+ * una peticion HTTP que se descarta.
+ *
+ * Un descriptor facial es un dato biometrico. Lo que se pide demostrar no es
+ * que el sistema pidiera permiso: es que ESTA persona lo dio, CUANDO y sobre
+ * QUE TEXTO. Sin las tres cosas no hay nada que enseñar en una auditoria.
+ *
+ * Por eso el texto viaja entero desde la pantalla y se guarda tal cual: una
+ * referencia a la version no responde a «¿a que dijo que si?» cuando hayan
+ * pasado dos años y tres redacciones.
+ */
+class ConsentimientoDelEnrolamientoTest extends TestCase
+{
+    use RefreshDatabase;
+    use ArmaUnaFirma;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->withoutMiddleware([
+            \Mcamara\LaravelLocalization\Middleware\LaravelLocalizationRedirectFilter::class,
+            \Mcamara\LaravelLocalization\Middleware\LocaleSessionRedirect::class,
+        ]);
+
+        $this->sembrarPadresDeFirma();
+
+        Storage::fake('local');
+    }
+
+    /** Lo que acepto queda escrito: cuando, que version y que texto. */
+    public function test_el_consentimiento_se_guarda_entero(): void
+    {
+        [$usuario, $persona] = $this->sinEnrolar();
+
+        $texto = 'Juan, para firmar necesitamos registrar tu cara una vez…';
+
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.enroll', $persona->slug),
+            [
+                'descriptors'     => [$this->descriptorEnrolado()],
+                'consent'         => true,
+                'consent_version' => PersonBiometric::CONSENT_VERSION,
+                'consent_text'    => $texto,
+            ],
+        )->assertCreated();
+
+        $biometria = $persona->fresh()->activeBiometric;
+
+        $this->assertNotNull($biometria->consent_at, 'sin la fecha no hay nada que enseñar');
+        $this->assertSame(PersonBiometric::CONSENT_VERSION, $biometria->consent_version);
+        $this->assertSame($texto, $biometria->consent_text,
+            'el texto entero, no una referencia: es lo unico que responde a «a que dijo que si»');
+        $this->assertNotNull($biometria->consent_ip);
+    }
+
+    /**
+     * Sin el si no se registra ninguna cara.
+     *
+     * Es la mitad que ya estaba, y se comprueba igual: es la regla, y una regla
+     * sin prueba se cae el dia que alguien simplifica la validacion.
+     */
+    public function test_sin_aceptar_no_se_registra_nada(): void
+    {
+        [$usuario, $persona] = $this->sinEnrolar();
+
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.enroll', $persona->slug),
+            [
+                'descriptors'     => [$this->descriptorEnrolado()],
+                'consent'         => false,
+                'consent_version' => PersonBiometric::CONSENT_VERSION,
+                'consent_text'    => 'lo que sea',
+            ],
+        )->assertStatus(422);
+
+        $this->assertNull($persona->fresh()->activeBiometric);
+    }
+
+    /**
+     * Y sin el TEXTO tampoco.
+     *
+     * Aceptar sin poder decir a que se acepto no vale: es justo el estado del
+     * que se viene. Que el servidor lo exija —y no solo la pantalla— es lo que
+     * impide que una version vieja de la aplicacion, o una llamada directa a la
+     * API, vuelva a enrolar a ciegas.
+     */
+    public function test_sin_el_texto_aceptado_no_se_registra_nada(): void
+    {
+        [$usuario, $persona] = $this->sinEnrolar();
+
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.enroll', $persona->slug),
+            ['descriptors' => [$this->descriptorEnrolado()], 'consent' => true],
+        )->assertStatus(422)
+            ->assertJsonValidationErrors(['consent_version', 'consent_text']);
+
+        $this->assertNull($persona->fresh()->activeBiometric);
+    }
+
+    /**
+     * La pantalla pregunta de verdad antes de abrir la camara.
+     *
+     * No hay navegador en la suite, pero si se puede comprobar que la pantalla
+     * dejo de mandar el `true` cableado y que espera una respuesta. Es la mitad
+     * que el servidor no puede vigilar solo: mandaria un texto igualmente.
+     */
+    public function test_la_pantalla_pide_el_permiso_antes_de_enrolar(): void
+    {
+        $vista = file_get_contents(resource_path('js/Pages/FieldWork/Sign.vue'));
+
+        $this->assertStringContainsString('await pedirConsentimiento()', $vista);
+        $this->assertStringContainsString('consent_text: textoConsentimiento.value', $vista);
+
+        // Y el aviso no se cierra de un roce: `mask-closable` y `keyboard` en
+        // falso. Una ventana que se va tocando fuera no es una decision.
+        $this->assertStringContainsString(':mask-closable="false"', $vista);
+    }
+
+    /** El texto existe en los dos idiomas y nombra a quien lo lee. */
+    public function test_el_texto_esta_en_los_dos_idiomas(): void
+    {
+        foreach (['es', 'en'] as $idioma) {
+            $textos = require resource_path("lang/{$idioma}/field_work.php");
+
+            $this->assertArrayHasKey('consent', $textos);
+
+            foreach (['title', 'text', 'checkbox', 'accept', 'decline', 'declined'] as $clave) {
+                $this->assertArrayHasKey($clave, $textos['consent'], "falta consent.{$clave} en {$idioma}");
+            }
+
+            $this->assertStringContainsString(':name', $textos['consent']['text'],
+                'el texto tiene que nombrar a quien lo lee');
+        }
+    }
+
+    /**
+     * El decorado, con la persona SIN cara registrada.
+     *
+     * @return array{0:\App\Models\User,1:\App\Models\Person}
+     */
+    private function sinEnrolar(): array
+    {
+        [$usuario, $persona] = $this->escenario();
+
+        PersonBiometric::where('person_id', $persona->id)->delete();
+        $usuario->givePermissionTo(Permission::firstOrCreate(['name' => 'people.edit', 'guard_name' => 'web']));
+
+        return [$usuario, $persona->fresh()];
+    }
+}

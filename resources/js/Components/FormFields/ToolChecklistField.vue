@@ -27,7 +27,7 @@
 import { computed } from 'vue';
 import { Button } from 'ant-design-vue';
 import {
-    ArrowRightOutlined, CheckOutlined, DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined,
+    ArrowRightOutlined, DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined,
 } from '@ant-design/icons-vue';
 import AnswerToggle from './AnswerToggle.vue';
 import CatalogSelect from './CatalogSelect.vue';
@@ -35,7 +35,7 @@ import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
 import {
-    catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaPositiva, textoEstado,
+    catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaNoAplica, textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -56,6 +56,12 @@ const herramientas = computed(() => catalogo(config.value, 'tools'));
 const puntos = computed(() => catalogo(config.value, 'items'));
 const respuestas = computed(() => catalogo(config.value, 'answers'));
 const extras = computed(() => catalogo(config.value, 'extra'));
+
+/**
+ * Cómo se llama aquí «no aplica», para poder nombrarlo en el aviso. Ver la nota
+ * larga en PersonChecklistField: sustituye al botón «Marcar todo».
+ */
+const noAplica = computed(() => respuestaNoAplica(respuestas.value));
 
 const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
 
@@ -81,15 +87,6 @@ function responder(indice, item, respuesta) {
     publicar(filas.value.map((fila, i) => (i !== indice ? fila : {
         ...fila,
         items: (fila.items ?? []).map((x) => (x.item === item ? { ...x, answer: respuesta } : x)),
-    })));
-}
-
-function marcarTodo(indice) {
-    const positiva = respuestaPositiva(respuestas.value);
-
-    publicar(filas.value.map((fila, i) => (i !== indice ? fila : {
-        ...fila,
-        items: (fila.items ?? []).map((x) => ({ ...x, answer: positiva })),
     })));
 }
 
@@ -172,6 +169,12 @@ function siguientePendiente(indice) {
             {{ $t('field_work.tool_checklist.empty') }}
         </p>
 
+        <!-- Cómo se llena esto, dicho antes y no después. Sustituye al botón
+             «Marcar todo»: ver la nota larga en PersonChecklistField. -->
+        <p v-if="noAplica && !readonly && filas.length" class="ff-hint">
+            {{ $t('field_work.checklist_hint', { na: noAplica }) }}
+        </p>
+
         <RowNavigator
             v-if="filas.length > 1"
             :rows="resumenFilas"
@@ -240,11 +243,6 @@ function siguientePendiente(indice) {
                 <!-- Igual que en el EPP: el salto al siguiente se ofrece, nunca
                      se hace solo. Ver el comentario largo de PersonChecklistField. -->
                 <footer v-if="!readonly" class="ff-row__foot">
-                    <Button size="large" class="ff-row__all" @click="marcarTodo(i)">
-                        <template #icon><CheckOutlined /></template>
-                        {{ $t('field_work.mark_all') }}
-                    </Button>
-
                     <Button
                         class="ff-row__del"
                         danger

@@ -381,6 +381,18 @@ class SignatureController extends Controller
      *
      * Es lo que falta cuando alguien va a firmar por primera vez: la pantalla
      * detecta que no tiene cara registrada y guia la captura de varias muestras.
+     *
+     * EL CONSENTIMIENTO SE GUARDA, NO SOLO SE EXIGE.
+     *
+     * `'consent' => ['accepted']` ya estaba, pero la pantalla mandaba `true` a
+     * pelo: nadie preguntaba nada. Y aunque se hubiera preguntado, el si de la
+     * persona se quedaba dentro de una peticion HTTP que se descarta.
+     *
+     * Un descriptor facial es un dato biometrico, y lo que se pide demostrar no
+     * es que el sistema pidiera permiso: es que ESTA persona lo dio, CUANDO y
+     * sobre QUE TEXTO. Por eso el texto viaja entero desde la pantalla y se
+     * guarda tal cual, junto a su version y la IP. Ver la migracion
+     * `2026_08_14_090000`.
      */
     public function enroll(Request $request, Person $person)
     {
@@ -390,7 +402,12 @@ class SignatureController extends Controller
             'descriptors'     => ['required', 'array', 'min:1', 'max:5'],
             'descriptors.*'   => ['array', 'size:128'],
             'descriptors.*.*' => ['numeric'],
+            // Obligatorios los tres: sin ellos no hay consentimiento que
+            // guardar, y un enrolamiento sin consentimiento registrado es
+            // exactamente lo que habia antes.
             'consent'         => ['accepted'],
+            'consent_version' => ['required', 'string', 'max:20'],
+            'consent_text'    => ['required', 'string', 'max:4000'],
             // Un fotograma del enrolamiento, opcional. Ver mas abajo.
             'photo'           => ['nullable', 'string'],
         ]);
@@ -407,6 +424,13 @@ class SignatureController extends Controller
             'enrolled_at'     => now(),
             'enrolled_by'     => $request->user()->id,
             'is_active'       => true,
+            // Lo que acepto, cuando y desde donde. El texto va entero: una
+            // referencia a la version no responde a «¿a que dijo que si?»
+            // cuando hayan pasado dos años y tres redacciones.
+            'consent_at'      => now(),
+            'consent_version' => $datos['consent_version'],
+            'consent_text'    => $datos['consent_text'],
+            'consent_ip'      => $request->ip(),
         ]);
 
         // Y si esta persona no tiene foto de referencia, se queda con una de

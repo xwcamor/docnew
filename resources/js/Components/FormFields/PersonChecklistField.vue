@@ -30,13 +30,13 @@
  */
 import { computed } from 'vue';
 import { Alert, Button } from 'ant-design-vue';
-import { ArrowRightOutlined, CheckOutlined, DownOutlined, RightOutlined } from '@ant-design/icons-vue';
+import { ArrowRightOutlined, DownOutlined, RightOutlined } from '@ant-design/icons-vue';
 import AnswerToggle from './AnswerToggle.vue';
 import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
 import {
-    agrupar, catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaPositiva,
+    agrupar, catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaNoAplica,
     textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
@@ -77,6 +77,16 @@ const grupos = computed(() => agrupar(items.value, config.value?.groups));
 
 /** ¿Hay rótulos que pintar, o es la lista de siempre? */
 const conGrupos = computed(() => grupos.value.some((g) => g.name));
+
+/**
+ * Cómo se llama aquí «no aplica», para poder nombrarlo en el aviso.
+ *
+ * Es la respuesta que el servidor escribe al cerrar el documento en todo lo que
+ * se haya dejado sin marcar. El aviso tiene que decir la palabra que va a
+ * quedar escrita —la del catálogo de ESTE formato— y no una nuestra; si el
+ * catálogo no tiene ninguna, el servidor no rellena nada y el aviso no sale.
+ */
+const noAplica = computed(() => respuestaNoAplica(respuestas.value));
 
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo } =
     usePlegado(`epp-${props.field?.id ?? 'x'}`);
@@ -132,16 +142,6 @@ function responder(indice, item, respuesta) {
     publicar(filas.value.map((fila, i) => (i !== indice ? fila : {
         ...fila,
         items: (fila.items ?? []).map((x) => (x.item === item ? { ...x, answer: respuesta } : x)),
-    })));
-}
-
-/** Con veinticinco items por trabajador, marcar todo y corregir la excepcion es lo rapido. */
-function marcarTodo(indice) {
-    const positiva = respuestaPositiva(respuestas.value);
-
-    publicar(filas.value.map((fila, i) => (i !== indice ? fila : {
-        ...fila,
-        items: (fila.items ?? []).map((x) => ({ ...x, answer: positiva })),
     })));
 }
 
@@ -228,6 +228,16 @@ function siguientePendiente(indice) {
             show-icon
             :message="$t('field_work.person_checklist.no_people')"
         />
+
+        <!-- CÓMO SE LLENA ESTO, dicho antes y no después.
+             Sustituye al botón «Marcar todo», que ponía Conforme en los
+             veinticinco equipos de un toque: eso afirma que veinticinco cosas
+             están bien cuando nadie ha mirado ninguna, y encima era el camino
+             cómodo. Se marca lo que corresponde y lo que se deja en blanco es
+             que a esa persona no le tocaba — como en el papel. -->
+        <p v-if="noAplica && !readonly" class="ff-hint">
+            {{ $t('field_work.checklist_hint', { na: noAplica }) }}
+        </p>
 
         <!-- El guardado dejo el campo pendiente: en rojo, con la cuenta de
              QUIENES faltan, y en su sitio — no solo en el aviso de arriba.
@@ -331,11 +341,6 @@ function siguientePendiente(indice) {
                     fila ya esta entera.
                 -->
                 <footer v-if="!readonly" class="ff-row__foot">
-                    <Button size="large" class="ff-row__all" @click="marcarTodo(i)">
-                        <template #icon><CheckOutlined /></template>
-                        {{ $t('field_work.mark_all') }}
-                    </Button>
-
                     <Button
                         v-if="siguientePendiente(i) !== null"
                         size="large"

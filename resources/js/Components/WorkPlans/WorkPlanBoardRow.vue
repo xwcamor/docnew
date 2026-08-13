@@ -209,6 +209,8 @@ const hayLineaDos = computed(() => (
  * y sin una sola media query.
  */
 .wp-row {
+    /* `relative` para colgar de aquí el hilo del flujo encadenado: ver abajo. */
+    position: relative;
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -229,11 +231,28 @@ const hayLineaDos = computed(() => (
 .wp-row.is-done  .wp-row__mark { color: var(--color-success, #107E3E); }
 .wp-row.is-pending .wp-row__mark { color: var(--color-warning, #E9730C); }
 
-/* El hilo que encadena un paso con el siguiente: sólo donde el orden importa. */
-.wp-row.is-chained:not(:last-child) .wp-row__mark::after {
+/*
+ * El hilo que encadena un paso con el siguiente.
+ *
+ * Sólo en el flujo de aprobaciones, y dice algo concreto: que el orden importa
+ * —el nivel 2 no firma hasta que ha firmado el 1— que es la regla que aplica
+ * `WorkPlanApproval::aprobacionesPendientesAntes()`. En la cuadrilla y en los
+ * documentos no sale, porque ahí el orden da igual.
+ *
+ * Colgaba del CÍRCULO y el círculo mide lo que mide el icono, así que el hilo
+ * llegaba catorce píxeles más abajo y se paraba en el aire: en pantalla no se
+ * leía como un hilo sino como una barra suelta al lado del nombre. Ahora cuelga
+ * de la FILA, que es lo que llega hasta la siguiente, y los -14px de abajo son
+ * justo el borde más el relleno superior de la fila que viene — o sea, hasta el
+ * círculo del paso siguiente.
+ */
+.wp-row.is-chained:not(:last-child)::after {
     content: '';
     position: absolute;
-    top: 21px; bottom: -14px;
+    /* Centrado en la columna de 22px de la marca, que es el primer hijo. */
+    left: 10px;
+    top: 23px;
+    bottom: -14px;
     width: 2px;
     background: var(--color-border, #e5e7eb);
 }

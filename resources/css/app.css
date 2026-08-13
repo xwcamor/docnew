@@ -2231,6 +2231,16 @@ button.ff-group__toggle { cursor: pointer; }
    `--state-bad-*` y nunca un hex (§5-bis).
    ═══════════════════════════════════════════════════════════════ */
 
+/* Cómo se llena un checklist: informativo, no accionable, y por eso NO usa los
+   tokens de estado. Sustituye al botón «Marcar todo» — la explicación larga
+   está en PersonChecklistField.vue. Va arriba del todo porque es una regla que
+   hay que saber ANTES de empezar a marcar, no un aviso de algo que salió mal. */
+.ff-hint {
+    margin: 0 0 12px;
+    font-size: 0.875rem;
+    color: var(--color-text-muted, #6A6D70);
+}
+
 /* El titular: qué falta y cuánto. Encima del índice, donde arranca el campo. */
 .ff-missing {
     margin: 0 0 12px;

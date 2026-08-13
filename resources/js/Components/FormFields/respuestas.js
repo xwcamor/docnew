@@ -32,9 +32,25 @@ export function tono(respuesta) {
     return 'ok';
 }
 
-/** La primera respuesta positiva del catalogo: la que usa "marcar todo". */
+/** La primera respuesta positiva del catalogo. */
 export function respuestaPositiva(respuestas = []) {
     return respuestas.find((r) => tono(r) === 'ok') ?? respuestas[0] ?? null;
+}
+
+/**
+ * La respuesta del catalogo que significa «no aplica», si la hay.
+ *
+ * Es la que el servidor escribe al confirmar en todo lo que se dejo sin marcar
+ * (`FormSubmissionService::cerrarLoSinMarcarComoNoAplica`). Aqui se usa solo
+ * para NOMBRARLA en el aviso de la pantalla: el aviso tiene que decir la
+ * palabra que va a quedar escrita —«No aplica», «N/A», la que tenga el formato
+ * del cliente— y no una nuestra.
+ *
+ * Devuelve null si el catalogo no tiene ninguna, que es cuando el servidor
+ * tampoco rellena nada y por tanto no hay nada que avisar.
+ */
+export function respuestaNoAplica(respuestas = []) {
+    return respuestas.find((r) => tono(r) === 'na') ?? null;
 }
 
 /**

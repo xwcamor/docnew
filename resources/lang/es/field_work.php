@@ -11,6 +11,47 @@ return [
 
     // Pantalla de firma. Se lee con casco, a pleno sol y con la cámara abierta:
     // frases cortas, y cada una dice qué hacer, no qué pasa por dentro.
+    /*
+     * EL PERMISO PARA REGISTRAR LA CARA.
+     *
+     * Sale una sola vez, delante de la cámara, la primera vez que alguien va a
+     * firmar con reconocimiento. Antes no existía: la pantalla mandaba
+     * `consent: true` a pelo y nadie preguntaba nada.
+     *
+     * Cómo está escrito, y por qué así:
+     *
+     *   · en segunda persona y nombrando a quien lo lee — un consentimiento que
+     *     habla de «el titular de los datos» no lo lee nadie en una obra;
+     *   · dice QUÉ se guarda y qué NO, y ahí está el punto que casi siempre se
+     *     omite: no se guarda la fotografía, se guarda una lista de números de
+     *     la que no se puede reconstruir la cara;
+     *   · dice para qué sirve, quién lo tiene, cuánto dura y cómo se retira;
+     *   · y dice que se puede decir que no, con qué consecuencia. Un
+     *     consentimiento sin alternativa no es consentimiento.
+     *
+     * `:name` es el nombre de la persona. El texto se guarda ENTERO en
+     * `person_biometrics.consent_text` junto a la versión
+     * (`PersonBiometric::CONSENT_VERSION`): la pregunta que hay que poder
+     * responder dos años después no es «¿aceptó?» sino «¿a qué dijo que sí?».
+     *
+     * NO ES ASESORÍA LEGAL. Es una redacción de partida honesta; cada empresa
+     * tiene que pasarla por quien lleve protección de datos, y si cambia de
+     * fondo hay que subir la versión en el modelo.
+     */
+    'consent' => [
+        'title'    => 'Permiso para registrar tu cara',
+        'text'     => ':name, para firmar los documentos de seguridad con reconocimiento facial necesitamos registrar tu cara una vez. '
+            . 'Lo que se guarda NO es tu fotografía: es una lista de números que describe rasgos de tu rostro, y a partir de ella no se puede reconstruir tu cara. '
+            . 'Sirve sólo para comprobar que eres tú cuando firmas, y para dejar constancia de esa firma en los documentos del trabajo. '
+            . 'Lo conserva tu empresa mientras trabajes con ella y durante el plazo que la ley le exija guardar esos documentos. '
+            . 'Puedes pedir en cualquier momento que se borre tu cara registrada; a partir de ahí firmarás de otra forma. '
+            . 'Si prefieres no registrarla, dilo: no se guarda nada y el supervisor recogerá tu firma por otro medio.',
+        'checkbox' => 'He leído esto y autorizo que se registre mi cara para firmar.',
+        'accept'   => 'Acepto',
+        'decline'  => 'No acepto',
+        'declined' => 'No se registró ninguna cara. Avisa al supervisor para firmar de otra forma.',
+    ],
+
     'sign' => [
         'searching'          => 'Buscando un rostro…',
         'comparing'          => 'Comparando…',
@@ -114,7 +155,14 @@ return [
     // adjuntado.», «Formato confirmado.»): en inglés salían en castellano.
     'attached_flash'  => '{1} Documento adjuntado.|[2,*] :count documentos adjuntados.',
     'confirmed_flash' => 'Formato confirmado.',
-    'mark_all'        => 'Marcar todo',
+    // Cómo se llena un checklist. Sustituye al botón «Marcar todo», que ponía
+    // Conforme en los veinticinco equipos de un trabajador de un toque: eso
+    // afirma que veinticinco cosas están bien cuando nadie ha mirado ninguna, y
+    // era además el camino cómodo, o sea el que se acababa usando siempre.
+    //
+    // `:na` es la palabra del catálogo del propio formato («No aplica», «N/A»),
+    // no una nuestra: es la que va a quedar escrita en el documento.
+    'checklist_hint'  => 'Marca sólo lo que corresponda. Al cerrar el documento, lo que quede sin marcar se guarda como «:na».',
 
     // La salida del pie, la misma en los dos estados: llenando y mirando un
     // formato ya confirmado. Nombra el destino en vez de decir «Cancelar»,

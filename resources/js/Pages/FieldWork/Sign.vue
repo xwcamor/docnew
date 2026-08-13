@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref, onBeforeUnmount, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
-import { Card, Tag, Button, Alert, Result } from 'ant-design-vue';
+import { Card, Tag, Button, Alert, Checkbox, Modal, Result } from 'ant-design-vue';
 import { CameraOutlined, CheckCircleFilled, EditOutlined, ArrowLeftOutlined } from '@ant-design/icons-vue';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -126,6 +126,44 @@ const textoReto = () => {
     return clave ? t(clave) : '';
 };
 
+// ── Consentimiento del enrolamiento ─────────────────────────────────────────
+//
+// Registrar la cara de alguien es tratar un dato biométrico, y esto es lo único
+// que hay entre el trabajador y que se le registre. Antes no existía: la
+// pantalla mandaba `consent: true` a pelo y el servidor lo daba por bueno.
+//
+// Va DELANTE de la cámara de enrolamiento —no después, no en letra pequeña al
+// pie— y sólo sale la primera vez, que es cuando de verdad se decide. Si dice
+// que no, no se registra nada y la firma se para con un mensaje: es una
+// negativa legítima, no un error del sistema.
+//
+// El texto viaja al servidor y se guarda entero junto a la aceptación: la
+// pregunta que hay que poder responder dos años después no es «¿aceptó?» sino
+// «¿a qué dijo que sí?».
+
+const consentimiento = ref({ abierto: false, marcado: false, resolver: null });
+
+/** Su nombre dentro del texto: quien firma tiene que verse nombrado. */
+const textoConsentimiento = computed(
+    () => t('field_work.consent.text', { name: fila.value?.titulo ?? '' }),
+);
+
+const CONSENT_VERSION = '2026-08-v1';
+
+/** Abre el aviso y espera. Resuelve a true sólo si acepta a conciencia. */
+function pedirConsentimiento() {
+    return new Promise((resolve) => {
+        consentimiento.value = { abierto: true, marcado: false, resolver: resolve };
+    });
+}
+
+function responderConsentimiento(acepta) {
+    const { resolver } = consentimiento.value;
+
+    consentimiento.value = { abierto: false, marcado: false, resolver: null };
+    resolver?.(acepta);
+}
+
 // ── Firmar ───────────────────────────────────────────────────────────────────
 
 async function firmar() {
@@ -156,6 +194,23 @@ async function firmar() {
             // que es justo lo que pasa la primera vez que alguien va a firmar.
             if (e?.response?.status !== 404) throw e;
 
+            // Antes de la cámara, el permiso. Se cierra la cámara mientras se
+            // lee: nadie tiene que decidir sobre su cara con su propia cara
+            // enfocada en pantalla.
+            cara.cerrarCamara(stream);
+            stream = null;
+
+            const acepta = await pedirConsentimiento();
+
+            if (! acepta) {
+                error.value = true;
+                mensaje.value = t('field_work.consent.declined');
+
+                return;
+            }
+
+            stream = await cara.abrirCamara(video.value);
+
             mensaje.value = t('field_work.sign.no_face_registered');
             const enrol = await cara.enrolar(video.value, 3, (e2) => {
                 fase.value = e2.fase;
@@ -172,7 +227,12 @@ async function firmar() {
             }
 
             await axios.post(route('field_work.signatures.enroll', f.person.slug), {
-                descriptors: enrol.descriptores, consent: true,
+                descriptors: enrol.descriptores,
+                // Los tres juntos: el sí, sobre qué versión y con qué texto
+                // delante. El servidor los guarda en `person_biometrics`.
+                consent: true,
+                consent_version: CONSENT_VERSION,
+                consent_text: textoConsentimiento.value,
                 // Un fotograma del enrolamiento, para que a esta persona le
                 // quede cara si no tenía ninguna. El servidor sólo lo usa en
                 // ese caso: nunca pisa la foto que subió el administrador.
@@ -365,6 +425,41 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
                 </Button>
             </div>
         </template>
+
+        <!-- EL PERMISO PARA REGISTRAR LA CARA.
+             Delante de la cámara y sólo la primera vez. No se cierra tocando
+             fuera ni con Escape: una ventana que se va con un roce del guante
+             no es una decisión — y esta lo es. Los dos botones dicen lo que
+             hacen, y «No acepto» no es el camino difícil: está al mismo nivel. -->
+        <Modal
+            :open="consentimiento.abierto"
+            :title="$t('field_work.consent.title')"
+            :closable="false"
+            :mask-closable="false"
+            :keyboard="false"
+            :footer="null"
+            :width="560"
+        >
+            <p class="consent__texto">{{ textoConsentimiento }}</p>
+
+            <Checkbox v-model:checked="consentimiento.marcado" class="consent__check">
+                {{ $t('field_work.consent.checkbox') }}
+            </Checkbox>
+
+            <div class="consent__acciones">
+                <Button size="large" @click="responderConsentimiento(false)">
+                    {{ $t('field_work.consent.decline') }}
+                </Button>
+                <Button
+                    size="large"
+                    type="primary"
+                    :disabled="!consentimiento.marcado"
+                    @click="responderConsentimiento(true)"
+                >
+                    {{ $t('field_work.consent.accept') }}
+                </Button>
+            </div>
+        </Modal>
     </div>
 </template>
 
@@ -386,4 +481,12 @@ onBeforeUnmount(() => cara.cerrarCamara(stream));
 /* El reto se lee de un vistazo y en movimiento: en obra nadie se acerca a leer
    una línea gris de 13 px. */
 .firma-reto { display: block; font-size: 20px; font-weight: 700; color: var(--color-primary, #0A6ED1); }
+
+/* El aviso de consentimiento. Se lee de pie y con una tablet en la mano, así
+   que el cuerpo va a tamaño normal y no en letra pequeña: la letra pequeña en
+   un consentimiento es exactamente lo que no se debe hacer. */
+.consent__texto  { margin: 0 0 16px; line-height: 1.55; }
+.consent__check  { margin-bottom: 18px; }
+.consent__acciones { display: flex; gap: 10px; }
+.consent__acciones :deep(.ant-btn) { min-height: 48px; flex: 1 1 0; font-weight: 600; }
 </style>

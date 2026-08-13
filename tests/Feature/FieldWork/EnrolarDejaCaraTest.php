@@ -60,11 +60,10 @@ class EnrolarDejaCaraTest extends TestCase
 
         $this->actingAs($usuario)->postJson(
             route('field_work.signatures.enroll', $persona->slug),
-            [
+            $this->conConsentimiento([
                 'descriptors' => [$this->descriptorEnrolado()],
-                'consent'     => true,
                 'photo'       => $this->imagen(),
-            ],
+            ]),
         )->assertCreated();
 
         $foto = app(SignatureService::class)->fotoVigente($persona->fresh());
@@ -84,11 +83,10 @@ class EnrolarDejaCaraTest extends TestCase
 
         $this->actingAs($usuario)->postJson(
             route('field_work.signatures.enroll', $persona->slug),
-            [
+            $this->conConsentimiento([
                 'descriptors' => [$this->descriptorEnrolado()],
-                'consent'     => true,
                 'photo'       => $this->otraImagen(),
-            ],
+            ]),
         )->assertCreated();
 
         $this->assertSame($suya->id, $firmas->fotoVigente($persona->fresh())->id);
@@ -106,7 +104,7 @@ class EnrolarDejaCaraTest extends TestCase
 
         $this->actingAs($usuario)->postJson(
             route('field_work.signatures.enroll', $persona->slug),
-            ['descriptors' => [$this->descriptorEnrolado()], 'consent' => true],
+            $this->conConsentimiento(['descriptors' => [$this->descriptorEnrolado()]]),
         )->assertCreated();
 
         $this->assertNotNull($persona->fresh()->activeBiometric);
@@ -130,6 +128,22 @@ class EnrolarDejaCaraTest extends TestCase
         $usuario->givePermissionTo(Permission::firstOrCreate(['name' => 'people.edit', 'guard_name' => 'web']));
 
         return [$usuario, $persona->fresh()];
+    }
+
+    /**
+     * El consentimiento, que es obligatorio para enrolar.
+     *
+     * Va en un ayudante y no repetido en cada llamada porque lo que estas
+     * pruebas miran es la foto, no el permiso: ese tiene el suyo en
+     * `ConsentimientoDelEnrolamientoTest`.
+     */
+    private function conConsentimiento(array $datos): array
+    {
+        return $datos + [
+            'consent'         => true,
+            'consent_version' => PersonBiometric::CONSENT_VERSION,
+            'consent_text'    => 'Texto de prueba del consentimiento.',
+        ];
     }
 
     /** Un color distinto: si no, el hash coincide y no se puede distinguir. */

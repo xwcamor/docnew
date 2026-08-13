@@ -214,6 +214,11 @@ class FormSubmissionService
             ]));
         }
 
+        // Lo que quedo sin marcar en un checklist se cierra como «No aplica».
+        // Antes de cambiar el estado: lo que se archiva es lo que hay en la
+        // tabla cuando el documento pasa a confirmado.
+        $this->cerrarLoSinMarcarComoNoAplica($entrega);
+
         $entrega->update([
             'status'       => 'confirmed',
             'submitted_at' => now(),
@@ -316,6 +321,131 @@ class FormSubmissionService
     public function faltantes(FormSubmission $entrega): array
     {
         return array_column($this->faltantesDetallados($entrega), 'label');
+    }
+
+    // ── Cerrar los checklists ───────────────────────────────────────────────
+
+    /**
+     * Al confirmar, lo que quedo sin marcar en un checklist pasa a «No aplica».
+     *
+     * POR QUE, Y QUE SUSTITUYE
+     * ------------------------
+     * La pantalla tenia un boton «Marcar todo» que ponia CONFORME en los
+     * veinticinco equipos de un trabajador de un toque. Es la peor invencion
+     * posible en un formato de seguridad: afirma que veinticinco cosas estan
+     * bien cuando nadie ha mirado ninguna, y ademas es el camino comodo, o sea
+     * el que se acaba usando siempre.
+     *
+     * Lo que se hace en su lugar es lo que ya se hacia en el papel: se marca lo
+     * que corresponde —conforme o no conforme— y lo que se deja en blanco es
+     * que a esa persona no le tocaba ese equipo. En la v1 esto era literal:
+     * `plan.rb:161` creaba una fila por cada item sin respuesta y el PDF le
+     * pintaba un guion (`minus.png`).
+     *
+     * La diferencia con «Marcar todo» es toda: aquello afirmaba lo que nadie
+     * comprobo; esto registra una decision que la persona SI toma —dejar en
+     * blanco lo que no aplica— y ademas la pantalla lo dice antes, no despues.
+     *
+     * SOLO AL CONFIRMAR. Mientras el documento esta abierto el hueco sigue
+     * siendo un hueco: la pantalla cuenta lo que falta, y el PDF de un borrador
+     * distingue «no aplica» de «sin responder» con marcas distintas. Es al
+     * cerrar cuando el hueco se convierte en respuesta, que es cuando la
+     * persona ha dicho que ha terminado.
+     *
+     * Y NUNCA SE INVENTA UNA ETIQUETA: la palabra sale de `config.answers` del
+     * propio campo, clasificada con la misma regla que cuenta las no
+     * conformidades. Un formato cuyo catalogo no tenga un «no aplica» se queda
+     * exactamente como estaba.
+     */
+    protected function cerrarLoSinMarcarComoNoAplica(FormSubmission $entrega): void
+    {
+        $campos = $entrega->formTemplate?->fields()
+            ->whereIn('field_type', ['person_checklist', 'tool_checklist'])
+            ->get();
+
+        foreach ($campos ?? [] as $campo) {
+            $noAplica = $this->etiquetaNoAplica($campo->config['answers'] ?? []);
+
+            if ($noAplica === null) {
+                continue;
+            }
+
+            foreach ($entrega->answers()->where('form_field_id', $campo->id)->get() as $respuesta) {
+                $valor = $respuesta->value_json;
+                $tocado = false;
+
+                $nuevo = $this->rellenarFilas($valor, $noAplica, $tocado);
+
+                if ($tocado) {
+                    $respuesta->update(['value_json' => $nuevo]);
+                }
+            }
+        }
+    }
+
+    /**
+     * Cual de las respuestas del catalogo significa «no aplica».
+     *
+     * Se pregunta a `FormFindingsService::tono()`, que es quien decide eso en
+     * todo el sistema. Asi un cliente que escriba «N/A» o «No corresponde» en
+     * su plantilla obtiene lo mismo sin tocar codigo, y no hay dos sitios
+     * clasificando respuestas con criterios que puedan separarse.
+     *
+     * @param  array<int, string>  $respuestas  `config.answers` del campo
+     */
+    protected function etiquetaNoAplica(array $respuestas): ?string
+    {
+        $reglas = app(FormFindingsService::class);
+
+        foreach ($respuestas as $respuesta) {
+            $texto = trim((string) $respuesta);
+
+            if ($texto !== '' && $reglas->tono($texto) === FormFindingsService::NO_APLICA) {
+                return $texto;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Rellena los huecos de una respuesta de checklist, sea cual sea su forma.
+     *
+     * Una respuesta puede venir como una fila (un trabajador, una herramienta)
+     * o como la lista entera dentro de una sola fila: las dos formas existen en
+     * la base —la segunda es de entregas antiguas— y aqui hay que aceptarlas
+     * igual, o media cuadrilla se quedaria sin cerrar.
+     *
+     * `$tocado` sale por referencia para no reescribir en la base filas que no
+     * han cambiado: son 14 435 entregas migradas y no hace falta tocarlas todas
+     * cada vez que alguien confirma un documento.
+     */
+    protected function rellenarFilas(mixed $valor, string $noAplica, bool &$tocado): mixed
+    {
+        if (! is_array($valor)) {
+            return $valor;
+        }
+
+        if (array_is_list($valor)) {
+            return array_map(fn ($fila) => $this->rellenarFilas($fila, $noAplica, $tocado), $valor);
+        }
+
+        if (! is_array($valor['items'] ?? null)) {
+            return $valor;
+        }
+
+        $valor['items'] = array_map(function ($item) use ($noAplica, &$tocado) {
+            if (! is_array($item) || filled($item['answer'] ?? null)) {
+                return $item;
+            }
+
+            $tocado = true;
+            $item['answer'] = $noAplica;
+
+            return $item;
+        }, $valor['items']);
+
+        return $valor;
     }
 
     /**

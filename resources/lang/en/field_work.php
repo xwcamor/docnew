@@ -12,6 +12,25 @@ return [
 
     // Signing screen. Read wearing a hard hat, in full sun, with the camera
     // open: short lines, each saying what to do rather than what is happening.
+    /*
+     * Consent to register a face — see the long note in the Spanish file, which
+     * is where the reasoning lives. NOT legal advice: a starting point that each
+     * company must have reviewed.
+     */
+    'consent' => [
+        'title'    => 'Permission to register your face',
+        'text'     => ':name, to sign safety documents with face recognition we need to register your face once. '
+            . 'What is stored is NOT your photograph: it is a list of numbers describing features of your face, and your face cannot be reconstructed from it. '
+            . 'It is used only to check that it is you when you sign, and to record that signature on the work documents. '
+            . 'Your company keeps it while you work with them and for as long as the law requires those documents to be kept. '
+            . 'You can ask at any time for your registered face to be deleted; from then on you will sign another way. '
+            . 'If you would rather not register it, say so: nothing is stored and your supervisor will take your signature by other means.',
+        'checkbox' => 'I have read this and I authorise my face to be registered for signing.',
+        'accept'   => 'I accept',
+        'decline'  => 'I do not accept',
+        'declined' => 'No face was registered. Tell your supervisor so you can sign another way.',
+    ],
+
     'sign' => [
         'searching'          => 'Looking for a face…',
         'comparing'          => 'Comparing…',
@@ -108,7 +127,8 @@ return [
     // Flashes that used to live hardcoded in the controller. Ver la nota en `es`.
     'attached_flash'  => '{1} Document attached.|[2,*] :count documents attached.',
     'confirmed_flash' => 'Form confirmed.',
-    'mark_all'        => 'Mark all',
+    // How a checklist is filled in — see the note in `es`.
+    'checklist_hint'  => 'Mark only what applies. When the document is closed, anything left unmarked is saved as ":na".',
 
     // The way out of the footer, the same in both states. Ver la nota en `es`.
     'back_to_plan'    => 'Back to the plan',

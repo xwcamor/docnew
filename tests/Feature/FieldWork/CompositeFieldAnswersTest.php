@@ -38,7 +38,9 @@ use Tests\TestCase;
  *   3. volver a guardar actualiza la fila, no la duplica;
  *   4. quitar una fila la borra de verdad, no deja una fila vacia;
  *   5. con todo respondido, la entrega se puede confirmar;
- *   6. y un campo obligatorio que se vacie del todo impide cerrar el formato.
+ *   6. un campo obligatorio que se vacie del todo impide cerrar el formato;
+ *   7. y al confirmar, lo que se dejo sin marcar en un checklist se cierra
+ *      como «No aplica» — la regla que sustituyo al boton «Marcar todo».
  */
 class CompositeFieldAnswersTest extends TestCase
 {
@@ -316,6 +318,127 @@ class CompositeFieldAnswersTest extends TestCase
     }
 
     /** @return array{0:FormSubmission,1:FormTemplate} */
+    /**
+     * Al confirmar, lo que quedo sin marcar se cierra como «No aplica».
+     *
+     * SUSTITUYE AL BOTON «MARCAR TODO», que ponia CONFORME en los veinticinco
+     * equipos de un trabajador de un toque: eso afirma que veinticinco cosas
+     * estan bien cuando nadie ha mirado ninguna, y era ademas el camino comodo.
+     *
+     * Lo que se hace en su lugar es lo del papel: se marca lo que corresponde y
+     * lo que se deja en blanco es que a esa persona no le tocaba. En la v1 era
+     * literal — `plan.rb:161` creaba una fila por item sin respuesta y el PDF le
+     * pintaba un guion.
+     */
+    public function test_al_confirmar_lo_sin_marcar_del_epp_queda_en_no_aplica(): void
+    {
+        [$entrega, , $personas] = $this->entregaEpp();
+        $servicio = app(FormSubmissionService::class);
+
+        // Solo el casco. Los guantes se quedan sin tocar, que es lo normal:
+        // a este trabajador no le tocaban.
+        $servicio->responder($entrega, [
+            ['code' => 'epp_por_trabajador', 'row' => 0, 'value' => [
+                'person_slug' => $personas[0]->slug,
+                'person_name' => $personas[0]->list_name,
+                'items' => [
+                    ['item' => 'Casco',   'answer' => 'Conforme'],
+                    ['item' => 'Guantes', 'answer' => null],
+                ],
+                'conforme' => true,
+            ]],
+        ]);
+
+        // ANTES de confirmar el hueco sigue siendo un hueco: la pantalla cuenta
+        // lo que falta y el PDF de un borrador distingue «no aplica» de «sin
+        // responder». Es al cerrar cuando el hueco se vuelve respuesta.
+        $guardado = FormAnswer::where('form_submission_id', $entrega->id)->first();
+        $this->assertNull($guardado->value_json['items'][1]['answer']);
+
+        $servicio->confirmar($entrega->fresh());
+
+        $cerrado = FormAnswer::where('form_submission_id', $entrega->id)->first();
+
+        $this->assertSame('Conforme', $cerrado->value_json['items'][0]['answer'], 'lo marcado no se toca');
+        $this->assertSame('No aplica', $cerrado->value_json['items'][1]['answer']);
+    }
+
+    /** Lo mismo en la inspeccion de herramientas, que es el otro checklist. */
+    public function test_al_confirmar_lo_sin_marcar_del_ihm_queda_en_no_aplica(): void
+    {
+        [$entrega] = $this->entregaIhm();
+        $servicio = app(FormSubmissionService::class);
+
+        $servicio->responder($entrega, [
+            ['code' => 'inspeccion_de_herramientas', 'row' => 0, 'value' => [
+                'tool' => 'Martillo',
+                'items' => [
+                    ['item' => 'Condiciones generales de las herramientas.', 'answer' => 'Cumple'],
+                    ['item' => 'Empalmes y conexiones.', 'answer' => null],
+                ],
+                'conforme' => true,
+            ]],
+        ]);
+
+        $servicio->confirmar($entrega->fresh());
+
+        $cerrado = FormAnswer::where('form_submission_id', $entrega->id)->first();
+
+        $this->assertSame('Cumple', $cerrado->value_json['items'][0]['answer']);
+        $this->assertSame('No aplica', $cerrado->value_json['items'][1]['answer']);
+    }
+
+    /**
+     * Una respuesta MALA no se toca, y sigue contando como no conformidad.
+     *
+     * Es lo que hay que vigilar: si el relleno pisara respuestas dadas, cerrar
+     * un documento borraria un «No conforme» y con el la no conformidad del
+     * plan. Seria convertir un hallazgo en un «no aplica» al guardar.
+     */
+    public function test_el_relleno_no_pisa_lo_que_ya_estaba_respondido(): void
+    {
+        [$entrega, , $personas] = $this->entregaEpp();
+        $servicio = app(FormSubmissionService::class);
+
+        $servicio->responder($entrega, [
+            ['code' => 'epp_por_trabajador', 'row' => 0, 'value' => [
+                'person_slug' => $personas[0]->slug,
+                'person_name' => $personas[0]->list_name,
+                'items' => [
+                    ['item' => 'Casco',   'answer' => 'No conforme'],
+                    ['item' => 'Guantes', 'answer' => null],
+                ],
+                'conforme' => false,
+                'correction_measure' => 'Se cambia el casco',
+            ]],
+        ]);
+
+        $servicio->confirmar($entrega->fresh());
+
+        $cerrado = FormAnswer::where('form_submission_id', $entrega->id)->first();
+
+        $this->assertSame('No conforme', $cerrado->value_json['items'][0]['answer']);
+        $this->assertSame(1, $entrega->fresh()->nonconformities, 'la no conformidad sigue contando');
+    }
+
+    /**
+     * Y la pantalla lo dice ANTES, no despues.
+     *
+     * El aviso es la mitad que hace honesta a la otra: rellenar huecos al
+     * cerrar sin haberlo advertido seria el sistema decidiendo por alguien.
+     */
+    public function test_la_pantalla_avisa_de_la_regla_y_ya_no_tiene_marcar_todo(): void
+    {
+        foreach (['PersonChecklistField', 'ToolChecklistField'] as $componente) {
+            $vista = file_get_contents(resource_path("js/Components/FormFields/{$componente}.vue"));
+
+            $this->assertStringContainsString("field_work.checklist_hint", $vista,
+                "{$componente} tiene que decir la regla antes de que se marque nada");
+            $this->assertStringNotContainsString('marcarTodo', $vista,
+                "{$componente} ya no puede dar por buenas veinticinco casillas de un toque");
+        }
+    }
+
     protected function entregaAst(): array
     {
         return $this->entrega('AST', [
