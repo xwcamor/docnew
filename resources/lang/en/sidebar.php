@@ -1,69 +1,56 @@
 <?php
 
+/** See the Spanish file: the groups follow the work, not the database. */
 return [
-    // Sidebar items
     'dashboard'          => 'Dashboard',
 
-    // Group: Access
-    'group_access'       => 'Access',
-    'users'              => 'Users',
-    'roles'              => 'Roles',
-    'permissions'        => 'Permissions',
+    'group_field'        => 'Field work',
+    'work_plans'         => 'Work plans',
+    'signature_events'   => 'Signatures to review',
 
-    // Group: Business (operations)
-    'group_business'     => 'Business',
-    'customers'          => 'Customers',
+    'group_people'       => 'People and companies',
+    'people'             => 'Workers',
+    'companies'          => 'Companies',
+    'positions'          => 'Job titles',
+    'document_types'     => 'ID document types',
 
-    // Group: Diagnostic conditions (editable engine catalogs)
+    'group_docs'         => 'Documents and signatures',
+    'form_templates'     => 'Documents',
+    'work_types'         => 'Work types',
+    'approval_rules'     => 'Approval rules',
+    'approver_roles'     => 'Approver roles',
 
-    // Group: Automations (enterprise plans)
-    'group_automation'   => 'Automations',
-    'automations'        => 'Automations',
+    'group_places'       => 'Work locations',
+    'work_locations'     => 'Sites',
+    'workstations'       => 'Workstations',
+    'work_areas'         => 'Areas',
 
-    // Group: Communication
     'group_communication' => 'Communication',
     'messages'            => 'Messages',
     'inbox'               => 'Inbox',
 
-    // Group: Audit. Toolbar button uses the same label as the sidebar item
-    // so the user knows it's the same page.
-    'group_audit'        => 'System Logs',
-    'audit_logs'         => 'System Logs',
+    'group_automation'   => 'Automations',
+    'automations'        => 'Automations',
 
-    // Group: System configuration
+    'group_admin'        => 'Administration',
+    'users'              => 'Users',
+    'roles'              => 'Profiles',
+    'workspace'          => 'Workspace settings',
+    'audit_logs'         => 'Change history',
+
     'group_system'       => 'System configuration',
-    'workspace'          => 'My workspace',
     'tenants'            => 'Workspaces',
     'plans'              => 'Plans',
     'system_modules'     => 'Modules',
     'regions'            => 'Regions',
-    'languages'          => 'Languages',
     'countries'          => 'Countries',
+    'languages'          => 'Languages',
     'locales'            => 'Locales',
     'settings'           => 'Settings',
 
-    // Tools (super only)
-    'group_tools'        => 'Tools',
-
-    // Tooltips
-    'coming_soon'        => 'Coming soon',
-    'report_shares'      => 'Report shares',
-
-    // DOCUFIZ
-    'group_field'        => 'Field work',
-    'work_plans'         => 'Work plans',
-    'form_submissions'   => 'Submitted forms',
-    'signature_events'   => 'Signatures to review',
-    'group_master'       => 'Master data',
-    'companies'          => 'Companies',
-    'people'             => 'People',
-    'form_templates'     => 'Documents',
-    'approval_rules'     => 'Approval rules',
-    'approver_roles'     => 'Approver roles',
-    'work_types'         => 'Work types',
-    'work_locations'     => 'Sites',
-    'workstations'       => 'Workstations',
-    'work_areas'         => 'Areas',
-    'positions'          => 'Positions',
-    'document_types'     => 'Document types',
+    // Modules with no sidebar entry, read by the audit log's module labels.
+    'form_submissions'   => 'Filled documents',
+    'customers'          => 'Customers',
+    'brands'             => 'Brands',
+    'permissions'        => 'Permissions',
 ];

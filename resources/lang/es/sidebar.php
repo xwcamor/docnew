@@ -1,69 +1,83 @@
 <?php
 
+/**
+ * El menu lateral.
+ *
+ * Los grupos son los del trabajo, no los de la base de datos: primero lo del
+ * dia a dia, despues lo que se configura una vez, y al final lo que solo toca
+ * quien administra. Aqui habia un cajon llamado «Maestros» con once modulos
+ * dentro —desde empresas hasta tipos de documento— y dos items sueltos entre
+ * grupos; el dueño del producto: «me da la impresion que no todo va agrupado».
+ */
 return [
-    // Items del menú lateral
-    'dashboard'          => 'Dashboard',
+    'dashboard'          => 'Panel',
 
-    // Grupo: Accesos
-    'group_access'       => 'Accesos',
-    'users'              => 'Usuarios',
-    'roles'              => 'Perfiles',
-    'permissions'        => 'Permisos',
+    // ── Trabajo en obra ───────────────────────────────────────────────────
+    'group_field'        => 'Trabajo en obra',
+    'work_plans'         => 'Planes de trabajo',
+    'signature_events'   => 'Firmas por revisar',
 
-    // Grupo: Negocio (operación)
-    'group_business'     => 'Negocio',
-    'customers'          => 'Clientes',
+    // ── Personas y empresas ───────────────────────────────────────────────
+    // El cargo y el tipo de documento son atributos de una persona, y por eso
+    // viven aqui y no con los catalogos de obra.
+    'group_people'       => 'Personas y empresas',
+    'people'             => 'Trabajadores',
+    'companies'          => 'Empresas',
+    'positions'          => 'Cargos',
+    'document_types'     => 'Tipos de documento',
 
-    // Grupo: Condiciones de diagnóstico (catálogos editables del motor)
+    // ── Documentos y firmas ───────────────────────────────────────────────
+    // Que se le exige a un plan: los papeles y quien tiene que firmarlos.
+    'group_docs'         => 'Documentos y firmas',
+    'form_templates'     => 'Documentos',
+    'work_types'         => 'Tipos de trabajo',
+    'approval_rules'     => 'Reglas de aprobación',
+    'approver_roles'     => 'Roles aprobadores',
 
-    // Grupo: Automatizaciones (planes enterprise)
-    'group_automation'   => 'Automatizaciones',
-    'automations'        => 'Automatizaciones',
+    // ── Lugares de trabajo ────────────────────────────────────────────────
+    'group_places'       => 'Lugares de trabajo',
+    'work_locations'     => 'Sedes',
+    'workstations'       => 'Puestos de trabajo',
+    'work_areas'         => 'Áreas',
 
-    // Grupo: Comunicación
+    // ── Comunicación ──────────────────────────────────────────────────────
     'group_communication' => 'Comunicación',
     'messages'            => 'Mensajes',
     'inbox'               => 'Bandeja',
 
-    // Grupo: Auditoría. El botón del toolbar usa la misma etiqueta que el
-    // item del sidebar para que el usuario sepa que es lo mismo.
-    'group_audit'        => 'Logs del sistema',
-    'audit_logs'         => 'Logs del sistema',
+    // ── Automatizaciones (planes con la función activa) ───────────────────
+    'group_automation'   => 'Automatizaciones',
+    'automations'        => 'Automatizaciones',
 
-    // Grupo: Configuración del sistema
+    // ── Administración ────────────────────────────────────────────────────
+    // Lo que administra el dueño del workspace. El historial se llamaba «Logs
+    // del sistema», que es como lo llama un programador: quien lo abre busca
+    // quien cambio algo, no un log.
+    'group_admin'        => 'Administración',
+    'users'              => 'Usuarios',
+    'roles'              => 'Perfiles',
+    'workspace'          => 'Ajustes del workspace',
+    'audit_logs'         => 'Historial de cambios',
+
+    // ── Configuración del sistema (solo super) ────────────────────────────
     'group_system'       => 'Configuración del sistema',
-    'workspace'          => 'Mi workspace',
     'tenants'            => 'Workspaces',
     'plans'              => 'Planes',
     'system_modules'     => 'Módulos',
     'regions'            => 'Regiones',
-    'languages'          => 'Idiomas',
     'countries'          => 'Países',
+    'languages'          => 'Idiomas',
     'locales'            => 'Locales',
     'settings'           => 'Ajustes',
 
-    // Tools (solo-super)
-    'group_tools'        => 'Herramientas',
-
-    // Tooltips
-    'coming_soon'        => 'Próximamente',
-    'report_shares'      => 'Envíos de informes',
-
-    // DOCUFIZ
-    'group_field'        => 'Trabajo en obra',
-    'work_plans'         => 'Planes de trabajo',
+    // ── Modulos que NO tienen entrada de menu ─────────────────────────────
+    //
+    // Estas claves no pintan nada en el lateral: las lee `moduleLabel()` del
+    // historial de cambios, que rotula cada modulo con `sidebar.<modulo>` y cae
+    // al identificador crudo si falta. Sin ellas, la auditoria enseñaba
+    // «form_submissions» en la cara del usuario.
     'form_submissions'   => 'Documentos llenados',
-    'signature_events'   => 'Firmas por revisar',
-    'group_master'       => 'Maestros',
-    'companies'          => 'Empresas',
-    'people'             => 'Personas',
-    'form_templates'     => 'Documentos',
-    'approval_rules'     => 'Reglas de aprobación',
-    'approver_roles'     => 'Roles aprobadores',
-    'work_types'         => 'Tipos de trabajo',
-    'work_locations'     => 'Sedes',
-    'workstations'       => 'Puestos de trabajo',
-    'work_areas'         => 'Áreas',
-    'positions'          => 'Cargos',
-    'document_types'     => 'Tipos de documento',
+    'customers'          => 'Clientes',
+    'brands'             => 'Marcas',
+    'permissions'        => 'Permisos',
 ];

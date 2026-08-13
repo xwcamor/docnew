@@ -628,7 +628,11 @@ const hasRole = (...names) => {
 // Each item declares a `visible` predicate. Disabled items render greyed out
 // with a "coming soon" tooltip (used for routes not built yet).
 const menuStructure = computed(() => [
-    // ── Dashboard (primer item del sidebar, arriba de los grupos) ─────────
+    // ── El panel, suelto y arriba ─────────────────────────────────────────
+    // Es el unico que no va en un grupo, y a proposito: es la portada, no una
+    // familia de modulos. Todo lo demas SI va agrupado — habia dos items
+    // sueltos entre grupos («Mi workspace») y una lista de once bajo
+    // «Maestros» que era un cajon de sastre.
     {
         kind: 'item',
         key: 'dashboard', label: t('sidebar.dashboard'), icon: DashboardOutlined,
@@ -636,33 +640,9 @@ const menuStructure = computed(() => [
         visible: () => true,
     },
 
-    // ── Aprobaciones (etapa 2 de firmas) — solo para firmantes ────────────
-    // ── Mis solicitudes — lo que YO envié a aprobación (seguimiento) ───────
-    // Visible para quien haya enviado al menos una solicitud. El badge cuenta
-    // las que siguen en revisión (pendientes). El aviso de "ya se aprobó/
-    // rechazó" llega por la campana (notificación al solicitante).
-    // ── Grupo: Accesos ────────────────────────────────────────────────────
-    {
-        kind: 'group',
-        key: 'group-accesos', title: t('sidebar.group_access'),
-        items: [
-            // Users + Roles = "Equipos de trabajo" — gated por plan_feature.
-            // free/basic son operacion de 1 persona y no ven estos modulos.
-            // super bypassa el gate de plan (usePlanFeatures lo maneja).
-            {
-                key: 'users', label: t('sidebar.users'), icon: UserOutlined,
-                href: route('user_management.users.index'), inertia: true,
-                visible: () => can('users.view') && canUsePlanFeature('team_management'),
-            },
-            {
-                key: 'roles', label: t('sidebar.roles'), icon: IdcardOutlined,
-                href: route('user_management.roles.index'), inertia: true,
-                visible: () => hasRole('super', 'admin') && canUsePlanFeature('team_management'),
-            },
-        ],
-    },
-
-    // ── Grupo: Trabajo en obra (operación del día a día) ─────────────────
+    // ── Trabajo en obra ───────────────────────────────────────────────────
+    // Lo del dia a dia: el plan y la bandeja de firmas que hay que mirar. Va
+    // primero porque es donde entra el 90 % de la gente cada mañana.
     {
         kind: 'group',
         key: 'group-field', title: t('sidebar.group_field'),
@@ -680,29 +660,55 @@ const menuStructure = computed(() => [
         ],
     },
 
-    // ── Grupo: Maestros (lo que se configura una vez) ────────────────────
+    // ── Personas y empresas ───────────────────────────────────────────────
+    // Quien trabaja y para quien. El cargo y el tipo de documento van aqui y
+    // no con los catalogos de obra: los dos son atributos de una persona, y se
+    // buscan cuando se esta dando de alta a alguien.
     {
         kind: 'group',
-        key: 'group-master', title: t('sidebar.group_master'),
+        key: 'group-people', title: t('sidebar.group_people'),
         items: [
-            {
-                key: 'companies', label: t('sidebar.companies'), icon: BankOutlined,
-                href: route('business_management.companies.index'), inertia: true,
-                visible: () => can('companies.view'),
-            },
             {
                 key: 'people', label: t('sidebar.people'), icon: UserOutlined,
                 href: route('business_management.people.index'), inertia: true,
                 visible: () => can('people.view'),
             },
             {
+                key: 'companies', label: t('sidebar.companies'), icon: BankOutlined,
+                href: route('business_management.companies.index'), inertia: true,
+                visible: () => can('companies.view'),
+            },
+            {
+                key: 'positions', label: t('sidebar.positions'), icon: SolutionOutlined,
+                href: route('business_management.positions.index'), inertia: true,
+                visible: () => can('positions.view'),
+            },
+            {
+                key: 'document_types', label: t('sidebar.document_types'), icon: IdcardOutlined,
+                href: route('business_management.document_types.index'), inertia: true,
+                visible: () => can('document_types.view'),
+            },
+        ],
+    },
+
+    // ── Documentos y firmas ───────────────────────────────────────────────
+    // Que se le exige a un plan. Los cuatro estan encadenados y en ese orden:
+    // el tipo de trabajo decide que documentos entran, y una regla de
+    // aprobacion nombra un rol del catalogo — el catalogo se llena antes.
+    {
+        kind: 'group',
+        key: 'group-docs', title: t('sidebar.group_docs'),
+        items: [
+            {
                 key: 'form_templates', label: t('sidebar.form_templates'), icon: FileOutlined,
                 href: route('business_management.form_templates.index'), inertia: true,
                 visible: () => can('form_templates.view'),
             },
-            // El flujo de aprobación: qué firmas exige un plan y quién puede
-            // darlas. Van juntas y en este orden porque una regla nombra un rol
-            // del catálogo — el catálogo se llena antes.
+            {
+                key: 'work_types', label: t('sidebar.work_types'), icon: ToolOutlined,
+                href: route('business_management.work_types.index'), inertia: true,
+                visible: () => can('work_types.view'),
+            },
             {
                 key: 'approval_rules', label: t('sidebar.approval_rules'), icon: NodeIndexOutlined,
                 href: route('business_management.approval_rules.index'), inertia: true,
@@ -713,16 +719,16 @@ const menuStructure = computed(() => [
                 href: route('business_management.approver_roles.index'), inertia: true,
                 visible: () => can('approver_roles.view'),
             },
-            // Los tipos de trabajo van con los formatos y las reglas: los tres
-            // deciden qué se le exige a un plan. Aquí se decide qué papeles.
-            {
-                key: 'work_types', label: t('sidebar.work_types'), icon: ToolOutlined,
-                href: route('business_management.work_types.index'), inertia: true,
-                visible: () => can('work_types.view'),
-            },
-            // Los cinco catálogos de obra. El orden no es alfabético: sede →
-            // puesto → área es como se rellena un plan, y un puesto no se puede
-            // crear antes que su sede.
+        ],
+    },
+
+    // ── Lugares de trabajo ────────────────────────────────────────────────
+    // El orden no es alfabetico: sede → puesto → area es como se rellena un
+    // plan, y un puesto no se puede crear antes que su sede.
+    {
+        kind: 'group',
+        key: 'group-places', title: t('sidebar.group_places'),
+        items: [
             {
                 key: 'work_locations', label: t('sidebar.work_locations'), icon: EnvironmentOutlined,
                 href: route('business_management.work_locations.index'), inertia: true,
@@ -738,46 +744,10 @@ const menuStructure = computed(() => [
                 href: route('business_management.work_areas.index'), inertia: true,
                 visible: () => can('work_areas.view'),
             },
-            {
-                key: 'positions', label: t('sidebar.positions'), icon: SolutionOutlined,
-                href: route('business_management.positions.index'), inertia: true,
-                visible: () => can('positions.view'),
-            },
-            {
-                key: 'document_types', label: t('sidebar.document_types'), icon: IdcardOutlined,
-                href: route('business_management.document_types.index'), inertia: true,
-                visible: () => can('document_types.view'),
-            },
         ],
     },
 
-    // ── Grupo: Negocio (operación del día a día) ─────────────────────────
-    // ── Grupo: Condiciones de diagnóstico (catálogos editables del motor) ──
-    // Lo que un ingeniero ajusta sin reprogramar: tipos de aceite, y más
-    // adelante tipos de trafo, normas, variables, reglas y escalas/semáforos.
-    // Separado de "Negocio" (operación) a propósito: aquí se configura CÓMO
-    // diagnostica el sistema, no se opera con transformadores.
-    // ── Grupo: Comunicacion (Mensajes + Bandeja) ─────────────────────────
-    // Mensajes: solo super (envia anuncios/avisos/debates a la audiencia)
-    // Bandeja: todos los users autenticados (lee los mensajes recibidos)
-    // ── Grupo: Automatizaciones (solo planes con la feature activa) ───────
-    {
-        kind: 'group',
-        key: 'group-automation', title: t('sidebar.group_automation'),
-        // Doble gate: rol (super/admin) + feature de plan. Los workers (roles
-        // custom como "Customer Editor") NO ven automations aunque su tenant
-        // tenga el plan — automations es admin-only. super siempre.
-        visible: () => hasRole('super', 'admin') && canUsePlanFeature('automations'),
-        items: [
-            {
-                key: 'automations', label: t('sidebar.automations'), icon: ThunderboltOutlined,
-                href: route('automation_management.automations.index'), inertia: true,
-                visible: () => hasRole('super', 'admin') && canUsePlanFeature('automations'),
-            },
-        ],
-    },
-
-    // ── Grupo: Comunicación ───────────────────────────────────────────────
+    // ── Comunicación ──────────────────────────────────────────────────────
     {
         kind: 'group',
         key: 'group-communication', title: t('sidebar.group_communication'),
@@ -795,33 +765,56 @@ const menuStructure = computed(() => [
         ],
     },
 
-    // ── Grupo: Auditoría ──────────────────────────────────────────────────
+    // ── Automatizaciones (solo planes con la feature activa) ──────────────
+    // Doble puerta: rol (super/admin) + feature del plan. Un perfil de campo NO
+    // las ve aunque su workspace tenga el plan.
     {
         kind: 'group',
-        key: 'group-audit', title: t('sidebar.group_audit'),
+        key: 'group-automation', title: t('sidebar.group_automation'),
+        visible: () => hasRole('super', 'admin') && canUsePlanFeature('automations'),
         items: [
+            {
+                key: 'automations', label: t('sidebar.automations'), icon: ThunderboltOutlined,
+                href: route('automation_management.automations.index'), inertia: true,
+                visible: () => hasRole('super', 'admin') && canUsePlanFeature('automations'),
+            },
+        ],
+    },
+
+    // ── Administración ────────────────────────────────────────────────────
+    // Lo que administra el dueño del workspace: quien entra, con que perfil,
+    // los ajustes de su empresa y el historial. «Mi workspace» estaba suelto
+    // entre grupos y el super NO lo ve — no tiene workspace propio.
+    {
+        kind: 'group',
+        key: 'group-admin', title: t('sidebar.group_admin'),
+        items: [
+            {
+                key: 'users', label: t('sidebar.users'), icon: UserOutlined,
+                href: route('user_management.users.index'), inertia: true,
+                visible: () => can('users.view') && canUsePlanFeature('team_management'),
+            },
+            {
+                key: 'roles', label: t('sidebar.roles'), icon: IdcardOutlined,
+                href: route('user_management.roles.index'), inertia: true,
+                visible: () => hasRole('super', 'admin') && canUsePlanFeature('team_management'),
+            },
+            {
+                key: 'workspace', label: t('sidebar.workspace'), icon: ShopOutlined,
+                href: route('workspace.edit'), inertia: true,
+                visible: () => hasRole('admin') && !hasRole('super'),
+            },
             {
                 key: 'audit_logs', label: t('sidebar.audit_logs'), icon: AuditOutlined,
                 href: route('system_management.audit_logs.index'), inertia: true,
-                // Solo por rol: todo super/admin ve SU propia auditoría, sin
-                // depender del plan (es un derecho básico del tenant).
+                // Solo por rol: todo super/admin ve SU propia auditoria, sin
+                // depender del plan (es un derecho basico del workspace).
                 visible: () => hasRole('super', 'admin'),
             },
         ],
     },
 
-    // ── Mi workspace — autoservicio del tenant (admin), SEPARADO del core ──
-    // El super NO lo ve: no tiene workspace propio (rompía la lógica). Va aparte
-    // del grupo "Configuración del sistema" (que es super-only) para diferenciar
-    // lo del tenant de lo del sistema.
-    {
-        kind: 'item',
-        key: 'workspace', label: t('sidebar.workspace'), icon: ShopOutlined,
-        href: route('workspace.edit'), inertia: true,
-        visible: () => hasRole('admin') && !hasRole('super'),
-    },
-
-    // ── Grupo: Configuración del sistema (super only) ───────────────
+    // ── Configuración del sistema (solo super) ────────────────────────────
     {
         kind: 'group',
         key: 'group-system', title: t('sidebar.group_system'),
@@ -847,13 +840,13 @@ const menuStructure = computed(() => [
                 visible: () => hasRole('super'),
             },
             {
-                key: 'languages', label: t('sidebar.languages'), icon: TranslationOutlined,
-                href: route('system_management.languages.index'), inertia: true,
+                key: 'countries', label: t('sidebar.countries'), icon: FlagOutlined,
+                href: route('system_management.countries.index'), inertia: true,
                 visible: () => hasRole('super'),
             },
             {
-                key: 'countries', label: t('sidebar.countries'), icon: FlagOutlined,
-                href: route('system_management.countries.index'), inertia: true,
+                key: 'languages', label: t('sidebar.languages'), icon: TranslationOutlined,
+                href: route('system_management.languages.index'), inertia: true,
                 visible: () => hasRole('super'),
             },
             {
