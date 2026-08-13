@@ -139,10 +139,41 @@ class RiskMatrixAgrupadaTest extends TestCase
         $this->assertStringContainsString('modoTabla', $this->componente,
             'no queda el conmutador por ancho de contenedor entre tabla y tarjetas');
 
-        // El indice plegable es SOLO del modo tarjetas: la tabla ya enseña
-        // todas las filas a la vez.
-        $this->assertMatchesRegularExpression('/<RowNavigator\s+v-if="!modoTabla/', $this->plantilla,
-            'el indice (RowNavigator) tiene que quedarse solo para el modo tarjetas');
+        // El indice va en LOS DOS modos, y por actividad.
+        //
+        // Antes se exigia aqui lo contrario —«solo el modo tarjetas, la tabla
+        // ya enseña todas las filas»— y era cierto de las filas de UNA
+        // actividad, no de las actividades entre si: en ver plan, en un
+        // monitor, un AST de tres actividades salia con sus tres tablas
+        // enteras desplegadas, que es la pagina mas larga del sistema, y sin
+        // un indice donde saltar.
+        $this->assertMatchesRegularExpression('/<RowNavigator\s+v-if="grupos\.length > 1"/', $this->plantilla,
+            'el indice sale siempre que haya mas de una actividad, en tabla y en tarjetas');
+        $this->assertStringContainsString(':rows="resumenActividades"', $this->plantilla,
+            'las pastillas del indice son las actividades, no los peligros');
+    }
+
+    /**
+     * La unidad que se pliega es la ACTIVIDAD, como el trabajador en el EPP.
+     *
+     * Lo pidio el dueño del producto: «en el AST, en su formulario y vista,
+     * hagamoslo como en herramientas y EPP, pero que sean las actividades».
+     * Antes se plegaba el PELIGRO —una tarjeta por peligro, dentro de su
+     * actividad—, y eso son dos niveles de plegado: dos clics para llegar a un
+     * campo, y quien abria una actividad se encontraba una lista de titulos en
+     * vez de su AST.
+     */
+    public function test_lo_que_se_pliega_es_la_actividad(): void
+    {
+        $this->assertStringContainsString('actividadAbierta(g)', $this->plantilla,
+            'el cuerpo de la actividad tiene que colgar de su propio plegado');
+        $this->assertStringContainsString('ff-group__toggle', $this->plantilla,
+            'la franja de la actividad es la que abre y cierra');
+
+        // Y el peligro deja de tener plegado propio: dentro de una actividad
+        // abierta se ven todas sus filas, como los 25 items de un trabajador.
+        $this->assertStringNotContainsString('estaAbierta(i)', $this->plantilla,
+            'el peligro no se pliega por su cuenta: la unidad es la actividad');
     }
 
     /**

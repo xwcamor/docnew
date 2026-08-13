@@ -1722,6 +1722,27 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
     background: var(--color-surface-alt, #f8fafc);
     border-bottom: 1px solid var(--color-border, #e5e7eb);
 }
+/* La franja ENTERA abre y cierra la actividad, como la cabecera de un
+   trabajador en el EPP. Objetivo de toque de 56px y no la flechita de 24: se
+   pulsa con guantes. «Quitar esta actividad» queda FUERA del boton —dentro de
+   un boton no puede haber otro— y se va al borde derecho con su margin-left
+   auto de siempre. */
+.ff-group__toggle {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    flex: 1 1 auto; min-width: 0;
+    min-height: 56px; padding: 0;
+    text-align: left; font: inherit; color: inherit;
+    background: none; border: 0;
+}
+button.ff-group__toggle { cursor: pointer; }
+/* El nombre de la actividad en la franja: es lo que distingue una de otra
+   cuando estan todas plegadas. Se lleva el hueco sobrante y se corta con
+   puntos suspensivos en vez de partir la franja en dos lineas. */
+.ff-group__nombre {
+    flex: 1 1 160px; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    font-weight: 600;
+}
 /* «Actividad 1»: el mismo numero que lleva el papel, para poder hablar de ella
    por telefono sin leer el nombre entero. */
 .ff-group__tag {
@@ -1757,8 +1778,8 @@ html[data-theme="dark"] .ff-field { --ff-ok: #2fa35e; --ff-bad: #e05a52; }
 }
 .ff-group__foot .ant-btn { min-height: 44px; }
 /* Quitar la actividad se lleva sus peligros por delante, asi que no comparte
-   sitio con «Añadir peligro»: se va al otro extremo del pie. */
-.ff-group__del { margin-left: auto; }
+   sitio con «Añadir peligro»: se va al otro extremo de la franja. */
+.ff-group__del { margin-left: auto; flex-shrink: 0; }
 
 /* ── Fila = tarjeta plegable (trabajador, herramienta o peligro) ─────────── */
 .ff-row {

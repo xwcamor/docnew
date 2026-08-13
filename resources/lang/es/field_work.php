@@ -147,6 +147,9 @@ return [
         'people_done'   => ':done de :total trabajadores completos',
         'tools_done'    => ':done de :total herramientas completas',
         'hazards_rated' => ':done de :total peligros evaluados',
+        // El AST se pliega y se indexa por ACTIVIDAD, que es su unidad: el
+        // equivalente del trabajador en el EPP y de la herramienta en el IHM.
+        'activities_done' => ':done de :total actividades completas',
         'by_level'      => 'Alto: :high · Medio: :mid · Bajo: :low',
         // Nombre de respaldo de una fila que todavía no tiene el suyo: una
         // herramienta recién añadida no se llama de ninguna manera.
@@ -155,6 +158,7 @@ return [
         'index_people'  => 'Trabajadores del formato',
         'index_tools'   => 'Herramientas del formato',
         'index_hazards' => 'Peligros del formato',
+        'index_activities' => 'Actividades del formato',
         // El banco de preguntas no tiene índice de filas: su avance es esta
         // línea. Decía «3/25» a secas — un quebrado sin sustantivo no dice
         // 3 de 25 QUÉ, y los demás campos compuestos sí lo dicen.

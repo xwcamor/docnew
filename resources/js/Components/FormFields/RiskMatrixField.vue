@@ -159,10 +159,40 @@ const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
 
 const prefijo = `riesgo-${props.field?.id ?? 'x'}`;
 
+/**
+ * El plegado y el indice van por ACTIVIDAD, no por peligro.
+ *
+ * Antes la unidad era el peligro: una pastilla por peligro en el indice y una
+ * tarjeta plegable por peligro dentro. Eso no es lo que es un AST. En el EPP la
+ * unidad es el trabajador y en el IHM la herramienta —el bloque gordo que se
+ * abre y se cierra— y aqui el equivalente es la actividad, con sus peligros
+ * dentro. Con la unidad en el peligro, el indice de un AST de tres actividades
+ * y quince peligros eran quince pastillas sin decir a que actividad iba cada
+ * una, que es justo lo que se pregunta al abrir el documento.
+ *
+ * Y ahora vive en LOS DOS modos. El indice solo salia en tarjetas «porque la
+ * tabla ya enseña todas las filas»: cierto de las filas de UNA actividad, pero
+ * en ver plan, en un monitor, el AST salia con sus tres tablas enteras
+ * desplegadas y sin un indice donde saltar — precisamente el caso donde mas
+ * larga es la pagina.
+ *
+ * `abierta` guarda el indice del grupo. Se cierra al reordenar? No hace falta:
+ * los grupos son tramos contiguos y su posicion solo cambia al añadir o quitar
+ * una actividad, que ya llaman a `cerrar()`.
+ */
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo, cerrar } =
     usePlegado(prefijo);
 
-const idActividad = (g) => `${prefijo}-actividad-${g}`;
+const idActividad = (g) => idFila(g);
+
+/**
+ * Con una sola actividad no se pliega nada.
+ *
+ * Plegar existe para no tener seis bloques iguales apilados; con uno solo, lo
+ * unico que consigue es esconder el formulario entero detras de un clic que
+ * nadie entiende por que hay que dar.
+ */
+const actividadAbierta = (g) => grupos.value.length < 2 || estaAbierta(g);
 
 /**
  * TABLA O TARJETAS: lo decide el ancho del CONTENEDOR, no el de la ventana.
@@ -338,9 +368,13 @@ function renombrarActividad(grupo, valor) {
  *
  * En la tabla el «+» de la cabecera de Peligro llama aqui con SU grupo, como
  * el `link_to_add_association` de la v1, que insertaba en el tbody de su
- * actividad. `abrir()` ademas desplaza la vista a la fila nueva, que con
- * quince peligros puede estar fuera de pantalla; en el modo tarjetas tambien
- * la despliega.
+ * actividad.
+ *
+ * No se toca el plegado: la actividad ya esta abierta —se pulso su «+»— y lo
+ * unico que hace falta es llevar la vista a la fila nueva, que con quince
+ * peligros puede estar fuera de pantalla. Antes esto llamaba a `abrir()` con la
+ * posicion del peligro, que desde que la unidad es la actividad abriria la
+ * actividad numero 15.
  */
 function agregarPeligro(grupo) {
     const posicion = grupo.indices.at(-1) + 1;
@@ -349,7 +383,11 @@ function agregarPeligro(grupo) {
     nuevas.splice(posicion, 0, filaVacia(grupo.actividad));
 
     emit('update:value', nuevas);
-    abrir(posicion);
+
+    nextTick().then(() => {
+        document.getElementById(idFila(`p${posicion}`))
+            ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    });
 }
 
 /**
@@ -360,18 +398,13 @@ function agregarPeligro(grupo) {
  * una forma nueva de dato: es la fila de siempre a medio llenar.
  */
 function agregarActividad() {
-    const nueva = filas.value.length;
-
     emit('update:value', [...filas.value, filaVacia()]);
-    abrir(nueva);
 
-    // La vista va a la CABECERA de la actividad y no a su peligro: lo primero
-    // que hay que poner es el nombre de la actividad, y vive arriba del todo.
-    // Va despues de `abrir()` a proposito, para ganarle el desplazamiento.
-    nextTick().then(() => {
-        document.getElementById(idActividad(grupos.value.length - 1))
-            ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-    });
+    // Abre la actividad nueva y lleva la vista a su cabecera, que es donde esta
+    // lo primero que hay que poner: su nombre. Va en `nextTick` porque el grupo
+    // todavia no existe —`grupos` se recalcula del valor que acaba de emitirse—
+    // y `abrir()` con el indice equivocado abriria otra.
+    nextTick().then(() => abrir(grupos.value.length - 1));
 }
 
 /** Se pliega todo al borrar: la fila abierta se guarda por posicion y al
@@ -393,13 +426,6 @@ function quitarActividad(grupo) {
     emit('update:value', filas.value.filter((_, i) => ! dentro.has(i)));
     cerrar();
 }
-
-/**
- * Aqui el estado de la fila NO es cuanto lleva rellenado sino que riesgo
- * salio: eso es lo que se busca al abrir un AST, y es lo unico que decide algo.
- * Una fila sin severidad y probabilidad esta sin evaluar, que es el hueco.
- */
-const TONO_NIVEL = { alto: 'bad', medio: 'warn', bajo: 'ok' };
 
 /**
  * La banda de una fila, tambien cuando la fila no la trae escrita.
@@ -447,24 +473,6 @@ const faltaCelda = (fila, clave) => faltasDe(fila).includes(clave);
 const nombresFaltas = (fila) => faltasDe(fila)
     .map((clave) => t(`field_work.risk_matrix.${ROTULO_COLUMNA[clave]}`))
     .join(', ');
-
-/**
- * La fila a medias manda sobre el nivel: aunque tenga banda calculada, si le
- * falta el peligro o el control el guardado la va a rechazar, y eso es lo que
- * hay que leer en el indice y en la cabecera. «Incompleto» y no «Sin evaluar»:
- * sin evaluar es quien no empezo; esto es un bloqueo.
- */
-const estados = computed(() => filas.value.map((fila) => {
-    if (faltasDe(fila).length) {
-        return { clave: 'bad', texto: t('field_work.risk_matrix.incomplete') };
-    }
-
-    const nivel = nivelDe(fila);
-
-    return nivel
-        ? { clave: TONO_NIVEL[nivel] ?? 'off', texto: t(`field_work.risk_matrix.level_${nivel}`) }
-        : { clave: 'off', texto: t('field_work.risk_matrix.no_risk') };
-}));
 
 /**
  * Cuantos peligros le impiden al campo darse por respondido: los sin evaluar
@@ -516,34 +524,56 @@ function nivelPeor(grupo) {
 const evaluadasDe = (grupo) => grupo.indices.filter((i) => nivelDe(filas.value[i])).length;
 
 /**
- * En el indice manda el peligro, que es lo que distingue una pastilla de otra.
- *
- * Decia «Actividad → Peligro» y la pastilla mide 186 px: con la actividad
- * delante, «Bobinado de baja tension fase V — Puente grua» y «... — Escalera de
- * plataforma» salian las dos cortadas en «Bobinado de baja tension fase V …» y
- * el indice dejaba de servir para lo unico que sirve, que es saber a que fila
- * saltas. La actividad ya la dice la cabecera de su bloque.
- *
- * Si la fila todavia no tiene peligro pero si actividad —la actividad recien
- * creada, y las que la v1 guardaba sin peligros— se enseña la actividad, que es
- * lo unico que hay.
- */
-const tituloIndice = (fila, i) => fila?.peligro || fila?.actividad
-    || t('field_work.progress.hazard', { n: i + 1 });
-
-/**
  * Dentro de la tarjeta manda el peligro a secas: la actividad ya esta escrita
  * una vez en la cabecera del grupo, y repetirla en cada tarjeta era justamente
  * lo que se venia a arreglar.
  */
 const tituloPeligro = (fila, i) => fila?.peligro || t('field_work.progress.hazard', { n: i + 1 });
 
-const resumenFilas = computed(() => filas.value.map((fila, i) => ({
-    key: i,
-    label: tituloIndice(fila, i),
-    state: estados.value[i].clave,
-    stateText: estados.value[i].texto,
-})));
+/**
+ * El estado de una actividad entera, que es lo que dice su pastilla.
+ *
+ * Manda lo peor, en este orden: una fila a medias bloquea el guardado, asi que
+ * gana sobre cualquier otra cosa. Despues, lo mismo que en el EPP y el IHM:
+ * completa, a medias con la cuenta, o sin empezar.
+ */
+function estadoActividad(grupo) {
+    const suyas = grupo.indices.map((i) => filas.value[i]);
+
+    if (suyas.some((fila) => faltasDe(fila).length)) {
+        return { clave: 'bad', texto: t('field_work.risk_matrix.incomplete') };
+    }
+
+    const evaluados = suyas.filter((fila) => nivelDe(fila)).length;
+
+    if (evaluados === suyas.length && suyas.length > 0) {
+        return { clave: 'ok', texto: t('field_work.progress.complete') };
+    }
+
+    return evaluados === 0
+        ? { clave: 'off', texto: t('field_work.progress.not_started') }
+        : { clave: 'warn', texto: t('field_work.progress.missing', { n: suyas.length - evaluados }) };
+}
+
+/**
+ * El titulo de la pastilla es el nombre de la actividad.
+ *
+ * Una recien creada todavia no tiene ninguno, y ahi se numera: «Actividad 2»
+ * es peor que un hueco, porque un hueco no se puede pulsar con confianza.
+ */
+const tituloActividad = (grupo, g) => grupo.actividad
+    || t('field_work.risk_matrix.activity_n', { n: g + 1 });
+
+const resumenActividades = computed(() => grupos.value.map((grupo, g) => {
+    const estado = estadoActividad(grupo);
+
+    return { key: g, label: tituloActividad(grupo, g), state: estado.clave, stateText: estado.texto };
+}));
+
+/** Cuantas actividades estan enteras, para el titular del indice. */
+const actividadesCompletas = computed(
+    () => grupos.value.filter((grupo) => estadoActividad(grupo).clave === 'ok').length,
+);
 
 const evaluadas = computed(() => filas.value.filter((f) => nivelDe(f)).length);
 const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).length;
@@ -563,19 +593,23 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
             {{ $t('field_work.risk_matrix.empty') }}
         </p>
 
-        <!-- El indice con su plegado es SOLO del modo tarjetas: la tabla ya
-             enseña todas las filas a la vez, que es su gracia. -->
+        <!-- El indice, una pastilla por ACTIVIDAD y en los dos modos.
+             Decia «es SOLO del modo tarjetas: la tabla ya enseña todas las
+             filas a la vez». Eso vale dentro de UNA actividad; entre
+             actividades no: en ver plan, en un monitor, un AST de tres
+             actividades salia con sus tres tablas enteras desplegadas, que es
+             la pagina mas larga de todas, y sin un indice donde saltar. -->
         <RowNavigator
-            v-if="!modoTabla && filas.length > 1"
-            :rows="resumenFilas"
+            v-if="grupos.length > 1"
+            :rows="resumenActividades"
             :active="todas ? null : abierta"
-            :summary="$t('field_work.progress.hazards_rated', { done: evaluadas, total: filas.length })"
-            :detail="$t('field_work.progress.by_level', {
-                high: porNivel('alto'), mid: porNivel('medio'), low: porNivel('bajo'),
+            :summary="$t('field_work.progress.activities_done', {
+                done: actividadesCompletas, total: grupos.length,
             })"
-            :ratio="filas.length ? evaluadas / filas.length : 0"
+            :detail="$t('field_work.progress.hazards_rated', { done: evaluadas, total: filas.length })"
+            :ratio="grupos.length ? actividadesCompletas / grupos.length : 0"
             :all-open="todas"
-            :label="$t('field_work.progress.index_hazards')"
+            :label="$t('field_work.progress.index_activities')"
             @select="abrir"
             @toggle-all="alternarTodo"
         />
@@ -597,23 +631,49 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                  «Actividad N», el avance y el nivel a la izquierda, «Quitar
                  esta actividad» a la derecha. -->
             <header class="ff-group__head">
-                <span class="ff-group__tag">
-                    {{ $t('field_work.risk_matrix.activity_n', { n: g + 1 }) }}
-                </span>
+                <!-- La franja abre y cierra la actividad, como la cabecera de
+                     un trabajador en el EPP. Todo lo que se lee sin abrir va
+                     DENTRO del boton: el numero, el nombre, el avance y la
+                     banda peor. Con una sola actividad no se pliega y el boton
+                     no existe: esconder el formulario entero detras de un clic
+                     que no evita ningun scroll seria solo un estorbo. -->
+                <component
+                    :is="grupos.length > 1 ? 'button' : 'div'"
+                    :type="grupos.length > 1 ? 'button' : null"
+                    class="ff-group__toggle"
+                    :aria-expanded="grupos.length > 1 ? actividadAbierta(g) : null"
+                    :aria-controls="grupos.length > 1 ? `${idActividad(g)}-cuerpo` : null"
+                    @click="grupos.length > 1 && alternar(g)"
+                >
+                    <component
+                        v-if="grupos.length > 1"
+                        :is="actividadAbierta(g) ? DownOutlined : RightOutlined"
+                        class="ff-row__chev"
+                    />
 
-                <span class="ff-count">
-                    {{ $t('field_work.progress.hazards_rated', {
-                        done: evaluadasDe(grupo), total: grupo.indices.length,
-                    }) }}
-                </span>
+                    <span class="ff-group__tag">
+                        {{ $t('field_work.risk_matrix.activity_n', { n: g + 1 }) }}
+                    </span>
 
-                <!-- Color y PALABRA, nunca solo color (docs/UI.md §5). -->
-                <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${nivelPeor(grupo)}`">
-                    {{ $t(`field_work.risk_matrix.level_${nivelPeor(grupo)}`) }}
-                </span>
-                <span v-else class="ff-risk is-none">
-                    {{ $t('field_work.risk_matrix.no_risk') }}
-                </span>
+                    <!-- El nombre, que es lo que distingue una actividad de
+                         otra cuando estan todas plegadas. Dentro se vuelve a
+                         escribir, pero ahi es el campo que se edita. -->
+                    <span v-if="grupo.actividad" class="ff-group__nombre">{{ grupo.actividad }}</span>
+
+                    <span class="ff-count">
+                        {{ $t('field_work.progress.hazards_rated', {
+                            done: evaluadasDe(grupo), total: grupo.indices.length,
+                        }) }}
+                    </span>
+
+                    <!-- Color y PALABRA, nunca solo color (docs/UI.md §5). -->
+                    <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${nivelPeor(grupo)}`">
+                        {{ $t(`field_work.risk_matrix.level_${nivelPeor(grupo)}`) }}
+                    </span>
+                    <span v-else class="ff-risk is-none">
+                        {{ $t('field_work.risk_matrix.no_risk') }}
+                    </span>
+                </component>
 
                 <!-- En la captura de la v1 el boton rojo va aqui, arriba a
                      la derecha del bloque — no en el pie, donde estaba. Es
@@ -633,6 +693,15 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                 </Popconfirm>
             </header>
 
+            <!-- El cuerpo de la actividad: su nombre y sus peligros. Se
+                 pliega entero, que es la unidad que el EPP y el IHM ya
+                 usaban con el trabajador y la herramienta. Es `v-if` y no
+                 `v-show` a proposito: la tabla de una actividad son siete
+                 columnas de desplegables de catalogo por fila, y dejar
+                 tres actividades montadas en el DOM para no verlas es lo
+                 que hacia pesada la pantalla. El valor no vive aqui —esta
+                 en FormFill—, asi que desmontar no pierde nada. -->
+            <div v-if="actividadAbierta(g)" :id="`${idActividad(g)}-cuerpo`">
             <!-- El nombre de la actividad, DEBAJO de la franja y con la
                  etiqueta EN LA MISMA FILA que el texto (tambien peticion del
                  dueño: etiqueta arriba y textarea abajo gastaba una linea).
@@ -704,9 +773,14 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- `p${i}` y no `i` a secas: desde que el plegado va
+                             por actividad, `idFila(0)` es el ancla de la
+                             primera actividad. Sin el prefijo, la fila y su
+                             actividad compartian id y el salto del indice
+                             aterrizaba en la fila equivocada. -->
                         <tr
                             v-for="i in grupo.indices"
-                            :id="idFila(i)"
+                            :id="idFila(`p${i}`)"
                             :key="i"
                         >
                             <td class="ff-tabla__td" :class="{ 'is-missing': faltaCelda(filas[i], 'peligro') }">
@@ -816,25 +890,21 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
 
             <!-- MODO TARJETAS: el contenedor no da para la tabla (tablet en
                  vertical, movil) y docs/UI.md §3 veta el scroll horizontal, asi
-                 que cada peligro vuelve a ser una tarjeta plegable con el mismo
-                 indice que el EPP y el IHM. -->
+                 que cada peligro es una tarjeta con sus seis campos en rejilla.
+                 SIN plegado propio: el que pliega es la actividad, igual que en
+                 el EPP pliega el trabajador y sus 25 items se ven de un tiron.
+                 Dos niveles de plegado obligaban a dos clics para llegar a un
+                 campo y dejaban al que abre una actividad mirando una lista de
+                 titulos en vez de su AST. -->
             <div v-else class="ff-group__body">
                 <article
                     v-for="i in grupo.indices"
-                    :id="idFila(i)"
+                    :id="idFila(`p${i}`)"
                     :key="i"
-                    class="ff-row"
-                    :class="{ 'is-open': estaAbierta(i), 'is-missing': faltasDe(filas[i]).length > 0 }"
+                    class="ff-row is-open"
+                    :class="{ 'is-missing': faltasDe(filas[i]).length > 0 }"
                 >
-                    <button
-                        type="button"
-                        class="ff-row__head ff-row__head--toggle"
-                        :aria-expanded="estaAbierta(i)"
-                        :aria-controls="`${idFila(i)}-cuerpo`"
-                        @click="alternar(i)"
-                    >
-                        <component :is="estaAbierta(i) ? DownOutlined : RightOutlined" class="ff-row__chev" />
-
+                    <div class="ff-row__head">
                         <span class="ff-row__num">{{ i + 1 }}</span>
 
                         <span class="ff-row__title">{{ tituloPeligro(filas[i], i) }}</span>
@@ -850,9 +920,9 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                             {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
                         </span>
                         <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
-                    </button>
+                    </div>
 
-                    <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
+                    <div>
                         <!-- La regla del peligro entero, dicha antes de guardar
                              y pegada a su fila: que columnas faltan, por su
                              nombre. El servidor la repite si aun asi se guarda. -->
@@ -972,6 +1042,7 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                     {{ $t('field_work.risk_matrix.add_row') }}
                 </Button>
             </footer>
+            </div>
         </section>
 
         <Button v-if="!readonly" class="ff-add" size="large" block @click="agregarActividad">

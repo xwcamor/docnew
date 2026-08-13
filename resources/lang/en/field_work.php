@@ -131,12 +131,16 @@ return [
         'people_done'   => ':done of :total workers complete',
         'tools_done'    => ':done of :total tools complete',
         'hazards_rated' => ':done of :total hazards rated',
+        // The AST folds and is indexed by ACTIVITY, its unit: the equivalent
+        // of the worker in the EPP and the tool in the IHM.
+        'activities_done' => ':done of :total activities complete',
         'by_level'      => 'High: :high · Medium: :mid · Low: :low',
         'row'           => 'Row :n',
         'hazard'        => 'Hazard :n',
         'index_people'  => 'Workers in this form',
         'index_tools'   => 'Tools in this form',
         'index_hazards' => 'Hazards in this form',
+        'index_activities' => 'Activities in this form',
         // El banco de preguntas no tiene índice: su avance es esta línea.
         // Ver la nota en `es`.
         'questions_done' => ':done of :total questions answered',
