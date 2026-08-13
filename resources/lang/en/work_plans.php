@@ -214,6 +214,11 @@ return [
     // counts if a signature is ever disputed.
     'sign_audit_full'      => 'see full',
     'sign_audit_map_open'  => 'open the map',
+    // Why an imported signature is missing half its trail. The previous
+    // system recorded IP, browser, device and coordinates ONLY for worker
+    // signatures; an approval was a checkbox and an image, with no trail
+    // columns at all. Nothing was lost in the migration: it was never kept.
+    'sign_audit_legacy_gap' => 'Signature brought over from the previous system. That system did not record where or from which device a signature was made, so only the date survives here. New signatures do record it.',
 
     'crew_sign_hint'    => 'Sign for :name with face recognition',
     'crew_added'    => ':name was added to the plan.',

@@ -528,6 +528,10 @@ class WorkPlanController extends Controller
                 'signable_id', 'signed_at', 'method', 'used_ai', 'match_distance',
                 'manual_override', 'override_reason', 'pending_review',
                 'ip_address', 'user_agent', 'device_id', 'latitude', 'longitude',
+                // De donde salio la fila. Lo importado no puede tener rastro que
+                // el sistema anterior no guardo, y la ficha tiene que poder
+                // decirlo en vez de enseñar un hueco — ver `migrated` abajo.
+                'legacy_source',
             ])
             // La ultima gana: si alguien firmo dos veces, lo que cuenta es como
             // quedo, no como empezo.
@@ -553,6 +557,19 @@ class WorkPlanController extends Controller
                     'latitude'        => $e->latitude === null ? null : round((float) $e->latitude, 6),
                     'longitude'       => $e->longitude === null ? null : round((float) $e->longitude, 6),
                     'override_reason' => $e->override_reason,
+                    // Si la firma viene del sistema anterior.
+                    //
+                    // Importa porque explica un hueco que si no parece un fallo
+                    // de la pantalla: la v1 SOLO guardaba el rastro —IP,
+                    // navegador, aparato, coordenadas— de las firmas de
+                    // trabajador, en su tabla `worker_signature_events`. Las
+                    // aprobaciones eran una casilla y una imagen en la propia
+                    // fila de `plan_approvals`, sin una sola columna de rastro,
+                    // asi que de un aprobador importado no hay nada que enseñar
+                    // mas alla de la fecha. No se perdio al migrar: nunca se
+                    // registro. Las firmas nuevas de las dos clases pasan por el
+                    // mismo sitio y guardan lo mismo.
+                    'migrated'        => $e->legacy_source !== null,
                 ] : null,
             ]);
     }

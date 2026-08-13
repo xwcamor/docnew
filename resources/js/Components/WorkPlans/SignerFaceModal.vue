@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Button, Modal, Tooltip, TypographyParagraph } from 'ant-design-vue';
+import { Alert, Button, Modal, Tooltip, TypographyParagraph } from 'ant-design-vue';
 import { CameraOutlined, EnvironmentOutlined } from '@ant-design/icons-vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 import { resumirAgente, acortarAparato } from '@/Support/agente';
@@ -87,6 +87,27 @@ const coordenadas = computed(
 );
 
 /**
+ * Por qué a esta firma le falta la mitad del rastro.
+ *
+ * Sin esto la ficha de un aprobador importado se abre con la fecha y el
+ * porcentaje y nada más, y lo que parece es que la pantalla está rota. No lo
+ * está: **el sistema anterior sólo guardaba el rastro de las firmas de
+ * trabajador**. Tenía una tabla de eventos con IP, navegador, aparato y
+ * coordenadas colgando únicamente de `PlanWorker`; una aprobación era una
+ * casilla y una imagen en su propia fila, sin una sola columna de rastro. De un
+ * aprobador de antes no hay nada que enseñar porque nunca se registró — no se
+ * perdió al migrar.
+ *
+ * Sólo se dice cuando de verdad falta algo: una firma importada que sí trae IP
+ * no necesita ninguna disculpa.
+ */
+const faltaPorSerImportada = computed(() => {
+    const a = auditoria.value;
+
+    return !!a?.migrated && !a.ip && !a.device_id && !a.user_agent && !punto.value;
+});
+
+/**
  * El recuadro del mapa.
  *
  * OpenStreetMap incrustado: sin librería, sin clave y sin cuenta de nadie. El
@@ -167,6 +188,17 @@ const mapaEnlace = computed(() => punto.value
                             </dd>
                         </template>
                     </dl>
+
+                    <!-- Un hueco explicado no es un hueco. Sin esto, la ficha de
+                         un aprobador importado se abre con dos datos y parece
+                         rota. -->
+                    <Alert
+                        v-if="faltaPorSerImportada"
+                        type="info"
+                        show-icon
+                        class="firmante__nota"
+                        :message="$t('work_plans.sign_audit_legacy_gap')"
+                    />
 
                     <div v-if="punto" class="firmante__mapa">
                         <!-- `span` y no `dt`: fuera de una `dl` un `dt` es HTML
@@ -253,6 +285,8 @@ const mapaEnlace = computed(() => punto.value
     color: var(--color-text-dim);
     font-size: 0.75rem;
 }
+
+.firmante__nota { margin-top: 12px; font-size: 0.8125rem; }
 
 .firmante__mapa { margin-top: 16px; }
 

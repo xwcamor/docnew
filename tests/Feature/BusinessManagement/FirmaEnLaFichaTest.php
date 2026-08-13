@@ -299,6 +299,50 @@ class FirmaEnLaFichaTest extends TestCase
                 ->where('approvals.0.signature.verified', true));
     }
 
+    /**
+     * De una firma importada se dice que lo es, para explicar el hueco.
+     *
+     * Es la pregunta que hizo el dueño del producto mirando un plan: «¿por que
+     * en los aprobadores no sale lo mismo que en trabajadores? Solo veo la
+     * fecha y el porcentaje». No es un fallo de la pantalla — es que **la v1
+     * solo guardaba el rastro de las firmas de trabajador**. Su tabla
+     * `worker_signature_events` (IP, navegador, aparato, coordenadas) colgaba
+     * unicamente de `PlanWorker`; una aprobacion era una casilla y una imagen
+     * en la propia fila de `plan_approvals`, sin una sola columna de rastro. No
+     * se perdio al migrar: nunca se registro.
+     *
+     * Un hueco explicado no es un hueco, asi que la ficha lo dice. Y las firmas
+     * nuevas de las dos clases pasan por el mismo sitio y guardan lo mismo.
+     */
+    public function test_una_firma_importada_se_marca_para_explicar_lo_que_le_falta(): void
+    {
+        $plan = $this->plan();
+        $aprobacion = $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
+
+        SignatureEvent::where('signable_id', $aprobacion->id)
+            ->update(['legacy_source' => 'plan_approvals', 'legacy_id' => 4321]);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('approvals.0.signature.audit.migrated', true)
+                // Y sigue sin rastro, que es justo lo que hay que explicar.
+                ->where('approvals.0.signature.audit.ip', null)
+                ->where('approvals.0.signature.audit.user_agent', null));
+    }
+
+    /** Una firma dada en este sistema no lleva esa marca. */
+    public function test_una_firma_nueva_no_se_marca_como_importada(): void
+    {
+        $plan = $this->plan();
+        $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('approvals.0.signature.audit.migrated', false));
+    }
+
     /** La cuadrilla tambien lo lleva: es la misma pregunta en la otra columna. */
     public function test_la_cuadrilla_tambien_dice_como_se_firmo(): void
     {
