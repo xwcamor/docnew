@@ -945,6 +945,43 @@ class MigrateLegacyDataTest extends TestCase
         rmdir($carpeta);
     }
 
+    /**
+     * La carpeta real va por documento, y ahi tambien se encuentran.
+     *
+     * Este paso buscaba el fichero PLANO —`<carpeta>/<nombre>`—, y eso solo
+     * acierta si alguien dejo miles de imagenes sueltas en la raiz. La carpeta
+     * que se arma de verdad, y que este mismo comando pide en sus
+     * instrucciones, va por documento: `photo/00088375/…`,
+     * `signature/00088375/…`.
+     *
+     * Con esa carpeta no se encontraba NI UNA. Todas las evidencias se contaban
+     * como perdidas y sus filas se quedaban apuntando a `legacy/…`, o sea a un
+     * fichero que no existe — que es lo que abria la ficha de la firma con la
+     * imagen rota. La v1 guarda el nombre del fichero y nunca su ruta, asi que
+     * el nombre es lo unico con lo que se puede casar.
+     */
+    public function test_el_paso_archivos_encuentra_las_imagenes_en_subcarpetas(): void
+    {
+        Storage::fake('local');
+        $this->migrarTodo();
+
+        $carpeta = sys_get_temp_dir() . '/v1-' . Str::random(8);
+        mkdir($carpeta . '/photo/40000001', 0777, true);
+
+        $imagen = $this->pngDeUnPixel();
+        file_put_contents($carpeta . '/photo/40000001/foto-1.webp', $imagen);
+
+        $this->artisan('docufiz:migrate-data', ['paso' => 'archivos', '--desde' => $carpeta])
+            ->assertSuccessful();
+
+        $copiada = DB::table('evidence_files')->where('kind', 'face')->first();
+
+        $this->assertSame(hash('sha256', $imagen), $copiada->sha256);
+        $this->assertStringStartsNotWith('legacy/', $copiada->file_path,
+            'si sigue en legacy/ es que no la encontro y la ficha se abrira con la imagen rota');
+        Storage::disk('local')->assertExists($copiada->file_path);
+    }
+
     public function test_el_paso_archivos_no_rompe_si_la_carpeta_no_esta(): void
     {
         $this->migrarTodo();

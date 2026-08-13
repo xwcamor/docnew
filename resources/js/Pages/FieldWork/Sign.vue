@@ -173,6 +173,17 @@ async function firmar() {
 
             await axios.post(route('field_work.signatures.enroll', f.person.slug), {
                 descriptors: enrol.descriptores, consent: true,
+                // Un fotograma del enrolamiento, para que a esta persona le
+                // quede cara si no tenía ninguna. El servidor sólo lo usa en
+                // ese caso: nunca pisa la foto que subió el administrador.
+                //
+                // Sin esto quedaba un agujero que no cerraba nunca: alta sin
+                // foto → enrolamiento (que guarda descriptores y ninguna
+                // imagen) → y a partir de ahí el reconocimiento acierta
+                // siempre, con lo que tampoco se toma foto de evidencia. La
+                // ficha del plan diría «reconocimiento facial» sin una sola
+                // cara que enseñar, por muchas veces que firmara.
+                photo: cara.capturar(video.value),
             });
 
             ({ data } = await axios.get(route('field_work.signatures.descriptors', f.person.slug)));

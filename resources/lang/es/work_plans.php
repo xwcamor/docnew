@@ -227,7 +227,6 @@ return [
     // anterior guardaba IP, navegador, aparato y coordenadas SOLO de las
     // firmas de trabajador; una aprobación era una casilla y una imagen,
     // sin una columna de rastro. No se perdió al migrar: nunca se registró.
-    'sign_audit_imported'  => 'Importada',
     'crew_sign_hint'    => 'Firmar por :name con reconocimiento facial',
     'crew_added'    => ':name se añadió al plan.',
     'crew_removed'  => 'El trabajador se quitó del plan.',

@@ -339,47 +339,6 @@ class FirmaEnLaFichaTest extends TestCase
                 ->where('approvals.0.signature.verified', true));
     }
 
-    /**
-     * De una firma importada se dice que lo es.
-     *
-     * Viene de la pregunta del dueño del producto mirando un plan: «¿por que en
-     * los aprobadores no sale lo mismo que en trabajadores?». La causa era que
-     * **la v1 solo guardaba el rastro de las firmas de trabajador** —su tabla
-     * `worker_signature_events` colgaba unicamente de `PlanWorker`; una
-     * aprobacion era una casilla y una imagen en la propia fila, sin una sola
-     * columna de rastro—, y la decision fue completar esos huecos al importar
-     * con el aparato que la cuadrilla usaba de verdad.
-     *
-     * Completar no es medir, asi que la fila se marca. En la ficha es una
-     * etiqueta de una palabra al lado de la fecha; en la base es
-     * `legacy_source`, que es lo que permite separarlas despues.
-     */
-    public function test_una_firma_importada_se_marca_como_tal(): void
-    {
-        $plan = $this->plan();
-        $aprobacion = $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
-
-        SignatureEvent::where('signable_id', $aprobacion->id)
-            ->update(['legacy_source' => 'plan_approvals', 'legacy_id' => 4321]);
-
-        $this->actingAs($this->admin())
-            ->get(route('business_management.work_plans.show', $plan->slug))
-            ->assertInertia(fn ($page) => $page
-                ->where('approvals.0.signature.audit.migrated', true));
-    }
-
-    /** Una firma dada en este sistema no lleva esa marca. */
-    public function test_una_firma_nueva_no_se_marca_como_importada(): void
-    {
-        $plan = $this->plan();
-        $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
-
-        $this->actingAs($this->admin())
-            ->get(route('business_management.work_plans.show', $plan->slug))
-            ->assertInertia(fn ($page) => $page
-                ->where('approvals.0.signature.audit.migrated', false));
-    }
-
     /** La cuadrilla tambien lo lleva: es la misma pregunta en la otra columna. */
     public function test_la_cuadrilla_tambien_dice_como_se_firmo(): void
     {

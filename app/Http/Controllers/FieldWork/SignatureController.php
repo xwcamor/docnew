@@ -398,6 +398,8 @@ class SignatureController extends Controller
             'descriptors.*'   => ['array', 'size:128'],
             'descriptors.*.*' => ['numeric'],
             'consent'         => ['accepted'],
+            // Un fotograma del enrolamiento, opcional. Ver mas abajo.
+            'photo'           => ['nullable', 'string'],
         ]);
 
         abort_if(
@@ -413,6 +415,21 @@ class SignatureController extends Controller
             'enrolled_by'     => $request->user()->id,
             'is_active'       => true,
         ]);
+
+        // Y si esta persona no tiene foto de referencia, se queda con una de
+        // aqui. Cierra un agujero que si no no cierra nunca: se da de alta a
+        // alguien sin foto —el alta no la exige—, se enrola (que guarda
+        // descriptores y ninguna imagen) y a partir de ahi el servidor la
+        // reconoce siempre, con lo que **no se guarda foto de evidencia**. La
+        // ficha del plan diria «reconocimiento facial» sin una sola cara que
+        // enseñar, y por mucho que esa persona firmara nunca aparecería una.
+        //
+        // No pisa nada: si ya hay foto —la que subio el administrador, o la
+        // que llego de la importacion— se respeta. Y no puede tumbar el
+        // enrolamiento, que es lo que de verdad se vino a hacer.
+        if (filled($datos['photo'] ?? null)) {
+            $this->firmas->adoptarFotoSiNoTiene($person, $datos['photo']);
+        }
 
         return response()->json([
             'samples' => count($datos['descriptors']),

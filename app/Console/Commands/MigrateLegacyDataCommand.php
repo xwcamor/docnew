@@ -2567,6 +2567,60 @@ class MigrateLegacyDataCommand extends Command
      * provisional; este paso lo copia, lo pesa y lo vuelve a hashear de verdad.
      * Lo que no aparezca se marca como evidencia perdida.
      */
+    /**
+     * Todas las imagenes bajo una carpeta, indexadas por su nombre en minusculas.
+     *
+     * Recorre subcarpetas: la carpeta real va por documento y las evidencias de
+     * la v1 solo guardan el nombre del fichero, nunca su ruta.
+     *
+     * Con nombres repetidos en dos carpetas gana el primero por orden
+     * alfabetico —estable entre pasadas, que es lo que importa para poder
+     * re-ejecutar— y se avisa de cuantos hubo. No se intenta adivinar cual es
+     * el bueno: si dos documentos distintos tienen un `foto.jpg`, el que
+     * decide es quien armo la carpeta, no este comando.
+     *
+     * @return array<string, string> nombre en minusculas => ruta absoluta
+     */
+    protected function indiceDeImagenes(string $carpeta): array
+    {
+        if (! is_dir($carpeta)) {
+            return [];
+        }
+
+        $rutas = [];
+
+        $paseo = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($carpeta, \FilesystemIterator::SKIP_DOTS),
+        );
+
+        foreach ($paseo as $fichero) {
+            if (! $fichero->isFile()) {
+                continue;
+            }
+
+            if (! in_array(mb_strtolower($fichero->getExtension()), self::IMAGENES, true)) {
+                continue;
+            }
+
+            $rutas[mb_strtolower($fichero->getFilename())][] = $fichero->getPathname();
+        }
+
+        $repetidos = 0;
+        $indice = [];
+
+        foreach ($rutas as $nombre => $suyas) {
+            sort($suyas);
+            $indice[$nombre] = $suyas[0];
+            $repetidos += count($suyas) > 1 ? 1 : 0;
+        }
+
+        if ($repetidos > 0) {
+            $this->warn("  {$repetidos} nombres de fichero aparecen en mas de una carpeta: se toma el primero.");
+        }
+
+        return $indice;
+    }
+
     protected function copiarArchivos(string $carpeta): void
     {
         $this->info('── Archivos de imagen ──');
@@ -2588,13 +2642,34 @@ class MigrateLegacyDataCommand extends Command
 
         $copiados = $perdidos = $yaEstaban = 0;
 
+        // Donde esta cada imagen, buscada por su nombre y en TODA la carpeta.
+        //
+        // Antes se buscaba plana —`<carpeta>/<nombre>`— y eso solo acierta si
+        // alguien dejo los miles de ficheros sueltos en la raiz. La carpeta que
+        // se arma de verdad va por documento (`photo/00088375/…`,
+        // `signature/00088375/…`), que es como se pide en las instrucciones de
+        // este mismo comando y como la organiza cualquiera. Con esa carpeta, la
+        // busqueda plana no encontraba NI UNA: las evidencias se contaban todas
+        // como perdidas y sus filas se quedaban apuntando a `legacy/…`, o sea a
+        // un fichero que no existe. Eso es lo que abria la ficha de la firma con
+        // la imagen rota.
+        //
+        // La v1 guarda el nombre del fichero y no su ruta, asi que el nombre es
+        // lo unico con lo que se puede casar. Un indice por nombre sirve para
+        // las dos formas de carpeta y se arma de una pasada.
+        $donde = $this->indiceDeImagenes($carpeta);
+
+        if ($donde === []) {
+            $this->warn('  No se encontro ninguna imagen bajo esa carpeta.');
+        }
+
         DB::table('evidence_files')->where('file_path', 'like', 'legacy/images_uploads/%')
-            ->orderBy('id')->chunkById(500, function ($filas) use ($carpeta, &$copiados, &$perdidos, &$yaEstaban) {
+            ->orderBy('id')->chunkById(500, function ($filas) use ($donde, &$copiados, &$perdidos, &$yaEstaban) {
                 foreach ($filas as $f) {
                     $nombre = basename($f->file_path);
-                    $fuente = rtrim($carpeta, '/') . '/' . $nombre;
+                    $fuente = $donde[mb_strtolower($nombre)] ?? null;
 
-                    if (! is_file($fuente)) {
+                    if ($fuente === null || ! is_file($fuente)) {
                         $perdidos++;
 
                         continue;

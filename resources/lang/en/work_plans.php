@@ -218,7 +218,6 @@ return [
     // system recorded IP, browser, device and coordinates ONLY for worker
     // signatures; an approval was a checkbox and an image, with no trail
     // columns at all. Nothing was lost in the migration: it was never kept.
-    'sign_audit_imported'  => 'Imported',
 
     'crew_sign_hint'    => 'Sign for :name with face recognition',
     'crew_added'    => ':name was added to the plan.',

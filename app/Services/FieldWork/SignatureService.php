@@ -374,8 +374,22 @@ class SignatureService
      *
      * Solo si no tiene ninguna: una capturada en obra nunca pisa a la que subio
      * el administrador, que es justo la que existe porque la de obra no valia.
+     *
+     * Publica porque la llaman dos sitios y por motivos distintos. Uno es la
+     * firma con foto de evidencia. El otro es el ENROLAMIENTO, y ahi tapa un
+     * agujero que si no no cierra nunca:
+     *
+     *   1. se da de alta a alguien sin foto (el alta no la exige);
+     *   2. esa persona se enrola, que guarda descriptores y ninguna imagen;
+     *   3. firma, el servidor la reconoce y —por decision del dueño del
+     *      producto— **no se guarda foto de evidencia cuando reconoce**.
+     *
+     * Resultado: la ficha del plan dice «reconocimiento facial» y no hay una
+     * sola cara que enseñarle a nadie, ni la habra por mucho que firme. El
+     * enrolamiento es el momento natural para resolverlo: la persona esta
+     * delante de la camara, consintiendo, y de ahi sale una frontal buena.
      */
-    protected function adoptarFotoSiNoTiene(Person $persona, string $foto): void
+    public function adoptarFotoSiNoTiene(Person $persona, string $foto): void
     {
         if ($this->fotoVigente($persona) !== null) {
             return;

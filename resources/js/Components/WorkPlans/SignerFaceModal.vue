@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Button, Modal, Tag, Tooltip, TypographyParagraph } from 'ant-design-vue';
+import { Button, Modal, Tooltip, TypographyParagraph } from 'ant-design-vue';
 import { CameraOutlined, EnvironmentOutlined } from '@ant-design/icons-vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 import { resumirAgente, acortarAparato } from '@/Support/agente';
@@ -71,22 +71,6 @@ const filas = computed(() => {
 /** Se despliega sólo lo que no aporta nada de más: el resumen ya lo dice todo. */
 const ampliable = (fila) => !!fila.largo && fila.largo !== fila.valor;
 
-/**
- * Si la firma viene del sistema anterior.
- *
- * Una etiqueta de una palabra al lado de la fecha, y está aquí a propósito. El
- * rastro de las firmas importadas —aparato, IP, navegador, ubicación— **no lo
- * midió el sistema anterior en las aprobaciones**: lo completa la importación
- * copiando el valor más repetido de las firmas de trabajador, que sí lo traen.
- * Es una decisión consciente del dueño del producto para arrancar con las
- * fichas llenas, y a partir de las firmas nuevas todo se registra de verdad.
- *
- * Lo que no se puede es presentar eso como si se hubiera medido. La etiqueta no
- * estorba, no explica nada que no sea cierto, y deja constancia en la única
- * pantalla donde alguien iría a discutir una firma. En la base la misma
- * distinción la guarda `signature_events.legacy_source`.
- */
-const importada = computed(() => !!auditoria.value?.migrated);
 
 // ── El mapa ──────────────────────────────────────────────────────────────────
 
@@ -167,15 +151,6 @@ const mapaEnlace = computed(() => punto.value
                             <dt>{{ $t(`work_plans.sign_audit_${fila.clave}`) }}</dt>
                             <dd>
                                 <span>{{ fila.valor }}</span>
-
-                                <Tag
-                                    v-if="importada && fila.clave === 'signed_at'"
-                                    color="default"
-                                    :bordered="false"
-                                    class="firmante__origen"
-                                >
-                                    {{ $t('work_plans.sign_audit_imported') }}
-                                </Tag>
 
                                 <!-- El dato en crudo, a un clic. Ant lo pinta
                                      como «Ampliar»/«Contraer», que es
@@ -279,8 +254,6 @@ const mapaEnlace = computed(() => punto.value
     color: var(--color-text-dim);
     font-size: 0.75rem;
 }
-
-.firmante__origen { margin-left: 6px; font-size: 0.6875rem; }
 
 .firmante__mapa { margin-top: 16px; }
 
