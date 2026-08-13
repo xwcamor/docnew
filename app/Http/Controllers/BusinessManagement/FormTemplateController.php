@@ -183,10 +183,15 @@ class FormTemplateController extends Controller
             }
         }
 
-        $service->create($request->validated());
+        $formTemplate = $service->create($request->validated());
 
+        // Al documento recien creado, no al listado. Un documento no esta
+        // terminado cuando se guarda su cabecera: le faltan las secciones y los
+        // campos, que es donde de verdad se define y lo que se hace en su
+        // ficha. Devolver al indice obligaba a buscarlo entre los demas para
+        // seguir con el paso siguiente.
         return redirect()
-            ->route('business_management.form_templates.index')
+            ->route('business_management.form_templates.show', $formTemplate->slug)
             ->with('success', __('form_templates.created'));
     }
 

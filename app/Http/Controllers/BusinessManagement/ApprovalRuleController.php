@@ -67,11 +67,15 @@ class ApprovalRuleController extends Controller
 
         $isSuper = $request->user()?->hasRole('super') ?? false;
 
-        // El modelo de dominio no declara creator/deleter/tenant: solo se
-        // cargan las relaciones que sí existen.
+        // El modelo de dominio no declara creator/deleter: solo se cargan las
+        // relaciones que sí existen. El workspace SÍ, y viene de
+        // `BelongsToTenantOrGlobal`: se carga únicamente para el super, que es
+        // el único que ve el catálogo global y el de cada empresa mezclados y
+        // necesita la columna para distinguirlos.
         $reglas = ApprovalRuleService::filter(
             ApprovalRule::query()->select('approval_rules.*')
-                ->with(['country:id,name,iso_code', 'workType:id,code']),
+                ->with(['country:id,name,iso_code', 'workType:id,code'])
+                ->when($isSuper, fn ($q) => $q->with('tenant:id,name')),
             $request,
         )->paginate($perPage)->withQueryString();
 

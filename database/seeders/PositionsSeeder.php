@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Country;
 use App\Models\Position;
+use Database\Seeders\Concerns\ElWorkspaceDeLaInstalacion;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -26,9 +27,17 @@ use Illuminate\Support\Str;
  * filtrar: quien aprueba lo dicen los roles de la persona, no su cargo. La
  * columna se borro y la lista se quedo en lo unico que dice de verdad un cargo,
  * que es como se llama.
+ *
+ * Los cargos son DEL WORKSPACE, no de la plataforma. Antes salian los veintiuno
+ * con «Workspace: Plataforma» y no por una decision: este sembrador corria
+ * ANTES que TenantsSeeder, asi que cuando escribia no habia todavia ninguna
+ * empresa a la que asignarselos. Y lo global solo lo edita el super, con lo
+ * cual el admin de la empresa que los usa a diario no podia tocar ni uno.
  */
 class PositionsSeeder extends Seeder
 {
+    use ElWorkspaceDeLaInstalacion;
+
     public function run(): void
     {
         $peru = Country::where('iso_code', 'PE')->first();
@@ -70,21 +79,37 @@ class PositionsSeeder extends Seeder
             'Topógrafo',
         ];
 
+        $workspace = $this->workspaceDeLaInstalacion();
         $nuevos = 0;
+        $adoptados = 0;
 
         foreach ($cargos as $code) {
             $fila = Position::firstOrCreate(
                 ['country_id' => $peru->id, 'code' => $code],
                 [
                     'slug' => Str::random(22),
+                    'tenant_id' => $workspace,
                     'is_active' => true,
                     'created_by' => 1,
                 ],
             );
 
             $nuevos += (int) $fila->wasRecentlyCreated;
+
+            // Y se reclaman los que ya estaban sin dueno de una instalacion
+            // anterior. Solo esos: un cargo que ya es de una empresa no se
+            // mueve, y con varias empresas no se adivina de quien es nada.
+            if (! $fila->wasRecentlyCreated && $fila->tenant_id === null && $workspace !== null) {
+                $fila->forceFill(['tenant_id' => $workspace])->saveQuietly();
+                $adoptados++;
+            }
         }
 
-        $this->command?->info("Cargos sembrados para Perú: {$nuevos} nuevos de " . count($cargos) . '.');
+        $total = count($cargos);
+        $de = $workspace === null
+            ? 'sin workspace (la instalación tiene cero o varias empresas)'
+            : "del workspace #{$workspace}";
+
+        $this->command?->info("Cargos sembrados para Perú {$de}: {$nuevos} nuevos de {$total}, {$adoptados} reasignados.");
     }
 }

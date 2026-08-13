@@ -96,6 +96,26 @@ class FormTemplateCrudTest extends TestCase
         ]);
     }
 
+    /**
+     * Y se aterriza EN el documento, no en el listado.
+     *
+     * Guardar la cabecera no termina un documento: le faltan las secciones y
+     * los campos, que es donde de verdad se define y lo que se hace en su
+     * ficha. Devolver al indice obligaba a buscarlo entre los demas para poder
+     * seguir con el paso siguiente.
+     */
+    public function test_dar_de_alta_un_formato_lleva_a_su_ficha(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.form_templates.store'), [
+            'country_id' => 1, 'name' => 'Permiso de trabajo', 'code' => 'PDT',
+        ])->assertRedirect(route(
+            'business_management.form_templates.show',
+            FormTemplate::where('code', 'PDT')->firstOrFail()->slug,
+        ));
+    }
+
     /** Y sin país no se guarda a medias: se dice qué falta. */
     public function test_sin_pais_no_se_guarda(): void
     {

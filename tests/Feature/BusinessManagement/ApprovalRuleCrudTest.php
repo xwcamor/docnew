@@ -325,6 +325,39 @@ class ApprovalRuleCrudTest extends TestCase
         $this->assertProhibido($this->actingAs($this->admin())->get(route('business_management.approval_rules.trash')));
     }
 
+    // ── De quien es cada regla ───────────────────────────────────────────────
+
+    /**
+     * El listado del super dice de que empresa es cada regla.
+     *
+     * Las reglas SON de cada workspace —una que crea el admin de una empresa no
+     * la ve ninguna otra— y el super es el unico que las ve todas mezcladas en
+     * la misma tabla. Sin el workspace delante, dos reglas con el mismo nombre
+     * de dos empresas distintas son indistinguibles.
+     */
+    public function test_el_super_ve_de_que_workspace_es_cada_regla(): void
+    {
+        $this->regla(ApproverRole::SUPERVISOR, 1);
+
+        $this->actingAs($this->super())
+            ->get(route('business_management.approval_rules.index'))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->where('approval_rules.data.0.tenant.name', 'Empresa 1'));
+    }
+
+    /** Al admin no se le carga: todo lo que ve ya es suyo. */
+    public function test_al_admin_no_se_le_manda_el_workspace(): void
+    {
+        $this->regla(ApproverRole::SUPERVISOR, 1);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.approval_rules.index'))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->missing('approval_rules.data.0.tenant'));
+    }
+
     // ── El candado ───────────────────────────────────────────────────────────
 
     /**

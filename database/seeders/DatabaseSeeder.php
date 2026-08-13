@@ -40,11 +40,6 @@ class DatabaseSeeder extends Seeder
             //    a la lista vieja escrita en PHP, que es lo que se quito.
             DocumentTypesSeeder::class,
 
-            // ── Cargos de obra ──────────────────────────────────────────
-            //    La v1 traia dos para Peru —Tecnico y Supervisor— y con eso
-            //    no se distingue al que aprueba del que hace la maniobra.
-            PositionsSeeder::class,
-
             SystemModulesSeeder::class,
 
             // ── Pricing tiers (free/basic/pro/enterprise) ───────────────
@@ -61,6 +56,22 @@ class DatabaseSeeder extends Seeder
 
             // ── Tenants + per-tenant system user ────────────────────────
             TenantsSeeder::class,
+
+            // ── Cargos de obra y roles del flujo ────────────────────────
+            //    DESPUES de TenantsSeeder, y no antes, porque estos dos
+            //    catalogos son del workspace: corriendo antes no existia
+            //    todavia ninguna empresa a la que asignarselos y los veintiun
+            //    cargos salian con «Workspace: Plataforma», que ademas de ser
+            //    falso los dejaba fuera del alcance del admin —lo global solo
+            //    lo edita el super—. Los dos leen el workspace de la
+            //    instalacion; con varias empresas se quedan globales, que es
+            //    lo unico honesto cuando no hay a quien asignarselos.
+            //
+            //    De cargos la v1 traia dos para Peru —Tecnico y Supervisor— y
+            //    con eso no se distingue al que aprueba del que hace la
+            //    maniobra; la lista sembrada es el punto de partida.
+            PositionsSeeder::class,
+            ApproverRolesSeeder::class,
 
             // ── Human users ─────────────────────────────────────────────
             UsersSeeder::class,
