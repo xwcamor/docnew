@@ -850,8 +850,6 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame('dev-5528afcf', $sinEvento->device_id);
         $this->assertSame('190.238.40.88', $sinEvento->ip_address);
         $this->assertStringContainsString('SamsungBrowser', (string) $sinEvento->user_agent);
-        $this->assertEqualsWithDelta(-12.298051, (float) $sinEvento->latitude, 0.000001);
-        $this->assertEqualsWithDelta(-76.836012, (float) $sinEvento->longitude, 0.000001);
 
         // Y sigue marcada como importada: es lo unico que despues permite
         // separar lo que se midio de lo que se completo.
@@ -973,6 +971,58 @@ class MigrateLegacyDataTest extends TestCase
      * imagen rota. La v1 guarda el nombre del fichero y nunca su ruta, asi que
      * el nombre es lo unico con lo que se puede casar.
      */
+    /**
+     * Todo el historico queda en el sitio de obra.
+     *
+     * La v1 guardaba la ubicacion que le daba el navegador, y un navegador sin
+     * GPS cae en la ubicacion por IP: la del proveedor de internet. En este
+     * historico eso son firmas de Lurin apareciendo en el centro de Lima. No es
+     * un dato, es ruido con forma de dato, y deja el mapa de la ficha señalando
+     * un sitio donde no estuvo nadie.
+     *
+     * Por eso este paso **pisa** la coordenada, no rellena huecos. Y solo
+     * alcanza a lo importado: una firma dada en este sistema trae su ubicacion
+     * de verdad.
+     */
+    public function test_las_firmas_importadas_quedan_en_el_sitio_de_obra(): void
+    {
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'docufiz.legacy_site_coords'],
+            ['name' => 'x', 'type' => 'string', 'value' => '-12.297842,-76.835961',
+             'group' => 'field_work', 'is_active' => true],
+        );
+        \App\Models\Setting::flushCache();
+
+        $this->migrarTodo();
+
+        $eventos = DB::table('signature_events')->whereNotNull('legacy_source')->get();
+
+        $this->assertNotEmpty($eventos);
+        $this->assertTrue(
+            $eventos->every(fn ($e) => abs((float) $e->latitude - (-12.297842)) < 0.000001
+                && abs((float) $e->longitude - (-76.835961)) < 0.000001),
+            'todas las importadas tienen que quedar en el mismo punto, incluidas las que ya traian coordenadas',
+        );
+    }
+
+    /** Sin el ajuste no se pisa nada: se respeta lo que trajo la v1. */
+    public function test_sin_sitio_de_obra_se_respeta_la_ubicacion_de_la_v1(): void
+    {
+        \App\Models\Setting::updateOrCreate(
+            ['key' => 'docufiz.legacy_site_coords'],
+            ['name' => 'x', 'type' => 'string', 'value' => '',
+             'group' => 'field_work', 'is_active' => true],
+        );
+        \App\Models\Setting::flushCache();
+
+        $this->migrarTodo();
+
+        $conEvento = DB::table('signature_events')
+            ->where('legacy_source', 'worker_signature_events')->first();
+
+        $this->assertEqualsWithDelta(-12.298051, (float) $conEvento->latitude, 0.000001);
+    }
+
     public function test_el_paso_archivos_encuentra_las_imagenes_en_subcarpetas(): void
     {
         Storage::fake('local');

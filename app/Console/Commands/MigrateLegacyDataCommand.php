@@ -2098,6 +2098,21 @@ class MigrateLegacyDataCommand extends Command
      */
     protected function completarElRastroDeLoImportado(): void
     {
+        // ── El sitio de obra, si el ajuste lo dice ────────────────────────
+        //
+        // Esto NO rellena huecos: **pisa** la ubicacion que trajo la v1, y por
+        // eso va antes y aparte. La v1 guardaba lo que le daba el navegador, y
+        // un navegador sin GPS —una tablet en una nave, o un portatil— cae en la
+        // ubicacion por IP, que es la del proveedor de internet: en este
+        // historico eso significa el centro de Lima en firmas que se dieron en
+        // Lurin. Una coordenada asi no es un dato, es ruido con forma de dato, y
+        // deja el mapa de la ficha señalando un sitio donde no estuvo nadie.
+        //
+        // El ajuste `docufiz.legacy_site_coords` dice donde se trabajaba de
+        // verdad. En blanco no se toca nada y se respeta lo que trajo la v1,
+        // que es lo correcto para quien no sepa la respuesta.
+        $this->plantarLoImportadoEnSuSitio();
+
         $huecos = DB::table('signature_events')
             ->whereNotNull('legacy_source')
             ->where(fn ($q) => $q
@@ -2166,6 +2181,42 @@ class MigrateLegacyDataCommand extends Command
             $tocadas, $huecos,
             $relleno['device_id'] ?? '—', $relleno['ip_address'] ?? '—',
         ));
+    }
+
+    /**
+     * Todo el historico, en el sitio de obra.
+     *
+     * Lee `docufiz.legacy_site_coords` («latitud,longitud»). Si esta puesto,
+     * TODAS las firmas importadas quedan ahi — tambien las que ya traian
+     * coordenadas, y eso es lo que se busca: las que traia la v1 salian
+     * repartidas por medio Lima porque las daba el navegador por IP, no por
+     * GPS. Pisar un dato medido no es gratis, asi que se dice cuantas se
+     * movieron y basta con vaciar el ajuste para dejar de hacerlo.
+     *
+     * Solo alcanza a lo importado (`legacy_source`): una firma dada en este
+     * sistema trae su ubicacion de verdad y no se toca jamas.
+     */
+    protected function plantarLoImportadoEnSuSitio(): void
+    {
+        $sitio = trim((string) (\App\Models\Setting::get('docufiz.legacy_site_coords') ?? ''));
+
+        if ($sitio === '') {
+            return;
+        }
+
+        [$lat, $lon] = array_pad(array_map('trim', explode(',', $sitio, 2)), 2, null);
+
+        if (! is_numeric($lat) || ! is_numeric($lon)) {
+            $this->warn("  El ajuste docufiz.legacy_site_coords no es «latitud,longitud»: «{$sitio}». No se mueve nada.");
+
+            return;
+        }
+
+        $movidas = DB::table('signature_events')
+            ->whereNotNull('legacy_source')
+            ->update(['latitude' => (float) $lat, 'longitude' => (float) $lon]);
+
+        $this->line("  {$movidas} firmas importadas quedan en el sitio de obra ({$lat}, {$lon}).");
     }
 
     /**
