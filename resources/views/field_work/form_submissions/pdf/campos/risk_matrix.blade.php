@@ -103,12 +103,10 @@
     };
 @endphp
 
-<h3 class="block__sub">
-    {{ $campo['etiqueta'] }}@if ($campo['requerido'])<span class="req"> *</span>@endif
-</h3>
+<h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
 
 @if (empty($datos['actividades']))
-    <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
+    <p class="muted">—</p>
 @else
     {{-- El recuento por nivel, arriba del todo. Es lo primero que mira quien
          firma y en la v1 no está en ninguna parte: hay que recorrer las

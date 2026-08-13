@@ -59,14 +59,12 @@
     .qb-note { font-size: 7.5pt; margin: 2px 0 0 0; }
 </style>
 
-<h3 class="block__sub">
-    {{ $campo['etiqueta'] }}@if ($campo['requerido'])<span class="req"> *</span>@endif
-</h3>
+<h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
 
 @if ($qb['respondidas'] === 0)
     {{-- Ni una contestada: no se pinta la rejilla de diecisiete filas vacias,
          que ocupa media pagina para decir lo mismo que una linea. --}}
-    <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
+    <p class="muted">—</p>
 @else
     <table class="qb-head">
         <tr>
@@ -130,7 +128,7 @@
                     </td>
                     <td class="qb-a">
                         @if ($pregunta['respuesta'] === null)
-                            <span class="muted">{{ __('form_submissions.pdf.no_answer') }}</span>
+                            <span class="muted">—</span>
                         @else
                             <span class="{{ $clases[$pregunta['tono']] ?? 'qb-ok' }}">{{ $pregunta['respuesta'] }}</span>
                             @if ($pregunta['observacion'])

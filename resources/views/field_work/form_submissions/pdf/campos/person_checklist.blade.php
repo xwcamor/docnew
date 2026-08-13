@@ -1,98 +1,99 @@
 {{--
     EPP por trabajador (F3 de la v1), en el PDF.
 
-    POR QUÉ NO ES LA CUADRÍCULA DEL PAPEL
-    -------------------------------------
+    LA CUADRÍCULA DEL PAPEL, RECUPERADA
+    -----------------------------------
     En papel el EPP es una cuadrícula: una fila por trabajador, una columna por
-    item de protección. La v1 la reproducía tal cual (`show_pdf_page1.erb`) y
-    para que entraran los 25 items hacía tres cosas: sacaba la página en
-    HORIZONTAL, escribía el nombre de cada item **girado en vertical**
+    ítem de protección. La v1 la reproducía tal cual (`show_pdf_page1.erb`) y
+    para que entraran los 25 ítems hacía tres cosas: sacaba la hoja en
+    HORIZONTAL, escribía el nombre de cada ítem **girado en vertical**
     (`writing-mode: vertical-rl`) a 6 px, y ponía en cada celda un símbolo —✔,
     x, - — con la leyenda al pie.
 
-    Aquí no se puede y tampoco conviene:
+    Aquí se hacen dos de las tres. La hoja va en horizontal porque el formato lo
+    dice —`form_templates.pdf_orientation`, ya no está cableado— y las celdas
+    llevan su marca con la leyenda arriba. Lo único que no se copia es girar el
+    rótulo: DomPDF no sabe (`writing-mode` y `transform` no existen ahí), así que
+    las columnas van NUMERADAS y los números se explican en una leyenda encima,
+    que es exactamente lo que ya hacía la inspección de herramientas — y así los
+    dos formatos de cuadrícula se leen igual.
 
-      · La hoja es A4 VERTICAL y la fija el servicio para todo el documento
-        (`setPaper('a4', 'portrait')`): este campo es una sección más de un PDF
-        que empieza con el membrete y acaba con las firmas. Girar la hoja por un
-        campo partiría el documento en dos.
-      · DomPDF no sabe girar texto: no hay `writing-mode` ni `transform`. Sin
-        eso, 25 columnas en 539 pt son 21 pt por columna para rótulos como
-        «Resp. con filtro para humos». Sale ilegible o no sale.
-      · Y aunque saliera: la cuadrícula de la v1 obliga a leer un símbolo y
-        bajar a la leyenda para saber qué significa. Cuando lo que se busca al
-        abrir el documento es «qué salió mal y a quién», eso es trabajo de más.
+    Este parcial estuvo un tiempo pintando un bloque por trabajador con sus
+    ítems en tres columnas, porque la hoja era vertical y no cabía otra cosa.
+    Funcionaba, pero eran tres páginas para lo que en el papel es una tabla, y
+    perdía la vista de conjunto: en una cuadrícula se ve de un vistazo qué
+    columna falla en toda la cuadrilla, y en bloques hay que ir y volver.
 
-    LO QUE SE HACE EN SU LUGAR
-    --------------------------
-    Un bloque por trabajador con sus items repartidos en tres columnas, y antes
-    un índice de una línea por persona con su estado. El índice es lo que
-    devuelve la vista de conjunto que se pierde al dejar la cuadrícula — es la
-    misma solución que tomó la pantalla de llenado con `RowNavigator.vue`, por
-    el mismo motivo, y así el papel y la tablet se leen igual.
+    Los «No conforme» van en rojo Y con la marca, nunca solo en color, y el
+    estado de cada trabajador sigue escrito con palabras al final de su fila:
+    una fotocopia en blanco y negro tiene que seguir diciendo lo mismo.
 
-    Los «No conforme» van en rojo Y con la palabra escrita, nunca solo en color:
-    este documento se imprime en blanco y negro y se fotocopia. Nada de zebra en
-    las filas (se está quitando de todo el PDF): el color aquí significa una
-    cosa y solo una.
-
-    Recibe `$campo['datos']` ya resuelto por `PersonChecklistPdf::datos()`: sin
-    `person_id`, sin `legacy_plan_worker_id`, sin `item_id` y con las respuestas
-    ya traducidas al idioma del documento.
+    Todo lo que se pinta viene de `PersonChecklistPdf::datos()`: aquí no se
+    decide qué respuesta es mala ni cómo se llama nadie. Llega sin `person_id`,
+    sin `legacy_plan_worker_id`, sin `item_id` y con las respuestas ya traducidas
+    al idioma del documento.
 --}}
 @php
     $datos = $campo['datos'] ?? [];
     $trabajadores = $datos['trabajadores'] ?? [];
-    $columnas = 3;
+    $items = $datos['items'] ?? [];
+
+    /* La marca de cada celda y su color. `sin` —nadie respondió ese ítem— cae al
+       interrogante, que es lo que hay que distinguir de un «no aplica»: uno es
+       una decisión de quien inspeccionó, el otro es que nadie miró. */
+    $simbolo = fn (string $tono) => \App\Services\FieldWork\Pdf\Simbolos::de($tono);
+    $marca = ['ok' => 'ok', 'bad' => 'bad', 'na' => 'na'];
+
+    /* La palabra del estado, al final de la fila. */
+    $palabra = [
+        'ok'   => __('form_submissions.pdf.person_checklist.all_ok'),
+        'bad'  => __('form_submissions.pdf.person_checklist.status_bad'),
+        'warn' => __('form_submissions.pdf.person_checklist.status_pending'),
+    ];
 @endphp
 
 <style>
-    /* Todo prefijado `pc-`: lo compartido (.data, .block__sub, .muted, .req)
-       vive en template.blade.php y esto no lo pisa. */
-    .pc-summary { font-size: 8.5pt; color: #475569; margin: 0 0 6px 0; }
+    /* Todo prefijado `pc-`: lo compartido (.data, .sym, .block__sub, .muted)
+       vive en template.blade.php y esto no lo pisa. Donde sí hay que corregir
+       una regla de `.data` se repite el selector entero, porque una clase suelta
+       pierde por especificidad y el estilo se queda escrito sin efecto. */
+    .pc-summary { font-size: 8.5pt; color: #46596B; margin: 0 0 6px 0; }
 
-    /* El índice es una `.data` normal —así se ve igual que el resto de tablas
-       del documento— con dos anchos propios. */
-    .pc-num   { width: 22px; text-align: right; color: #6A6D70; }
-    .pc-state { width: 34%; }
+    .pc-legend { width: 100%; border-collapse: collapse; margin: 0 0 6px 0; }
+    .pc-legend td { padding: 2px 6px; border: 1px solid #C9D3DC; font-size: 7pt; vertical-align: top; }
+    .pc-legend__n { font-weight: bold; color: #1F3B57; }
 
-    /* Un trabajador entero, sin partirse entre dos páginas si cabe. */
-    .pc-worker { page-break-inside: avoid; margin: 0 0 10px 0; }
-    .pc-worker__head { background: #F1F5F9; border: 1px solid #E5E5E5; border-bottom: none;
-                       padding: 4px 6px; font-size: 8.5pt; }
-    .pc-worker__name { font-weight: bold; color: #354A5F; }
-    .pc-worker__doc { color: #6A6D70; font-size: 7.5pt; }
+    /* La cuadrícula aprieta: con veinticinco ítems son veintinueve columnas
+       incluso en horizontal. De ahí el cuerpo a 7pt y las marcas centradas. */
+    table.data.pc-matrix thead th { text-align: center; padding: 3px 2px; }
+    table.data.pc-matrix thead th.pc-h { text-align: left; padding: 4px 6px; }
+    table.data.pc-matrix tbody td { font-size: 7pt; vertical-align: middle; }
+    table.data.pc-matrix tbody td.pc-cell { text-align: center; padding: 3px 2px; }
 
-    /* La rejilla de items no puede ser `.data`: seis columnas a 8 pt con 4 px de
-       relleno no entran en la hoja vertical, y los rótulos largos («Resp. con
-       filtro para humos») empiezan a partirse en tres líneas. */
-    .pc-items { width: 100%; border-collapse: collapse; }
-    .pc-items td { border: 1px solid #E5E5E5; font-size: 7.5pt; padding: 2px 5px;
-                   vertical-align: top; }
-    .pc-items td.pc-item { width: 22%; }
-    .pc-items td.pc-answer { width: 11.33%; }
+    .pc-num    { width: 16px; text-align: center; color: #63748A; }
+    .pc-worker { font-size: 7.5pt; }
+    .pc-doc    { color: #63748A; }
+    .pc-state  { text-align: center; }
 
-    /* Color Y palabra: el rojo se apoya en el texto, no al revés. */
-    .pc-bad { color: #C8281D; font-weight: bold; }
-    .pc-na  { color: #6A6D70; }
+    /* Los tres tonos del estado. El bueno va en negro: si se pinta todo, no
+       resalta nada. */
+    .pc-bad  { color: #9E2A22; font-weight: bold; }
+    .pc-warn { color: #B45309; font-weight: bold; }
 
-    .pc-correction { width: 100%; border-collapse: collapse; margin: 0 0 2px 0; }
-    .pc-correction td { border: 1px solid #E5E5E5; font-size: 7.5pt; padding: 3px 6px;
-                        vertical-align: top; }
-    .pc-correction td.pc-correction__k { width: 22%; background: #FBFCFD; font-weight: bold;
-                                         color: #475569; }
+    /* La corrección de un trabajador, pegada debajo de él. El fondo la separa
+       de las filas de trabajador; no es zebreado, es otra cosa. */
+    table.data.pc-matrix tbody tr.pc-fix td { background: #EEF2F6; font-size: 7pt; }
+    .pc-fix__k { font-weight: bold; color: #46596B; }
 </style>
 
-<h3 class="block__sub">
-    {{ $campo['etiqueta'] }}@if ($campo['requerido'])<span class="req"> *</span>@endif
-</h3>
+<h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
 
 @if (empty($trabajadores))
-    <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
+    <p class="muted">—</p>
 @else
-    {{-- El titular. Va en rojo en cuanto hay una sola no conformidad, y la
-         frase la nombra: quien abre el documento tiene que saber en la primera
-         línea si esta inspección salió limpia o no. --}}
+    {{-- El titular. Va en rojo en cuanto hay una sola no conformidad, y la frase
+         la nombra: quien abre el documento tiene que saber en la primera línea
+         si esta inspección salió limpia o no. --}}
     <p class="pc-summary {{ ($datos['no_conformes'] ?? 0) > 0 ? 'pc-bad' : '' }}">
         {{ __('form_submissions.pdf.person_checklist.summary', [
             'people' => count($trabajadores),
@@ -100,131 +101,83 @@
         ]) }}
     </p>
 
-    {{-- Índice. Con un solo trabajador sobra: su bloque ya lo dice todo, igual
-         que en la pantalla de llenado. --}}
-    @if (count($trabajadores) > 1)
-        <table class="data">
-            <thead>
+    {{-- Qué ítem es cada número. Sin esto la cabecera de la cuadrícula es una
+         fila de cifras que no significan nada. Tres por fila: los rótulos del
+         EPP son cortos («Casco», «Lentes») y con dos sobraba media hoja. --}}
+    @if (!empty($items))
+        <table class="pc-legend">
+            @foreach (array_chunk($items, 3) as $trio)
                 <tr>
-                    <th colspan="2">{{ __('form_submissions.pdf.person_checklist.worker') }}</th>
-                    <th>{{ __('form_submissions.pdf.person_checklist.status') }}</th>
+                    @foreach ($trio as $item)
+                        <td><span class="pc-legend__n">{{ $item['numero'] }}.</span> {{ $item['texto'] }}</td>
+                    @endforeach
+                    {{-- Los que falten para completar la fila, para que la tabla
+                         no se descuadre. --}}
+                    @for ($i = count($trio); $i < 3; $i++)<td></td>@endfor
                 </tr>
-            </thead>
-            <tbody>
-                @foreach ($trabajadores as $trabajador)
-                    <tr>
-                        <td class="pc-num">{{ $trabajador['numero'] }}</td>
-                        <td>{{ $trabajador['nombre'] }}</td>
-                        <td class="pc-state">
-                            @if ($trabajador['no_conformes'] > 0)
-                                <span class="pc-bad">{{ trans_choice(
-                                    'form_submissions.pdf.person_checklist.issues',
-                                    $trabajador['no_conformes'],
-                                    ['count' => $trabajador['no_conformes']],
-                                ) }}</span>
-                            @elseif ($trabajador['sin_responder'] > 0)
-                                <span class="muted">{{ trans_choice(
-                                    'form_submissions.pdf.person_checklist.pending',
-                                    $trabajador['sin_responder'],
-                                    ['count' => $trabajador['sin_responder']],
-                                ) }}</span>
-                            @else
-                                <span class="ok">{{ __('form_submissions.pdf.person_checklist.all_ok') }}</span>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
+            @endforeach
         </table>
     @endif
 
-    @foreach ($trabajadores as $trabajador)
-        @php
-            /*
-             * Reparto en columnas por VERTICALES, no por filas: el catálogo va
-             * agrupado de hecho —cabeza, cuerpo, manos, oídos, vías
-             * respiratorias, pies— y leyendo hacia abajo esos grupos se
-             * mantienen juntos, como en el papel. Con `array_chunk` a secas se
-             * intercalarían.
-             */
-            $lineas = $trabajador['items'];
-            $alto = (int) ceil(count($lineas) / $columnas);
-            $verticales = $alto > 0 ? array_chunk($lineas, $alto) : [];
-        @endphp
+    {{-- Y qué significa cada marca. Encima de la tabla y no al pie: al pie hay
+         que haber leído ya la cuadrícula entera para enterarse de qué se estaba
+         leyendo. --}}
+    @include('field_work.form_submissions.pdf.leyenda', ['leyenda' => $datos['leyenda']])
 
-        <div class="pc-worker">
-            <div class="pc-worker__head">
-                <span class="pc-worker__name">{{ $trabajador['numero'] }}. {{ $trabajador['nombre'] }}</span>
-                @if (filled($trabajador['documento']))
-                    <span class="pc-worker__doc"> · {{ $trabajador['documento'] }}</span>
-                @endif
-                @if ($trabajador['no_conformes'] > 0)
-                    <span class="pc-bad"> · {{ trans_choice(
-                        'form_submissions.pdf.person_checklist.issues',
-                        $trabajador['no_conformes'],
-                        ['count' => $trabajador['no_conformes']],
-                    ) }}</span>
-                @elseif ($trabajador['sin_responder'] > 0)
-                    <span class="muted"> · {{ trans_choice(
-                        'form_submissions.pdf.person_checklist.pending',
-                        $trabajador['sin_responder'],
-                        ['count' => $trabajador['sin_responder']],
-                    ) }}</span>
-                @else
-                    <span class="ok"> · {{ __('form_submissions.pdf.person_checklist.all_ok') }}</span>
-                @endif
-            </div>
+    <table class="data pc-matrix">
+        <thead>
+            <tr>
+                <th class="pc-num">{{ __('form_submissions.pdf.person_checklist.number') }}</th>
+                <th class="pc-h">{{ __('form_submissions.pdf.person_checklist.worker') }}</th>
+                @foreach ($items as $item)
+                    <th>{{ $item['numero'] }}</th>
+                @endforeach
+                <th>{{ __('form_submissions.pdf.person_checklist.status') }}</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach ($trabajadores as $trabajador)
+                <tr>
+                    <td class="pc-num">{{ $trabajador['numero'] }}</td>
+                    <td class="pc-worker">
+                        {{ $trabajador['nombre'] }}
+                        @if (filled($trabajador['documento']))
+                            <span class="pc-doc">· {{ $trabajador['documento'] }}</span>
+                        @endif
+                    </td>
 
-            @if (empty($lineas))
-                <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
-            @else
-                <table class="pc-items">
-                    @for ($f = 0; $f < $alto; $f++)
-                        <tr>
-                            @for ($c = 0; $c < $columnas; $c++)
-                                @php $linea = $verticales[$c][$f] ?? null; @endphp
-
-                                @if ($linea === null)
-                                    {{-- Los 25 items no reparten exactos en tres columnas: el
-                                         hueco se pinta vacío para que la rejilla no se descuadre. --}}
-                                    <td class="pc-item">&nbsp;</td>
-                                    <td class="pc-answer">&nbsp;</td>
-                                @else
-                                    <td class="pc-item">{{ $linea['item'] }}</td>
-                                    <td class="pc-answer">
-                                        @if ($linea['respuesta'] === null)
-                                            {{-- Sin respuesta: en gris y con la raya. No se pinta
-                                                 como «No aplica», que es una decisión de quien
-                                                 inspecciona y no un item que nadie miró. --}}
-                                            <span class="muted">—</span>
-                                        @elseif ($linea['tono'] === \App\Services\FieldWork\FormFindingsService::MALA)
-                                            <span class="pc-bad">{{ $linea['respuesta'] }}</span>
-                                        @elseif ($linea['tono'] === \App\Services\FieldWork\FormFindingsService::NO_APLICA)
-                                            <span class="pc-na">{{ $linea['respuesta'] }}</span>
-                                        @else
-                                            {{ $linea['respuesta'] }}
-                                        @endif
-                                    </td>
-                                @endif
-                            @endfor
-                        </tr>
-                    @endfor
-                </table>
-            @endif
-
-            {{-- Las tres columnas finales del papel. Solo salen cuando dicen
-                 algo: en la v1 iban siempre y estaban vacías en casi todas las
-                 filas, que es como se pierden de vista justo cuando las hay. --}}
-            @if (! empty($trabajador['correccion']))
-                <table class="pc-correction">
-                    @foreach ($trabajador['correccion'] as $dato)
-                        <tr>
-                            <td class="pc-correction__k">{{ $dato['etiqueta'] }}</td>
-                            <td>{{ $dato['valor'] }}</td>
-                        </tr>
+                    @foreach ($trabajador['celdas'] as $celda)
+                        <td class="pc-cell">
+                            <span class="sym sym--{{ $marca[$celda['tono']] ?? 'sin' }}">{{ $simbolo($celda['tono']) }}</span>
+                        </td>
                     @endforeach
-                </table>
-            @endif
-        </div>
-    @endforeach
+
+                    <td class="pc-state pc-{{ $trabajador['estado'] }}">{{ $palabra[$trabajador['estado']] }}</td>
+                </tr>
+
+                {{-- Las tres columnas finales del papel, más las respuestas que
+                     se quedaron sin ítem. Sólo salen cuando dicen algo: en la v1
+                     iban siempre y estaban vacías en casi todas las filas, que
+                     es como se pierden de vista justo cuando las hay. --}}
+                @if (!empty($trabajador['correccion']) || !empty($trabajador['huerfanas']))
+                    <tr class="pc-fix">
+                        <td></td>
+                        <td colspan="{{ count($items) + 2 }}">
+                            @foreach ($trabajador['correccion'] as $dato)
+                                <span class="pc-fix__k">{{ $dato['etiqueta'] }}:</span> {{ $dato['valor'] }}
+                                @if (!$loop->last || !empty($trabajador['huerfanas']))<span class="muted"> · </span>@endif
+                            @endforeach
+
+                            @if (!empty($trabajador['huerfanas']))
+                                <span class="pc-fix__k">{{ __('form_submissions.pdf.person_checklist.unknown_item') }}:</span>
+                                @foreach ($trabajador['huerfanas'] as $huerfana)
+                                    <span class="{{ $huerfana['tono'] === 'bad' ? 'pc-bad' : '' }}">{{ $huerfana['respuesta'] }}</span>@if (!$loop->last), @endif
+                                @endforeach
+                            @endif
+                        </td>
+                    </tr>
+                @endif
+            @endforeach
+        </tbody>
+    </table>
 @endif

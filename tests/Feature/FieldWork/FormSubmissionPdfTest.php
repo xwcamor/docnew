@@ -92,10 +92,19 @@ class FormSubmissionPdfTest extends TestCase
 
         $texto = $this->textoDelPdf($pdf);
 
-        // 1 · Membrete del workspace.
+        // 1 · Membrete: la marca, el TITULO del formato y el descargo. La
+        // direccion del workspace ya no sale —el sitio que importa en un
+        // formato de obra es donde se hizo el trabajo, y ese va en la cabecera
+        // del plan— y el titulo es el NOMBRE del documento, no su sigla: en la
+        // esquina salia «AST» y el nombre completo no aparecia en ningun sitio.
         $this->assertStringContainsString('Contratistas del Sur', $texto);
-        $this->assertStringContainsString('Av. Los Talleres 120', $texto);
+        $this->assertStringNotContainsString('Av. Los Talleres 120', $texto);
         $this->assertStringContainsString('Su validez depende de las firmas', $texto);
+        $this->assertStringContainsString('ANALISIS DE SEGURIDAD EN EL TRABAJO', $texto);
+
+        // Y el estado no se imprime: es informacion del sistema, y ademas se
+        // quedaria congelado en el papel el dia que se genero.
+        $this->assertStringNotContainsString('Confirmado', $texto);
 
         // 2 · Cabecera del plan.
         $this->assertStringContainsString($escenario['plan']->code, $texto);
@@ -321,7 +330,7 @@ class FormSubmissionPdfTest extends TestCase
 
         $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
 
-        $conFirma = collect($datos['firmas'])->filter(fn ($f) => $f['firma'] !== null);
+        $conFirma = $this->todasLasFirmas($datos)->filter(fn ($f) => $f['firma'] !== null);
 
         $this->assertCount(2, $conFirma, 'las dos firmas del plan traen su trazo');
         $conFirma->each(fn ($f) => $this->assertStringStartsWith('data:image/', $f['firma']));
@@ -332,7 +341,7 @@ class FormSubmissionPdfTest extends TestCase
         $this->assertStringNotContainsString('/field_work/evidence', $serializado);
 
         // Y una firma pendiente sale marcada como tal.
-        $this->assertSame(1, collect($datos['firmas'])->where('pendiente', true)->count());
+        $this->assertSame(1, $this->todasLasFirmas($datos)->where('pendiente', true)->count());
     }
 
     /**
@@ -470,25 +479,52 @@ class FormSubmissionPdfTest extends TestCase
 
         $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $deCampo);
 
-        $this->assertNotEmpty($datos['firmas']);
+        $this->assertNotEmpty($this->todasLasFirmas($datos));
 
-        foreach ($datos['firmas'] as $firma) {
+        foreach ($this->todasLasFirmas($datos) as $firma) {
             $this->assertNull($firma['firma'], 'la firma trazada no sale sin permiso');
             $this->assertMatchesRegularExpression('/^\*+\d{2}$/', (string) $firma['documento'],
                 'el documento sale enmascarado menos los dos ultimos digitos');
         }
     }
 
-    /** Y el rol firmado ya no viaja: en el papel de la v1 no esta. */
-    public function test_el_pdf_no_habla_de_roles(): void
+    /**
+     * El rol solo donde informa: en los aprobadores.
+     *
+     * En la tabla de trabajadores era quince veces «Trabajador» gastando ancho
+     * —por eso se quito— pero en la de aprobadores dice quien autorizo el
+     * trabajo («Supervisor HSE», «Jefe de obra»), que es justo lo que se busca
+     * al mirar esa tabla. Son dos tablas y por eso pueden decir cosas distintas.
+     */
+    public function test_el_rol_solo_sale_en_los_aprobadores(): void
     {
         $escenario = $this->escenario();
 
         $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
 
-        foreach ($datos['firmas'] as $firma) {
-            $this->assertArrayNotHasKey('rol', $firma);
+        $this->assertNotEmpty($datos['firmas']['trabajadores']);
+
+        foreach ($datos['firmas']['trabajadores'] as $firma) {
+            $this->assertNull($firma['rol'], 'la tabla de trabajadores no repite la palabra «Trabajador»');
         }
+
+        foreach ($datos['firmas']['aprobadores'] as $firma) {
+            $this->assertNotNull($firma['rol'], 'un aprobador sin rol no dice quien autorizo el trabajo');
+        }
+    }
+
+    /**
+     * Las firmas, en un solo saco.
+     *
+     * Vienen repartidas en trabajadores, aprobadores y la entrega en si porque
+     * son tres tablas distintas en el papel; lo que se comprueba en varias de
+     * estas pruebas es de todas a la vez.
+     *
+     * @return \Illuminate\Support\Collection<int, array<string, mixed>>
+     */
+    private function todasLasFirmas(array $datos): \Illuminate\Support\Collection
+    {
+        return collect($datos['firmas'])->flatten(1);
     }
 
     protected function usuarioCon(array $permisos): User
@@ -593,8 +629,13 @@ class FormSubmissionPdfTest extends TestCase
     /** El formato AST: campos simples, matriz de riesgo y checklist por persona. */
     protected function formatoLleno(WorkPlan $plan, array $base): array
     {
+        // Con nombre Y sigla, que no son lo mismo: la cabecera del PDF tiene
+        // que enseñar el nombre —es el titulo del documento— y dejar la sigla
+        // pequeña al lado de la version.
         $plantilla = FormTemplate::create($base + [
             'slug' => Str::random(22), 'code' => 'AST', 'kind' => FormTemplate::STRUCTURED,
+            'name' => 'Analisis de Seguridad en el Trabajo',
+            'name_es' => 'Analisis de Seguridad en el Trabajo',
             'status' => 'published', 'version' => 1, 'requires_signature' => true, 'published_at' => now(),
         ]);
 

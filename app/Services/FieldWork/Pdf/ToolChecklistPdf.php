@@ -113,11 +113,10 @@ final class ToolChecklistPdf
         return [
             'puntos' => $puntos,
             'filas'  => $filas,
-            // Para el pie de la tabla: la rayita solo hay que explicarla si sale.
-            'hay_sin_responder' => (bool) array_filter(
-                $filas,
-                fn (array $fila) => $fila['sin_responder'] > 0,
-            ),
+            // Que significa cada marca, con las palabras de esta plantilla. Va
+            // encima de la cuadricula: una rejilla de checks y equis sin decir
+            // que son es ilegible para quien abre el documento por primera vez.
+            'leyenda' => Simbolos::leyenda($config['answers'] ?? []),
         ];
     }
 

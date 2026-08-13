@@ -19,6 +19,12 @@
       · el zebreado. Se está quitando del PDF entero, y como esta tabla reusa
         `.data` hay que apagarlo aquí con la misma especificidad — si no, la
         regla `table.data tbody tr:nth-child(even)` gana.
+
+    Lo que SÍ se recuperó del papel es la marca por celda con su leyenda: la
+    palabra entera («Cumple») gastaba en cada columna el ancho de la más larga,
+    y son diez o veinte columnas. Los símbolos y la regla de qué símbolo lleva
+    cada respuesta están en `App\Services\FieldWork\Pdf\Simbolos`, compartidos
+    con el EPP, que es la otra cuadrícula.
 --}}
 @php
     $datos  = $campo['datos'] ?? [];
@@ -33,6 +39,13 @@
         'bad'  => __('form_submissions.pdf.tool_checklist.nonconforming'),
         'warn' => __('form_submissions.pdf.tool_checklist.incomplete'),
     ];
+
+    /* La marca de cada celda y su color. `vacio` —nadie respondió ese punto—
+       cae al interrogante por el `default` de `Simbolos::de()`, que es justo lo
+       que hay que distinguir de un «no aplica»: uno es una decisión de quien
+       inspeccionó y el otro es que nadie miró. */
+    $simbolo = fn (string $estado) => \App\Services\FieldWork\Pdf\Simbolos::de($estado);
+    $marca = ['ok' => 'ok', 'bad' => 'bad', 'na' => 'na'];
 @endphp
 
 <style>
@@ -45,8 +58,8 @@
     table.data.tc-matrix tbody tr:nth-child(even) td { background: transparent; }
 
     .tc-legend { width: 100%; border-collapse: collapse; margin: 0 0 6px 0; }
-    .tc-legend td { padding: 2px 6px; border: 1px solid #E5E5E5; font-size: 7.5pt; vertical-align: top; }
-    .tc-legend__n { font-weight: bold; color: #354A5F; }
+    .tc-legend td { padding: 2px 6px; border: 1px solid #C9D3DC; font-size: 7.5pt; vertical-align: top; }
+    .tc-legend__n { font-weight: bold; color: #1F3B57; }
 
     /* La matriz aprieta: con diez puntos de inspección hay dieciséis columnas
        en A4 vertical. De ahí el cuerpo a 7pt y los rótulos alineados al centro. */
@@ -59,24 +72,27 @@
     .tc-cell  { text-align: center; }
     .tc-state { text-align: center; }
 
-    /* Los tres tonos. El bueno va en negro: si se pinta todo, no resalta nada. */
-    .tc-bad  { color: #C8281D; font-weight: bold; }
-    .tc-na   { color: #6A6D70; }
+    /* Los tres tonos de la columna «Estado», que sigue llevando la PALABRA:
+       ahí sí cabe, y es lo que se busca al recorrer la tabla con el dedo. El
+       bueno va en negro: si se pinta todo, no resalta nada. */
+    .tc-bad  { color: #9E2A22; font-weight: bold; }
+    .tc-na   { color: #63748A; }
     .tc-warn { color: #B45309; font-weight: bold; }
+
+    /* La celda de la cuadrícula: sólo la marca, centrada y sin apreturas. */
+    table.data.tc-matrix tbody td.tc-cell { padding: 3px 2px; }
 
     /* La corrección de una herramienta, pegada debajo de ella. El fondo la
        separa de las herramientas; no es zebreado, es otra cosa. */
-    table.data.tc-matrix tbody tr.tc-fix td { background: #F1F5F9; font-size: 7pt; }
-    .tc-fix__k { font-weight: bold; color: #475569; }
-    .tc-foot { font-size: 7pt; color: #6A6D70; margin: 0 0 8px 0; }
+    table.data.tc-matrix tbody tr.tc-fix td { background: #EEF2F6; font-size: 7pt; }
+    .tc-fix__k { font-weight: bold; color: #46596B; }
+    .tc-foot { font-size: 7pt; color: #63748A; margin: 0 0 8px 0; }
 </style>
 
-<h3 class="block__sub">
-    {{ $campo['etiqueta'] }}@if (!empty($campo['requerido']))<span class="req"> *</span>@endif
-</h3>
+<h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
 
 @if (empty($filas))
-    <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
+    <p class="muted">—</p>
 @else
     {{-- Leyenda de los puntos, dos por fila como en la v1 (`each_slice(2)`).
          Sin ella los números de la cabecera no significan nada. --}}
@@ -101,6 +117,11 @@
             @endforeach
         </table>
     @endif
+
+    {{-- Y qué significa cada marca. Encima de la tabla y no al pie: al pie hay
+         que haber leído ya la cuadrícula entera para enterarse de qué se estaba
+         leyendo. --}}
+    @include('field_work.form_submissions.pdf.leyenda', ['leyenda' => $datos['leyenda']])
 
     <table class="data tc-matrix">
         <thead>
@@ -136,12 +157,16 @@
                     @foreach ($fila['celdas'] as $celda)
                         @if ($celda['estado'] === 'ausente')
                             {{-- Ese punto no estaba en la lista de esta herramienta:
-                                 no es lo mismo que no haberlo respondido. --}}
+                                 no es lo mismo que no haberlo respondido, y por eso
+                                 la celda queda en blanco y no lleva interrogante. --}}
                             <td class="tc-cell"></td>
-                        @elseif ($celda['estado'] === 'vacio')
-                            <td class="tc-cell muted">—</td>
                         @else
-                            <td class="tc-cell tc-{{ $celda['estado'] }}">{{ $celda['texto'] }}</td>
+                            {{-- El `title` no se ve en el PDF, pero el texto sigue
+                                 llegando aquí por si alguna vez esta tabla se pinta
+                                 en pantalla: la marca no sustituye al dato. --}}
+                            <td class="tc-cell">
+                                <span class="sym sym--{{ $marca[$celda['estado']] ?? 'sin' }}">{{ $simbolo($celda['estado']) }}</span>
+                            </td>
                         @endif
                     @endforeach
 
@@ -170,7 +195,5 @@
         </tbody>
     </table>
 
-    @if (!empty($datos['hay_sin_responder']))
-        <p class="tc-foot">— {{ __('form_submissions.pdf.tool_checklist.unanswered') }}</p>
-    @endif
+
 @endif

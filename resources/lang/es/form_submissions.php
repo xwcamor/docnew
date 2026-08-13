@@ -20,16 +20,11 @@ return [
         'description'   => 'Descripción del trabajo',
         'submitted_at'  => 'Formato entregado',
         'form_version'  => 'Versión',
-        'status'        => 'Estado',
-
-        'statuses' => [
-            'draft'     => 'Borrador',
-            'submitted' => 'Entregado',
-            'confirmed' => 'Confirmado',
-        ],
+        // Sin «Estado». Un «Confirmado» impreso dentro del propio documento es
+        // información del sistema, y además se queda congelado en el papel el
+        // día que se imprimió: lo que da fe es el identificador del pie.
 
         'content'   => 'Contenido del formato',
-        'no_answer' => 'Sin respuesta',
         'observations' => 'Observaciones',
 
         // Adjuntos. En los formatos de solo subida la foto del papel ES el
@@ -41,6 +36,12 @@ return [
         // Firmas registradas.
         'signatures'      => 'Firmas registradas',
         'no_signatures'   => 'Esta entrega no tiene firmas registradas.',
+        // Los dos grupos. Quien abre el documento pregunta «quién estuvo» y
+        // «quién lo autorizó»: son dos preguntas y son dos tablas.
+        'workers'         => 'Trabajadores',
+        'approvers'       => 'Aprobadores',
+        'approver_role'   => 'Rol',
+        'submission_signature' => 'Entrega del formato',
         // La firma trazada, no la cara: es lo que se espera ver al lado de
         // un nombre en un documento firmado, y ademas la cara solo existe
         // cuando el reconocimiento fallo.
@@ -73,7 +74,11 @@ return [
             'col_level'          => 'Nivel',
             'total_hazards'      => 'Peligros: :count',
             'hazards_rated'      => ':done de :total evaluados',
-            'worst'              => 'Peor: :level',
+            // Solo la banda. Ponía «Peor: Bajo», y en una actividad cuyo peor
+            // peligro es «Bajo» la palabra sobra y encima suena a reproche: la
+            // píldora ya va del color de la banda y está junto al recuento de
+            // peligros, así que se entiende sin adjetivarla.
+            'worst'              => ':level',
             'not_assessed'       => 'Sin evaluar',
             'not_assessed_count' => ':count sin evaluar',
             'incomplete_count'   => ':count sin completar',
@@ -114,10 +119,14 @@ return [
         // en tres columnas — ver la cabecera del parcial.
         'person_checklist' => [
             'summary'                 => ':people trabajadores inspeccionados · :issues no conformidades',
+            'number'                  => 'Nº',
             'worker'                  => 'Trabajador',
             'status'                  => 'Estado',
-            'issues'                  => ':count no conforme|:count no conformes',
-            'pending'                 => ':count sin responder|:count sin responder',
+            // En qué quedó cada trabajador, al final de su fila. La palabra
+            // acompaña siempre a la marca: una fotocopia en blanco y negro
+            // tiene que seguir diciendo lo mismo.
+            'status_bad'              => 'No conforme',
+            'status_pending'          => 'Sin completar',
             'all_ok'                  => 'Sin observaciones',
             'unnamed_worker'          => 'Trabajador :number',
             'unknown_item'            => 'Ítem sin identificar',
@@ -134,12 +143,24 @@ return [
             ],
         ],
 
+        // ── La leyenda de las cuadrículas (EPP e inspección de herramientas)
+        // Las palabras salen de `config.answers` de la propia plantilla
+        // —«Conforme» en el EPP, «Cumple» en las herramientas— y éstas son sólo
+        // el respaldo para una plantilla que no las declare, más el hueco, que
+        // no es una respuesta sino la falta de una.
+        'legend' => [
+            'ok'         => 'Conforme',
+            'na'         => 'No aplica',
+            'bad'        => 'No conforme',
+            'unanswered' => 'Sin responder',
+        ],
+
         // ── Inspección de herramientas (IHM) ─────────────────────────────
         // La v1 ponía el nombre de cada punto girado 90º en la cabecera y un
         // símbolo por celda (✔ / - / x) con leyenda al pie. DomPDF no gira
-        // texto y esos símbolos no están en las core fonts, así que aquí las
-        // columnas van numeradas con su leyenda arriba y la celda lleva la
-        // palabra — que además sobrevive a una fotocopia.
+        // texto, así que las columnas van numeradas con su leyenda arriba; los
+        // símbolos sí se recuperaron, con la fuente que trae la propia libreria
+        // (ver `App\Services\FieldWork\Pdf\Simbolos`).
         'tool_checklist' => [
             'points'                  => 'Puntos de inspección',
             'number'                  => 'Nº',

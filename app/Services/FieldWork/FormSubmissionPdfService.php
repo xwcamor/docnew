@@ -225,12 +225,19 @@ class FormSubmissionPdfService
 
     // ── Membrete y cabeceras ────────────────────────────────────────────────
 
-    /** Logo, nombre, direccion y disclaimer del workspace. */
+    /**
+     * Logo, nombre y descargo del workspace.
+     *
+     * Sin la direccion: estaba en la esquina y no la pide nadie. Un formato de
+     * seguridad se archiva por el trabajo que documenta —el plan, la
+     * contratista, el sitio— y todo eso ya va en la cabecera del plan, que es
+     * ademas la direccion que importa. La del workspace solo gastaba la linea
+     * donde ahora cabe el titulo.
+     */
     protected function membrete(?\App\Models\Tenant $tenant): array
     {
         return [
             'nombre'     => $tenant?->name ?: config('app.name'),
-            'direccion'  => $tenant?->address,
             'disclaimer' => $tenant?->report_disclaimer,
             // El logo vive en el disco publico, pero se incrusta igual: el PDF
             // tiene que poder abrirse sin conexion y sin el servidor delante.
@@ -267,14 +274,20 @@ class FormSubmissionPdfService
 
     protected function cabeceraDelFormato(FormSubmission $entrega, ?FormTemplate $plantilla, ?User $usuario): array
     {
+        $laQueVale = $plantilla ?? $entrega->formTemplate;
+
         return [
-            'codigo'        => $plantilla?->code ?? $entrega->formTemplate?->code,
+            'codigo'        => $laQueVale?->code,
+            // Como se llama el documento, que es lo que va de titulo. La
+            // cabecera ponia el codigo —«IHM», «EPP»— y eso es la sigla con la
+            // que se archiva, no el nombre: en el papel de la v1 el titulo es
+            // «Inspeccion de Herramientas Manuales y Electricas Portatiles» y
+            // la sigla va pequeña al lado de la version. El accesor `label`
+            // devuelve el nombre en el idioma en curso y cae al codigo solo si
+            // no hay ninguno, que es mejor cabecera que una vacia.
+            'nombre'        => $laQueVale?->label,
             'tipo'          => $plantilla?->kind ?? FormTemplate::STRUCTURED,
             'version'       => (int) $entrega->template_version,
-            'estado'        => $this->traducir(
-                'form_submissions.pdf.statuses.' . $entrega->status,
-                $entrega->status,
-            ),
             'entregado_en'  => Tz::format($entrega->submitted_at, $usuario),
             'observaciones' => $entrega->observations,
         ];
@@ -640,19 +653,40 @@ class FormSubmissionPdfService
     // ── Firmas ──────────────────────────────────────────────────────────────
 
     /**
-     * Las firmas de la entrega y las del plan del que cuelga.
+     * Las firmas de la entrega y las del plan del que cuelga, POR GRUPO.
      *
-     * Se juntan las tres cosas que se firman en un dia de obra: el formato
-     * entregado, cada trabajador de la cuadrilla y cada aprobacion. Es el bloque
-     * que da valor al documento, y por eso las que quedaron pendientes de
-     * revision salen marcadas en vez de disimuladas.
+     * Se firman tres cosas en un dia de obra —el formato entregado, cada
+     * trabajador de la cuadrilla y cada aprobacion del flujo— y salian las tres
+     * revueltas en una sola tabla ordenada por hora. Quien lee el documento
+     * quiere saber otra cosa: quien estuvo en el trabajo, y quien lo autorizo.
+     * Son dos preguntas distintas y ahora son dos tablas, que ademas es como
+     * esta el papel de la v1 y como esta la ficha del plan en pantalla.
+     *
+     * Devuelve `['trabajadores' => …, 'aprobadores' => …, 'entrega' => …]`. Los
+     * grupos vacios se quedan vacios y la plantilla no los pinta: un plan sin
+     * flujo de aprobacion no tiene que enseñar una tabla en blanco.
+     *
+     * Lo que no cambia: las firmas pendientes de revision salen marcadas en vez
+     * de disimuladas. Es lo que da valor al bloque.
+     *
+     * @return array{trabajadores: list<array>, aprobadores: list<array>, entrega: list<array>}
      */
     protected function firmas(FormSubmission $entrega, ?User $usuario): array
     {
         $planId = $entrega->work_plan_id;
 
         $trabajadores = WorkPlanPerson::where('work_plan_id', $planId)->pluck('id')->all();
-        $aprobaciones = WorkPlanApproval::where('work_plan_id', $planId)->pluck('id')->all();
+
+        // Con el rol de cada aprobacion: ahi la palabra SI informa —«Supervisor
+        // HSE», «Jefe de obra»— al reves que en la tabla de trabajadores, donde
+        // eran cinco veces «Trabajador» gastando ancho.
+        $aprobaciones = WorkPlanApproval::with('approvalRule.role')
+            ->where('work_plan_id', $planId)
+            ->get()
+            ->mapWithKeys(fn (WorkPlanApproval $a) => [
+                $a->id => $a->approvalRule?->role?->label ?? $a->approvalRule?->name,
+            ])
+            ->all();
 
         $eventos = SignatureEvent::query()
             ->with(['person', 'files'])
@@ -670,7 +704,7 @@ class FormSubmissionPdfService
                 if ($aprobaciones !== []) {
                     $q->orWhere(fn ($s) => $s
                         ->where('signable_type', (new WorkPlanApproval)->getMorphClass())
-                        ->whereIn('signable_id', $aprobaciones));
+                        ->whereIn('signable_id', array_keys($aprobaciones)));
                 }
             })
             ->orderBy('signed_at')
@@ -683,8 +717,22 @@ class FormSubmissionPdfService
         // quien lo pulsa, y son 231 personas posibles en un plan grande.
         $aCara = PrivateInfo::visibleFor($usuario);
 
-        return $eventos->map(fn (SignatureEvent $e) => [
+        $deAprobacion = (new WorkPlanApproval)->getMorphClass();
+        $deTrabajador = (new WorkPlanPerson)->getMorphClass();
+
+        $filas = $eventos->map(fn (SignatureEvent $e) => [
             'nombre'     => $e->person?->full_name,
+            // De que grupo es esta firma y, si es una aprobacion, con que rol
+            // se firmo. El rol sale de la REGLA y no del cargo de la persona:
+            // lo que autoriza el trabajo es el papel que ocupa en el flujo.
+            'grupo'      => match ($e->signable_type) {
+                $deAprobacion => 'aprobadores',
+                $deTrabajador => 'trabajadores',
+                default       => 'entrega',
+            },
+            'rol'        => $e->signable_type === $deAprobacion
+                ? ($aprobaciones[$e->signable_id] ?? null)
+                : null,
             // Enmascarado en el SERVICIO, no en la plantilla: un PDF se
             // descarga y se reenvia, y taparlo al pintar dejaria el numero
             // entero en cualquier sitio donde se pase el dato sin pintarlo.
@@ -711,7 +759,15 @@ class FormSubmissionPdfService
             // Va con el mismo permiso que el documento: sin el, ni imagen ni
             // hueco reservado.
             'firma'      => $aCara ? $this->firmaTrazada($e) : null,
-        ])->all();
+        ]);
+
+        // Los tres grupos SIEMPRE, aunque esten vacios: la plantilla decide si
+        // los pinta, y un array al que le falta una clave revienta al pintarlo.
+        return [
+            'trabajadores' => $filas->where('grupo', 'trabajadores')->values()->all(),
+            'aprobadores'  => $filas->where('grupo', 'aprobadores')->values()->all(),
+            'entrega'      => $filas->where('grupo', 'entrega')->values()->all(),
+        ];
     }
 
     /** La cara que se capturo al firmar, leida del disco privado. */

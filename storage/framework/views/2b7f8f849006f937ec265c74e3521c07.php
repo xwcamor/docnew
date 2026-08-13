@@ -10,7 +10,7 @@
 <?php $component->withAttributes([]); ?>
 
 <?php if(! empty($greeting)): ?>
-# <?php echo e($greeting); ?>
+# <?php echo new \Illuminate\Support\EncodedHtmlString($greeting); ?>
 
 <?php else: ?>
 <?php if($level === 'error'): ?>
@@ -22,7 +22,7 @@
 
 
 <?php $__currentLoopData = $introLines; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $line): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-<?php echo e($line); ?>
+<?php echo new \Illuminate\Support\EncodedHtmlString($line); ?>
 
 
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
@@ -45,7 +45,7 @@
 <?php $attributes = $attributes->except(\Illuminate\View\AnonymousComponent::ignoredParameterNames()); ?>
 <?php endif; ?>
 <?php $component->withAttributes(['url' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($actionUrl),'color' => \Illuminate\View\Compilers\BladeCompiler::sanitizeComponentAttribute($color)]); ?>
-<?php echo e($actionText); ?>
+<?php echo new \Illuminate\Support\EncodedHtmlString($actionText); ?>
 
  <?php echo $__env->renderComponent(); ?>
 <?php endif; ?>
@@ -61,18 +61,18 @@
 
 
 <?php $__currentLoopData = $outroLines; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $line): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-<?php echo e($line); ?>
+<?php echo new \Illuminate\Support\EncodedHtmlString($line); ?>
 
 
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
 
 <?php if(! empty($salutation)): ?>
-<?php echo e($salutation); ?>
+<?php echo new \Illuminate\Support\EncodedHtmlString($salutation); ?>
 
 <?php else: ?>
 <?php echo app('translator')->get('Regards,'); ?><br>
-<?php echo e(config('app.name')); ?>
+<?php echo new \Illuminate\Support\EncodedHtmlString(config('app.name')); ?>
 
 <?php endif; ?>
 
@@ -85,7 +85,7 @@
     [
         'actionText' => $actionText,
     ]
-); ?> <span class="break-all">[<?php echo e($displayableActionUrl); ?>](<?php echo e($actionUrl); ?>)</span>
+); ?> <span class="break-all">[<?php echo new \Illuminate\Support\EncodedHtmlString($displayableActionUrl); ?>](<?php echo new \Illuminate\Support\EncodedHtmlString($actionUrl); ?>)</span>
  <?php $__env->endSlot(); ?>
 <?php endif; ?>
  <?php echo $__env->renderComponent(); ?>

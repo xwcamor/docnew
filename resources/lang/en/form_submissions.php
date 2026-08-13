@@ -20,16 +20,10 @@ return [
         'description'   => 'Work description',
         'submitted_at'  => 'Form submitted',
         'form_version'  => 'Version',
-        'status'        => 'Status',
-
-        'statuses' => [
-            'draft'     => 'Draft',
-            'submitted' => 'Submitted',
-            'confirmed' => 'Confirmed',
-        ],
+        // No «Status»: see the Spanish file. What vouches for the document is
+        // the verifiable id in the footer, not a word frozen on paper.
 
         'content'   => 'Form content',
-        'no_answer' => 'No answer',
         'observations' => 'Observations',
 
         'attachments'   => 'Attached document',
@@ -38,6 +32,10 @@ return [
 
         'signatures'      => 'Recorded signatures',
         'no_signatures'   => 'This submission has no recorded signatures.',
+        'workers'         => 'Workers',
+        'approvers'       => 'Approvers',
+        'approver_role'   => 'Role',
+        'submission_signature' => 'Form submission',
         // The drawn signature, not the face: it is what you expect to see
         // next to a name on a signed document, and the face only exists
         // when recognition failed.
@@ -69,7 +67,8 @@ return [
             'col_level'          => 'Level',
             'total_hazards'      => 'Hazards: :count',
             'hazards_rated'      => ':done of :total assessed',
-            'worst'              => 'Worst: :level',
+            // Just the band — see the Spanish file.
+            'worst'              => ':level',
             'not_assessed'       => 'Not assessed',
             'not_assessed_count' => ':count not assessed',
             'incomplete_count'   => ':count incomplete',
@@ -97,10 +96,11 @@ return [
         // ── PPE per worker ───────────────────────────────────────────────
         'person_checklist' => [
             'summary'                 => ':people workers inspected · :issues non-conformities',
+            'number'                  => 'No.',
             'worker'                  => 'Worker',
             'status'                  => 'Status',
-            'issues'                  => ':count non-conformity|:count non-conformities',
-            'pending'                 => ':count unanswered|:count unanswered',
+            'status_bad'              => 'Non-compliant',
+            'status_pending'          => 'Incomplete',
             'all_ok'                  => 'No findings',
             'unnamed_worker'          => 'Worker :number',
             'unknown_item'            => 'Unidentified item',
@@ -112,6 +112,15 @@ return [
                 'not_applicable' => 'Not applicable',
                 'non_compliant'  => 'Non-compliant',
             ],
+        ],
+
+        // Grid legend — see the Spanish file. These are only the fallback for
+        // a template that declares no answers of its own.
+        'legend' => [
+            'ok'         => 'Conforming',
+            'na'         => 'Not applicable',
+            'bad'        => 'Non-conforming',
+            'unanswered' => 'Not answered',
         ],
 
         // ── Tool inspection (IHM) ────────────────────────────────────────

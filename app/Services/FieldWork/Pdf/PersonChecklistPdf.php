@@ -54,11 +54,16 @@ final class PersonChecklistPdf
     /**
      * Lo que el parcial necesita, ya resuelto.
      *
+     * `items` va numerado porque en el papel son columnas: el rotulo entero no
+     * cabe en una columna de veinte puntos y se explica arriba, en su leyenda,
+     * igual que en la inspeccion de herramientas.
+     *
      * @param  \Illuminate\Support\Collection<int, \App\Models\FormAnswer>  $respuestas
      * @return array{
-     *     items: array<int, string>,
+     *     items: array<int, array{numero: int, texto: string}>,
      *     trabajadores: array<int, array<string, mixed>>,
      *     no_conformes: int,
+     *     leyenda: array<int, array{simbolo: string, texto: string, tono: string}>,
      * }
      */
     public static function datos(FormField $campo, Collection $respuestas): array
@@ -80,9 +85,15 @@ final class PersonChecklistPdf
         }
 
         return [
-            'items'        => $items,
+            'items' => array_map(
+                fn (int $i, string $texto) => ['numero' => $i + 1, 'texto' => $texto],
+                array_keys($items),
+                $items,
+            ),
             'trabajadores' => $trabajadores,
             'no_conformes' => $noConformes,
+            // Que significa cada marca, con las palabras de esta plantilla.
+            'leyenda' => Simbolos::leyenda($config['answers'] ?? []),
         ];
     }
 
@@ -230,10 +241,13 @@ final class PersonChecklistPdf
     protected static function trabajador(array $fila, int $numero, array $items, array $extra, array $nombres): array
     {
         $suyas = self::itemsDeLaFila($fila);
-        $lineas = [];
+        $celdas = [];
         $noConformes = 0;
         $sinResponder = 0;
 
+        // Una celda por columna, en el orden de las columnas. Alineadas a la
+        // fuerza: la fila que no traiga un item deja su hueco, que es lo que
+        // hace legible una cuadricula de veinticinco columnas.
         foreach ($items as $item) {
             $respuesta = $suyas[$item] ?? null;
             $tono = self::tonoDe($respuesta);
@@ -241,22 +255,20 @@ final class PersonChecklistPdf
             $noConformes += $tono === FormFindingsService::MALA ? 1 : 0;
             $sinResponder += $tono === self::SIN_RESPONDER ? 1 : 0;
 
-            $lineas[] = [
-                'item'      => $item,
-                'respuesta' => self::etiqueta($respuesta),
-                'tono'      => $tono,
-            ];
+            $celdas[] = ['tono' => $tono, 'respuesta' => self::etiqueta($respuesta)];
         }
+
+        // Las respuestas cuyo item se quedo sin nombre no tienen columna donde
+        // ir —no se sabe cual es— pero tampoco se tiran: van escritas debajo
+        // del trabajador, con la linea de correccion. Un «No conforme»
+        // escondido es lo contrario de para lo que sirve este documento.
+        $huerfanas = [];
 
         foreach (self::huerfanas($fila) as $respuesta) {
             $tono = self::tonoDe($respuesta);
             $noConformes += $tono === FormFindingsService::MALA ? 1 : 0;
 
-            $lineas[] = [
-                'item'      => self::traducir('unknown_item', [], 'Ítem sin identificar'),
-                'respuesta' => self::etiqueta($respuesta),
-                'tono'      => $tono,
-            ];
+            $huerfanas[] = ['respuesta' => self::etiqueta($respuesta), 'tono' => $tono];
         }
 
         return [
@@ -267,9 +279,14 @@ final class PersonChecklistPdf
             // se va a buscar el entero a `people`: el PDF se manda por correo y
             // no puede enseñar mas de lo que enseñaba la pantalla.
             'documento' => self::comoTexto($fila['person_doc'] ?? null),
-            'items'     => $lineas,
+            'celdas'    => $celdas,
+            'huerfanas' => $huerfanas,
             'no_conformes'  => $noConformes,
             'sin_responder' => $sinResponder,
+            // En que quedo el trabajador, con la misma regla que la inspeccion
+            // de herramientas: una sola respuesta mala manda sobre todo lo
+            // demas, y si no hay ninguna pero quedan huecos, esta sin terminar.
+            'estado'        => $noConformes > 0 ? 'bad' : ($sinResponder > 0 ? 'warn' : 'ok'),
             'correccion'    => self::correccion($fila, $extra),
         ];
     }

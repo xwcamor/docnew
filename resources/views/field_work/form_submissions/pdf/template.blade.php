@@ -11,52 +11,102 @@
 <html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="utf-8">
-    <title>{{ $formato['codigo'] ?? __('form_submissions.pdf.title') }} — {{ $pie['identificador'] }}</title>
+    <title>{{ $formato['nombre'] ?: __('form_submissions.pdf.title') }} — {{ $pie['identificador'] }}</title>
     <style>
+        /*
+            LA PALETA
+            ---------
+            Tres tintas y ya: azul pizarra para la estructura, gris para lo que
+            acompaña, y rojo/verde SOLO donde el color significa algo — «no
+            conforme», «pendiente de revision», la banda de riesgo.
+
+            Antes habia un azul de pantalla (#0A6ED1) en las barras de bloque y
+            un azul distinto (#354A5F) en las cabeceras de tabla, uno al lado
+            del otro. En pantalla se toleraba; impreso son dos azules que no
+            pegan y que ademas gastan la atencion en decorar. Ahora la barra de
+            bloque es la unica tinta fuerte y las cabeceras de tabla van en gris
+            claro con texto oscuro: se leen mejor, gastan menos tinta y dejan el
+            color para lo que informa.
+        */
         @page { margin: 26px 28px 52px 28px; }
-        body { font-family: Helvetica; font-size: 9pt; color: #32363A; margin: 0; }
+        body { font-family: Helvetica; font-size: 9pt; color: #1F2A37; margin: 0; }
         h1, h2, h3 { margin: 0; }
 
-        /* Membrete del workspace */
-        .letterhead { border-bottom: 2px solid #354A5F; padding-bottom: 10px; margin-bottom: 12px; }
-        .letterhead td { vertical-align: middle; }
-        .letterhead__logo { width: 110px; }
-        .letterhead__logo img { max-width: 100px; max-height: 54px; }
-        .letterhead__name { font-size: 13pt; font-weight: bold; color: #354A5F; }
-        .letterhead__address { font-size: 8pt; color: #6A6D70; margin-top: 2px; }
-        .letterhead__doc { text-align: right; font-size: 8pt; color: #6A6D70; }
-        .letterhead__doc strong { color: #32363A; font-size: 11pt; }
+        /* Membrete: marca | TITULO | version. */
+        .letterhead { width: 100%; border-collapse: collapse; border-bottom: 2px solid #1F3B57;
+                      padding-bottom: 0; margin-bottom: 12px; }
+        .letterhead td { vertical-align: middle; padding: 0 0 9px 0; }
+        .letterhead__brand { width: 22%; }
+        .letterhead__brand img { max-width: 96px; max-height: 46px; }
+        .letterhead__org { font-size: 8pt; font-weight: bold; color: #46596B; }
+        /* El titulo del formato: lo primero que se lee y lo unico centrado. */
+        .letterhead__title { text-align: center; }
+        .letterhead__title h1 { font-size: 13pt; font-weight: bold; color: #1F3B57;
+                                text-transform: uppercase; letter-spacing: 0.03em; line-height: 1.15; }
+        .letterhead__doc { width: 22%; text-align: right; font-size: 8pt; color: #63748A; }
+        .letterhead__doc strong { display: block; color: #1F3B57; font-size: 12pt; letter-spacing: 0.04em; }
 
-        .disclaimer { background: #F8FAFC; border-left: 3px solid #94A3B8; padding: 6px 10px;
-                      font-size: 7.5pt; color: #475569; margin: 0 0 12px 0; }
+        .disclaimer { background: #F5F7F9; border-left: 3px solid #A7B4C2; padding: 6px 10px;
+                      font-size: 7.5pt; color: #46596B; margin: 0 0 12px 0; }
         .disclaimer--pie { margin: 14px 0 0 0; }
 
         /* Bloques */
         .block { margin: 0 0 14px 0; }
-        .block__title { background: #0A6ED1; color: #ffffff; font-size: 8.5pt; font-weight: bold;
+        .block__title { background: #1F3B57; color: #ffffff; font-size: 8.5pt; font-weight: bold;
                         text-transform: uppercase; letter-spacing: 0.06em; padding: 5px 8px; margin: 0 0 6px 0; }
-        .block__sub { font-size: 8.5pt; font-weight: bold; color: #354A5F; margin: 8px 0 4px 0; }
+        .block__sub { font-size: 8.5pt; font-weight: bold; color: #1F3B57; margin: 8px 0 4px 0; }
 
         table.kv { width: 100%; border-collapse: collapse; }
-        table.kv td { padding: 3px 6px; border: 1px solid #E5E5E5; font-size: 8.5pt; vertical-align: top; }
-        table.kv td.k { background: #F1F5F9; font-weight: bold; width: 22%; color: #475569; }
+        table.kv td { padding: 3px 6px; border: 1px solid #C9D3DC; font-size: 8.5pt; vertical-align: top; }
+        table.kv td.k { background: #EEF2F6; font-weight: bold; width: 22%; color: #46596B; }
 
         table.data { width: 100%; border-collapse: collapse; margin: 0 0 8px 0; }
-        table.data thead th { background: #354A5F; color: #ffffff; font-weight: bold; font-size: 8pt;
-                              text-align: left; padding: 4px 6px; border: 1px solid #2B3B4C; }
-        table.data tbody td { padding: 4px 6px; border: 1px solid #E5E5E5; font-size: 8pt; }
+        table.data thead th { background: #EEF2F6; color: #1F3B57; font-weight: bold; font-size: 8pt;
+                              text-align: left; padding: 4px 6px; border: 1px solid #C9D3DC;
+                              border-bottom: 1.5px solid #1F3B57; }
+        table.data tbody td { padding: 4px 6px; border: 1px solid #C9D3DC; font-size: 8pt; }
         /* Sin filas alternas. Un AST de quince peligros con la mitad de las
            filas tintadas se lee como si el color significara algo, y no
            significa nada: en este documento el color es el nivel de riesgo y
            el «no conforme». Gastarlo en decorar quita el unico sitio donde
            informa. Las lineas ya separan las filas. */
 
-        .muted { color: #94A3B8; font-style: italic; }
-        .req { color: #C8281D; font-weight: bold; }
+        .muted { color: #8A97A6; }
+        .req { color: #9E2A22; font-weight: bold; }
 
-        .flag { display: inline-block; background: #C8281D; color: #ffffff; font-size: 7pt;
+        /* LAS MARCAS DE LAS CUADRICULAS (✔ ✘ – ?) y su leyenda.
+           Van en la hoja comun porque las comparten el EPP y la inspeccion de
+           herramientas, y definirlas dos veces acaba en dos tonos distintos.
+
+           La familia es DejaVu Sans y no Helvetica: las core fonts de PDF no
+           tienen ni el check ni la equis —ZapfDingbats tampoco sale por DomPDF,
+           esta comprobado generando un PDF de prueba— y DejaVu viaja dentro de
+           la propia libreria, asi que no hay nada que instalar. Solo la marca
+           cambia de fuente; el texto sigue en Helvetica, que aprieta menos. */
+        .sym { font-family: 'DejaVu Sans', sans-serif; font-weight: bold; }
+        .sym--ok  { color: #1B6B45; }
+        .sym--bad { color: #9E2A22; }
+        .sym--na  { color: #8A97A6; }
+        /* El hueco va en ambar: es «mira esto», no «esto esta mal». */
+        .sym--sin { color: #B45309; }
+
+        .leyenda { font-size: 7.5pt; color: #46596B; margin: 0 0 5px 0; }
+        .leyenda__sep { color: #A7B4C2; }
+
+        /* El rotulo del grupo de firmas, que va dentro de la cabecera de su
+           tabla para que no se quede huerfano al pie de una pagina. Se pinta
+           como un subtitulo, no como una cabecera de columna. */
+        table.data.firmas thead th.firmas__grupo { background: #ffffff; color: #1F3B57;
+            font-size: 8.5pt; border: none; border-bottom: none; padding: 6px 0 3px 0; }
+        /* Y el grupo entero no se parte si cabe: con dos o tres firmas —lo
+           normal— evita que el rotulo se quede al pie de una pagina y la tabla
+           empiece en la siguiente. Cuando NO cabe, DomPDF parte igual y ahi es
+           donde entra la fila de rotulo del `<thead>`, que se repite. */
+        .firmas__grupo-wrap { page-break-inside: avoid; }
+
+        .flag { display: inline-block; background: #9E2A22; color: #ffffff; font-size: 7pt;
                 font-weight: bold; padding: 1px 5px; letter-spacing: 0.04em; }
-        .ok { color: #1D7044; font-weight: bold; }
+        .ok { color: #1B6B45; font-weight: bold; }
 
         /* La firma trazada es un trazo sobre transparente: se pinta a su
            tamaño natural dentro de la celda, sin marco. Un marco alrededor de
@@ -66,25 +116,25 @@
 
         .sheet { page-break-before: always; text-align: center; }
         .sheet img { max-width: 100%; max-height: 940px; }
-        .sheet__caption { font-size: 7.5pt; color: #6A6D70; margin-top: 6px; }
+        .sheet__caption { font-size: 7.5pt; color: #63748A; margin-top: 6px; }
 
         .signers { width: 100%; border-collapse: collapse; margin-top: 6px; }
         .signers td { width: 25%; padding: 4px 8px; text-align: center; vertical-align: bottom; font-size: 8pt; }
         .signers__img { height: 42px; }
         .signers__img img { max-height: 40px; max-width: 130px; }
-        .signers__line { border-top: 1px solid #32363A; padding-top: 3px; }
-        .signers__rel { font-size: 7pt; color: #6A6D70; text-transform: uppercase; letter-spacing: 0.05em; }
+        .signers__line { border-top: 1px solid #1F2A37; padding-top: 3px; }
+        .signers__rel { font-size: 7pt; color: #63748A; text-transform: uppercase; letter-spacing: 0.05em; }
         .signers__name { font-weight: bold; }
-        .signers__title { font-size: 7.5pt; color: #475569; }
+        .signers__title { font-size: 7.5pt; color: #46596B; }
 
         /* Pie fijo: el identificador verificable tiene que salir en toda pagina.
            Va maquetado con una tabla y no con floats: un float dentro de un
            elemento fijo hace que DomPDF genere una pagina por cada bloque. */
         #footer { position: fixed; bottom: -34px; left: 0; right: 0; height: 30px;
-                  border-top: 1px solid #E5E5E5; padding-top: 4px;
-                  font-size: 7pt; color: #6A6D70; }
+                  border-top: 1px solid #C9D3DC; padding-top: 4px;
+                  font-size: 7pt; color: #63748A; }
         #footer table { width: 100%; border-collapse: collapse; }
-        #footer td { font-size: 7pt; color: #6A6D70; padding: 0; }
+        #footer td { font-size: 7pt; color: #63748A; padding: 0; }
         #footer td.r { text-align: right; }
         .pagenum:after { content: counter(page); }
     </style>
@@ -103,22 +153,38 @@
     </table>
 </div>
 
-{{-- 1 · Membrete del workspace --}}
+{{-- 1 · Membrete: la marca a la izquierda, el TITULO en el medio, la version
+     a la derecha.
+
+     El titulo era el codigo —«IHM», «EPP»— metido en la esquina derecha entre
+     la version y el estado, y el centro lo ocupaba el nombre del workspace. O
+     sea que lo primero que se leia de un formato de seguridad no decia que
+     formato era: el nombre completo no salia en ninguna parte. Ahora manda el
+     nombre, centrado, como en el papel de la v1 y como en cualquier impreso.
+
+     El ESTADO se fue. «Confirmado» dentro del propio documento es informacion
+     del sistema, no del formato, y ademas queda congelado en el papel el dia
+     que se imprimio: a las dos semanas puede estar mintiendo. Lo que da fe es
+     el identificador del pie, que se puede comprobar contra el sistema.
+
+     Y la direccion del workspace tambien. El sitio que importa en un formato de
+     obra es donde se hizo el trabajo, y ese va en la cabecera del plan. --}}
 <table class="letterhead">
     <tr>
-        @if (!empty($membrete['logo']))
-            <td class="letterhead__logo"><img src="{{ $membrete['logo'] }}" alt=""></td>
-        @endif
-        <td>
-            <div class="letterhead__name">{{ $membrete['nombre'] }}</div>
-            @if (!empty($membrete['direccion']))
-                <div class="letterhead__address">{{ $membrete['direccion'] }}</div>
+        <td class="letterhead__brand">
+            @if (!empty($membrete['logo']))
+                <img src="{{ $membrete['logo'] }}" alt=""><br>
             @endif
+            <span class="letterhead__org">{{ $membrete['nombre'] }}</span>
+        </td>
+        <td class="letterhead__title">
+            <h1>{{ $formato['nombre'] ?: __('form_submissions.pdf.title') }}</h1>
         </td>
         <td class="letterhead__doc">
-            <strong>{{ $formato['codigo'] ?? __('form_submissions.pdf.title') }}</strong><br>
-            {{ __('form_submissions.pdf.form_version') }}: {{ $formato['version'] }}<br>
-            {{ __('form_submissions.pdf.status') }}: {{ $formato['estado'] }}
+            @if (filled($formato['codigo']))
+                <strong>{{ $formato['codigo'] }}</strong>
+            @endif
+            {{ __('form_submissions.pdf.form_version') }} {{ $formato['version'] }}
         </td>
     </tr>
 </table>
@@ -159,7 +225,7 @@
             </tr>
             <tr>
                 <td class="k">{{ __('form_submissions.pdf.description') }}</td>
-                <td colspan="3">{{ $plan['descripcion'] }}</td>
+                <td colspan="3">{{ $plan['descripcion'] ?: '—' }}</td>
             </tr>
             <tr>
                 <td class="k">{{ __('form_submissions.pdf.submitted_at') }}</td>
@@ -188,16 +254,17 @@
                 <table class="kv">
                     @foreach ($pares as $campo)
                         <tr>
-                            <td class="k">
-                                {{ $campo['etiqueta'] }}@if ($campo['requerido'])<span class="req"> *</span>@endif
-                            </td>
-                            <td>
-                                @if (filled($campo['valor']))
-                                    {{ $campo['valor'] }}
-                                @else
-                                    <span class="muted">{{ __('form_submissions.pdf.no_answer') }}</span>
-                                @endif
-                            </td>
+                            {{-- Sin el asterisco de obligatorio. Es una regla
+                                 de la pantalla de llenado —dice que hay que
+                                 responder— y aqui ya esta respondido o ya no
+                                 se va a responder: en el papel solo pone
+                                 asteriscos rojos por toda la hoja. --}}
+                            <td class="k">{{ $campo['etiqueta'] }}</td>
+                            {{-- Y lo vacio, un guion. «Sin respuesta» en
+                                 cursiva ocupa cuatro veces mas y dice lo mismo
+                                 que la raya que se pone en un formulario de
+                                 papel cuando algo no se llena. --}}
+                            <td>{{ filled($campo['valor']) ? $campo['valor'] : '—' }}</td>
                         </tr>
                     @endforeach
                 </table>
@@ -213,11 +280,9 @@
                 @if ($campo['render'] === 'campo')
                     @include($campo['parcial'], ['campo' => $campo])
                 @elseif ($campo['render'] === 'tabla')
-                    <h3 class="block__sub">
-                        {{ $campo['etiqueta'] }}@if ($campo['requerido'])<span class="req"> *</span>@endif
-                    </h3>
+                    <h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
                     @if (empty($campo['filas']))
-                        <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
+                        <p class="muted">—</p>
                     @else
                         <table class="data">
                             <thead>
@@ -243,7 +308,7 @@
                     @forelse ($campo['imagenes'] as $imagen)
                         <img src="{{ $imagen }}" alt="" style="max-width: 45%; margin: 0 6px 6px 0;">
                     @empty
-                        <p class="muted">{{ __('form_submissions.pdf.no_answer') }}</p>
+                        <p class="muted">—</p>
                     @endforelse
                 @endif
             @endforeach
@@ -258,64 +323,46 @@
     </div>
 @endif
 
-{{-- 5 · Bloque de firmas --}}
+{{-- 5 · Bloque de firmas, repartidas en TRABAJADORES y APROBADORES.
+
+     Estaban las tres cosas que se firman —la cuadrilla, el flujo de aprobacion
+     y la entrega en si— revueltas en una sola tabla ordenada por hora. Eso
+     responde a «cuando se firmo», y quien abre el documento pregunta otra cosa:
+     quien estuvo en el trabajo, y quien lo autorizo. Son dos preguntas y ahora
+     son dos tablas, que ademas es como esta el papel de la v1.
+
+     Un grupo vacio no se pinta: un plan sin flujo de aprobacion no tiene que
+     enseñar una tabla en blanco con un rotulo encima. --}}
 <div class="block">
     <h2 class="block__title">{{ __('form_submissions.pdf.signatures') }}</h2>
 
-    @if (empty($firmas))
+    @if (empty($firmas['trabajadores']) && empty($firmas['aprobadores']) && empty($firmas['entrega']))
         <p class="muted">{{ __('form_submissions.pdf.no_signatures') }}</p>
-    @else
-        <table class="data">
-            <thead>
-                {{-- Sin la columna «Rol»: en el papel de la v1 no esta, y lo
-                     que dice —«Worker», «Supervisor»— ya lo dice el flujo del
-                     plan. En una tabla de cinco firmas eran cinco veces la
-                     misma palabra gastando ancho. --}}
-                <tr>
-                    <th>{{ __('form_submissions.pdf.signature') }}</th>
-                    <th>{{ __('form_submissions.pdf.signer') }}</th>
-                    <th>{{ __('form_submissions.pdf.document_number') }}</th>
-                    <th>{{ __('form_submissions.pdf.signed_at') }}</th>
-                    <th>{{ __('form_submissions.pdf.col_method') }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($firmas as $firma)
-                    <tr>
-                        {{-- La firma trazada, que es lo que se espera ver al
-                             lado de un nombre en un documento firmado. Sin
-                             permiso para verla la celda queda vacia y no dice
-                             «Sin firma»: la firma existe, lo que pasa es que
-                             este lector no la ve, y decir lo contrario seria
-                             mentir en un documento de seguridad. --}}
-                        <td class="firma">
-                            @if (!empty($firma['firma']))
-                                <img src="{{ $firma['firma'] }}" alt="">
-                            @endif
-                        </td>
-                        <td>{{ $firma['nombre'] ?: '—' }}</td>
-                        <td>{{ $firma['documento'] ?: '—' }}</td>
-                        <td>{{ $firma['hora'] }}</td>
-                        <td>
-                            {{ $firma['metodo'] }}
-                            @if ($firma['pendiente'])
-                                <br><span class="flag">{{ __('form_submissions.pdf.pending_review') }}</span>
-                            @else
-                                <br><span class="ok">{{ __('form_submissions.pdf.reviewed') }}</span>
-                            @endif
-                            @if ($firma['coincidencia'] !== null)
-                                <br><span class="muted">{{ __('form_submissions.pdf.match', [
-                                    'value' => $firma['coincidencia'],
-                                ]) }}</span>
-                            @endif
-                            @if (filled($firma['motivo']))
-                                <br><span class="muted">{{ __('form_submissions.pdf.override_reason') }}: {{ $firma['motivo'] }}</span>
-                            @endif
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
+    @endif
+
+    @if (!empty($firmas['trabajadores']))
+        @include('field_work.form_submissions.pdf.firmas', [
+            'titulo' => __('form_submissions.pdf.workers'),
+            'filas'  => $firmas['trabajadores'],
+        ])
+    @endif
+
+    @if (!empty($firmas['aprobadores']))
+        @include('field_work.form_submissions.pdf.firmas', [
+            'titulo' => __('form_submissions.pdf.approvers'),
+            'filas'  => $firmas['aprobadores'],
+            'conRol' => true,
+        ])
+    @endif
+
+    {{-- La entrega en si. Casi nunca hay ninguna —lo normal es que firme la
+         cuadrilla y el flujo— pero cuando la hay es la firma de quien cerro el
+         formato, y perderla por no tener donde ponerla seria peor. --}}
+    @if (!empty($firmas['entrega']))
+        @include('field_work.form_submissions.pdf.firmas', [
+            'titulo' => __('form_submissions.pdf.submission_signature'),
+            'filas'  => $firmas['entrega'],
+        ])
     @endif
 </div>
 
