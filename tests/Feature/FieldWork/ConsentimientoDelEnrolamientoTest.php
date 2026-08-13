@@ -73,6 +73,41 @@ class ConsentimientoDelEnrolamientoTest extends TestCase
     }
 
     /**
+     * El historial guarda el consentimiento y NO el descriptor facial.
+     *
+     * `Auditable` escribe la fila entera al crearla, asi que enrolar dejaba una
+     * segunda copia de los 128 numeros de la cara en `audit_logs`: una tabla
+     * que nadie purga y que sobrevive a borrar la biometria. Retirar la cara de
+     * una persona no la retiraba.
+     */
+    public function test_el_historial_no_se_queda_una_copia_de_la_cara(): void
+    {
+        [$usuario, $persona] = $this->sinEnrolar();
+
+        $this->actingAs($usuario)->postJson(
+            route('field_work.signatures.enroll', $persona->slug),
+            [
+                'descriptors'     => [$this->descriptorEnrolado()],
+                'consent'         => true,
+                'consent_version' => PersonBiometric::CONSENT_VERSION,
+                'consent_text'    => 'Texto aceptado.',
+            ],
+        )->assertCreated();
+
+        $apunte = \App\Models\AuditLog::where('auditable_type', PersonBiometric::class)
+            ->where('event', 'created')
+            ->latest('id')
+            ->first();
+
+        $this->assertNotNull($apunte, 'registrar una cara tiene que dejar rastro');
+        $this->assertArrayNotHasKey('face_descriptor', $apunte->new_values);
+
+        // Y lo que SI tiene que quedar: quien acepto, cuando y sobre que texto.
+        $this->assertArrayHasKey('consent_at', $apunte->new_values);
+        $this->assertSame('Texto aceptado.', $apunte->new_values['consent_text']);
+    }
+
+    /**
      * Sin el si no se registra ninguna cara.
      *
      * Es la mitad que ya estaba, y se comprueba igual: es la regla, y una regla

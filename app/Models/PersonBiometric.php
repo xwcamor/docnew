@@ -30,5 +30,23 @@ class PersonBiometric extends Model
     /** No se expone nunca al frontend salvo en la verificacion 1:1. */
     protected $hidden = ['face_descriptor'];
 
+    /**
+     * El descriptor NO va al historial de cambios.
+     *
+     * `Auditable` escribe `getAttributes()` entero en `audit_logs.new_values` al
+     * crear la fila, asi que enrolar a alguien dejaba una SEGUNDA COPIA de sus
+     * 128 numeros faciales en otra tabla: una que nadie purga, que no tiene el
+     * `$hidden` de este modelo y que sobrevive a borrar la biometria. O sea que
+     * retirar la cara de una persona no la retiraba.
+     *
+     * Lo que si se queda en el historial —y tiene que quedarse— es el
+     * consentimiento: quien, cuando y sobre que texto. Eso es justo lo que hay
+     * que poder enseñar.
+     *
+     * `updated_at` va en la lista porque al declarar esta propiedad se pierde
+     * la exclusion por defecto del trait.
+     */
+    protected $auditExclude = ['updated_at', 'face_descriptor'];
+
     public function person() { return $this->belongsTo(Person::class); }
 }
