@@ -2,6 +2,9 @@
 
 namespace App\Models;
 
+use App\Casts\Cifrado;
+use App\Models\Builders\PersonQueryBuilder;
+use App\Support\DocumentoBuscable;
 use App\Support\LikeQuery;
 use App\Traits\Auditable;
 use App\Traits\BelongsToTenantOrGlobal;
@@ -21,6 +24,28 @@ use Illuminate\Support\Str;
  * cambia por empresa es el vínculo (`companyLinks`). La cara enrolada
  * (`activeBiometric`) y la firma de referencia también cuelgan de la persona,
  * no del vínculo. Es PER-TENANT, por eso usa BelongsToTenantOrGlobal.
+ *
+ * EL DOCUMENTO VA CIFRADO EN LA BASE
+ * ----------------------------------
+ * `num_doc` es el dato personal más sensible del padrón y estaba en claro: quien
+ * abriera un backup leía los 14 000 DNI de un tirón. Ahora se guarda cifrado, y
+ * como también es la clave de búsqueda de todo el producto —en la puerta se
+ * escanea el DNI y la persona entra al plan sola— va acompañado de un índice
+ * ciego, `num_doc_hash`, que es por donde se busca. El cómo y el porqué de la
+ * normalización están en `App\Support\DocumentoBuscable`; la traducción de
+ * `where('num_doc', ...)` al índice la hace `PersonQueryBuilder` sola.
+ *
+ * **Las dos verdades incómodas**, que el dueño del producto necesita para
+ * decidir y no se pueden dejar implícitas:
+ *
+ *   · Esto protege contra **quien lee un backup, un volcado o el disco**. NO
+ *     protege contra quien tiene el `APP_KEY`: con la clave, la tabla se
+ *     descifra entera en una línea. El servidor comprometido sigue siendo un
+ *     servidor comprometido.
+ *   · **Si se pierde el `APP_KEY`, los documentos no se recuperan.** Ni los
+ *     documentos ni sus hashes, o sea que tampoco se puede volver a buscar. La
+ *     clave se custodia fuera del servidor y se rota con un plan, porque rotar
+ *     obliga a re-cifrar y a recalcular el índice entero.
  */
 class Person extends Model
 {
@@ -39,6 +64,44 @@ class Person extends Model
                 $model->slug = $slug;
             }
         });
+
+        // El indice ciego lo calcula el modelo, SIEMPRE, y no quien guarda.
+        //
+        // No esta en `$fillable` a proposito: no es un dato que nadie teclee ni
+        // que pueda venir de un formulario, es una funcion del documento. Si
+        // dependiera de que cada alta se acuerde de rellenarlo, la persona que
+        // se diera de alta sin el quedaria invisible para el buscador de la
+        // puerta —existe en la base y no la encuentra nadie— y eso no se nota
+        // hasta que hay una cuadrilla esperando.
+        //
+        // En `saving` y no en `creating` porque corregir un documento mal
+        // tecleado tiene que mover el indice con el; si no, el buscador seguiria
+        // encontrando a la persona por el numero viejo y no por el bueno.
+        static::saving(function ($model) {
+            // Y SOLO si el documento viaja en el modelo. Un modelo hidratado
+            // con un SELECT recortado —«Editar todo», el contador del
+            // exportador, cualquier consulta que solo pida id y nombre— no
+            // tiene `num_doc`, asi que recalcular a ciegas escribiria un indice
+            // nulo encima del bueno: la persona seguiria en la base, con su
+            // documento intacto, y dejaria de encontrarla el buscador de la
+            // puerta. Sin error y sin rastro.
+            if (! array_key_exists('num_doc', $model->getAttributes())) {
+                return;
+            }
+
+            $model->num_doc_hash = DocumentoBuscable::hash($model->num_doc);
+        });
+    }
+
+    /**
+     * El builder que traduce `where('num_doc', ...)` al indice ciego.
+     *
+     * Ver `PersonQueryBuilder`: sin esto, cada consulta por documento compara
+     * un DNI contra un texto cifrado y devuelve cero filas sin quejarse.
+     */
+    public function newEloquentBuilder($query): PersonQueryBuilder
+    {
+        return new PersonQueryBuilder($query);
     }
 
     public function getRouteKeyName(): string
@@ -133,8 +196,16 @@ class Person extends Model
             });
         });
 
+        // El documento se busca ENTERO, no por trozos.
+        //
+        // Antes esto era un `LIKE '%lo que sea%'` y con el documento cifrado no
+        // hay forma de conservarlo: el indice ciego solo sabe decir «es este
+        // documento exacto». Teclear medio DNI ya no acota la lista — devuelve
+        // cero filas, igual que un documento que no existe. Es el precio del
+        // cifrado y esta anotado como tal en `docs/PENDIENTES.md`; lo que no se
+        // podia hacer es dejarlo pareciendo que buscaba.
         $query->when($request->filled('num_doc'), function ($q) use ($request, $tbl) {
-            $q->whereRaw(config('database.default') === 'pgsql' ? "{$tbl}.num_doc LIKE ?" : "{$tbl}.num_doc LIKE ? ESCAPE '\\'", [LikeQuery::contains((string) $request->num_doc)]);
+            $q->where("{$tbl}.num_doc", (string) $request->num_doc);
         });
 
         $query->when($request->filled('doc_type'), function ($q) use ($request, $tbl) {
@@ -186,8 +257,8 @@ class Person extends Model
         if (is_array($advanced) && !empty($advanced)) {
             \App\Services\Automations\Support\FilterApplier::apply(
                 $query,
-                ['where' => $advanced],
-                static::filterSchema()
+                ['where' => static::documentoContraElIndiceCiego($advanced)],
+                static::esquemaDeConsulta()
             );
         }
 
@@ -223,14 +294,22 @@ class Person extends Model
             // nada: la peticion salia con `sort=document`, no encajaba en
             // ningun caso y la lista volvia igual.
             //
-            // El tipo va primero y el numero despues porque es asi como se lee
-            // la celda —«DNI 12345678»— y porque comparar un DNI con un
-            // pasaporte por el numero no significa nada: son numeraciones de
-            // dos sitios distintos. Agrupando por tipo, dentro de cada grupo el
-            // numero si ordena, que es lo que se busca al repasar una lista de
-            // documentos.
+            // El tipo va primero porque es asi como se lee la celda —«DNI
+            // 12345678»— y porque comparar un DNI con un pasaporte por el
+            // numero no significa nada: son numeraciones de dos sitios
+            // distintos. Agrupando por tipo, la lista queda repasable.
+            //
+            // Dentro de cada grupo ya NO se puede ordenar por el numero: la
+            // columna esta cifrada y ordenar por el texto cifrado da un orden
+            // aleatorio —parecido al que se tenia antes de que esta cabecera
+            // funcionara, y con peor pinta porque cambia en cada re-cifrado—.
+            // Se cae al apellido, que es el otro criterio que la celda enseña y
+            // el unico que deja la lista leible. Ordenar por el hash tampoco
+            // valdria: es determinista, pero su orden no guarda ninguna
+            // relacion con el del numero.
             $query->orderBy("{$tbl}.doc_type", $direction)
-                  ->orderBy("{$tbl}.num_doc", $direction);
+                  ->orderBy("{$tbl}.lastname", $direction)
+                  ->orderBy("{$tbl}.name", $direction);
         } elseif ($sort === 'person' || $sort === 'lastname') {
             // La celda pone «APELLIDO, Nombre», asi que el orden tiene que leer
             // igual. Ordenando solo por apellido, los treinta Quispe que salen
@@ -328,8 +407,13 @@ class Person extends Model
     public static function ordenesDelListado(): array
     {
         return [
-            // Columnas de `people`.
-            'id', 'name', 'lastname', 'num_doc', 'doc_type', 'is_active', 'created_at', 'updated_at',
+            // Columnas de `people`. `num_doc` NO esta y no puede estar: la
+            // columna va cifrada y un `order by` sobre ella ordena por el texto
+            // cifrado, o sea al azar. Quien pida ese orden cae al de por
+            // defecto —la fila mas nueva arriba— en vez de recibir una lista
+            // barajada con aspecto de ordenada. Para agrupar por documento esta
+            // la clave `document`, que ordena por tipo y apellido.
+            'id', 'name', 'lastname', 'doc_type', 'is_active', 'created_at', 'updated_at',
             // Columnas compuestas o de relacion, resueltas en `scopeFilter`.
             'person', 'document', 'country', 'tenant', 'company', 'position', 'roles',
             // Conteos: la cabecera manda la clave de la columna y el
@@ -370,12 +454,97 @@ class Person extends Model
         return [
             ['key' => 'name',       'label' => __('people.name'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'lastname',   'label' => __('people.lastname'),  'type' => 'string',  'operators' => ['=', '!=', 'contains']],
-            ['key' => 'num_doc',    'label' => __('people.num_doc'),   'type' => 'string',  'operators' => ['=', '!=', 'contains']],
+            // Sin «contains»: el documento va cifrado y su indice ciego solo
+            // sabe responder a igualdad. Dejar la opcion en el desplegable
+            // seria ofrecer un filtro que siempre devuelve la lista vacia.
+            ['key' => 'num_doc',    'label' => __('people.num_doc'),   'type' => 'string',  'operators' => ['=', '!=']],
             ['key' => 'doc_type',   'label' => __('people.doc_type'),  'type' => 'enum',    'operators' => ['=', '!='], 'options' => $opts['doc_types'] ?? []],
             ['key' => 'country_id', 'label' => __('people.country'),   'type' => 'enum',    'operators' => ['=', '!=', 'in'], 'options' => $opts['countries'] ?? []],
             ['key' => 'is_active',  'label' => __('people.is_active'), 'type' => 'boolean', 'operators' => ['=']],
             ['key' => 'updated_at', 'label' => __('global.updated_at'),   'type' => 'date',    'operators' => ['>', '<', '>=', '<=']],
         ];
+    }
+
+    /**
+     * El mismo esquema, pero el que ve la CONSULTA en vez de la pantalla.
+     *
+     * `FilterApplier` compara el valor tecleado contra la columna que lleva el
+     * nombre del campo, y para el documento esa columna no vale: `num_doc`
+     * guarda el texto cifrado. Aqui se le dice que el campo del documento vive
+     * en `num_doc_hash`, y el valor se convierte en `documentoContraElIndiceCiego()`.
+     *
+     * Se separan los dos esquemas —y no se cambia `filterSchema()`— porque el
+     * de la pantalla alimenta el desplegable de filtros: ahi tiene que seguir
+     * poniendo «Documento», no «num_doc_hash».
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected static function esquemaDeConsulta(): array
+    {
+        return array_map(function (array $campo) {
+            if (($campo['key'] ?? null) === 'num_doc') {
+                $campo['key'] = 'num_doc_hash';
+            }
+
+            return $campo;
+        }, static::filterSchema());
+    }
+
+    /**
+     * Traduce las clausulas del filtro avanzado que hablan del documento.
+     *
+     * El drawer manda `{field: 'num_doc', op: '=', value: '47019236'}` y aqui
+     * sale `{field: 'num_doc_hash', op: '=', value: '<el hmac>'}`.
+     *
+     * Un `contains` sobre el documento se DESCARTA en vez de traducirse: no
+     * tiene traduccion posible contra un indice ciego, y dejarlo pasar
+     * compararia el trozo tecleado contra un hash de 64 caracteres —cero filas,
+     * sin decir por que—. Puede llegar desde una vista guardada de antes del
+     * cifrado, asi que no basta con quitarlo del desplegable.
+     *
+     * @param  array<int, mixed>  $clausulas
+     * @return array<int, mixed>
+     */
+    protected static function documentoContraElIndiceCiego(array $clausulas): array
+    {
+        $salida = [];
+
+        foreach ($clausulas as $clausula) {
+            if (! is_array($clausula)) {
+                continue;
+            }
+
+            // Sub-grupo del constructor de filtros: se baja igual.
+            if (isset($clausula['rules']) && is_array($clausula['rules'])) {
+                $clausula['rules'] = static::documentoContraElIndiceCiego($clausula['rules']);
+                $salida[] = $clausula;
+                continue;
+            }
+
+            if (($clausula['field'] ?? null) !== 'num_doc') {
+                $salida[] = $clausula;
+                continue;
+            }
+
+            $operador = $clausula['op'] ?? '=';
+
+            if (! in_array($operador, ['=', '!='], true)) {
+                continue;
+            }
+
+            $clausula['field'] = 'num_doc_hash';
+            $clausula['value'] = DocumentoBuscable::hash((string) ($clausula['value'] ?? ''));
+
+            // Un documento vacio no tiene hash, y comparar contra `null` por
+            // aqui no significa nada: la clausula se cae entera.
+            if ($clausula['value'] === null) {
+                continue;
+            }
+
+            $salida[] = $clausula;
+        }
+
+        return $salida;
     }
 
     protected $fillable = [
@@ -384,7 +553,7 @@ class Person extends Model
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
-    protected $casts = ['is_active' => 'boolean', 'birthdate' => 'date'];
+    protected $casts = ['is_active' => 'boolean', 'birthdate' => 'date', 'num_doc' => Cifrado::class];
 
     /**
      * El documento crudo NO viaja al navegador. Nunca.
@@ -399,8 +568,14 @@ class Person extends Model
      * lee `safe_num_doc`, que ya decide segun `people.view_private_info`; quien
      * lo necesite en PHP —buscar, comparar, exportar— sigue usando `num_doc`
      * como propiedad, que esto no lo toca.
+     *
+     * `num_doc_hash` va en la misma lista y por un motivo distinto: un DNI
+     * peruano son ocho cifras, o sea cien millones de posibilidades. Quien se
+     * lleve el hash y ademas averigue la clave las prueba todas en un rato; y
+     * aunque no la averigue, dos hashes iguales delatan que dos filas son la
+     * misma persona. Un dato derivado de un dato tapado se tapa igual.
      */
-    protected $hidden = ['num_doc'];
+    protected $hidden = ['num_doc', 'num_doc_hash'];
 
     protected $appends = ['safe_num_doc'];
 

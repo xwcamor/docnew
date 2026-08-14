@@ -111,17 +111,66 @@ grande/compliance) Vault o el secrets manager del cloud.
 
 ## 6. Cifrado de columnas (datos sensibles en la BD)
 
-Para campos puntuales (PII): usar el cast `'encrypted'`.
-```php
-protected $casts = [
-    'numero_documento' => 'encrypted',
-];
-```
-- Cifra/descifra automático con `APP_KEY`.
-- **Trade-off**: una columna cifrada **no se puede buscar ni indexar** por su valor.
-  Reservar para datos que NO se filtran/buscan. No cifrar toda la BB así.
-- Para "robaron el disco" alcanza la **encryption at rest** del disco / BD
-  gestionada; el cast por columna es para "ni el DBA ve ese dato en claro".
+**Estado: hecho.** Tres columnas van cifradas en reposo:
+
+| Columna | Por qué | Cómo se sigue usando |
+| --- | --- | --- |
+| `people.num_doc` | el DNI de 14 000 personas | por **índice ciego** (`num_doc_hash`), ver abajo |
+| `person_biometrics.face_descriptor` | dato biométrico: una cara no se puede revocar | nunca se busca; se lee entero en la verificación 1:1 |
+| `person_biometrics.consent_text` | a qué dijo que sí cada persona | nunca se busca |
+
+El cast es `App\Casts\Cifrado` y no el `'encrypted'` de Laravel, por un motivo
+concreto: el de la casa lanza `DecryptException` en cuanto encuentra un valor en
+claro, y entre desplegar el código y terminar de correr el comando de migración
+hay una ventana en la que la tabla tiene las dos cosas. El nuestro lee las dos
+formas y escribe siempre cifrado.
+
+**Migrar lo que ya existe**: `php artisan docufiz:cifrar-datos-sensibles`
+(`--dry-run` para ensayar). Es idempotente y va por lotes.
+
+### El índice ciego, que es lo que salva la búsqueda
+
+Una columna cifrada **no se puede buscar ni indexar** por su valor: el IV es
+aleatorio, así que el mismo DNI guardado dos veces produce dos textos distintos.
+Y `people.num_doc` es justamente la clave de búsqueda del producto — en la
+puerta se escanea el DNI y la persona entra al plan sola.
+
+La salida es una columna aparte, `people.num_doc_hash`, con un **HMAC-SHA256**
+del documento normalizado. Determinista (se indexa y se busca por igualdad) y de
+un solo sentido. **HMAC y no `sha256()` pelado**: un DNI peruano son ocho cifras,
+o sea cien millones de posibilidades, y un hash sin clave se rompe por fuerza
+bruta en segundos. La clave se deriva del `APP_KEY` con una etiqueta propia, para
+que el índice y el cifrado no compartan material.
+
+Todo esto está en `App\Support\DocumentoBuscable`, y `App\Models\Builders\
+PersonQueryBuilder` traduce `where('num_doc', ...)` al índice solo. Ojo: eso
+cubre **Eloquent**, no `DB::table('people')`.
+
+**Lo que se pierde:** búsqueda parcial y orden. Un `LIKE '%parcial%'` sobre el
+documento ya no es posible y un `ORDER BY num_doc` ordena por el texto cifrado.
+Ver `docs/PENDIENTES.md`.
+
+### Las dos verdades incómodas
+
+1. **Esto protege contra quien lee un backup o el disco, no contra quien tiene el
+   `APP_KEY`.** La aplicación descifra con esa clave y la clave vive en el `.env`
+   del mismo servidor. El `.sql` de la noche deja de ser una lista de DNI; el
+   servidor comprometido sigue siéndolo (para eso son las secciones 6.5 y 7).
+2. **Si se pierde el `APP_KEY`, estos datos no se recuperan.** Ni los documentos
+   ni la posibilidad de buscar por ellos, porque el índice ciego también se
+   deriva de esa clave. Hay que custodiarla fuera del servidor.
+
+**Rotar el `APP_KEY` exige re-cifrar**, y en este orden:
+
+1. la clave vieja pasa a `APP_PREVIOUS_KEYS` (así se sigue pudiendo leer),
+2. `APP_KEY` recibe la nueva,
+3. `php artisan docufiz:cifrar-datos-sensibles --recifrar`,
+4. y **solo entonces** se retira la vieja de `APP_PREVIOUS_KEYS`.
+
+Saltarse el paso 1 o el 3 es tirar los datos.
+
+Para "robaron el disco" también ayuda la **encryption at rest** del disco / BD
+gestionada; el cast por columna es lo que además tapa el volcado lógico.
 
 ## 6.5. Evitar que bots/hackers lean tus claves (lo que de verdad importa)
 
@@ -360,6 +409,14 @@ y es la razón por la que el checklist de §7 no es burocracia.
 8. **Robo de cookie de sesión** (XSS, malware, wifi sin TLS): con la cookie no hace
    falta la contraseña. Mitigación: HTTPS + `HttpOnly` + `SameSite` + rotación al
    cambiar contraseña.
+   **Lo hace la aplicación, no el `.env`.** `AppServiceProvider::forzarHttpsFueraDeLocal()`
+   pone `URL::forceScheme('https')` y `session.secure = true` en todo entorno que
+   no sea `local` ni `testing`. Antes dependía de que `SESSION_SECURE_COOKIE`
+   estuviera escrita en el `.env` de producción — y no lo estaba, así que
+   `config('session.secure')` valía null y el navegador mandaba la cookie también
+   por http. Sigue haciendo falta el TLS del servidor (Let's Encrypt, 80→443,
+   HSTS): esto es la red por debajo, para cuando esa configuración falle o se
+   despliegue en otro sitio.
 9. **Flood de recuperación de contraseña** y **enumeración de correos** — ya
    throttleado (`throttle:5,1`).
 
@@ -487,7 +544,12 @@ parámetros ligados; dompdf sin remoto; evidencias de firma servidas solo tras
 
 - [ ] `.env` fuera de git, `chmod 600`, dueño = usuario de la app.
 - [ ] `APP_KEY` generada y respaldada (sin ella se pierden datos cifrados).
-- [ ] HTTPS/TLS (Let's Encrypt) y redirección 80→443.
+- [ ] HTTPS/TLS (Let's Encrypt) y redirección 80→443. La app fuerza `https` y la
+      cookie `secure` por su cuenta fuera de `local`, pero sin certificado en el
+      servidor eso no sirve de nada: hay que poner los dos.
+- [ ] Plazos de conservación decididos con el cliente y escritos en el `.env`
+      (`PURGE_DAYS_PERSON_RECORD`, `PURGE_DAYS_WORK_EVIDENCE`). Vienen en 0 —sin
+      purgar— a propósito; ver `config/purge.php`.
 - [ ] Firewall (UFW): solo 22/80/443; BD no expuesta a internet.
 - [ ] Usuario de BD con privilegios mínimos (no `postgres` superuser).
 - [ ] BD gestionada con encryption at rest + TLS, o disco cifrado.

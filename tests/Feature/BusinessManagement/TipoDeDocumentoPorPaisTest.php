@@ -143,7 +143,7 @@ class TipoDeDocumentoPorPaisTest extends CatalogTestCase
         $this->alta(['country_id' => self::INDIA, 'doc_type' => 'DNI', 'num_doc' => '45871240'])
             ->assertSessionHasErrors('doc_type');
 
-        $this->assertDatabaseMissing('people', ['num_doc' => '45871240']);
+        $this->assertSinPersonaConDocumento('45871240');
     }
 
     /** Y el desplegable tampoco se los ofrece: la lista de India llega vacia. */
@@ -174,7 +174,7 @@ class TipoDeDocumentoPorPaisTest extends CatalogTestCase
         $this->alta(['country_id' => 1, 'doc_type' => 'DNI', 'num_doc' => '45871241'])
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '45871241', 'doc_type' => 'DNI']);
+        $this->assertPersonaConDocumento('45871241', ['doc_type' => 'DNI']);
     }
 
     /**
@@ -191,7 +191,7 @@ class TipoDeDocumentoPorPaisTest extends CatalogTestCase
         $this->alta(['country_id' => 1, 'doc_type' => 'DNI', 'num_doc' => '45871242'])
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '45871242']);
+        $this->assertPersonaConDocumento('45871242');
     }
 
     /**

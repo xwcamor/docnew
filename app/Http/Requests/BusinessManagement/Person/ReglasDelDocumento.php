@@ -4,6 +4,7 @@ namespace App\Http\Requests\BusinessManagement\Person;
 
 use App\Models\DocumentType;
 use App\Models\Person;
+use App\Support\DocumentoBuscable;
 use App\Support\PrivateInfo;
 use Illuminate\Support\Facades\DB;
 
@@ -91,13 +92,24 @@ trait ReglasDelDocumento
         return [
             'required', 'string', 'max:255',
             function ($attribute, $value, $fail) use ($personId) {
+                // Contra `num_doc_hash` y no contra `num_doc`: la columna del
+                // documento va cifrada y cada escritura del mismo numero
+                // produce un texto distinto, asi que compararla aqui daria
+                // SIEMPRE «no existe» y el alta duplicaria a la persona en vez
+                // de rechazarla. Es la comprobacion mas peligrosa de las que
+                // tocaba el cifrado: falla dejando entrar, no dejando fuera.
+                //
+                // `DB::table` y no el modelo a proposito —esta consulta es
+                // deliberadamente cruda para no arrastrar scopes— asi que aqui
+                // no hay `PersonQueryBuilder` que traduzca nada: el hash se
+                // calcula a mano.
                 $existe = DB::table('people')
                     ->whereNull('deleted_at')
                     ->where('tenant_id', $this->user()?->tenant_id)
                     ->where('country_id', $this->paisDelDocumento())
                     ->where('doc_type', $this->input('doc_type'))
                     ->when($personId, fn ($q) => $q->where('id', '!=', $personId))
-                    ->where('num_doc', trim((string) $value))
+                    ->where('num_doc_hash', DocumentoBuscable::hash((string) $value))
                     ->exists();
 
                 if ($existe) {

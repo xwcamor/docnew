@@ -141,7 +141,7 @@ class OrdenDelListadoDePersonasTest extends CatalogTestCase
     /**
      * Tres personas cuyos datos NO van todos en el mismo sentido.
      *
-     * Por apellido salen A, B, C; por documento B, C, A; por pais C, A, B; por
+     * Por apellido salen A, B, C; por documento B, A, C; por pais C, A, B; por
      * empresa C, A, B; por cargo C, B, A; por numero de empresas B, A, C; por
      * rostros B, A, C; por firmas A, C, B; y por fecha de alta B, C, A. Ninguna
      * columna comparte permutacion con la de al lado.
@@ -208,9 +208,11 @@ class OrdenDelListadoDePersonasTest extends CatalogTestCase
         return [
             // La celda pone «APELLIDO, Nombre» y el orden lee igual.
             'persona (apellido)'   => ['lastname',            ['Alvarez', 'Beltran', 'Castro']],
-            // Tipo primero, numero despues: CE va antes que DNI, y dentro de
-            // los DNI manda el numero.
-            'documento'            => ['document',            ['Beltran', 'Castro', 'Alvarez']],
+            // Tipo primero: CE va antes que DNI. Dentro de cada tipo manda el
+            // APELLIDO, no el numero — `num_doc` esta cifrado y ordenar por el
+            // texto cifrado devuelve un orden al azar que ademas cambia cada
+            // vez que se re-cifra. Beltran lleva CE; Alvarez y Castro, DNI.
+            'documento'            => ['document',            ['Beltran', 'Alvarez', 'Castro']],
             // Alfabetico por NOMBRE del pais, no por `country_id`.
             'pais'                 => ['country',             ['Castro', 'Alvarez', 'Beltran']],
             // Alfabetico por nombre de empresa: Acme, Globex, Zenith.

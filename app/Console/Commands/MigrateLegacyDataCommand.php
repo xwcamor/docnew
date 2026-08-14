@@ -1124,9 +1124,16 @@ class MigrateLegacyDataCommand extends Command
 
         // Por documento a secas, por lo mismo que arriba: el tipo lo deduce la
         // migracion a partir de la nacionalidad y no forma parte de la identidad.
+        //
+        // El mapa se arma por el HASH y no por el numero: `people.num_doc` va
+        // cifrado, asi que las claves de un `pluck('id', 'num_doc')` serian
+        // sobres distintos fila a fila y no encajarian con nada. El lado de la
+        // v1 pasa por la misma normalizacion, que ademas es lo unico que hace
+        // que un «12 345 678» de alli encuentre al «12345678» de aqui.
         $porDocumento = DB::table('people')
             ->where('country_id', $this->countryId)
-            ->pluck('id', 'num_doc');
+            ->whereNotNull('num_doc_hash')
+            ->pluck('id', 'num_doc_hash');
 
         $cache = [];
 
@@ -1134,7 +1141,8 @@ class MigrateLegacyDataCommand extends Command
             $cache[$tabla] = [];
 
             foreach ($viejo->table($tabla)->select('id', 'num_doc')->get() as $f) {
-                $id = $porDocumento[trim((string) $f->num_doc)] ?? null;
+                $hash = \App\Support\DocumentoBuscable::hash((string) $f->num_doc);
+                $id = $hash === null ? null : ($porDocumento[$hash] ?? null);
 
                 if ($id) {
                     $cache[$tabla][$f->id] = $id;
@@ -2833,7 +2841,16 @@ class MigrateLegacyDataCommand extends Command
                 $huerfanas->count(), $que, $que === 'firmas' ? 'firma' : 'foto',
             ));
 
-            $documentos = array_values(array_unique($huerfanas->all()));
+            // El informe lista los documentos para que quien armo la carpeta
+            // sepa a quien le falta el archivo, y `people.num_doc` sale cifrado
+            // de una consulta cruda: sin descifrar aqui, el informe seria una
+            // lista de sobres en base64 y no serviria para nada.
+            $documentos = array_values(array_unique(array_filter(
+                array_map(
+                    fn ($valor) => \App\Support\CifradoEnReposo::enClaro($valor),
+                    $huerfanas->all(),
+                ),
+            )));
 
             $this->anotarEnElInforme(array_merge([
                 sprintf('%s DE LA V1 SIN ARCHIVO — FILA RETIRADA (%d)', mb_strtoupper($que), count($documentos)),
@@ -3100,6 +3117,15 @@ class MigrateLegacyDataCommand extends Command
     }
 
     /**
+     * Hasta donde se buscan ceros a la izquierda al reconciliar una carpeta.
+     *
+     * Es el `max:20` que valida el alta de una persona, con margen: el limite
+     * solo acota cuantos hashes se generan en `personaDelDocumento()`, y
+     * quedarse corto significaria no encontrar a alguien.
+     */
+    protected const LARGO_MAXIMO_DOCUMENTO = 24;
+
+    /**
      * La persona a la que pertenece una carpeta, por su documento.
      *
      * Primero exacto. Si no aparece, se prueba sin los ceros de la izquierda:
@@ -3116,8 +3142,11 @@ class MigrateLegacyDataCommand extends Command
             return null;
         }
 
+        // Consulta cruda: aqui no hay `PersonQueryBuilder` que traduzca el
+        // documento al indice ciego, asi que el hash se calcula a mano.
         $exacta = DB::table('people')->whereNull('deleted_at')
-            ->where('num_doc', $documento)->pluck('id');
+            ->where('num_doc_hash', \App\Support\DocumentoBuscable::hash($documento))
+            ->pluck('id');
 
         if ($exacta->count() === 1) {
             return (int) $exacta->first();
@@ -3136,8 +3165,28 @@ class MigrateLegacyDataCommand extends Command
             return null;
         }
 
+        // Antes esto era `ltrim(num_doc, '0') = ?`, y con la columna cifrada la
+        // base ya no puede recortar nada: `ltrim` sobre un sobre cifrado no
+        // significa nada.
+        //
+        // El indice ciego solo compara por igualdad, pero eso basta si en vez
+        // de recortar el lado guardado se GENERA el lado buscado. Los unicos
+        // valores cuyo recorte da `$sinCeros` son el propio `$sinCeros` con
+        // cero, uno, dos... ceros delante, y un documento no pasa de veinte
+        // caracteres: son un puñado de hashes y un `IN`. La consulta es
+        // exactamente equivalente a la de antes, y ademas usa el indice.
+        $variantes = [];
+
+        for ($ceros = 0; strlen($sinCeros) + $ceros <= self::LARGO_MAXIMO_DOCUMENTO; $ceros++) {
+            $hash = \App\Support\DocumentoBuscable::hash(str_repeat('0', $ceros) . $sinCeros);
+
+            if ($hash !== null) {
+                $variantes[] = $hash;
+            }
+        }
+
         $aproximada = DB::table('people')->whereNull('deleted_at')
-            ->whereRaw("ltrim(num_doc, '0') = ?", [$sinCeros])->pluck('id');
+            ->whereIn('num_doc_hash', $variantes)->pluck('id');
 
         return $aproximada->count() === 1 ? (int) $aproximada->first() : null;
     }

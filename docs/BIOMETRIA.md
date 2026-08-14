@@ -63,9 +63,28 @@ se llena.
 De la cara **no se guarda una imagen**: se guarda el **descriptor**, una lista de 128 números que
 face-api.js calcula y con la que se puede comparar, pero no reconstruir el rostro.
 
-- `person_biometrics.face_descriptor` — JSON con hasta 5 vectores de 128 valores (el enrolamiento
-  captura 3).
-- El consentimiento del trabajador se registra con fecha y es obligatorio antes de enrolar.
+- `person_biometrics.face_descriptor` — hasta 5 vectores de 128 valores (el enrolamiento captura 3),
+  serializados como JSON y **cifrados en reposo**. La columna es `text`, no `json`.
+- El consentimiento del trabajador se registra con fecha y es obligatorio antes de enrolar. El texto
+  que aceptó (`consent_text`) se guarda entero y **también cifrado**.
+
+### Por qué van cifrados
+
+Un descriptor facial es un dato biométrico y **no se puede revocar**: a quien le filtran una
+contraseña se le cambia la contraseña; a quien le filtran la cara, no. Estaban en claro, así que
+quien abriera un backup se llevaba las caras enroladas de todo el padrón.
+
+Cifrarlos no cuesta nada aquí porque **nunca se busca por ellos**: se leen enteros, para una
+persona concreta, en la verificación 1:1. No hacen falta índices ciegos ni nada parecido (eso es
+sólo para `people.num_doc`, ver `docs/SECURITY.md`).
+
+Dos cosas que hay que tener claras: esto protege contra quien lee un backup, **no** contra quien
+tiene el `APP_KEY`; y si el `APP_KEY` se pierde, las caras enroladas no se recuperan y hay que
+volver a enrolar a todo el mundo. Migrar lo que ya está en la base:
+`php artisan docufiz:cifrar-datos-sensibles`.
+
+Y el historial: `Auditable` **excluye** `face_descriptor` a propósito, para que registrar una cara
+no deje una segunda copia en `audit_logs`. `consent_text` sí queda ahí, pero cifrado.
 
 ## Enrolamiento
 

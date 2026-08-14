@@ -4,6 +4,7 @@ namespace Tests\Feature\Migration;
 
 use App\Models\Role;
 use App\Models\User;
+use App\Support\DocumentoBuscable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -412,8 +413,11 @@ class MigrateLegacyDataTest extends TestCase
     {
         $this->migrarTodo();
 
-        $peruano = DB::table('people')->where('num_doc', '10000001')->first();
-        $extranjero = DB::table('people')->where('num_doc', '10000002')->first();
+        // Por el indice ciego: `people.num_doc` va cifrado, asi que una
+        // consulta cruda no puede comparar el numero. Es la misma traduccion
+        // que hace la aplicacion por dentro.
+        $peruano = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000001'))->first();
+        $extranjero = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000002'))->first();
 
         $this->assertSame('DNI', $peruano->doc_type);
         $this->assertSame('CE', $extranjero->doc_type);
@@ -441,7 +445,8 @@ class MigrateLegacyDataTest extends TestCase
 
         $this->migrarTodo();
 
-        $this->assertSame('CE', DB::table('people')->where('num_doc', '10000002')->value('doc_type'));
+        $this->assertSame('CE', DB::table('people')
+            ->where('num_doc_hash', DocumentoBuscable::hash('10000002'))->value('doc_type'));
     }
 
     /**
@@ -486,7 +491,7 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(2, DB::table('positions')->count());
         $this->assertSame(0, DB::table('positions')->where('code', 'Mecanico')->count());
 
-        $persona = DB::table('people')->where('num_doc', '10000001')->first();
+        $persona = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000001'))->first();
         $vinculo = DB::table('person_company_links')->where('person_id', $persona->id)->first();
 
         $this->assertNotNull($vinculo->position_id, 'el vinculo llego sin cargo');

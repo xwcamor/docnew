@@ -55,4 +55,36 @@ abstract class TestCase extends BaseTestCase
 
         $this->denunciarColumnasInventadas($inventadas);
     }
+
+    /**
+     * ¿Existe en `people` alguien con este documento?
+     *
+     * `assertDatabaseHas('people', ['num_doc' => '47019236'])` dejo de valer el
+     * dia que la columna paso a estar cifrada: compara un DNI contra un sobre
+     * distinto en cada fila y no encuentra nunca nada. Y como la comprobacion
+     * es «no existe», el fallo se lee como si la aplicacion no hubiera guardado
+     * a nadie, que es justo el diagnostico equivocado.
+     *
+     * Se pregunta por el indice ciego, que es lo que la aplicacion consulta de
+     * verdad. Comprobar por ahi tiene ademas un efecto util: si algun dia el
+     * modelo dejara de rellenar `num_doc_hash`, todas estas pruebas caerian a
+     * la vez — y esa es exactamente la averia que dejaria a una persona dada de
+     * alta e imposible de encontrar en la puerta.
+     *
+     * @param  array<string, mixed>  $ademas  otras columnas que tienen que cuadrar
+     */
+    protected function assertPersonaConDocumento(string $documento, array $ademas = []): void
+    {
+        $this->assertDatabaseHas('people', $ademas + [
+            'num_doc_hash' => \App\Support\DocumentoBuscable::hash($documento),
+        ]);
+    }
+
+    /** El reverso: que ese documento NO haya entrado. @param array<string, mixed> $ademas */
+    protected function assertSinPersonaConDocumento(string $documento, array $ademas = []): void
+    {
+        $this->assertDatabaseMissing('people', $ademas + [
+            'num_doc_hash' => \App\Support\DocumentoBuscable::hash($documento),
+        ]);
+    }
 }

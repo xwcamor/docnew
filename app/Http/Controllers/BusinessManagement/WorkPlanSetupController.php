@@ -12,7 +12,7 @@ use App\Models\WorkPlanApproval;
 use App\Models\WorkPlanPerson;
 use App\Services\BusinessManagement\PersonService;
 use App\Services\BusinessManagement\WorkPlanSetupService;
-use App\Support\LikeQuery;
+use App\Support\DocumentoBuscable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -101,8 +101,6 @@ class WorkPlanSetupController extends Controller
             ]);
         }
 
-        $isPgsql = config('database.default') === 'pgsql';
-
         $personas = Person::query()
             ->where('is_active', true)
             ->when($request->boolean('exclude_assigned'),
@@ -134,12 +132,20 @@ class WorkPlanSetupController extends Controller
                     'roles',
                     fn ($q) => $q->where('role', $request->string('role'))->where('is_active', true),
                 ))
-            ->when(true, function ($query) use ($q, $isPgsql) {
-                $needle = LikeQuery::contains($q);
-                $isPgsql
-                    ? $query->whereRaw('unaccent(lower(people.num_doc)) LIKE unaccent(lower(?))', [$needle])
-                    : $query->whereRaw("people.num_doc LIKE ? ESCAPE '\\'", [$needle]);
-            })
+            // El documento se compara ENTERO, y esto es un cambio de fondo.
+            //
+            // Aqui habia un `LIKE '%lo tecleado%'` que iba devolviendo
+            // candidatos segun se escribia. Con el documento cifrado eso no se
+            // puede sostener: no hay forma de preguntarle a la base si un texto
+            // cifrado contiene un trozo, y descifrar las 14 000 filas en cada
+            // pulsacion convertiria la puerta de la obra en una sala de espera.
+            //
+            // Queda la coincidencia exacta contra el indice ciego, que es
+            // justamente el gesto para el que existe esta pantalla: se escanea
+            // el DNI y entra la persona. Lo que se pierde es la ayuda a medio
+            // teclear —«hay documentos que empiezan asi»—; ver el aviso que
+            // devuelve `exact_only` mas abajo.
+            ->where('people.num_doc', $q)
             ->orderBy('lastname')
             ->orderBy('name')
             ->limit(10)
@@ -154,9 +160,18 @@ class WorkPlanSetupController extends Controller
         //
         // Se exige coincidencia EXACTA y única: «4001» encaja con veinte
         // documentos y no se puede adivinar cuál. Mientras no sea exacta no se
-        // añade nada — la búsqueda por parecido sigue existiendo para decir si
-        // hay alguien o no, pero no decide por nadie.
-        $exacta = $personas->filter(fn ($p) => $p->num_doc === $q);
+        // añade nada.
+        //
+        // Desde que el documento va cifrado, la consulta de arriba ya sólo
+        // devuelve coincidencias exactas, así que este filtro no descarta nada:
+        // se deja porque es la regla —lo que entra al plan es una persona
+        // identificada, no una parecida— y porque la normalización del índice
+        // ciego admite «12.345.678» donde antes sólo entraba «12345678». El
+        // `count() === 1` sigue mandando: el mismo documento repetido en dos
+        // workspaces no decide por nadie.
+        $exacta = $personas->filter(
+            fn ($p) => DocumentoBuscable::normalizar($p->num_doc) === DocumentoBuscable::normalizar($q),
+        );
 
         return response()->json([
             'people' => $personas->map(fn ($p) => [
@@ -169,6 +184,12 @@ class WorkPlanSetupController extends Controller
                 : null,
             'minimum' => $minimo,
             'partial' => false,
+            // Lo que la pantalla necesita saber para no mentir: aquí ya no hay
+            // «documentos que empiezan así». Sin esto, teclear siete de las
+            // ocho cifras de un DNI contestaría «ese documento no está
+            // registrado» sobre alguien que sí lo está, y el siguiente gesto
+            // del supervisor sería darlo de alta otra vez.
+            'exact_only' => true,
         ]);
     }
 

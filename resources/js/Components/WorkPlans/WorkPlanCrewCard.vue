@@ -79,6 +79,12 @@ const quitando = ref(null);
 const aviso = ref('');       // qué pasa con lo que hay escrito
 const minimo = ref(7);       // lo dice el servidor; 7 es el de la v1
 
+// El documento está cifrado en la base, así que el servidor sólo sabe
+// contestar a «¿es este documento exacto?». Lo dice él (`exact_only`) y no se
+// da por hecho aquí: la pantalla no tiene por qué saber cómo está guardado el
+// dato, y el día que eso cambie no habría que tocar el Vue.
+const soloExacta = ref(true);
+
 // Antirrebote: en obra se teclea con guantes y el lector de códigos manda los
 // dígitos de golpe. Sin esto cada carácter sería una consulta.
 let temporizador = null;
@@ -113,6 +119,7 @@ const buscar = (texto) => {
             );
 
             minimo.value = data.minimum ?? minimo.value;
+            soloExacta.value = Boolean(data.exact_only);
 
             if (data.exact) {
                 anadir(data.exact.slug);
@@ -122,7 +129,13 @@ const buscar = (texto) => {
 
             // Ni exacta ni nada parecido: o no está dado de alta, o ya está en
             // el plan. Las dos cosas se dicen, que no es lo mismo.
-            aviso.value = data.people.length
+            //
+            // Con el documento cifrado el servidor ya no puede contestar «hay
+            // documentos que empiezan así» —la búsqueda es exacta y punto— así
+            // que ese aviso sólo se muestra si el servidor dice que todavía
+            // busca por parecido. Si no, no se puede distinguir a quien está a
+            // medio teclear de quien no está dado de alta, y el aviso lo dice.
+            aviso.value = data.people.length && ! soloExacta.value
                 ? t('work_plans.crew_keep_typing')
                 : t('work_plans.crew_no_results');
         } finally {
@@ -314,6 +327,15 @@ const guardarAlta = () => {
                 {{ aviso || $tc('work_plans.crew_search_hint', minimo, { count: minimo }) }}
             </p>
 
+            <!-- Que la búsqueda es por el documento ENTERO se dice antes de
+                 buscar, no después de fallar. El documento va cifrado y no hay
+                 coincidencia parcial: sin este aviso, teclear siete de las ocho
+                 cifras de un DNI contesta «no está registrado» sobre alguien que
+                 sí lo está, y el botón de dar de alta aparece justo debajo. -->
+            <p v-if="soloExacta" class="wp-add__hint wp-add__hint--exacta">
+                {{ $t('work_plans.crew_search_exact') }}
+            </p>
+
             <!-- Y si no está registrado, se da de alta aquí mismo.
                  El botón sale sólo cuando el servidor ya ha dicho que ese
                  documento no existe: antes de eso no hay nada que crear y sería
@@ -402,6 +424,9 @@ const guardarAlta = () => {
 .wp-add { margin-top: 14px; }
 .wp-add__hint { margin: 6px 2px 0; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
 .wp-add__hint.is-bad { color: var(--color-error, #BB0000); }
+/* Es una condicion permanente del buscador, no un resultado: se dice mas bajo
+   que el aviso de arriba para que no compita con el. */
+.wp-add__hint--exacta { margin-top: 2px; opacity: 0.85; }
 .wp-add__alta { margin-top: 10px; }
 
 /* El alta rápida. El documento va en una línea: el tipo manda poco espacio y el

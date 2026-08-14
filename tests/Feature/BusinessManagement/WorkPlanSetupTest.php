@@ -1169,6 +1169,63 @@ class WorkPlanSetupTest extends TestCase
             ->assertJsonPath('exact', null);
     }
 
+    /**
+     * El buscador de la puerta SOLO responde al documento entero, y lo dice.
+     *
+     * Es lo que se pierde al cifrar `people.num_doc`: antes esto era un
+     * `LIKE '%lo tecleado%'` que iba acotando candidatos, y contra una columna
+     * cifrada no hay forma de sostenerlo — la base no puede mirar dentro del
+     * sobre y descifrar 14 000 filas en cada pulsación convierte la puerta de
+     * la obra en una sala de espera.
+     *
+     * Lo que esta prueba fija no es la pérdida sino el aviso. Sin `exact_only`,
+     * teclear siete de las ocho cifras de un DNI contesta «ese documento no
+     * está registrado» sobre alguien que sí lo está, y el gesto siguiente del
+     * supervisor —con la cuadrilla esperando— es darlo de alta por segunda vez:
+     * una persona con el historial partido en dos, dos caras enroladas y dos
+     * firmas de referencia.
+     */
+    public function test_el_buscador_avisa_de_que_el_documento_va_entero(): void
+    {
+        $plan = $this->plan();
+        $this->persona('Nora', 'Paz', '40000009');
+        $this->actingAs($this->supervisor());
+
+        $ruta = route('business_management.work_plans.crew.candidates', $plan->slug);
+
+        // Siete de las ocho cifras: ya no acota nada. La pantalla tiene que
+        // poder distinguir esto de «no existe», y por eso viaja la bandera.
+        $this->getJson($ruta . '?q=4000000')
+            ->assertOk()
+            ->assertJsonCount(0, 'people')
+            ->assertJsonPath('exact', null)
+            ->assertJsonPath('exact_only', true);
+
+        // El documento entero sigue entrando solo, que es para lo que existe
+        // esta pantalla — y ahora ademas admite como se escriba.
+        $this->getJson($ruta . '?q=40.000-009')
+            ->assertOk()
+            ->assertJsonPath('exact.name', 'Paz Nora');
+    }
+
+    /** El aviso está escrito, en los dos idiomas, y no en el código. */
+    public function test_el_aviso_de_la_busqueda_exacta_esta_en_los_dos_idiomas(): void
+    {
+        foreach (['es', 'en'] as $idioma) {
+            $textos = require resource_path("lang/{$idioma}/work_plans.php");
+
+            $this->assertArrayHasKey('crew_search_exact', $textos, "falta crew_search_exact en {$idioma}");
+            $this->assertNotSame('', trim($textos['crew_search_exact']));
+        }
+
+        // Y la pantalla lo enseña: es la mitad que el servidor no puede
+        // vigilar solo.
+        $vista = file_get_contents(resource_path('js/Components/WorkPlans/WorkPlanCrewCard.vue'));
+
+        $this->assertStringContainsString('work_plans.crew_search_exact', $vista);
+        $this->assertStringContainsString('data.exact_only', $vista);
+    }
+
     /** El ajuste no viene sembrado en las pruebas: se pone aqui. */
     private function ajustarMinimo(string $valor): void
     {

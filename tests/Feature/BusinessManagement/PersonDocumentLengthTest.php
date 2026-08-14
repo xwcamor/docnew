@@ -88,7 +88,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->alta(['doc_type' => 'DNI', 'num_doc' => '946733493'])
             ->assertSessionHasErrors('num_doc');
 
-        $this->assertDatabaseMissing('people', ['num_doc' => '946733493']);
+        $this->assertSinPersonaConDocumento('946733493');
     }
 
     public function test_tampoco_uno_corto(): void
@@ -102,7 +102,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->alta(['doc_type' => 'DNI', 'num_doc' => '43673535'])
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '43673535']);
+        $this->assertPersonaConDocumento('43673535');
     }
 
     /** El extranjero lleva nueve, y con su tipo el mismo numero si entra. */
@@ -111,7 +111,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->alta(['doc_type' => 'CE', 'num_doc' => '003028674'])
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['doc_type' => 'CE', 'num_doc' => '003028674']);
+        $this->assertPersonaConDocumento('003028674', ['doc_type' => 'CE']);
     }
 
     /**
@@ -125,7 +125,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->alta(['doc_type' => 'DNI', 'num_doc' => '1111111A'])
             ->assertSessionHasErrors('num_doc');
 
-        $this->assertDatabaseMissing('people', ['num_doc' => '1111111A']);
+        $this->assertSinPersonaConDocumento('1111111A');
     }
 
     /** Y el pasaporte si las lleva: la regla es por tipo, no una para todos. */
@@ -134,7 +134,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
         $this->alta(['doc_type' => 'PASAPORTE', 'num_doc' => 'AB123456'])
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['doc_type' => 'PASAPORTE', 'num_doc' => 'AB123456']);
+        $this->assertPersonaConDocumento('AB123456', ['doc_type' => 'PASAPORTE']);
     }
 
     /** @param array<int, array<string, string>> $filas */
@@ -157,7 +157,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
 
         $this->assertCount(1, $import->errors);
         $this->assertSame(0, $import->created);
-        $this->assertDatabaseMissing('people', ['num_doc' => '946733493']);
+        $this->assertSinPersonaConDocumento('946733493');
     }
 
     /** Por Excel tampoco entran las letras en un DNI. */
@@ -197,7 +197,7 @@ class PersonDocumentLengthTest extends CatalogTestCase
 
         $this->assertCount(1, $import->errors);
         $this->assertSame(2, $import->created);
-        $this->assertDatabaseHas('people', ['num_doc' => '43673535']);
-        $this->assertDatabaseHas('people', ['num_doc' => '45871237']);
+        $this->assertPersonaConDocumento('43673535');
+        $this->assertPersonaConDocumento('45871237');
     }
 }

@@ -320,7 +320,7 @@ class DocumentTypeCrudTest extends CatalogTestCase
             'doc_type' => 'PTP', 'num_doc' => '001234567',
         ]))->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '001234567', 'doc_type' => 'PTP']);
+        $this->assertPersonaConDocumento('001234567', ['doc_type' => 'PTP']);
 
         // Y uno que no está dado de alta se rechaza.
         $this->post(route('business_management.people.store'), $this->datosDePersona([

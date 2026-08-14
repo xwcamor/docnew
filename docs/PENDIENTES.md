@@ -19,11 +19,17 @@ lo dice explícitamente.
 | **Estado `archived` de los formatos** | No se llega a él desde ninguna pantalla, y `nuevaVersion()` es código que nadie llama | Código muerto |
 | **`requires_signature` de un formato** | Existe en la base y no hay forma de marcarlo desde la interfaz | Siempre falso |
 | **Editor de campos de un formato** | Sin pantalla para definir los campos, un formato estructurado o híbrido no se puede publicar nunca | El módulo de plantillas no se puede cerrar |
+| **Cuánto se conservan las fichas de persona y los planes** | Los 90 días que había venían clonados de otro módulo; nadie los eligió. El plazo real depende de la jurisdicción del cliente, del tipo de obra y de sus contratos, y ese dato no lo tenemos: no se puede poner un número desde aquí sin fingir que se ha comprobado algo | La purga de `people` y `work_plans` viene **desactivada** (`PURGE_DAYS_PERSON_RECORD=0`, `PURGE_DAYS_WORK_EVIDENCE=0`). No se borra nada, y `app:purge-soft-deleted` lo dice cada noche en `storage/logs/purge.log` |
+| **`companies` y `customers` siguen a 90 días** | Son las dos entradas de `config/purge.php` que quedaron con el número heredado: una empresa contratista es parte del registro de una jornada, pero no está claro si le toca el reloj del catálogo o el de la evidencia | Siguen en 90, como estaban. No es una decisión nueva: es la vieja, sin tocar |
+| **Los tres plazos del historial de cambios** | 180 / 365 / 1095 días (poda del contenido, rastro corriente, seguridad y firma) son valores razonados, no plazos legales | Corriendo con esos defectos desde `app:purge-audit-logs`; se ajustan en Ajustes → `audit`, sin redeploy |
 
 ## Lo que depende de ti, fuera del código
 
 | Qué | Por qué | Cómo |
 | --- | --- | --- |
+| **Correr el cifrado sobre los datos ya migrados** | Las 14 000 personas y las caras enroladas que ya están en la base siguen en claro hasta que se corra. El código nuevo escribe cifrado, pero no reescribe lo viejo solo | `php artisan docufiz:cifrar-datos-sensibles --dry-run` primero, y luego sin la bandera |
+| **Fijar los plazos de conservación con quien lleve el tema** | Hasta que estén puestos, las fichas de persona y los planes de trabajo borrados no se purgan nunca. El plazo lo tiene que dar la asesoría legal del cliente, su responsable de prevención o quien firme sus contratos de obra — no el código | `PURGE_DAYS_PERSON_RECORD` y `PURGE_DAYS_WORK_EVIDENCE` en el `.env`. El porqué de cada reloj está en `config/purge.php` |
+| **Custodiar el `APP_KEY` fuera del servidor** | Desde que hay columnas cifradas, **perder esa clave es perder los documentos y las caras**, y además la posibilidad de buscar a nadie por su DNI. No hay recuperación | Copia en un gestor de contraseñas, fuera del droplet y fuera del repo |
 | **Poner `APIS_NET_PE_TOKEN` en el `.env`** | Sin él no se consultan ni el RUC en SUNAT ni el DNI en RENIEC. No falla nada: todo se escribe a mano | Es el mismo token que la v1 guardaba en las credenciales de Rails como `pe_reniec_token` |
 | **Borrar `users.real_password` de la v1** | Hay 20 contraseñas guardadas en texto plano | `UPDATE users SET real_password = NULL;` en la base vieja |
 | **Copiar los archivos de firmas y fotos** | 3 801 evidencias apuntan hoy a rutas con `byte_size = 0` | `php artisan docufiz:migrate-data archivos --desde=…` |
@@ -58,6 +64,36 @@ DNI» devuelve falsos positivos; lo correcto es `^[0-9]{8}$`.
 | 10 | **Primer ingreso**: `users` no tiene columna para forzar el cambio de contraseña | hoy la vía es «olvidé mi contraseña» una vez puestos los correos reales. ¿Añadimos la columna o basta con eso? |
 | 11 | **Rol de los usuarios migrados**: todos entraron como «Usuario de campo», el de menos privilegios | hay que asignar los reales; el origen no traía esa información |
 | 8 | **Multi-país**: el 100 % de los planes del sistema viejo son de Perú | se mantiene la estructura, sin invertir más |
+
+## Lo que el cifrado del documento se llevó por delante
+
+`people.num_doc` va cifrado y sólo se puede consultar por su índice ciego
+(`num_doc_hash`), que responde a igualdad y a nada más. Eso tiene tres
+consecuencias visibles. Ninguna es un descuido: son el precio, y están aquí para
+que se decida sobre ellas y no se descubran en obra.
+
+| Qué dejó de funcionar | Dónde | Cómo quedó |
+| --- | --- | --- |
+| **Buscar por un trozo del documento** | buscador de la cuadrilla, listado de personas, papelera, buscador global, filtro avanzado | ahora hay que escribir el documento **entero**. En la puerta no cambia nada —se escanea— pero teclear siete de las ocho cifras ya no acota. La pantalla del plan lo avisa (`work_plans.crew_search_exact`) para que no parezca «no está registrado» |
+| **Ordenar la lista por el número** | cabecera «Documento» del listado de personas | ordena por **tipo y apellido**. Por el número no se puede: el texto cifrado ordena al azar. `num_doc` salió de la lista blanca de orden |
+| **`contains` en el filtro avanzado del documento** | drawer de filtros de Personas | se quitó del desplegable, y una vista guardada de antes que lo traiga descarta esa cláusula en vez de devolver cero filas sin explicar por qué |
+
+**Si alguna de las tres hace falta de verdad**, la salida conocida es un índice
+ciego adicional por prefijo (hashear los primeros N caracteres en su propia
+columna). Cuesta una columna más, otro índice y filtra menos, y por eso no se
+hizo de entrada: nadie ha pedido buscar medio DNI.
+
+**Dos cosas más que conviene tener presentes:**
+
+- **`audit_logs` guarda `consent_text` cifrado.** El historial escribe los
+  valores tal y como van a la base, y sería absurdo cifrar la columna dejando una
+  copia en claro en la tabla de al lado. La consecuencia es que la pantalla de
+  historial enseña ahí un base64. Se lee con el mismo `APP_KEY`; falta decidir si
+  se descifra al pintarlo o se oculta ese campo.
+- **`companies.num_doc` (el RUC) NO se cifró.** Es un identificador de registro
+  público —se consulta en SUNAT por internet— y no es un dato personal. Cifrarlo
+  costaría el mismo índice ciego a cambio de nada. Si algún día se decide que sí,
+  el patrón ya está escrito y se replica.
 
 ## Decisiones tomadas que conviene recordar
 

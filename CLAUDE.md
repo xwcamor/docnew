@@ -61,7 +61,13 @@ vigentes salvo donde esta seccion diga lo contrario.
   la laptop, backups cifrados) en [`docs/DROPLET-POSTGRES-SECURITY.md`](docs/DROPLET-POSTGRES-SECURITY.md)
 - **Secretos/seguridad**: ver [`docs/SECURITY.md`](docs/SECURITY.md) (dev+prod: `.env`,
   `APP_KEY`, `.env.encrypted` estilo Rails credentials, cifrado de columnas, qué usan
-  las empresas grandes, checklist de deploy). Hoy `.env` plano gitignored; sin columnas cifradas.
+  las empresas grandes, checklist de deploy). Hoy `.env` plano gitignored.
+  **Cifrado en reposo (hecho)**: `people.num_doc`, `person_biometrics.face_descriptor` y
+  `person_biometrics.consent_text`. El documento se sigue buscando por **índice ciego**
+  (`people.num_doc_hash`, HMAC-SHA256 derivado del `APP_KEY`) — ver
+  `App\Support\DocumentoBuscable` y `App\Models\Builders\PersonQueryBuilder`.
+  Migrar lo existente: `php artisan docufiz:cifrar-datos-sensibles`.
+  **Perder el `APP_KEY` = perder esos datos**, y rotarlo obliga a re-cifrar.
 
 ---
 

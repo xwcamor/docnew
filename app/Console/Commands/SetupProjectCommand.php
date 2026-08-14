@@ -83,12 +83,42 @@ class SetupProjectCommand extends Command
             return self::FAILURE;
         }
 
+        $this->cifrarLoSensible();
+
         $this->newLine();
         $this->resumen();
         $this->newLine();
         $this->info('Listo.');
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Cifra lo sensible y calcula el indice ciego, aqui y no a mano.
+     *
+     * POR QUE VA DENTRO DE `setup:project` Y NO EN UNA LINEA DEL README
+     * -----------------------------------------------------------------
+     * La migracion crea `people.num_doc_hash` VACIA: rellenarla es recorrer
+     * 14 000 filas y eso no se hace dentro de una migracion. Pero hasta que se
+     * rellena, **buscar a alguien por su documento no encuentra a nadie** — ni
+     * en la puerta del plan, ni en el listado, ni en el buscador. No falla: no
+     * encuentra, que es peor, porque parece que esa persona no esta dada de
+     * alta y el gesto siguiente es darla de alta otra vez.
+     *
+     * Dejar eso dependiendo de que alguien se acuerde de correr un segundo
+     * comando es dejarlo roto. Va aqui, que es el unico comando que se ejecuta.
+     *
+     * Despues de traer la v1 a proposito: la importacion mete miles de personas
+     * y tienen que quedar cifradas y con su hash igual que las demas.
+     *
+     * Es idempotente, asi que sobre una base recien sembrada apenas hace nada.
+     */
+    protected function cifrarLoSensible(): void
+    {
+        $this->newLine();
+        $this->info('── Cifrado de los datos sensibles ──');
+
+        $this->call('docufiz:cifrar-datos-sensibles');
     }
 
     /**

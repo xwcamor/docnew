@@ -171,13 +171,18 @@ return [
     'crew_search_placeholder' => 'Escanea o escribe el documento del trabajador…',
     'crew_search_hint' => '{1} Escribe 1 carácter o más del documento.|[2,*] Escanea el documento o escribe sus :count dígitos: se añade solo.',
     'crew_keep_typing' => 'Hay documentos que empiezan así. Sigue escribiendo hasta el final.',
+    // El documento está cifrado en la base y sólo se puede buscar entero (ver
+    // App\Support\DocumentoBuscable). Sin este aviso, teclear siete de las ocho
+    // cifras de un DNI contestaría «no está registrado» sobre alguien que sí lo
+    // está, y el siguiente gesto en la puerta sería darlo de alta por segunda vez.
+    'crew_search_exact' => 'La búsqueda es por el documento completo: escanéalo o escríbelo entero.',
     'crew_create_person' => 'Dar de alta a este trabajador',
     'crew_create_person_title' => 'Nuevo trabajador',
     'crew_create_person_help' => 'Sólo lo que el plan no sabe. La empresa y el país se toman del plan, y en cuanto se guarde entra en la lista de trabajadores.',
     'crew_create_person_ok' => 'Dar de alta y añadir',
     'crew_person_created' => ':name queda dado de alta y añadido al plan.',
     'crew_person_exists' => 'Ese documento ya es de :name. Búscalo por su documento en vez de darlo de alta otra vez.',
-    'crew_no_results'         => 'Ese documento no está registrado todavía.',
+    'crew_no_results'         => 'Ese documento no está registrado todavía. Compruébalo entero antes de dar de alta a nadie.',
     'crew_remove'   => 'Quitar del plan',
     'crew_remove_confirm' => '¿Quitar a :name de este plan?',
     // Si la persona tiene la cara registrada se ve en el módulo de Trabajadores,

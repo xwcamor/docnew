@@ -206,7 +206,7 @@ class PeopleCrudTest extends CatalogTestCase
             ->post(route('business_management.people.store'), $datos)
             ->assertSessionHasErrors('position_id');
 
-        $this->assertDatabaseMissing('people', ['num_doc' => '10203040']);
+        $this->assertSinPersonaConDocumento('10203040');
     }
 
     /** Y el mismo documento no entra dos veces en el mismo pais. */
@@ -217,6 +217,32 @@ class PeopleCrudTest extends CatalogTestCase
 
         $this->post(route('business_management.people.store'), $this->formulario(['num_doc' => '47019236']))
             ->assertSessionHasErrors('num_doc');
+    }
+
+    /**
+     * Y tampoco escrito de otra manera. Esta es la comprobacion que el cifrado
+     * podia romper dejando ENTRAR, que es la peor forma de romperse.
+     *
+     * La unicidad se comprueba contra `num_doc_hash`, no contra `num_doc`: la
+     * columna del documento va cifrada y cada escritura del mismo numero
+     * produce un texto distinto, asi que compararla daria siempre «no existe» y
+     * el alta duplicaria a la persona en silencio. Un duplicado en el padron no
+     * es un registro de mas: es una persona con dos caras enroladas, dos
+     * firmas de referencia y su historial partido en dos.
+     *
+     * Y de paso se fija la normalizacion: «47.019-236» es el mismo documento
+     * que «47019236». Antes eran dos, porque el formulario solo quitaba
+     * espacios y guiones y comparaba lo que quedara.
+     */
+    public function test_el_mismo_documento_escrito_de_otra_forma_tampoco_entra(): void
+    {
+        $this->persona('47019236');
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.people.store'), $this->formulario(['num_doc' => '47.019-236']))
+            ->assertSessionHasErrors('num_doc');
+
+        $this->assertSame(1, Person::withTrashed()->count(), 'entro un duplicado del mismo documento');
     }
 
     /**
@@ -244,7 +270,7 @@ class PeopleCrudTest extends CatalogTestCase
             'num_doc' => '900112233', 'doc_type' => 'PTP',
         ]))->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '900112233', 'doc_type' => 'PTP']);
+        $this->assertPersonaConDocumento('900112233', ['doc_type' => 'PTP']);
     }
 
     /**
@@ -262,19 +288,31 @@ class PeopleCrudTest extends CatalogTestCase
         $this->post(route('business_management.people.store'), $this->formulario(['num_doc' => '10203043']))
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '10203043']);
+        $this->assertPersonaConDocumento('10203043');
     }
 
     /**
-     * La cabecera «Documento» ordena.
+     * La cabecera «Documento» ordena: por TIPO, y dentro de cada tipo por
+     * apellido.
      *
      * Junta tipo y numero, asi que no tiene columna propia: la peticion salia
      * con `sort=document`, el modelo no lo contemplaba y la lista volvia
      * exactamente igual. Sin error, sin nada.
+     *
+     * Dentro de cada tipo ya no puede ordenar por el numero, y eso es
+     * deliberado: `num_doc` va cifrado y ordenar por el texto cifrado devuelve
+     * un orden aleatorio con aspecto de orden — la peor version del fallo que
+     * esta prueba vino a cerrar, porque cambia en cada re-cifrado. Se cae al
+     * apellido, que es el otro dato que la fila enseña.
      */
     public function test_el_listado_se_ordena_por_documento(): void
     {
-        $this->persona('47019236');
+        // CE antes que DNI. Y dentro de los DNI, Quispe antes que Zapata.
+        Person::create($this->base() + [
+            'doc_type' => 'CE', 'num_doc' => '99000001',
+            'name' => 'Beto', 'lastname' => 'Zurita', 'is_active' => true,
+        ]);
+        $this->persona('47019236');                     // DNI · Quispe
         Person::create($this->base() + [
             'doc_type' => 'DNI', 'num_doc' => '10000001',
             'name' => 'Zoe', 'lastname' => 'Zapata', 'is_active' => true,
@@ -282,10 +320,25 @@ class PeopleCrudTest extends CatalogTestCase
 
         $orden = Person::query()
             ->filter(new \Illuminate\Http\Request(['sort' => 'document', 'direction' => 'asc']))
-            ->pluck('num_doc')
+            ->pluck('lastname')
             ->all();
 
-        $this->assertSame(['10000001', '47019236'], $orden);
+        $this->assertSame(['Zurita', 'Quispe', 'Zapata'], $orden);
+    }
+
+    /**
+     * Y `num_doc` a secas NO es una clave de orden valida.
+     *
+     * Es la otra mitad de lo mismo: la columna esta cifrada, asi que un
+     * `order by people.num_doc` baraja la lista. Quien la pida —una vista
+     * guardada de antes del cifrado, la barra de direcciones— cae al orden por
+     * defecto, que es honesto, en vez de recibir filas revueltas con pinta de
+     * ordenadas.
+     */
+    public function test_el_numero_del_documento_no_es_una_clave_de_orden(): void
+    {
+        $this->assertNotContains('num_doc', Person::ordenesDelListado());
+        $this->assertSame('id', Person::ordenValidoDelListado('num_doc'));
     }
 
     /**

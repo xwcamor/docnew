@@ -40,7 +40,7 @@ class SearchController extends Controller
         return response()->json([
             'work_plans' => $user->can('work_plans.view') ? $this->planes($like, $term) : [],
             'companies'  => $user->can('companies.view') ? $this->empresas($like, $term) : [],
-            'people'     => $user->can('people.view') ? $this->personas($like, $term) : [],
+            'people'     => $user->can('people.view') ? $this->personas($like, $term, $q) : [],
         ]);
     }
 
@@ -79,13 +79,25 @@ class SearchController extends Controller
             ->all();
     }
 
-    protected function personas(string $like, string $term): array
+    /**
+     * Por nombre, por apellido o por documento — pero el documento, ENTERO.
+     *
+     * El nombre y el apellido siguen buscandose por trozos, que es para lo que
+     * sirve un buscador global. El documento no puede: va cifrado y solo se
+     * puede preguntar por el a traves de su indice ciego, que responde
+     * unicamente a igualdad. Antes «4455» encontraba al del 44556677; ahora hay
+     * que escribir el documento entero.
+     *
+     * `$term` viene con los porcentajes puestos y `$crudo` no: son dos
+     * comparaciones distintas y hacen falta las dos.
+     */
+    protected function personas(string $like, string $term, string $crudo): array
     {
         return Person::query()
             ->where(fn ($w) => $w
                 ->where('name', $like, $term)
                 ->orWhere('lastname', $like, $term)
-                ->orWhere('num_doc', $like, $term))
+                ->orWhere('num_doc', $crudo))
             ->orderBy('lastname')
             ->limit(self::LIMITE)
             ->get(['id', 'slug', 'name', 'lastname', 'doc_type', 'num_doc'])

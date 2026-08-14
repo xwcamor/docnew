@@ -69,6 +69,8 @@
 | [x] | **Los tres listados principales muestran los datos reales** | comprobado en un Chromium real con los datos migrados: plan por código, empresa, tipo y fecha; persona por apellidos, documento, empresas y si tiene la cara enrolada; empresa por RUC, personas y planes |
 | [x] | Documentación heredada puesta al día | 21 documentos reescritos contra el código; 11 afirmaciones falsas corregidas |
 | [x] | **Alertas de seguridad de dependencias** | de 44 avisos en 14 paquetes (1 crítico) a **0**, sin cambiar ninguna versión mayor |
+| [x] | **Cifrado en reposo de los datos sensibles** | `people.num_doc`, `person_biometrics.face_descriptor` y `person_biometrics.consent_text`. El documento se sigue buscando por **índice ciego** (`people.num_doc_hash`, HMAC-SHA256 derivado del `APP_KEY`, con el documento normalizado antes de hashear) y la unicidad se mudó a esa columna. Probado: el volcado ya no enseña el DNI, la búsqueda de la puerta sigue encontrando, un duplicado escrito de otra forma se rechaza, y una búsqueda parcial lanza en vez de mentir |
+| [ ] | **Correr `docufiz:cifrar-datos-sensibles` sobre los datos reales** | el comando está escrito y probado (idempotente, por lotes, con `--dry-run`); **lo ya migrado sigue en claro hasta que se ejecute** |
 | [x] | **`positions.is_signature_approver` borrada** | venía de la v1 y no la leía nadie: ni selector, ni validación, ni informe. Además mentía sobre el modelo — quién aprueba lo dicen los roles de la persona, no su cargo. Fuera de la base, del modelo, de los FormRequest, del listado, la ficha y el formulario, del importador de la v1, de los seeders y de las claves de los dos idiomas |
 
 ## Documentación

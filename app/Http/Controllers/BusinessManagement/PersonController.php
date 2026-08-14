@@ -602,12 +602,18 @@ class PersonController extends Controller
 
         // En la papelera se busca por nombre, apellido o documento: es lo que
         // se recuerda de alguien que ya no está en el listado.
+        //
+        // El nombre y el apellido se siguen buscando por trozos. El documento
+        // no puede: va cifrado y su índice ciego sólo responde a igualdad, así
+        // que hay que escribirlo entero. Se mantiene la condición —buscar por
+        // documento en la papelera es justo lo que se hace cuando ya no se
+        // recuerda el nombre— y lo que se pierde es la coincidencia parcial.
         $people = Person::onlyTrashed()
             ->with('deleter:id,name,email')
             ->when($name !== '', fn ($q) => $q->where(fn ($qq) => $qq
                 ->where('name', 'like', "%{$name}%")
                 ->orWhere('lastname', 'like', "%{$name}%")
-                ->orWhere('num_doc', 'like', "%{$name}%")))
+                ->orWhere('num_doc', $name)))
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
             ->withQueryString();

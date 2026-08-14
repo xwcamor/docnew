@@ -178,7 +178,7 @@ class PeopleImportTest extends CatalogTestCase
 
         $this->assertCount(1, $import->errors);
         $this->assertSame(0, $import->created);
-        $this->assertDatabaseMissing('people', ['num_doc' => '45871236']);
+        $this->assertSinPersonaConDocumento('45871236');
     }
 
     /** Una empresa que no esta en el catalogo se nombra en el error. */
@@ -223,7 +223,7 @@ class PeopleImportTest extends CatalogTestCase
         $import = $this->importar([$this->fila(['num_doc' => 6842865])]);
 
         $this->assertSame([], $import->errors);
-        $this->assertDatabaseHas('people', ['num_doc' => '06842865']);
+        $this->assertPersonaConDocumento('06842865');
         $this->assertStringContainsString('06842865', $import->preview[0]['notice']);
     }
 
@@ -241,7 +241,7 @@ class PeopleImportTest extends CatalogTestCase
         $import = $this->importar([$this->fila(['num_doc' => '6842865'])]);
 
         $this->assertCount(1, $import->errors);
-        $this->assertDatabaseMissing('people', ['num_doc' => '06842865']);
+        $this->assertSinPersonaConDocumento('06842865');
     }
 
     /**
@@ -353,7 +353,7 @@ class PeopleImportTest extends CatalogTestCase
         $preview->assertOk();
         $this->assertSame(1, $preview->json('summary.created'));
         $this->assertSame(0, $preview->json('summary.error_count'), 'La plantilla y el importador no se entienden.');
-        $this->assertDatabaseMissing('people', ['num_doc' => '45871236']);
+        $this->assertSinPersonaConDocumento('45871236');
 
         // Y ahora el commit.
         $this->actingAs($this->admin())->post(route('business_management.people.import'), [

@@ -73,11 +73,23 @@ class CopiarImagenesPorDocumentoTest extends TestCase
         imagedestroy($png);
     }
 
+    /**
+     * Una persona insertada EN CRUDO, con el documento en claro.
+     *
+     * Se sigue insertando por `DB::table` a proposito: asi es como quedan las
+     * filas de un volcado de la v1 —sin pasar por el modelo— y este paso tiene
+     * que encontrarlas igual. Lo que si hay que poner a mano es
+     * `num_doc_hash`: es el indice por el que se busca desde que el documento
+     * va cifrado, y un `INSERT` crudo no lo rellena solo. Sin el, la persona
+     * existe y no la encuentra nadie — que es exactamente lo que arregla
+     * `docufiz:cifrar-datos-sensibles` sobre lo que ya estaba en la base.
+     */
     private function persona(string $numDoc, string $nombre = 'Ana'): int
     {
         return DB::table('people')->insertGetId([
             'slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => 1,
             'doc_type' => 'DNI', 'num_doc' => $numDoc,
+            'num_doc_hash' => \App\Support\DocumentoBuscable::hash($numDoc),
             'name' => $nombre, 'lastname' => 'Prueba', 'is_active' => true,
             'created_at' => now(), 'updated_at' => now(),
         ]);

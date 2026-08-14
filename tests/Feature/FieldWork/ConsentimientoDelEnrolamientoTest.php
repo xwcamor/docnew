@@ -104,7 +104,18 @@ class ConsentimientoDelEnrolamientoTest extends TestCase
 
         // Y lo que SI tiene que quedar: quien acepto, cuando y sobre que texto.
         $this->assertArrayHasKey('consent_at', $apunte->new_values);
-        $this->assertSame('Texto aceptado.', $apunte->new_values['consent_text']);
+
+        // El texto queda, pero CIFRADO. El trait escribe los valores tal y como
+        // van a la base, y `consent_text` va cifrado desde que se cifraron los
+        // datos sensibles: seria absurdo cifrar la columna y dejar una copia en
+        // claro en la tabla de al lado —una que ademas nadie purga—. Se sigue
+        // leyendo con el mismo APP_KEY, que es lo que esta prueba comprueba.
+        $this->assertNotSame('Texto aceptado.', $apunte->new_values['consent_text'],
+            'el historial no puede guardar el consentimiento en claro');
+        $this->assertSame(
+            'Texto aceptado.',
+            \App\Support\CifradoEnReposo::enClaro($apunte->new_values['consent_text']),
+        );
     }
 
     /**

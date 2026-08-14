@@ -139,6 +139,6 @@ class NacionalidadEsUnPaisTest extends CatalogTestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '45871238']);
+        $this->assertPersonaConDocumento('45871238');
     }
 }

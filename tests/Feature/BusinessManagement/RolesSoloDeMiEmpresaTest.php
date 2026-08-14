@@ -86,7 +86,7 @@ class RolesSoloDeMiEmpresaTest extends CatalogTestCase
             'num_doc' => '45871250', 'company_id' => $contratista->id, 'roles' => ['supervisor'],
         ])->assertSessionHasErrors('roles');
 
-        $this->assertDatabaseMissing('people', ['num_doc' => '45871250']);
+        $this->assertSinPersonaConDocumento('45871250');
     }
 
     /** La gente de la propia empresa sí. */
@@ -99,7 +99,7 @@ class RolesSoloDeMiEmpresaTest extends CatalogTestCase
             'num_doc' => '45871251', 'company_id' => $mia->id, 'roles' => ['supervisor'],
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '45871251']);
+        $this->assertPersonaConDocumento('45871251');
     }
 
     /** Y una persona de la contratista SIN roles entra sin problema. */
@@ -113,7 +113,7 @@ class RolesSoloDeMiEmpresaTest extends CatalogTestCase
             'num_doc' => '45871252', 'company_id' => $contratista->id, 'roles' => [],
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('people', ['num_doc' => '45871252']);
+        $this->assertPersonaConDocumento('45871252');
     }
 
     /**

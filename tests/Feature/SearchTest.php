@@ -70,7 +70,12 @@ class SearchTest extends TestCase
         // Una persona se encuentra por su documento, que es como la buscan en obra.
         // Se BUSCA por el numero entero y se DEVUELVE tapado: este actor no
         // tiene `people.view_private_info`.
-        $this->getJson(route('search', ['q' => '4455']))->assertOk()
+        //
+        // El numero ENTERO, y ya no vale un trozo: el documento esta cifrado y
+        // solo se puede preguntar por el a traves de su indice ciego, que
+        // responde a igualdad y a nada mas. El nombre y el apellido siguen
+        // encontrandose por trozos.
+        $this->getJson(route('search', ['q' => '44556677']))->assertOk()
             ->assertJsonPath('people.0.label', 'Rosa Huaman')
             ->assertJsonPath('people.0.sub', 'DNI ******77');
     }
@@ -91,7 +96,7 @@ class SearchTest extends TestCase
 
         $this->actingAs($this->actor('admin', ['people.view', 'people.view_private_info']));
 
-        $this->getJson(route('search', ['q' => '4455']))->assertOk()
+        $this->getJson(route('search', ['q' => '44556677']))->assertOk()
             ->assertJsonPath('people.0.sub', 'DNI 44556677');
     }
 
