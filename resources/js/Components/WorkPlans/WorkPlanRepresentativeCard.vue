@@ -4,6 +4,7 @@ import { router } from '@inertiajs/vue3';
 import { Alert, Card, Tag, Button, Tooltip } from 'ant-design-vue';
 import { SolutionOutlined, EditOutlined } from '@ant-design/icons-vue';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
+import { useI18n } from '@/Plugins/i18n';
 
 /**
  * Quién responde por el equipo que sale a la obra.
@@ -49,9 +50,19 @@ const props = defineProps({
      */
     crew: { type: Array, default: () => [] },
     canEdit: { type: Boolean, default: false },
+    // El nombre corto de la contratista del plan, para el titulo de la
+    // tarjeta: «Representante de la HITACHI» dice por parte de quien responde,
+    // que es como se pide en obra. Sin nombre cae a la forma generica.
+    companyName: { type: String, default: null },
 });
 
+const { t } = useI18n();
+
 const persona = computed(() => props.representative?.person ?? null);
+
+const titulo = computed(() => props.companyName
+    ? t('work_plans.representative_of', { company: props.companyName })
+    : t('work_plans.representative'));
 
 /**
  * A quién se puede designar: **los que ya firmaron, y nadie más.**
@@ -123,7 +134,7 @@ const designar = (fila) => {
 
 <template>
     <Card :bodyStyle="{ padding: 18 }" class="info-card">
-        <template #title><SolutionOutlined /> {{ $t('work_plans.representative') }}</template>
+        <template #title><SolutionOutlined /> {{ titulo }}</template>
 
         <!-- La misma pastilla que llevan las otras dos columnas del tablero, y
              por el mismo motivo: el estado se ve sin leer (docs/UI.md §5). -->

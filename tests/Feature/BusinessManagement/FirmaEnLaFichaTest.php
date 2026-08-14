@@ -235,14 +235,16 @@ class FirmaEnLaFichaTest extends TestCase
     }
 
     /**
-     * Al admin la ficha NO le manda ni la cara ni el rastro.
+     * Al admin le llega el rastro pero NO la imagen.
      *
-     * Cambio de reglas del dueño del producto: «solo el super ve fotos de los
-     * trabajadores en Ver Plan». El admin conserva `people.view_private_info`
-     * —el DNI sigue siendo suyo— pero `face_url` y `audit` le llegan en nulo,
-     * y con eso la tarjeta ni pinta el icono de la camara.
+     * Son las dos puertas que dejo el dueño del producto — la primera version
+     * de esta regla le quito al admin la ficha entera y lo corrigio: «te dije
+     * que le pongas otro icono y que solo le quites la imagen, la imagen solo
+     * la ve el super». `face_url` en nulo; `audit` entero, que es con lo que
+     * el admin revisa una firma dudosa, y su icono es otro (el sello de
+     * auditoria, no la camara).
      */
-    public function test_al_admin_no_le_llega_ni_la_cara_ni_el_rastro(): void
+    public function test_al_admin_le_llega_el_rastro_pero_no_la_imagen(): void
     {
         $plan = $this->plan();
         $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
@@ -251,7 +253,18 @@ class FirmaEnLaFichaTest extends TestCase
             ->get(route('business_management.work_plans.show', $plan->slug))
             ->assertInertia(fn ($page) => $page
                 ->where('approvals.0.face_url', null)
-                ->where('approvals.0.signature.audit', null));
+                ->where('approvals.0.signature.audit.signed_at', fn ($v) => filled($v)));
+    }
+
+    /** Y la ficha lleva el icono de repuesto para cuando no hay foto. */
+    public function test_la_ficha_tiene_icono_para_el_rastro_sin_foto(): void
+    {
+        $vista = file_get_contents(resource_path('js/Components/WorkPlans/SignerFaceModal.vue'));
+
+        $this->assertStringContainsString('faceUrl || auditoria', $vista,
+            'la ficha se abre tambien sin foto: el admin ve el rastro');
+        $this->assertStringContainsString('<AuditOutlined v-else />', $vista,
+            'sin foto el icono es otro: una camara sin foto detras promete lo que no enseña');
     }
 
     /**

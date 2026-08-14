@@ -316,6 +316,7 @@ return [
     // the flow it could be deleted or made optional from the country's rules,
     // leaving a plan with people on site and nobody answering for them.
     'representative'        => 'Workers’ representative',
+    'representative_of'     => ':company representative',
     // Said INSIDE the missing-representative warning, and only once there is
     // somebody to pick: loose above the card it was a grey paragraph nobody
     // read, and before anyone has signed "picked among those who signed"

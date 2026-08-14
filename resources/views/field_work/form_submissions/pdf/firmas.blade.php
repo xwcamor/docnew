@@ -59,9 +59,11 @@
                     {{ $firma['nombre'] ?: '—' }}
                     {{-- Quien responde por la cuadrilla, dicho al lado de su
                          firma. Solo en la tabla de trabajadores: en la de
-                         aprobadores el papel de cada firma ya lo dice su rol. --}}
+                         aprobadores el papel de cada firma ya lo dice su rol.
+                         El rotulo llega armado del servicio, con el nombre
+                         corto de la empresa dentro. --}}
                     @if (!empty($firma['representante']))
-                        <br><span class="flag-rep">{{ __('work_plans.representative') }}</span>
+                        <br><span class="flag-rep">{{ $firma['representante'] }}</span>
                     @endif
                 </td>
                 @if ($conRol)

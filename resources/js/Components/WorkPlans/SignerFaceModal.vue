@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Button, Modal, Tooltip, TypographyParagraph } from 'ant-design-vue';
-import { CameraOutlined, EnvironmentOutlined } from '@ant-design/icons-vue';
+import { CameraOutlined, AuditOutlined, EnvironmentOutlined } from '@ant-design/icons-vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
 import { resumirAgente, acortarAparato } from '@/Support/agente';
 import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
@@ -25,9 +25,18 @@ import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
  *    dice nada a nadie; el punto en el plano contesta la pregunta de verdad,
  *    que es si eso está en la subestación o a treinta kilómetros.
  *
- * Todo esto lo ve SOLO EL SUPER, por decisión del dueño del producto: el
- * servidor manda `face_url` y `audit` en nulo a cualquier otro —admin
- * incluido—, así que a los demás este botón ni les aparece.
+ * Dos puertas, no una — reglas del dueño del producto:
+ *
+ *  - **La FOTO sólo la ve el super** («la imagen solo la ve el super»): el
+ *    servidor manda `face_url` en nulo a cualquier otro, y sin foto la ficha
+ *    se abre igual, sólo que sin la imagen.
+ *  - **El RASTRO lo ve quien ve datos privados** (`people.view_private_info`,
+ *    super y admin): `audit` llega en nulo a los perfiles de campo, y a ellos
+ *    el botón ni les aparece.
+ *
+ * Y el icono lo dice: cámara cuando la ficha trae la foto, sello de auditoría
+ * cuando trae sólo el rastro. Un icono de cámara que abre una ficha sin foto
+ * promete lo que no va a enseñar.
  */
 const props = defineProps({
     faceUrl:   { type: String, default: null },
@@ -119,7 +128,7 @@ const mapaEnlace = computed(() => punto.value
 </script>
 
 <template>
-    <template v-if="faceUrl">
+    <template v-if="faceUrl || auditoria">
         <Tooltip :title="$t('work_plans.sign_audit_open')">
             <Button
                 size="small"
@@ -127,7 +136,14 @@ const mapaEnlace = computed(() => punto.value
                 :aria-label="$t('work_plans.sign_audit_open')"
                 @click="abierto = true"
             >
-                <template #icon><CameraOutlined /></template>
+                <!-- La cámara sólo cuando la ficha trae la foto (super); el
+                     sello de auditoría cuando trae sólo el rastro (admin). Un
+                     icono de cámara sin foto detrás promete lo que no va a
+                     enseñar. -->
+                <template #icon>
+                    <CameraOutlined v-if="faceUrl" />
+                    <AuditOutlined v-else />
+                </template>
             </Button>
         </Tooltip>
 
@@ -140,7 +156,7 @@ const mapaEnlace = computed(() => punto.value
             destroy-on-close
         >
             <div class="firmante">
-                <div class="firmante__cara-col">
+                <div v-if="faceUrl" class="firmante__cara-col">
                     <img :src="faceUrl" class="firmante__cara" alt="">
                     <SignatureMark :signature="signature" :name="name" />
                 </div>

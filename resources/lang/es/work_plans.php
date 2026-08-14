@@ -338,6 +338,10 @@ return [
     //
     // Se dice «trabajadores», no la palabra que me inventé yo (docs/UI.md §2).
     'representative'        => 'Representante de los trabajadores',
+    // Con la empresa dicha por su nombre corto, que es como se pide en obra.
+    // Lo pidio el dueño del producto: «debe decir representante de la "xxxx"».
+    // La forma generica de arriba queda de respaldo para cuando no hay nombre.
+    'representative_of'     => 'Representante de la :company',
     // Se dice DENTRO del aviso de que falta, y solo cuando ya se puede elegir:
     // suelto encima de la tarjeta era un parrafo gris que nadie leia, y delante
     // de una lista donde todavia no ha firmado nadie, «sale de los que ya

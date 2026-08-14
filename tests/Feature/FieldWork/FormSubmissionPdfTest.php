@@ -521,12 +521,15 @@ class FormSubmissionPdfTest extends TestCase
     }
 
     /**
-     * El representante de la cuadrilla sale DICHO al lado de su firma.
+     * El representante de la cuadrilla sale DICHO al lado de su firma, y CON
+     * LA EMPRESA.
      *
-     * Lo pidio el dueño del producto mirando el papel: en la tabla de
-     * trabajadores no se distinguia quien responde por el equipo. El rotulo va
-     * SOLO en esa tabla —en la de aprobadores el papel de cada firma ya lo dice
-     * su rol— y solo en la fila del designado.
+     * Lo pidio el dueño del producto mirando el papel, en dos tiempos: primero
+     * que se distinguiera quien responde por el equipo, y despues que el
+     * rotulo dijera POR PARTE DE QUIEN — «debe decir representante de la
+     * "xxxx" (nombre corto de la empresa)». El rotulo va SOLO en la tabla de
+     * trabajadores —en la de aprobadores el papel de cada firma ya lo dice su
+     * rol— y solo en la fila del designado.
      */
     public function test_el_representante_sale_dicho_junto_a_su_firma(): void
     {
@@ -535,21 +538,24 @@ class FormSubmissionPdfTest extends TestCase
         $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
 
         $deTrabajadores = collect($datos['firmas']['trabajadores']);
+        $rotulo = $deTrabajadores->first(fn ($f) => filled($f['representante']))['representante'] ?? null;
 
-        $this->assertTrue(
-            $deTrabajadores->contains(fn ($f) => $f['representante'] === true),
-            'la firma de la representante tiene que llevar su rotulo',
+        $this->assertNotNull($rotulo, 'la firma de la representante tiene que llevar su rotulo');
+        $this->assertStringContainsString(
+            $escenario['entrega']->workPlan->company->name,
+            $rotulo,
+            'el rotulo dice por parte de que empresa responde, con su nombre corto',
         );
 
         foreach ($datos['firmas']['aprobadores'] as $firma) {
-            $this->assertFalse((bool) ($firma['representante'] ?? false),
+            $this->assertNull($firma['representante'] ?? null,
                 'en la tabla de aprobadores el papel ya lo dice el rol');
         }
 
-        // Y la plantilla lo pinta con la palabra del sistema, no una nueva.
+        // Y la plantilla pinta el rotulo que llega armado del servicio.
         $parcial = file_get_contents(resource_path('views/field_work/form_submissions/pdf/firmas.blade.php'));
 
-        $this->assertStringContainsString("work_plans.representative", $parcial);
+        $this->assertStringContainsString("\$firma['representante']", $parcial);
     }
 
     /**

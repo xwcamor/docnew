@@ -740,6 +740,14 @@ class FormSubmissionPdfService
         // nombre es el que responde por el equipo ante quien autoriza.
         $representante = $entrega->workPlan?->crew_representative_person_id;
 
+        // Y CON LA EMPRESA DICHA: «Representante de la HITACHI», no «de los
+        // trabajadores» — tambien palabras suyas. El nombre corto de la
+        // contratista del plan; sin el, la forma generica.
+        $nombreEmpresa = $entrega->workPlan?->company?->name;
+        $rotuloRepresentante = filled($nombreEmpresa)
+            ? __('work_plans.representative_of', ['company' => $nombreEmpresa])
+            : __('work_plans.representative');
+
         $filas = $eventos->map(fn (SignatureEvent $e) => [
             'nombre'     => $e->person?->full_name,
             // De que grupo es esta firma y, si es una aprobacion, con que rol
@@ -754,10 +762,14 @@ class FormSubmissionPdfService
                 ? ($aprobaciones[$e->signable_id] ?? null)
                 : null,
             // La marca del representante, SOLO en la tabla de trabajadores: en
-            // la de aprobadores el papel de cada firma ya lo dice su rol.
+            // la de aprobadores el papel de cada firma ya lo dice su rol. Va
+            // el ROTULO ya armado (o null), no un booleano: el texto lleva
+            // dentro el nombre de la empresa y armarlo aqui deja a la
+            // plantilla solo pintarlo.
             'representante' => $e->signable_type === $deTrabajador
                 && $representante !== null
-                && $e->person_id === $representante,
+                && $e->person_id === $representante
+                ? $rotuloRepresentante : null,
             // Enmascarado en el SERVICIO, no en la plantilla: un PDF se
             // descarga y se reenvia, y taparlo al pintar dejaria el numero
             // entero en cualquier sitio donde se pase el dato sin pintarlo.

@@ -355,18 +355,19 @@ class WorkPlanController extends Controller
     }
 
     /**
-     * Quien ve las caras y el rastro de las firmas en la ficha del plan.
+     * Quien ve LA FOTO de quien firmo en la ficha del plan.
      *
-     * SOLO EL SUPER, por decision del dueño del producto («cambio de reglas,
-     * solo el super ve fotos de los trabajadores en Ver Plan»). Antes iba con
-     * `people.view_private_info` —que tambien tiene el admin del workspace— y
-     * el DNI enmascarado sigue con ese permiso: lo que se endurecio es la
-     * FOTO, no el documento.
+     * SOLO EL SUPER, por decision del dueño del producto: «la imagen solo la
+     * ve el super». Son dos puertas y no una, y lo aclaro el mismo al ver la
+     * primera version, que le quito al admin la ficha entera:
      *
-     * Una sola puerta para las tres salidas: `face_url` de cuadrilla y
-     * aprobadores, el rastro `audit` de la ficha de la firma, y la ruta
-     * `signer_face` que sirve la imagen (esa ademas con `role:super` en el
-     * middleware, porque un payload en nulo no protege una URL adivinable).
+     *   · la IMAGEN (`face_url` y la ruta `signer_face`, esa ademas con
+     *     `role:super` en el middleware porque un payload en nulo no protege
+     *     una URL adivinable) — solo super;
+     *   · el RASTRO de la firma (`audit`: hora, coincidencia, IP, aparato,
+     *     mapa) — sigue con `people.view_private_info`, como el DNI: el admin
+     *     del workspace lo necesita para revisar una firma dudosa, y su ficha
+     *     se abre con otro icono, sin foto dentro.
      */
     protected function puedeVerCaras(): bool
     {
@@ -551,10 +552,10 @@ class WorkPlanController extends Controller
      */
     protected function comoSeFirmo(string $morph, iterable $ids): \Illuminate\Support\Collection
     {
-        // El rastro completo solo para quien puede ver caras: es el mismo
-        // material —donde estaba una persona y con que aparato— y va con la
-        // misma puerta.
-        $puedeVerCaras = $this->puedeVerCaras();
+        // El rastro completo con `people.view_private_info` —super y admin—
+        // como el DNI: es lo que se mira para revisar una firma dudosa. La
+        // FOTO no viaja por aqui; esa tiene su propia puerta, solo super.
+        $puedeVerRastro = \App\Support\PrivateInfo::visibleFor(request()->user());
 
         return \App\Models\SignatureEvent::query()
             ->where('signable_type', $morph)
@@ -577,7 +578,7 @@ class WorkPlanController extends Controller
                 // aqui y no en otra consulta porque es la misma fila: quien
                 // firmo, con que, desde donde y con que aparato son la misma
                 // pregunta.
-                'audit' => $puedeVerCaras ? [
+                'audit' => $puedeVerRastro ? [
                     'signed_at'       => $e->signed_at,
                     'match_percent'   => $e->match_percent,
                     'ip'              => $e->ip_address,

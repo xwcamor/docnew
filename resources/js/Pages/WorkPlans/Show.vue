@@ -675,6 +675,7 @@ const irAlRepresentante = () => {
                                 :representative="representative"
                                 :crew="crew"
                                 :can-edit="canSetup"
+                                :company-name="workPlan.company?.name"
                             />
                         </div>
 
@@ -725,6 +726,7 @@ const irAlRepresentante = () => {
                             :representative="representative"
                             :crew="crew"
                             :can-edit="canSetup"
+                            :company-name="workPlan.company?.name"
                         />
                     </div>
                 </div>
