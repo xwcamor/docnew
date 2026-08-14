@@ -134,6 +134,11 @@ class LegacyDatabaseFixture
                   'epp_items', 'ihm_items', 'ihm_tools', 'ptf_questions'] as $tabla) {
             $esquema->create($tabla, function ($t) {
                 $t->id(); $t->string('name_es'); $t->string('name_pt')->nullable(); $t->string('name_en')->nullable();
+                // Las dos banderas de la v1: el formulario de alla filtraba
+                // `not_deleted.is_active`, y el migrador tiene que hacer lo
+                // mismo — sin `is_active` en la maqueta, ese filtro no se
+                // podria probar (y de hecho el fallo real fue no filtrarlo).
+                $t->boolean('is_active')->default(true);
                 $t->boolean('is_deleted')->default(false);
             });
         }
@@ -378,7 +383,7 @@ class LegacyDatabaseFixture
         ]);
 
         $catalogo = fn (array $nombres) => collect($nombres)
-            ->map(fn ($n, $i) => ['id' => $i + 1, 'name_es' => $n, 'name_pt' => $n, 'name_en' => $n, 'is_deleted' => false])
+            ->map(fn ($n, $i) => ['id' => $i + 1, 'name_es' => $n, 'name_pt' => $n, 'name_en' => $n, 'is_active' => true, 'is_deleted' => false])
             ->all();
 
         $viejo->table('ast_activities')->insert($catalogo(['Izaje', 'Limpieza']));
@@ -393,6 +398,13 @@ class LegacyDatabaseFixture
         $viejo->table('ihm_items')->insert($catalogo(['Condiciones generales', 'Guardas', 'Mango empunadora']));
         $viejo->table('ihm_tools')->insert($catalogo(['Amoladora']));
         $viejo->table('ptf_questions')->insert($catalogo(['Tienes permiso?', 'Conoces la emergencia?']));
+        // La version vieja de una pregunta editada: desactivada, no borrada.
+        // Es exactamente lo que el formulario de la v1 nunca enseñaba y lo que
+        // el migrador barria por error.
+        $viejo->table('ptf_questions')->insert([[
+            'id' => 90, 'name_es' => 'Pregunta vieja desactivada', 'name_pt' => '', 'name_en' => '',
+            'is_active' => false, 'is_deleted' => false,
+        ]]);
 
         $viejo->table('severities')->insert([['id' => 1, 'name' => 'c1', 'is_deleted' => false], ['id' => 3, 'name' => 'c3', 'is_deleted' => false]]);
         $viejo->table('probabilities')->insert([['id' => 1, 'name' => 'p1', 'is_deleted' => false], ['id' => 2, 'name' => 'p2', 'is_deleted' => false]]);

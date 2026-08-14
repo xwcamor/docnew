@@ -472,15 +472,28 @@ class FormTemplatesSeeder extends Seeder
                 }
             }
 
-            // El PTF que ya estaba sembrado gana sus bloques, si nadie le
-            // configuro unos propios. Es la misma politica del `extra` del IHM:
-            // aditiva y sin pisar — un cliente que ya armo sus grupos desde el
-            // editor no ve cambiar nada.
-            if ($campo->field_type === 'question_bank'
-                && blank($config['groups'] ?? null)
-                && $this->gruposDelPtf() !== []) {
-                $config['groups'] = $this->gruposDelPtf();
-                $tocado = true;
+            // El PTF que ya estaba sembrado gana sus bloques — y los bloques
+            // NUESTROS se refrescan contra el catalogo REAL del campo.
+            //
+            // Lo segundo es lo que aprendimos por las malas: el catalogo del
+            // cliente puede no decir las frases del repositorio letra por letra
+            // (su v1 editaba preguntas), asi que los items de cada bloque se
+            // REMAPEAN por texto normalizado a las preguntas que el campo tiene
+            // de verdad. Un bloque que apunta a frases que no existen no agrupa
+            // nada.
+            //
+            // Unos grupos armados por el cliente en el editor no se tocan: solo
+            // se refrescan los que tienen nuestros titulos.
+            if ($campo->field_type === 'question_bank' && $this->gruposDelPtf() !== []) {
+                $bloques = $this->bloquesRemapeados(
+                    \App\Support\Catalogo::valores($config['questions'] ?? []),
+                );
+
+                if ((blank($config['groups'] ?? null) || $this->sonNuestrosBloques($config['groups']))
+                    && ($config['groups'] ?? null) !== $bloques) {
+                    $config['groups'] = $bloques;
+                    $tocado = true;
+                }
             }
 
             $respuestas = $config['answers'] ?? null;
@@ -525,6 +538,68 @@ class FormTemplatesSeeder extends Seeder
      *
      * @return array<int, array{name: string, items: array<int, string>}>
      */
+    /**
+     * Los bloques del PTF con sus items REMAPEADOS al catalogo real del campo.
+     *
+     * El reparto del repositorio nombra las preguntas con las frases de la v1
+     * sembrada; el catalogo de una instalacion migrada trae las frases de SU
+     * base, que pueden diferir en tildes, espacios o mayusculas. Se casan por
+     * texto normalizado y el bloque se queda con la frase DEL CATALOGO, que es
+     * la que casa con lo respondido. Lo que no casa se queda fuera del bloque
+     * —saldra al final, sin rotulo— en vez de apuntar a una frase que no existe.
+     */
+    protected function bloquesRemapeados(array $preguntasDelCampo): array
+    {
+        $porNorma = [];
+
+        foreach ($preguntasDelCampo as $pregunta) {
+            $porNorma[$this->norma($pregunta)] ??= $pregunta;
+        }
+
+        return array_map(function (array $bloque) use ($porNorma) {
+            $bloque['items'] = array_values(array_filter(array_map(
+                fn ($item) => $porNorma[$this->norma($item)] ?? null,
+                $bloque['items'],
+            )));
+
+            return $bloque;
+        }, $this->gruposDelPtf());
+    }
+
+    /** Los grupos que puso ESTE seeder: sus titulos en es son los nuestros. */
+    protected function sonNuestrosBloques(mixed $grupos): bool
+    {
+        if (! is_array($grupos)) {
+            return false;
+        }
+
+        $nuestros = array_flip(array_map(
+            fn ($b) => $this->norma($b['name']['es'] ?? ''),
+            $this->gruposDelPtf(),
+        ));
+
+        foreach ($grupos as $grupo) {
+            $nombre = is_array($grupo['name'] ?? null)
+                ? ($grupo['name']['es'] ?? '')
+                : ($grupo['name'] ?? '');
+
+            if (! isset($nuestros[$this->norma($nombre)])) {
+                return false;
+            }
+        }
+
+        return $grupos !== [];
+    }
+
+    /** Minusculas, sin tildes y con los espacios prensados: para casar frases. */
+    protected function norma(mixed $texto): string
+    {
+        $limpio = mb_strtolower(trim((string) $texto));
+        $limpio = preg_replace('/\s+/u', ' ', $limpio) ?? $limpio;
+
+        return preg_replace('/\p{Mn}/u', '', \Normalizer::normalize($limpio, \Normalizer::FORM_D) ?: $limpio) ?? $limpio;
+    }
+
     /**
      * Los cinco bloques del Pare y Tome 5, con sus iconos reales.
      *

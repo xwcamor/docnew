@@ -76,6 +76,10 @@ class MigrateLegacyFormatsCommand extends Command
         $this->construirEpp($constructor, $base, $catalogos);
         $this->construirIhm($constructor, $base, $catalogos);
 
+        // Y lo YA migrado se cura: las corridas anteriores de este comando
+        // trajeron tambien lo desactivado. Ver el metodo.
+        $this->retirarLoQueLaV1NoEnsenaba();
+
         $this->newLine();
         $this->table(
             ['Formato', 'Version', 'Estado', 'Campos'],
@@ -87,12 +91,121 @@ class MigrateLegacyFormatsCommand extends Command
         return self::SUCCESS;
     }
 
+    /**
+     * Quita de los catalogos ya migrados lo que el formulario de la v1 no
+     * enseñaba.
+     *
+     * LAS CORRIDAS ANTERIORES de este comando filtraban solo `is_deleted`, y el
+     * formulario de alla filtraba ademas `is_active`: cada pregunta o item que
+     * un administrador edito dejaba su version vieja desactivada en la tabla, y
+     * todas entraron al catalogo migrado. El dueño del producto lo vio en su
+     * PTF: «ni siquiera son esas preguntas».
+     *
+     * LA LIMPIEZA ES QUIRURGICA, no un reemplazo. Se retira EXACTAMENTE el
+     * texto que la base vieja marca como desactivado o borrado —y que no exista
+     * tambien como activo, que un texto puede haberse reactivado— y no se toca
+     * nada mas: lo que el cliente haya añadido desde el editor nuevo no esta en
+     * la base vieja y sobrevive intacto. Las respuestas ya dadas a una pregunta
+     * retirada tampoco se pierden: viven en la entrega con su texto, y el PDF
+     * las imprime al final marcadas como fuera de catalogo.
+     *
+     * Corre en cada `--datos`, y las corridas siguientes no encuentran nada que
+     * retirar: es idempotente por construccion.
+     */
+    protected function retirarLoQueLaV1NoEnsenaba(): void
+    {
+        $viejo = DB::connection('legacy');
+
+        // texto malo = desactivado o borrado en la v1, salvo que exista
+        // tambien una fila activa con el mismo texto.
+        $malos = function (string $tabla, string $columna = 'name_es') use ($viejo): array {
+            $inactivos = $viejo->table($tabla)
+                ->where(fn ($q) => $q->where('is_active', 0)->orWhere('is_deleted', 1))
+                ->pluck($columna)->filter()->all();
+
+            $activos = $viejo->table($tabla)
+                ->where('is_active', 1)->where('is_deleted', 0)
+                ->pluck($columna)->filter()->flip()->all();
+
+            return array_values(array_filter($inactivos, fn ($t) => ! isset($activos[$t])));
+        };
+
+        $porClave = [
+            'questions'  => $malos('ptf_questions'),
+            'activities' => $malos('ast_activities'),
+            'dangers'    => $malos('ast_dangers'),
+            'risks'      => $malos('ast_risks'),
+            'controls'   => $malos('ast_controls'),
+            'items'      => array_merge($malos('epp_items'), $malos('ihm_items')),
+            'tools'      => $malos('ihm_tools'),
+        ];
+
+        $retirados = 0;
+
+        $campos = \App\Models\FormField::whereHas(
+            'section.formTemplate',
+            fn ($q) => $q->withTrashed()->whereIn('code', ['AST', 'PTF', 'EPP', 'IHM']),
+        )->get();
+
+        foreach ($campos as $campo) {
+            $config = $campo->config ?? [];
+            $tocado = false;
+
+            foreach ($porClave as $clave => $textosMalos) {
+                $lista = $config[$clave] ?? null;
+
+                if (! is_array($lista) || $textosMalos === []) {
+                    continue;
+                }
+
+                // Por VALOR, que las entradas pueden llevar tono o rotulo.
+                $limpia = array_values(array_filter(
+                    $lista,
+                    function ($entrada) use ($textosMalos) {
+                        $valor = is_array($entrada) ? ($entrada['value'] ?? null) : $entrada;
+
+                        return ! in_array($valor, $textosMalos, true);
+                    },
+                ));
+
+                if (count($limpia) !== count($lista)) {
+                    $retirados += count($lista) - count($limpia);
+                    $config[$clave] = $limpia;
+                    $tocado = true;
+                }
+            }
+
+            if ($tocado) {
+                $campo->update(['config' => $config]);
+            }
+        }
+
+        if ($retirados > 0) {
+            $this->info("Catalogos curados: {$retirados} entrada(s) que la v1 tenia desactivadas.");
+        }
+    }
+
     /** Lee los catalogos de la base anterior. Solo lectura, nunca escribe alli. */
     protected function leerCatalogos(): array
     {
         $viejo = DB::connection('legacy');
+
+        // COMO LOS LEIA EL FORMULARIO DE LA V1, no como estan en la tabla.
+        //
+        // Aqui hubo un error que el dueño del producto vio en su PTF: se
+        // filtraba solo `is_deleted` y el formulario de alla filtraba ademas
+        // `is_active` (`f2_documents_controller.rb`: `not_deleted.is_active`).
+        // Cada pregunta que un administrador EDITO en la v1 dejaba su version
+        // vieja desactivada en la tabla, y este comando las barria todas: el
+        // PTF migrado enseñaba preguntas que el formulario viejo no enseñaba
+        // desde hacia años. «Ni siquiera son esas preguntas», con razon.
+        //
+        // El pais no se filtra a proposito: esta migracion es de instalaciones
+        // de un solo pais (se ancla a PE arriba), y filtrar por un id de pais
+        // de la base vieja adivinado seria peor que traer el catalogo entero.
         $nombres = fn (string $tabla) => $viejo->table($tabla)
             ->where('is_deleted', 0)
+            ->where('is_active', 1)
             ->orderBy('id')
             ->pluck('name_es')
             ->filter()
@@ -115,8 +228,12 @@ class MigrateLegacyFormatsCommand extends Command
             'herramientas'  => $nombres('ihm_items'),
             'items_ihm'     => $nombres('ihm_tools'),
             'preguntas'     => $viejo->table('ptf_questions')->where('is_deleted', 0)
+                                ->where('is_active', 1)
                                 ->orderBy('id')->pluck('name_es')->filter()->values()->all(),
-            // severities y probabilities usan `name` (c1..c5), no los tres idiomas.
+            // severities y probabilities usan `name` (c1..c5), no los tres
+            // idiomas. Y SIN filtrar `is_active`: el formulario de la v1
+            // tampoco lo hacia con estas dos (`Probability.not_deleted` a
+            // secas) — son los ejes de la matriz, no un catalogo que se cure.
             'severidades'   => $viejo->table('severities')->where('is_deleted', 0)
                                 ->orderBy('id')->pluck('name')->values()->all(),
             'probabilidades' => $viejo->table('probabilities')->where('is_deleted', 0)
