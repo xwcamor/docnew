@@ -142,6 +142,47 @@ class PtfPorBloquesTest extends TestCase
     }
 
     /**
+     * EL NUMERO SIGUE AL ORDEN EN QUE SE LEE, no al del catalogo.
+     *
+     * El dueño del producto lo vio en su papel: el bloque 1 numeraba
+     * «1, 2, 3, 17» porque su cuarta pregunta se añadio tarde a la tabla de la
+     * v1 y el catalogo migrado viene por id. La fila del papel se numera
+     * recorriendo los bloques, y el resumen de observaciones usa esos mismos
+     * numeros — o señalaria filas que no existen.
+     */
+    public function test_la_numeracion_recorre_los_bloques_y_no_el_catalogo(): void
+    {
+        // El catalogo trae la pregunta del bloque 1 AL FINAL, como el migrado.
+        $campo = $this->campo([
+            'questions' => ['¿B1?', '¿C1?', '¿C2?', '¿B2?'],
+            'answers'   => ['Si', 'No'],
+            'groups'    => [
+                ['name' => 'B', 'items' => ['¿B1?', '¿B2?']],
+                ['name' => 'C', 'items' => ['¿C1?', '¿C2?']],
+            ],
+        ]);
+
+        $respuesta = new \App\Models\FormAnswer([
+            'row_index' => 0,
+            'value_json' => [
+                ['question' => '¿B2?', 'answer' => 'No'],
+            ],
+        ]);
+
+        $datos = QuestionBankPdf::datos($campo, collect([$respuesta]));
+
+        $porTexto = collect($datos['preguntas'])->keyBy('texto');
+
+        $this->assertSame(1, $porTexto['¿B1?']['numero']);
+        $this->assertSame(2, $porTexto['¿B2?']['numero'], 'la cuarta del catalogo es la SEGUNDA del papel');
+        $this->assertSame(3, $porTexto['¿C1?']['numero']);
+        $this->assertSame(4, $porTexto['¿C2?']['numero']);
+
+        // Y el resumen señala con el numero del papel, no con el del catalogo.
+        $this->assertSame([2], $datos['observadas']);
+    }
+
+    /**
      * EL PTF SEMBRADO trae los cinco bloques del papel, con sus iconos reales.
      *
      * Es lo que el dueño del producto pidio con la foto del papel en la mano:

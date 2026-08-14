@@ -138,13 +138,26 @@ final class QuestionBankPdf
             $preguntas[] = self::pregunta($par['texto'], $par['respuesta'], $posibles, true, $config);
         }
 
+        // EL NUMERO SIGUE AL ORDEN EN QUE SE LEE, no al del catalogo.
+        //
+        // Numerar por posicion en el catalogo salia bien de chiripa mientras el
+        // catalogo venia ordenado por bloques; en los migrados viene por id, y
+        // el dueño del producto lo vio en su papel: el bloque 1 decia
+        // «1, 2, 3, 17» porque su cuarta pregunta se añadio tarde a la tabla.
+        // El numero es la FILA del papel —el que usa el resumen para señalar
+        // («2 observaciones — preguntas 7, 12»)— asi que se asigna recorriendo
+        // los bloques en su orden, que es el orden en que la hoja se lee.
+        $grupos = self::grupos($config, $preguntas);
         $observadas = [];
+        $numero = 0;
 
-        foreach ($preguntas as $orden => $pregunta) {
-            $preguntas[$orden]['numero'] = $orden + 1;
+        foreach ($grupos as $grupo) {
+            foreach ($grupo['indices'] as $indice) {
+                $preguntas[$indice]['numero'] = ++$numero;
 
-            if ($pregunta['observacion']) {
-                $observadas[] = $orden + 1;
+                if ($preguntas[$indice]['observacion']) {
+                    $observadas[] = $numero;
+                }
             }
         }
 
@@ -152,7 +165,7 @@ final class QuestionBankPdf
 
         return [
             'preguntas'     => $preguntas,
-            'grupos'        => self::grupos($config, $preguntas),
+            'grupos'        => $grupos,
             'total'         => count($preguntas),
             'respondidas'   => $respondidas,
             'sin_responder' => count($preguntas) - $respondidas,
