@@ -478,7 +478,12 @@ const irAlRepresentante = () => {
                             <div class="wp-fact">
                                 <span class="wp-fact__label"><DashboardOutlined /> {{ $t('work_plans.is_done') }}</span>
                                 <span class="wp-fact__value">
-                                    <Tag :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
+                                    <!-- Con `wp-statetag`: la etiqueta de Ant sale
+                                         a 12px de fabrica y quedaba enana entre
+                                         vecinos de 17 — el dato mas mirado de la
+                                         fila era el mas chico. Es la MISMA clase
+                                         que ya curo esto en la franja del titulo. -->
+                                    <Tag class="wp-statetag" :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
                                         {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
                                     </Tag>
                                 </span>
@@ -563,7 +568,7 @@ const irAlRepresentante = () => {
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.is_done') }}</span>
                             <span class="spec-cell__value">
-                                <Tag :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
+                                <Tag class="wp-statetag" :color="workPlan.is_done ? 'success' : 'warning'" :bordered="false">
                                     {{ workPlan.is_done ? $t('work_plans.state_done') : $t('work_plans.state_pending') }}
                                 </Tag>
                             </span>
@@ -765,6 +770,15 @@ const irAlRepresentante = () => {
     word-break: break-word; overflow-wrap: anywhere;
 }
 .wp-fact__value small { display: block; font-weight: 400; }
+/* La AUSENCIA de un dato no se viste de dato. `muted` a secas perdia contra
+   `.wp-fact__value` —misma especificidad, declarada antes— y «Este trabajo no
+   tiene orden de servicio» salia en negrita de 17px, igual que un valor real.
+   El selector compuesto desempata sin `!important`. */
+.wp-fact__value.muted,
+.spec-cell__value.muted {
+    font-size: 0.875rem; font-weight: 400;
+    color: var(--color-text-muted, #6A6D70);
+}
 
 /* ── La franja de estado ─────────────────────────────────────────────────── */
 /* Esta clase existía y no la usaba nadie: las etiquetas de estado salían con el
