@@ -51,7 +51,12 @@ class PersonBiometric extends Model
      * la version: la version sirve para agrupar, el texto para responder a «¿a
      * que dijo que si?» cuando hayan pasado dos años y tres redacciones.
      */
-    public const CONSENT_VERSION = '2026-08-v1';
+    // v2: la primera redaccion decia «lo que se guarda NO es tu fotografia» a
+    // secas, y la camara de la firma SI puede guardar una foto como evidencia
+    // del acto — ademas de la firma trazada, que se guarda y se reutiliza. La
+    // v2 autoriza las tres cosas: descriptor, foto del momento de firmar y
+    // firma trazada.
+    public const CONSENT_VERSION = '2026-08-v2';
 
     /** No se expone nunca al frontend salvo en la verificacion 1:1. */
     protected $hidden = ['face_descriptor'];

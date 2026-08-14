@@ -20,15 +20,25 @@ return [
     'consent' => [
         'title'    => 'Permission to register your face',
         'text'     => ':name, to sign safety documents with face recognition we need to register your face once. '
-            . 'What is stored is NOT your photograph: it is a list of numbers describing features of your face, and your face cannot be reconstructed from it. '
-            . 'It is used only to check that it is you when you sign, and to record that signature on the work documents. '
-            . 'Your company keeps it while you work with them and for as long as the law requires those documents to be kept. '
+            . 'That registration does not store your photograph: it stores a list of numbers describing features of your face, and your face cannot be reconstructed from it. It is used only to check that it is you when you sign. '
+            . 'At the moment of signing a photograph of you may be taken, as a record that it was you; that photo is kept with your signature on the work documents. '
+            . 'Your drawn signature is also stored: you are asked for it once and it is the one that appears on every document you sign. '
+            . 'Your company keeps all of this while you work with them and for as long as the law requires those documents to be kept. '
             . 'You can ask at any time for your registered face to be deleted; from then on you will sign another way. '
             . 'If you would rather not register it, say so: nothing is stored and your supervisor will take your signature by other means.',
-        'checkbox' => 'I have read this and I authorise my face to be registered for signing.',
+        'checkbox' => 'I have read this and I authorise my face, my signature and the photo taken when signing to be recorded.',
         'accept'   => 'I accept',
         'decline'  => 'I do not accept',
         'declined' => 'No face was registered. Tell your supervisor so you can sign another way.',
+    ],
+
+    // The signatures album — SUPER ONLY. See the note in the Spanish file.
+    'photos' => [
+        'title'     => 'Signature photos',
+        'subtitle'  => 'The plan, the worker and the photo taken when signing',
+        'empty'     => 'No signature has left a photo yet.',
+        'no_photo'  => 'The photo is no longer available',
+        'open_plan' => 'View plan',
     ],
 
     'sign' => [

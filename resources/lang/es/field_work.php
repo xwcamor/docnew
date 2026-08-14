@@ -22,9 +22,14 @@ return [
      *
      *   · en segunda persona y nombrando a quien lo lee — un consentimiento que
      *     habla de «el titular de los datos» no lo lee nadie en una obra;
-     *   · dice QUÉ se guarda y qué NO, y ahí está el punto que casi siempre se
-     *     omite: no se guarda la fotografía, se guarda una lista de números de
-     *     la que no se puede reconstruir la cara;
+     *   · dice QUÉ se guarda y qué NO, sin mentir por simplificar: del
+     *     REGISTRO de la cara no queda fotografía —queda una lista de números
+     *     de la que no se puede reconstruir el rostro—, pero al FIRMAR sí se
+     *     puede tomar una foto como constancia del acto, y la firma trazada se
+     *     guarda y se estampa en los documentos. La primera redacción decía «NO
+     *     es tu fotografía» a secas y eso contradecía a la cámara de la firma:
+     *     un consentimiento que promete menos de lo que el sistema hace no
+     *     cubre nada;
      *   · dice para qué sirve, quién lo tiene, cuánto dura y cómo se retira;
      *   · y dice que se puede decir que no, con qué consecuencia. Un
      *     consentimiento sin alternativa no es consentimiento.
@@ -41,15 +46,34 @@ return [
     'consent' => [
         'title'    => 'Permiso para registrar tu cara',
         'text'     => ':name, para firmar los documentos de seguridad con reconocimiento facial necesitamos registrar tu cara una vez. '
-            . 'Lo que se guarda NO es tu fotografía: es una lista de números que describe rasgos de tu rostro, y a partir de ella no se puede reconstruir tu cara. '
-            . 'Sirve sólo para comprobar que eres tú cuando firmas, y para dejar constancia de esa firma en los documentos del trabajo. '
-            . 'Lo conserva tu empresa mientras trabajes con ella y durante el plazo que la ley le exija guardar esos documentos. '
+            . 'De ese registro no se guarda tu fotografía: se guarda una lista de números que describe rasgos de tu rostro, y a partir de ella no se puede reconstruir tu cara. Sirve sólo para comprobar que eres tú cuando firmas. '
+            . 'En el momento de firmar sí se te puede tomar una fotografía, como constancia de que fuiste tú; esa foto queda guardada junto a tu firma en los documentos del trabajo. '
+            . 'Tu firma trazada también se guarda: se te pide una sola vez y es la que aparece en cada documento que firmes. '
+            . 'Todo esto lo conserva tu empresa mientras trabajes con ella y durante el plazo que la ley le exija guardar esos documentos. '
             . 'Puedes pedir en cualquier momento que se borre tu cara registrada; a partir de ahí firmarás de otra forma. '
             . 'Si prefieres no registrarla, dilo: no se guarda nada y el supervisor recogerá tu firma por otro medio.',
-        'checkbox' => 'He leído esto y autorizo que se registre mi cara para firmar.',
+        'checkbox' => 'He leído esto y autorizo que se registren mi cara, mi firma y la foto del momento de firmar.',
         'accept'   => 'Acepto',
         'decline'  => 'No acepto',
         'declined' => 'No se registró ninguna cara. Avisa al supervisor para firmar de otra forma.',
+    ],
+
+    /*
+     * El album de las firmas — SOLO SUPER.
+     *
+     * Enseña exactamente tres cosas: el plan, el trabajador y la foto tomada
+     * al firmar (con su hora). Los parametros de la captura —coincidencia,
+     * coordenadas, IP, aparato— no salen aqui ni en ningun log, por regla del
+     * dueño del producto.
+     */
+    'photos' => [
+        'title'     => 'Fotos de firmas',
+        'subtitle'  => 'El plan, el trabajador y la foto tomada al firmar',
+        'empty'     => 'Ninguna firma dejó foto todavía.',
+        // La fila consta pero el archivo ya no esta en el disco: se dice, no
+        // se deja un recuadro roto.
+        'no_photo'  => 'La foto ya no está disponible',
+        'open_plan' => 'Ver plan',
     ],
 
     'sign' => [

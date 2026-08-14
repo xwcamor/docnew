@@ -199,6 +199,45 @@ class ConsentimientoDelEnrolamientoTest extends TestCase
     }
 
     /**
+     * El consentimiento no promete menos de lo que el sistema hace.
+     *
+     * La primera redaccion decia «lo que se guarda NO es tu fotografia» a
+     * secas — y la camara de la firma SI guarda una foto como evidencia del
+     * acto, y la firma trazada se guarda y se reutiliza. Un consentimiento que
+     * niega lo que el sistema hace no cubre nada: lo vio el dueño del producto
+     * («entonces estas contradiciendo»). La v2 autoriza las tres cosas.
+     */
+    public function test_el_texto_autoriza_la_foto_del_momento_y_la_firma_trazada(): void
+    {
+        foreach (['es' => ['fotografía', 'firma trazada'], 'en' => ['photograph', 'drawn signature']] as $idioma => $frases) {
+            $texto = (require resource_path("lang/{$idioma}/field_work.php"))['consent']['text'];
+
+            foreach ($frases as $frase) {
+                $this->assertStringContainsString($frase, $texto,
+                    "el consentimiento en {$idioma} tiene que nombrar «{$frase}»: es algo que el sistema guarda");
+            }
+        }
+    }
+
+    /**
+     * La version que manda la pantalla es la del modelo.
+     *
+     * Son dos constantes a proposito —la pantalla no puede leer PHP— pero si se
+     * separan, lo aceptado se apunta con una version que no corresponde al
+     * texto. Esta prueba es lo que las mantiene gemelas.
+     */
+    public function test_la_pantalla_manda_la_version_vigente(): void
+    {
+        $vista = file_get_contents(resource_path('js/Pages/FieldWork/Sign.vue'));
+
+        $this->assertStringContainsString(
+            "const CONSENT_VERSION = '" . PersonBiometric::CONSENT_VERSION . "'",
+            $vista,
+            'la constante de Sign.vue tiene que subir junto a PersonBiometric::CONSENT_VERSION',
+        );
+    }
+
+    /**
      * El decorado, con la persona SIN cara registrada.
      *
      * @return array{0:\App\Models\User,1:\App\Models\Person}

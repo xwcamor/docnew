@@ -148,7 +148,9 @@ const textoConsentimiento = computed(
     () => t('field_work.consent.text', { name: fila.value?.titulo ?? '' }),
 );
 
-const CONSENT_VERSION = '2026-08-v1';
+// Espejo de PersonBiometric::CONSENT_VERSION. Sube junto al texto: la v2
+// autoriza también la foto del momento de firmar y la firma trazada.
+const CONSENT_VERSION = '2026-08-v2';
 
 /** Abre el aviso y espera. Resuelve a true sólo si acepta a conciencia. */
 function pedirConsentimiento() {
