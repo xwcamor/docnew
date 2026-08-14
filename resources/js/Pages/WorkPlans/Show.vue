@@ -689,6 +689,7 @@ const irAlRepresentante = () => {
                             :countries="setupOptions.countries ?? []"
                             :doc-types-by-country="setupOptions.docTypesByCountry ?? {}"
                             :plan-country-id="setupOptions.planCountryId ?? null"
+                            :doc-minimum="setupOptions.docMinimum ?? null"
                             :can-create-person="canSetup && can('people.create')"
                         />
                     </div>
@@ -720,6 +721,7 @@ const irAlRepresentante = () => {
                         :representative="representative"
                         :can-edit="canSetup"
                         :can-sign="fieldWork.canSign"
+                        :doc-minimum="setupOptions.docMinimum ?? null"
                         @ir-al-representante="irAlRepresentante"
                     />
 

@@ -301,6 +301,61 @@ class WorkPlan extends Model
     }
 
     /**
+     * Cuantos caracteres del documento hacen falta para que el buscador de la
+     * ficha (cuadrilla y aprobadores) empiece a contestar. Por debajo, nada.
+     *
+     * Es un umbral de la BUSQUEDA, no una regla del documento: existe para que
+     * teclear dos cifras no despliegue el padron entero. Lo fijo el dueño del
+     * producto en dos tiempos: primero pregunto de donde salia el «7» (era un
+     * default heredado de la v1) y despues dio la regla — «deberia ser el
+     * minimo de digitos de acuerdo al pais de la empresa: si la empresa es de
+     * Peru saldria 8».
+     *
+     * O sea: el DOCUMENTO NACIONAL del pais de la contratista del plan. En
+     * Peru es el DNI y son 8; en Chile el RUN, en Venezuela la cedula. No el
+     * `min_length` mas corto del catalogo entero, que era la version anterior
+     * y daba 6 por el pasaporte — un minimo que ningun documento del pais usa.
+     *
+     * El ajuste `docufiz.num_doc_minimum`, si alguien lo pone, sigue mandando:
+     * es la perilla del workspace. Y sin catalogo para ese pais, el 7 de
+     * siempre.
+     *
+     * Vive en el modelo porque lo necesitan dos pantallas distintas: el
+     * endpoint de candidatos (que corta la busqueda) y la carga de la ficha
+     * (que pinta «escribe sus N digitos» ANTES de la primera busqueda — con el
+     * numero en el servidor nada mas, el rotulo decia 7 hasta que alguien
+     * tecleaba, y en una empresa peruana ese 7 era mentira).
+     */
+    public const MINIMO_DOCUMENTO_POR_DEFECTO = 7;
+
+    public function minimoDocumento(): int
+    {
+        $valor = Setting::getInt('docufiz.num_doc_minimum');
+
+        // Un cero o un negativo dejaria que la busqueda vacia devolviera el
+        // padron entero, que es justo el fallo que este minimo existe para
+        // tapar. Un ajuste mal puesto no puede abrir esa puerta.
+        if ($valor >= 1) {
+            return $valor;
+        }
+
+        // El pais de la contratista que ejecuta; si la empresa no lo dice, el
+        // del plan, que es donde se trabaja.
+        $paisId = $this->company?->country_id ?? $this->country_id;
+
+        $delCatalogo = (int) DocumentType::query()
+            ->active()
+            ->where('scope', DocumentType::PERSONA)
+            ->where('country_id', $paisId)
+            ->where('for_foreigners', false)
+            ->min('min_length');
+
+        // El tope inferior de 4 es el mismo que Setting impone al ajuste: por
+        // debajo la busqueda deja de ser una busqueda.
+        return $delCatalogo >= 4 ? $delCatalogo : self::MINIMO_DOCUMENTO_POR_DEFECTO;
+    }
+
+    /**
      * Tiempo trabajado, en horas con dos decimales. `null` mientras falte una
      * de las dos fechas — que es lo normal en un plan que sigue abierto.
      *

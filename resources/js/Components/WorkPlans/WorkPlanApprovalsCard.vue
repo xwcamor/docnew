@@ -46,6 +46,12 @@ const props = defineProps({
      * ser cierto en cuanto el representante salió del flujo.
      */
     representative: { type: Object, default: () => ({ person: null }) },
+    /**
+     * El mínimo de caracteres del buscador, ya calculado por el servidor para
+     * el país de la empresa del plan — mismo dato que en la cuadrilla, porque
+     * el rótulo «escribe sus N dígitos» se pinta antes de la primera búsqueda.
+     */
+    docMinimum: { type: Number, default: null },
 });
 
 // Lo que desbloquea el flujo no vive en esta tarjeta, así que el botón del
@@ -189,15 +195,14 @@ const guardando = ref(null);
 /**
  * Cuántos caracteres hacen falta antes de preguntar al servidor.
  *
- * Lo decide el servidor (`docufiz.num_doc_minimum`) y llega en la respuesta,
- * pero la primera búsqueda ocurre ANTES de tener respuesta, así que el valor de
- * partida tiene que quedarse CORTO a propósito: si arranca por encima del real
- * —estaba en 8 y el servidor dice 7— un documento de siete dígitos no llega
- * nunca a preguntarse, y como no se pregunta tampoco se aprende el 7. El campo
- * se queda mudo para siempre. Pasarse de corto sólo cuesta una consulta que el
- * servidor contesta con `partial` y el número bueno.
+ * Lo decide el servidor y viene YA CALCULADO en la carga de la ficha
+ * (`docMinimum`): es el mismo número que contestaría la búsqueda, así que
+ * arrancar con él no puede dejar el campo mudo — el riesgo de antes, cuando el
+ * valor de partida era un 7 fijo y sólo la primera respuesta lo corregía, con
+ * el rótulo mintiendo mientras tanto. Cada respuesta lo reafirma igualmente, y
+ * el 7 sólo queda para una carga vieja que aún no traiga el dato.
  */
-const minimo    = ref(7);
+const minimo    = ref(props.docMinimum ?? 7);
 
 let temporizador = null;
 

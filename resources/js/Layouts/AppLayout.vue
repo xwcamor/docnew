@@ -696,37 +696,6 @@ const menuStructure = computed(() => [
         ],
     },
 
-    // ── Documentos y firmas ───────────────────────────────────────────────
-    // Que se le exige a un plan. Los cuatro estan encadenados y en ese orden:
-    // el tipo de trabajo decide que documentos entran, y una regla de
-    // aprobacion nombra un rol del catalogo — el catalogo se llena antes.
-    {
-        kind: 'group',
-        key: 'group-docs', title: t('sidebar.group_docs'),
-        items: [
-            {
-                key: 'form_templates', label: t('sidebar.form_templates'), icon: FileOutlined,
-                href: route('business_management.form_templates.index'), inertia: true,
-                visible: () => can('form_templates.view'),
-            },
-            {
-                key: 'work_types', label: t('sidebar.work_types'), icon: ToolOutlined,
-                href: route('business_management.work_types.index'), inertia: true,
-                visible: () => can('work_types.view'),
-            },
-            {
-                key: 'approval_rules', label: t('sidebar.approval_rules'), icon: NodeIndexOutlined,
-                href: route('business_management.approval_rules.index'), inertia: true,
-                visible: () => can('approval_rules.view'),
-            },
-            {
-                key: 'approver_roles', label: t('sidebar.approver_roles'), icon: SafetyCertificateOutlined,
-                href: route('business_management.approver_roles.index'), inertia: true,
-                visible: () => can('approver_roles.view'),
-            },
-        ],
-    },
-
     // ── Lugares de trabajo ────────────────────────────────────────────────
     // El orden no es alfabetico: sede → puesto → area es como se rellena un
     // plan, y un puesto no se puede crear antes que su sede.
@@ -748,6 +717,40 @@ const menuStructure = computed(() => [
                 key: 'work_areas', label: t('sidebar.work_areas'), icon: ClusterOutlined,
                 href: route('business_management.work_areas.index'), inertia: true,
                 visible: () => can('work_areas.view'),
+            },
+        ],
+    },
+
+    // ── Documentos y reglas ───────────────────────────────────────────────
+    // Que se le exige a un plan. Los cuatro estan encadenados y en ese orden:
+    // el tipo de trabajo decide que documentos entran, y una regla de
+    // aprobacion nombra un rol del catalogo — por eso el catalogo de roles va
+    // ANTES que las reglas («roles de aprobadores va antes que reglas de
+    // aprobacion», dueño del producto): se llena primero. El grupo entero va
+    // despues de los lugares, tambien por decision suya.
+    {
+        kind: 'group',
+        key: 'group-docs', title: t('sidebar.group_docs'),
+        items: [
+            {
+                key: 'form_templates', label: t('sidebar.form_templates'), icon: FileOutlined,
+                href: route('business_management.form_templates.index'), inertia: true,
+                visible: () => can('form_templates.view'),
+            },
+            {
+                key: 'work_types', label: t('sidebar.work_types'), icon: ToolOutlined,
+                href: route('business_management.work_types.index'), inertia: true,
+                visible: () => can('work_types.view'),
+            },
+            {
+                key: 'approver_roles', label: t('sidebar.approver_roles'), icon: SafetyCertificateOutlined,
+                href: route('business_management.approver_roles.index'), inertia: true,
+                visible: () => can('approver_roles.view'),
+            },
+            {
+                key: 'approval_rules', label: t('sidebar.approval_rules'), icon: NodeIndexOutlined,
+                href: route('business_management.approval_rules.index'), inertia: true,
+                visible: () => can('approval_rules.view'),
             },
         ],
     },

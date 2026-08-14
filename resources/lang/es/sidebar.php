@@ -27,9 +27,11 @@ return [
     'positions'          => 'Cargos',
     'document_types'     => 'Tipos de documento',
 
-    // ── Documentos y firmas ───────────────────────────────────────────────
-    // Que se le exige a un plan: los papeles y quien tiene que firmarlos.
-    'group_docs'         => 'Documentos y firmas',
+    // ── Documentos y reglas ───────────────────────────────────────────────
+    // Que se le exige a un plan: los papeles y las reglas de quien los firma.
+    // El nombre lo dio el dueño del producto: «'Documentos y Firmas' se
+    // llamara 'Documentos y Reglas'».
+    'group_docs'         => 'Documentos y Reglas',
     'form_templates'     => 'Documentos',
     'work_types'         => 'Tipos de trabajo',
     'approval_rules'     => 'Reglas de aprobación',

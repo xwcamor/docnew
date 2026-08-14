@@ -46,6 +46,14 @@ const props = defineProps({
     countries: { type: Array, default: () => [] },
     docTypesByCountry: { type: Object, default: () => ({}) },
     planCountryId: { type: Number, default: null },
+    /**
+     * El mínimo de caracteres del buscador, ya calculado por el servidor para
+     * el país de la empresa del plan. Viene en la carga porque el rótulo
+     * «escribe sus N dígitos» se pinta ANTES de la primera búsqueda: sin él
+     * arrancaba en 7 y en una empresa peruana mentía hasta que alguien
+     * tecleaba.
+     */
+    docMinimum: { type: Number, default: null },
     /** Dar de alta es del módulo de personas, no del plan. */
     canCreatePerson: { type: Boolean, default: false },
 });
@@ -86,7 +94,9 @@ const buscando = ref(false);
 const guardando = ref(false);
 const quitando = ref(null);
 const aviso = ref('');       // qué pasa con lo que hay escrito
-const minimo = ref(7);       // lo dice el servidor; 7 es el de la v1
+// Arranca con el que trajo la página y cada respuesta del servidor lo
+// reafirma; el 7 sólo queda para un plan viejo cuya carga aún no lo mande.
+const minimo = ref(props.docMinimum ?? 7);
 
 // El documento está cifrado en la base, así que el servidor sólo sabe
 // contestar a «¿es este documento exacto?». Lo dice él (`exact_only`) y no se

@@ -14,7 +14,7 @@ return [
     'positions'          => 'Job titles',
     'document_types'     => 'ID document types',
 
-    'group_docs'         => 'Documents and signatures',
+    'group_docs'         => 'Documents and rules',
     'form_templates'     => 'Documents',
     'work_types'         => 'Work types',
     'approval_rules'     => 'Approval rules',

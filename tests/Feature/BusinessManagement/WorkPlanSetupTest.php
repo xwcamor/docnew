@@ -1191,6 +1191,36 @@ class WorkPlanSetupTest extends TestCase
     }
 
     /**
+     * El minimo tambien viaja en la carga de la ficha, y las tarjetas arrancan
+     * con el.
+     *
+     * El rotulo «escribe sus N digitos» se pinta ANTES de la primera busqueda:
+     * con el numero solo en la respuesta del buscador, la ficha decia 7 hasta
+     * que alguien tecleaba — «ahi donde dice escaneame sale '7 digitos'…
+     * debio salir 8 que es el minimo de digitos para Peru», dueño del
+     * producto, sobre un plan de una empresa peruana.
+     */
+    public function test_la_ficha_trae_el_minimo_y_el_rotulo_no_arranca_en_7(): void
+    {
+        $plan = $this->plan();
+        $this->sembrarElDni();   // DNI peruano: 8 exactos
+        $this->actingAs($this->supervisor());
+
+        $this->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page->where('setupOptions.docMinimum', 8));
+
+        // Y las dos tarjetas que buscan por documento lo usan de arranque, en
+        // vez del 7 fijo que el servidor solo corregia tras la primera
+        // consulta.
+        foreach (['WorkPlanCrewCard', 'WorkPlanApprovalsCard'] as $tarjeta) {
+            $vue = file_get_contents(resource_path("js/Components/WorkPlans/{$tarjeta}.vue"));
+
+            $this->assertStringContainsString('ref(props.docMinimum ?? 7)', $vue,
+                "{$tarjeta} tiene que arrancar con el minimo que trajo la pagina, no con un 7 fijo");
+        }
+    }
+
+    /**
      * Un ajuste mal puesto no puede volver a abrir la puerta.
      *
      * Con el minimo en cero, la busqueda vacia devolveria el padron entero con

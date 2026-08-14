@@ -752,6 +752,12 @@ class WorkPlanController extends Controller
             // personas.
             'docTypesByCountry' => $this->docTypesByCountry(),
             'planCountryId' => $workPlan->country_id,
+            // El minimo de caracteres del buscador de cuadrilla/aprobadores,
+            // ya calculado para ESTE plan. Viaja en la carga inicial porque el
+            // rotulo «escribe sus N digitos» se pinta antes de la primera
+            // busqueda: sin esto arrancaba en el 7 heredado de la v1 y en una
+            // empresa peruana mentia hasta que alguien tecleaba.
+            'docMinimum' => $workPlan->minimoDocumento(),
         ];
     }
 
