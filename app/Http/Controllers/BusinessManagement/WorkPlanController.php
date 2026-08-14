@@ -21,7 +21,6 @@ use App\Models\AuditLog;
 use App\Models\WorkPlan;
 use App\Services\BusinessManagement\WorkPlanCompletionService;
 use App\Services\BusinessManagement\WorkPlanService;
-use App\Support\PrivateInfo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -355,6 +354,25 @@ class WorkPlanController extends Controller
         return \Illuminate\Support\Facades\Storage::disk('local')->response($ruta);
     }
 
+    /**
+     * Quien ve las caras y el rastro de las firmas en la ficha del plan.
+     *
+     * SOLO EL SUPER, por decision del dueño del producto («cambio de reglas,
+     * solo el super ve fotos de los trabajadores en Ver Plan»). Antes iba con
+     * `people.view_private_info` —que tambien tiene el admin del workspace— y
+     * el DNI enmascarado sigue con ese permiso: lo que se endurecio es la
+     * FOTO, no el documento.
+     *
+     * Una sola puerta para las tres salidas: `face_url` de cuadrilla y
+     * aprobadores, el rastro `audit` de la ficha de la firma, y la ruta
+     * `signer_face` que sirve la imagen (esa ademas con `role:super` en el
+     * middleware, porque un payload en nulo no protege una URL adivinable).
+     */
+    protected function puedeVerCaras(): bool
+    {
+        return request()->user()?->hasRole('super') ?? false;
+    }
+
     protected function crewPayload(WorkPlan $workPlan): array
     {
         $asignados = $workPlan->people()
@@ -382,15 +400,10 @@ class WorkPlanController extends Controller
             (new \App\Models\WorkPlanPerson)->getMorphClass(), $asignados->pluck('id'),
         );
 
-        // La cara de quien firmo. Es lo que un admin necesita para saber quien
-        // estuvo de verdad en obra, y es justo lo que se pierde cuando la
-        // cuadrilla es de una contratista que no conoce.
-        //
-        // Va con `people.view_private_info`, el mismo permiso que destapa el
-        // DNI: lo tienen el super y el admin del workspace, no los perfiles de
-        // campo. Y va como URL, nunca como imagen incrustada: el JSON de
+        // La cara de quien firmo. Solo para el super —regla del dueño del
+        // producto— y como URL, nunca como imagen incrustada: el JSON de
         // Inertia viaja entero al navegador.
-        $puedeVerCaras = PrivateInfo::visibleFor(request()->user());
+        $puedeVerCaras = $this->puedeVerCaras();
 
         return $asignados
             ->map(function ($asignado) use ($firmas, $comoFirmo, $workPlan, $puedeVerCaras) {
@@ -541,7 +554,7 @@ class WorkPlanController extends Controller
         // El rastro completo solo para quien puede ver caras: es el mismo
         // material —donde estaba una persona y con que aparato— y va con la
         // misma puerta.
-        $puedeVerCaras = PrivateInfo::visibleFor(request()->user());
+        $puedeVerCaras = $this->puedeVerCaras();
 
         return \App\Models\SignatureEvent::query()
             ->where('signable_type', $morph)
@@ -609,7 +622,7 @@ class WorkPlanController extends Controller
             (new \App\Models\WorkPlanApproval)->getMorphClass(), $aprobaciones->pluck('id'),
         );
 
-        $puedeVerCaras = auth()->user()?->can('people.view_private_info') ?? false;
+        $puedeVerCaras = $this->puedeVerCaras();
 
         return $aprobaciones
             ->sortBy(fn ($a) => $a->approvalRule?->priority_level ?? 99)

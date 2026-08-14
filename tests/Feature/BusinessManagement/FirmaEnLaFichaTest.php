@@ -78,6 +78,21 @@ class FirmaEnLaFichaTest extends TestCase
         return $u;
     }
 
+    /**
+     * Quien SI ve caras y rastro: el super, y solo el.
+     *
+     * Antes bastaba `people.view_private_info` —que el admin tambien tiene— y
+     * el dueño del producto lo endurecio: «solo el super ve fotos de los
+     * trabajadores en Ver Plan».
+     */
+    private function super(): User
+    {
+        $u = $this->admin();
+        $u->assignRole(Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 'Super de prueba']));
+
+        return $u;
+    }
+
     private function plan(): WorkPlan
     {
         return WorkPlan::create($this->base() + [
@@ -144,7 +159,7 @@ class FirmaEnLaFichaTest extends TestCase
 
         $this->assertSame(0, $plan->people()->count(), 'El aprobador no esta en la cuadrilla: ese es el caso.');
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->super())
             ->get(route('business_management.work_plans.signer_face', [$plan->slug, $persona->slug]))
             ->assertOk();
     }
@@ -182,7 +197,7 @@ class FirmaEnLaFichaTest extends TestCase
             'source' => \App\Models\PersonPhoto::MIGRADA, 'valid_from' => now(),
         ]);
 
-        $respuesta = $this->actingAs($this->admin())
+        $respuesta = $this->actingAs($this->super())
             ->get(route('business_management.work_plans.signer_face', [$plan->slug, $persona->slug]));
 
         $respuesta->assertOk();
@@ -202,7 +217,7 @@ class FirmaEnLaFichaTest extends TestCase
         $plan = $this->plan();
         $ajena = $this->persona('99998888');
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->super())
             ->get(route('business_management.work_plans.signer_face', [$plan->slug, $ajena->slug]))
             ->assertRedirect(route('dashboard_management.dashboards.index'))
             ->assertSessionHas('error');
@@ -214,9 +229,46 @@ class FirmaEnLaFichaTest extends TestCase
         $plan = $this->plan();
         $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->super())
             ->get(route('business_management.work_plans.show', $plan->slug))
             ->assertInertia(fn ($page) => $page->where('approvals.0.face_url', fn ($u) => filled($u)));
+    }
+
+    /**
+     * Al admin la ficha NO le manda ni la cara ni el rastro.
+     *
+     * Cambio de reglas del dueño del producto: «solo el super ve fotos de los
+     * trabajadores en Ver Plan». El admin conserva `people.view_private_info`
+     * —el DNI sigue siendo suyo— pero `face_url` y `audit` le llegan en nulo,
+     * y con eso la tarjeta ni pinta el icono de la camara.
+     */
+    public function test_al_admin_no_le_llega_ni_la_cara_ni_el_rastro(): void
+    {
+        $plan = $this->plan();
+        $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('approvals.0.face_url', null)
+                ->where('approvals.0.signature.audit', null));
+    }
+
+    /**
+     * Y la ruta de la imagen tampoco se le abre: un payload en nulo no
+     * protege una URL adivinable. El 403 del middleware se convierte en la
+     * vuelta al panel con aviso (ver `bootstrap/app.php`).
+     */
+    public function test_la_ruta_de_la_cara_no_se_le_abre_al_admin(): void
+    {
+        $plan = $this->plan();
+        $persona = $this->persona('44445555');
+        $this->aprobacionFirmada($plan, $persona, SignatureEvent::FACE_RECOGNITION);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.work_plans.signer_face', [$plan->slug, $persona->slug]))
+            ->assertRedirect(route('dashboard_management.dashboards.index'))
+            ->assertSessionHas('error');
     }
 
     /**
@@ -309,7 +361,7 @@ class FirmaEnLaFichaTest extends TestCase
             'user_agent' => 'Mozilla/5.0 (Linux; Android 13) Chrome/126.0.0.0 Mobile Safari/537.36',
         ]);
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->super())
             ->get(route('business_management.work_plans.show', $plan->slug))
             ->assertInertia(fn ($page) => $page
                 ->where('approvals.0.signature.audit.latitude', -12.046374)
@@ -331,7 +383,7 @@ class FirmaEnLaFichaTest extends TestCase
         $plan = $this->plan();
         $this->aprobacionFirmada($plan, $this->persona('44445555'), SignatureEvent::FACE_RECOGNITION);
 
-        $this->actingAs($this->admin())
+        $this->actingAs($this->super())
             ->get(route('business_management.work_plans.show', $plan->slug))
             ->assertInertia(fn ($page) => $page
                 ->where('approvals.0.signature.audit.latitude', null)

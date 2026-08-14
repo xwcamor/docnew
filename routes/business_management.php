@@ -468,10 +468,11 @@ Route::prefix('business_management')->name('business_management.')->group(functi
     // La cara de quien firmo, dentro de la ficha del plan. Va ANTES del
     // comodin `work_plans/{workPlan}` para que no se la coma.
     //
-    // Pide ADEMAS `people.view_private_info`, el mismo permiso que destapa el
-    // DNI: lo tienen el super y el admin del workspace —que necesitan saber
-    // quien estuvo de verdad en obra— y no los perfiles de campo.
-    Route::middleware(['permission:work_plans.view', 'permission:people.view_private_info'])
+    // Cambio de reglas del dueño del producto: SOLO EL SUPER ve las fotos de
+    // quien firmo. Antes iba con `people.view_private_info` —super y admin—;
+    // ahora la puerta es el rol. El payload acompaña: `face_url` y el rastro
+    // `audit` van en nulo para los demas, y la tarjeta ni pinta el icono.
+    Route::middleware(['permission:work_plans.view', 'role:super'])
         ->get('work_plans/{work_plan}/signer_face/{person}', [WorkPlanController::class, 'signerFace'])
         ->name('work_plans.signer_face');
 

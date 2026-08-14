@@ -25,9 +25,9 @@ import SignatureMark from '@/Components/WorkPlans/SignatureMark.vue';
  *    dice nada a nadie; el punto en el plano contesta la pregunta de verdad,
  *    que es si eso está en la subestación o a treinta kilómetros.
  *
- * Todo va con `people.view_private_info`, el mismo permiso que destapa el
- * documento: el servidor manda `face_url` y `audit` en nulo a quien no lo
- * tenga, así que a un perfil de campo este botón ni le aparece.
+ * Todo esto lo ve SOLO EL SUPER, por decisión del dueño del producto: el
+ * servidor manda `face_url` y `audit` en nulo a cualquier otro —admin
+ * incluido—, así que a los demás este botón ni les aparece.
  */
 const props = defineProps({
     faceUrl:   { type: String, default: null },

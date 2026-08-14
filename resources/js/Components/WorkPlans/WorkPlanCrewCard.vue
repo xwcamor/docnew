@@ -256,12 +256,12 @@ const guardarAlta = () => {
 
                 <template #actions>
                     <!-- La cara con la que firmó y el rastro de esa firma. Sólo
-                         llegan con `people.view_private_info` —el servidor manda
-                         `face_url` y `audit` en nulo si no— y es lo que le dice
-                         al admin quién estuvo de verdad en obra cuando la
-                         cuadrilla es de una contratista que no conoce. La firma
-                         trazada NO se enseña aquí ni en ningún otro sitio: sólo
-                         se imprime en el PDF. -->
+                         llegan al SUPER —el servidor manda `face_url` y `audit`
+                         en nulo a los demás, admin incluido— y es lo que le
+                         dice quién estuvo de verdad en obra cuando la cuadrilla
+                         es de una contratista que no conoce. La firma trazada
+                         NO se enseña aquí ni en ningún otro sitio: sólo se
+                         imprime en el PDF. -->
                     <SignerFaceModal
                         v-if="fila.signed"
                         :face-url="fila.face_url"
