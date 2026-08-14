@@ -220,6 +220,73 @@ class FormatosAdicionalesTest extends TestCase
         );
     }
 
+    /**
+     * Ningun rotulo sembrado pasa del varchar(255) de Postgres.
+     *
+     * Las pruebas corren sobre sqlite, que no impone longitudes, y por ahi se
+     * colo el fallo real: el rotulo de «Otras medidas» del PTW de izaje
+     * llevaba pegado el parrafo entero de izaje critico (~430 caracteres) y la
+     * instalacion del dueño revento contra Postgres a mitad de sembrar. Esta
+     * prueba es el tope que sqlite no pone.
+     */
+    public function test_ningun_rotulo_pasa_del_varchar_de_postgres(): void
+    {
+        $this->sembrar();
+
+        $campos = FormField::whereHas('section.formTemplate',
+            fn ($q) => $q->whereIn('code', self::CODIGOS))->get();
+
+        foreach ($campos as $campo) {
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $campo->label_es),
+                "El rotulo de {$campo->code} no entra en label_es (varchar 255).");
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $campo->label_en),
+                "El rotulo de {$campo->code} no entra en label_en (varchar 255).");
+        }
+
+        foreach (\App\Models\FormSection::whereHas('formTemplate',
+            fn ($q) => $q->whereIn('code', self::CODIGOS))->get() as $seccion) {
+            $this->assertLessThanOrEqual(255, mb_strlen((string) $seccion->name_es));
+        }
+    }
+
+    /**
+     * Una corrida que revento a mitad se TERMINA al re-correr.
+     *
+     * Es exactamente lo que paso: el varchar corto la construccion del PTW-IZA
+     * a mitad de sus campos, y el guard del padre («una plantilla con campos
+     * no se toca») dejaba el formato cojo para siempre. La pasada de
+     * completado crea solo lo que falta; lo que el cliente edito no se pisa.
+     */
+    public function test_una_siembra_cortada_a_mitad_se_completa_al_recorrer(): void
+    {
+        $this->sembrar();
+
+        // El estado que dejo el fallo real: el PTW-IZA con la mitad de sus
+        // campos (se le borran los dos ultimos y una seccion entera), y un
+        // rotulo editado por el cliente en uno que sobrevive.
+        $plantilla = FormTemplate::where('code', 'PTW-IZA')->firstOrFail();
+
+        FormField::whereHas('section', fn ($q) => $q->where('form_template_id', $plantilla->id))
+            ->whereIn('code', ['otras_medidas', 'diagrama_maniobra', 'observaciones'])
+            ->delete();
+
+        $editado = FormField::whereHas('section', fn ($q) => $q->where('form_template_id', $plantilla->id))
+            ->where('code', 'peso_carga')->firstOrFail();
+        $editado->update(['label_es' => 'Peso de la carga (editado por el cliente)']);
+
+        $this->seed(FormatosAdicionalesSeeder::class);
+
+        $codigos = FormField::whereHas('section', fn ($q) => $q->where('form_template_id', $plantilla->id))
+            ->pluck('code');
+
+        $this->assertTrue($codigos->contains('otras_medidas'), 'el campo que falto no se repuso');
+        $this->assertTrue($codigos->contains('diagrama_maniobra'));
+        $this->assertTrue($codigos->contains('observaciones'));
+
+        // Y lo editado por el cliente sigue como lo dejo.
+        $this->assertSame('Peso de la carga (editado por el cliente)', $editado->fresh()->label_es);
+    }
+
     // ── Decorado ────────────────────────────────────────────────────────────
 
     private function campo(string $codigo, string $campo): FormField

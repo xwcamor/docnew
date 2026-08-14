@@ -89,6 +89,73 @@ class FormatosAdicionalesSeeder extends FormTemplatesSeeder
     }
 
     /**
+     * Sembrar y ademas TERMINAR lo que una corrida anterior dejo a medias.
+     *
+     * El `sembrar()` del padre no toca una plantilla que ya tiene campos —
+     * puede tener entregas y ediciones del cliente— y eso es correcto, pero
+     * deja un hueco: si una corrida revento a mitad de construir (paso de
+     * verdad: un rotulo mas largo que el varchar), la plantilla queda con la
+     * MITAD de sus campos y re-correr no la completaba nunca.
+     *
+     * La pasada de abajo es puramente ADITIVA: crea la seccion o el campo que
+     * falte y no actualiza ninguno que exista — lo que el cliente haya editado
+     * no se pisa.
+     */
+    protected function sembrar(array $formato, int $paisId, ?int $tenantId): bool
+    {
+        $creada = parent::sembrar($formato, $paisId, $tenantId);
+
+        $this->completarLoQueFalte($formato, $paisId);
+
+        return $creada;
+    }
+
+    protected function completarLoQueFalte(array $formato, int $paisId): void
+    {
+        $plantilla = FormTemplate::withTrashed()
+            ->where('code', $formato['code'])
+            ->where('country_id', $paisId)
+            ->first();
+
+        if (! $plantilla) {
+            return;
+        }
+
+        $existentes = \App\Models\FormField::whereHas(
+            'section',
+            fn ($q) => $q->where('form_template_id', $plantilla->id),
+        )->pluck('code')->flip();
+
+        foreach ($formato['secciones'] as $posicion => $seccion) {
+            $fila = \App\Models\FormSection::firstOrNew([
+                'form_template_id' => $plantilla->id,
+                'position'         => $posicion,
+            ]);
+
+            if (! $fila->exists) {
+                $fila->fill(['name_es' => $seccion['name_es'], 'name_en' => $seccion['name_en']])->save();
+            }
+
+            foreach ($seccion['campos'] as $orden => $campo) {
+                if ($existentes->has($campo['code'])) {
+                    continue;
+                }
+
+                \App\Models\FormField::create([
+                    'form_section_id' => $fila->id,
+                    'code'        => $campo['code'],
+                    'label_es'    => $campo['label_es'],
+                    'label_en'    => $campo['label_en'],
+                    'field_type'  => $campo['field_type'],
+                    'is_required' => $campo['is_required'] ?? false,
+                    'position'    => $orden,
+                    'config'      => $campo['config'] ?? [],
+                ]);
+            }
+        }
+    }
+
+    /**
      * Las reparaciones del padre NO aplican aqui, y anularlas es a proposito.
      *
      * `repararConfigs()` existe para curar los formatos de la v1 ya sembrados:
@@ -423,9 +490,14 @@ class FormatosAdicionalesSeeder extends FormTemplatesSeeder
                             'config' => ['questions' => $c['preguntas'], 'answers' => $this->siNoNa()],
                         ],
                         [
+                            // Los cinco criterios de izaje critico del papel,
+                            // resumidos: `label_es` es varchar(255) y el
+                            // parrafo entero no entra — la primera corrida
+                            // revento contra Postgres justo aqui. El texto
+                            // completo queda en formatos-adicionales.json.
                             'code' => 'otras_medidas', 'field_type' => 'textarea',
-                            'label_es' => 'Otras medidas a considerar. ' . $c['criterios_critico'],
-                            'label_en' => 'Other measures to consider (critical lift criteria as per the standard)',
+                            'label_es' => 'Otras medidas a considerar. Izaje crítico: sobre equipos presurizados o líneas energizadas; izar personal; elementos no convencionales; más de una grúa; más de 20 TN',
+                            'label_en' => 'Other measures to consider. Critical lift: over pressurised equipment or live lines; lifting people; non-standard gear; more than one crane; over 20 TN',
                         ],
                     ],
                 ],
