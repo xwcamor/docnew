@@ -734,6 +734,12 @@ class FormSubmissionPdfService
         $deAprobacion = (new WorkPlanApproval)->getMorphClass();
         $deTrabajador = (new WorkPlanPerson)->getMorphClass();
 
+        // Quien responde por la cuadrilla, para decirlo AL LADO DE SU FIRMA.
+        // El dueño del producto lo pidio mirando el papel: en la tabla de
+        // trabajadores no se distinguia al representante de los demas, y ese
+        // nombre es el que responde por el equipo ante quien autoriza.
+        $representante = $entrega->workPlan?->crew_representative_person_id;
+
         $filas = $eventos->map(fn (SignatureEvent $e) => [
             'nombre'     => $e->person?->full_name,
             // De que grupo es esta firma y, si es una aprobacion, con que rol
@@ -747,6 +753,11 @@ class FormSubmissionPdfService
             'rol'        => $e->signable_type === $deAprobacion
                 ? ($aprobaciones[$e->signable_id] ?? null)
                 : null,
+            // La marca del representante, SOLO en la tabla de trabajadores: en
+            // la de aprobadores el papel de cada firma ya lo dice su rol.
+            'representante' => $e->signable_type === $deTrabajador
+                && $representante !== null
+                && $e->person_id === $representante,
             // Enmascarado en el SERVICIO, no en la plantilla: un PDF se
             // descarga y se reenvia, y taparlo al pintar dejaria el numero
             // entero en cualquier sitio donde se pase el dato sin pintarlo.

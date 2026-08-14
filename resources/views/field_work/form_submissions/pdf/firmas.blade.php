@@ -55,7 +55,15 @@
                         <img src="{{ $firma['firma'] }}" alt="">
                     @endif
                 </td>
-                <td>{{ $firma['nombre'] ?: '—' }}</td>
+                <td>
+                    {{ $firma['nombre'] ?: '—' }}
+                    {{-- Quien responde por la cuadrilla, dicho al lado de su
+                         firma. Solo en la tabla de trabajadores: en la de
+                         aprobadores el papel de cada firma ya lo dice su rol. --}}
+                    @if (!empty($firma['representante']))
+                        <br><span class="flag-rep">{{ __('work_plans.representative') }}</span>
+                    @endif
+                </td>
                 @if ($conRol)
                     <td>{{ $firma['rol'] ?: '—' }}</td>
                 @endif

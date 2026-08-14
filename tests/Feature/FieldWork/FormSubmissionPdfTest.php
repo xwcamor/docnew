@@ -521,6 +521,38 @@ class FormSubmissionPdfTest extends TestCase
     }
 
     /**
+     * El representante de la cuadrilla sale DICHO al lado de su firma.
+     *
+     * Lo pidio el dueño del producto mirando el papel: en la tabla de
+     * trabajadores no se distinguia quien responde por el equipo. El rotulo va
+     * SOLO en esa tabla —en la de aprobadores el papel de cada firma ya lo dice
+     * su rol— y solo en la fila del designado.
+     */
+    public function test_el_representante_sale_dicho_junto_a_su_firma(): void
+    {
+        $escenario = $this->escenario();
+
+        $datos = app(FormSubmissionPdfService::class)->datos($escenario['entrega'], $escenario['usuario']);
+
+        $deTrabajadores = collect($datos['firmas']['trabajadores']);
+
+        $this->assertTrue(
+            $deTrabajadores->contains(fn ($f) => $f['representante'] === true),
+            'la firma de la representante tiene que llevar su rotulo',
+        );
+
+        foreach ($datos['firmas']['aprobadores'] as $firma) {
+            $this->assertFalse((bool) ($firma['representante'] ?? false),
+                'en la tabla de aprobadores el papel ya lo dice el rol');
+        }
+
+        // Y la plantilla lo pinta con la palabra del sistema, no una nueva.
+        $parcial = file_get_contents(resource_path('views/field_work/form_submissions/pdf/firmas.blade.php'));
+
+        $this->assertStringContainsString("work_plans.representative", $parcial);
+    }
+
+    /**
      * Sin logo, el membrete lleva el nombre del workspace.
      *
      * Es la otra mitad de la regla: el logo manda, pero un workspace que
@@ -620,6 +652,9 @@ class FormSubmissionPdfTest extends TestCase
         $plan = WorkPlan::create($base + [
             'slug' => Str::random(22), 'company_id' => $empresa->id, 'work_type_id' => $tipo->id,
             'work_location_id' => $lugar->id, 'user_id' => $usuario->id,
+            // La representante de la cuadrilla es la trabajadora que firma: es
+            // lo que permite probar que su rotulo sale al lado de SU firma.
+            'crew_representative_person_id' => $trabajadora->id,
             'code' => 'PE26-0807-0001', 'num_os' => '08072026',
             'description' => 'Mantenimiento preventivo de celda de media tension',
             'date_start' => today(),

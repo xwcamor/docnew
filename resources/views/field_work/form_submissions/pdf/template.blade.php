@@ -112,6 +112,10 @@
 
         .flag { display: inline-block; background: #9E2A22; color: #ffffff; font-size: 7pt;
                 font-weight: bold; padding: 1px 5px; letter-spacing: 0.04em; }
+        /* El rotulo del representante de los trabajadores, bajo su nombre en la
+           tabla de firmas: informacion, no alarma — gris y en versalitas, no el
+           rojo del `.flag`. */
+        .flag-rep { font-size: 6.5pt; color: #6A6D70; text-transform: uppercase; letter-spacing: 0.03em; }
         .ok { color: #1B6B45; font-weight: bold; }
 
         /* La firma trazada es un trazo sobre transparente: se pinta a su

@@ -388,7 +388,17 @@ class WorkPlan extends Model
 
         $esperados = collect();
 
-        $estandar = $this->workType ? $this->workType->formTemplates()->published()->get() : collect();
+        // EN EL ORDEN DEL TIPO DE TRABAJO: el pivote se recorre por su id, que
+        // es el orden en que el tipo fue sumando sus documentos — y sobrevive a
+        // las versiones, porque publicar una nueva mueve el pivote in situ
+        // (`FormTemplateBuilder::moverTiposDeTrabajo` hace update, no
+        // detach/attach). Sin esto la ficha ordenaba por codigo y el AST, el
+        // PTF, el EPP y el IHM salian en un orden que no era el del papel ni el
+        // del tipo de trabajo.
+        $estandar = $this->workType
+            ? $this->workType->formTemplates()->published()
+                ->orderBy('work_type_form_templates.id')->get()
+            : collect();
 
         if ($this->is_closed) {
             // Del estándar vigente sólo sobrevive lo que este plan conoció: lo

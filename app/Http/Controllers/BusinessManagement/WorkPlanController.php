@@ -457,25 +457,24 @@ class WorkPlanController extends Controller
 
         $enElPlan = $workPlan->expectedFormTemplates();
 
-        // El catálogo entero. Los que ya están en el plan salen de
-        // `expectedFormTemplates()` —que sabe si los exige el tipo—; el resto se
-        // añade apagado, para poder encenderlo.
-        $todos = \App\Models\FormTemplate::query()
-            ->where('status', 'published')
-            ->orderBy('code')
-            ->get()
-            ->map(fn ($p) => $enElPlan->get($p->id) ?? [
-                'template' => $p, 'is_required' => false,
-                'source' => 'catalog', 'from_type_required' => false,
-            ]);
-
-        // Y los que están en el plan pero ya no en el catálogo (despublicados
-        // después de usarse): no se esconden, que el documento existe.
-        foreach ($enElPlan as $id => $item) {
-            if (! $todos->contains(fn ($t) => $t['template']->id === $id)) {
-                $todos->push($item);
-            }
-        }
+        // PRIMERO los del plan, en el orden del tipo de trabajo (el que trae
+        // `expectedFormTemplates()`); detrás, el resto del catálogo apagado,
+        // por código, para poder encenderlo. Antes la lista entera se ordenaba
+        // por código y los documentos del plan salían en un orden que no era
+        // ni el del papel ni el del tipo de trabajo. Los del plan que ya no
+        // estén en el catálogo (despublicados después de usarse) vienen dentro
+        // de la primera mitad: el documento existe y no se esconde.
+        $todos = collect($enElPlan->values())->concat(
+            \App\Models\FormTemplate::query()
+                ->where('status', 'published')
+                ->orderBy('code')
+                ->get()
+                ->reject(fn ($p) => $enElPlan->has($p->id))
+                ->map(fn ($p) => [
+                    'template' => $p, 'is_required' => false,
+                    'source' => 'catalog', 'from_type_required' => false,
+                ]),
+        );
 
         return $todos
             ->map(function ($item) use ($entregas, $enElPlan) {
