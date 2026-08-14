@@ -116,7 +116,11 @@ final class ToolChecklistPdf
             // Que significa cada marca, con las palabras de esta plantilla. Va
             // encima de la cuadricula: una rejilla de checks y equis sin decir
             // que son es ilegible para quien abre el documento por primera vez.
-            'leyenda' => Simbolos::leyenda($config['answers'] ?? []),
+            // El «?» solo si alguna celda quedo de verdad sin responder.
+            'leyenda' => Simbolos::leyenda(
+                $config['answers'] ?? [],
+                collect($filas)->sum('sin_responder') > 0,
+            ),
         ];
     }
 

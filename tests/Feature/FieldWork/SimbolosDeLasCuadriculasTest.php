@@ -71,7 +71,7 @@ class SimbolosDeLasCuadriculasTest extends TestCase
     {
         app()->setLocale('es');
 
-        $leyenda = Simbolos::leyenda(['Cumple', 'No aplica', 'No cumple']);
+        $leyenda = Simbolos::leyenda(['Cumple', 'No aplica', 'No cumple'], conHuecos: true);
 
         $textos = array_column($leyenda, 'texto');
 
@@ -82,6 +82,26 @@ class SimbolosDeLasCuadriculasTest extends TestCase
         // Y el hueco al final, que no es una respuesta de nadie.
         $this->assertSame('Sin responder', end($textos));
         $this->assertSame(Simbolos::SIN_RESPONDER, $leyenda[array_key_last($leyenda)]['simbolo']);
+    }
+
+    /**
+     * El «?» solo se explica cuando aparece en la cuadricula.
+     *
+     * El formulario exige los campos obligatorios, asi que un formato
+     * confirmado no suele tener ninguna celda sin responder — y explicar un
+     * simbolo que no esta impreso solo mete ruido. Lo dijo el dueño del
+     * producto: «no pongas la leyenda "? Sin responder"». Cuando el hueco
+     * existe de verdad, la linea vuelve sola: una marca sin explicacion seria
+     * peor que la linea de mas.
+     */
+    public function test_sin_huecos_la_leyenda_no_explica_el_interrogante(): void
+    {
+        app()->setLocale('es');
+
+        $textos = array_column(Simbolos::leyenda(['Cumple', 'No aplica', 'No cumple']), 'texto');
+
+        $this->assertNotContains('Sin responder', $textos);
+        $this->assertCount(3, $textos, 'las tres respuestas del formato, y nada mas');
     }
 
     /**
@@ -111,7 +131,7 @@ class SimbolosDeLasCuadriculasTest extends TestCase
     {
         app()->setLocale('es');
 
-        $leyenda = Simbolos::leyenda([]);
+        $leyenda = Simbolos::leyenda([], conHuecos: true);
 
         $this->assertCount(4, $leyenda);
 

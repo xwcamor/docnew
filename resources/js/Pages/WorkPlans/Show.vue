@@ -773,11 +773,17 @@ const irAlRepresentante = () => {
 /* La AUSENCIA de un dato no se viste de dato. `muted` a secas perdia contra
    `.wp-fact__value` —misma especificidad, declarada antes— y «Este trabajo no
    tiene orden de servicio» salia en negrita de 17px, igual que un valor real.
-   El selector compuesto desempata sin `!important`. */
+   El selector compuesto desempata sin `!important`.
+
+   Y en ambar, no en gris: lo pidio el dueño del producto («creo que deberia
+   tener color»). Un trabajo sin orden de servicio es un aviso, no un dato
+   apagado — el gris se confundia con lo decorativo. La palabra ya lo dice
+   entera (docs/UI.md §5: el color nunca va solo); el color solo lo hace
+   visible. */
 .wp-fact__value.muted,
 .spec-cell__value.muted {
     font-size: 0.875rem; font-weight: 400;
-    color: var(--color-text-muted, #6A6D70);
+    color: var(--color-warning, #f59e0b);
 }
 
 /* ── La franja de estado ─────────────────────────────────────────────────── */

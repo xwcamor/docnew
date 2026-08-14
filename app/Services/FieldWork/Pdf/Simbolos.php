@@ -93,10 +93,19 @@ final class Simbolos
      * Y lo que se imprime es el ROTULO, no el valor: un documento en ingles
      * lleva su leyenda en ingles, aunque lo guardado siga siendo la misma clave.
      *
+     * EL «?» SOLO SI HAY ALGUN HUECO. El formulario exige los campos
+     * obligatorios, asi que un formato confirmado normalmente no tiene ninguna
+     * celda sin responder — y explicar un simbolo que no aparece en la
+     * cuadricula solo mete ruido («no pongas la leyenda "? Sin responder"»,
+     * dueño del producto). Cuando el hueco existe de verdad —un borrador
+     * impreso, datos migrados a medias— la linea vuelve sola: un simbolo en la
+     * cuadricula sin su explicacion seria peor que la linea de mas.
+     *
      * @param  mixed  $respuestas  `config.answers`, en cualquiera de sus dos formas
+     * @param  bool   $conHuecos   si la cuadricula tiene alguna celda sin responder
      * @return list<array{simbolo: string, texto: string, tono: string}>
      */
-    public static function leyenda(mixed $respuestas): array
+    public static function leyenda(mixed $respuestas, bool $conHuecos = false): array
     {
         $reglas = app(FormFindingsService::class);
         $porTono = [];
@@ -129,11 +138,13 @@ final class Simbolos
             ];
         }
 
-        $entradas[] = [
-            'simbolo' => self::SIN_RESPONDER,
-            'texto'   => (string) __('form_submissions.pdf.legend.unanswered'),
-            'tono'    => 'sin',
-        ];
+        if ($conHuecos) {
+            $entradas[] = [
+                'simbolo' => self::SIN_RESPONDER,
+                'texto'   => (string) __('form_submissions.pdf.legend.unanswered'),
+                'tono'    => 'sin',
+            ];
+        }
 
         return $entradas;
     }

@@ -101,8 +101,12 @@ final class PersonChecklistPdf
             'grupos'       => self::grupos($config, $items),
             'trabajadores' => $trabajadores,
             'no_conformes' => $noConformes,
-            // Que significa cada marca, con las palabras de esta plantilla.
-            'leyenda' => Simbolos::leyenda($config['answers'] ?? []),
+            // Que significa cada marca, con las palabras de esta plantilla. El
+            // «?» solo si alguna celda quedo de verdad sin responder.
+            'leyenda' => Simbolos::leyenda(
+                $config['answers'] ?? [],
+                collect($trabajadores)->sum('sin_responder') > 0,
+            ),
         ];
     }
 
