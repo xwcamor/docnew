@@ -8,7 +8,7 @@ return [
     'work_plans'         => 'Work plans',
     'signature_photos'   => 'Signature photos',
 
-    'group_people'       => 'People and companies',
+    'group_people'       => 'Workers and companies',
     'people'             => 'Workers',
     'companies'          => 'Companies',
     'positions'          => 'Job titles',

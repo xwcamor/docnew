@@ -1,23 +1,23 @@
 <?php
 
 return [
-    'singular'      => 'Persona',
-    'plural'        => 'Personas',
-    'record'        => 'persona',
-    'records'       => 'personas',
-    'new'           => 'Crear persona',
+    'singular'      => 'Trabajador',
+    'plural'        => 'Trabajadores',
+    'record'        => 'trabajador',
+    'records'       => 'trabajadores',
+    'new'           => 'Crear trabajador',
     'id'            => 'N°',
 
-    'index_title'    => 'Personas',
+    'index_title'    => 'Trabajadores',
     'index_subtitle' => 'Quiénes trabajan en obra: su documento, las empresas en las que están y si tienen la cara enrolada para firmar.',
-    'create_title'   => 'Crear persona',
-    'create_subtitle'=> 'Registra a la persona con su documento. La cara y la firma se capturan después, en obra.',
-    'edit_title'     => 'Editar persona',
-    'delete_title'   => 'Eliminar persona',
-    'show_title'     => 'Persona — Información',
-    'trash_title'    => 'Papelera de personas',
-    'form_create_hint' => 'Registra a la persona con su documento. La cara y la firma se capturan después, en obra.',
-    'empty_hint'      => 'Crea la primera persona o importa un lote desde Excel para empezar.',
+    'create_title'   => 'Crear trabajador',
+    'create_subtitle'=> 'Registra al trabajador con su documento. La cara y la firma se capturan después, en obra.',
+    'edit_title'     => 'Editar trabajador',
+    'delete_title'   => 'Eliminar trabajador',
+    'show_title'     => 'Trabajador — Información',
+    'trash_title'    => 'Papelera de trabajadores',
+    'form_create_hint' => 'Registra al trabajador con su documento. La cara y la firma se capturan después, en obra.',
+    'empty_hint'      => 'Crea el primer trabajador o importa un lote desde Excel para empezar.',
 
     // ── Campos ──────────────────────────────────────────────────────────────
     'name'                 => 'Nombres',
@@ -26,11 +26,11 @@ return [
     'lastname'             => 'Apellidos',
     'lastname_help'        => 'Apellidos completos, tal como figuran en el documento.',
     'lastname_placeholder' => 'Ej: Pérez Gómez',
-    'full_name'            => 'Persona',
+    'full_name'            => 'Trabajador',
     'document'             => 'Documento',
     'doc_type'             => 'Tipo de documento',
     'num_doc'              => 'N° de documento',
-    'num_doc_help'         => 'Identifica a la persona. No se repite dentro del mismo país.',
+    'num_doc_help'         => 'Identifica al trabajador. No se repite dentro del mismo país.',
     'num_doc_placeholder'  => 'Ej: 12345678',
     'num_doc_faltan'       => 'Faltan :n dígitos.',
     'num_doc_falta_uno'    => 'Falta 1 dígito.',
@@ -47,7 +47,7 @@ return [
     // Foto de referencia y firma guardada. Solo con `people.view_media`.
     'media_title'  => 'Foto y firma',
     'media_file'   => 'archivo',
-    'media_help'   => 'Material interno: no lo ven ni el trabajador ni los perfiles de campo. La foto sirve para reconocer a la persona; la firma se imprime en los PDF.',
+    'media_help'   => 'Material interno: no lo ven ni el propio trabajador ni los perfiles de campo. La foto sirve para reconocerlo; la firma se imprime en los PDF.',
     'photo'        => 'Foto de referencia',
     // Faltaba, y la ficha imprimia «people.signature» en crudo debajo del trazo.
     'signature'    => 'Firma',
@@ -65,7 +65,7 @@ return [
     'signer_face'  => 'Ver la cara con la que firmó',
 
     'country'              => 'País',
-    'country_help'         => 'País del documento. Junto con el número define la unicidad de la persona.',
+    'country_help'         => 'País del documento. Junto con el número define la unicidad del trabajador.',
     'origin'               => 'Procedencia',
     // Ya no se pregunta: lo dice el tipo de documento. En Perú un peruano
     // lleva DNI y quien viene de fuera lleva carné de extranjería, PTP o
@@ -82,7 +82,7 @@ return [
     // por ninguna parte y tenía que adivinar de qué dependían.
     'roles_solo_los_mios'  => 'Solo para la gente de tu empresa',
     'roles_elige_empresa'  => 'Elige antes la empresa: los roles en obra solo se piden para la gente de la tuya.',
-    'roles_no_es_mi_empresa' => 'Esta persona trabaja para una contratista, y quien autoriza un plan es del que contrata. Los roles en obra se piden solo para la gente de tu empresa, la que está marcada en Ajustes → Mi empresa.',
+    'roles_no_es_mi_empresa' => 'Los roles en obra son solo para el personal de tu empresa.',
     'companies'            => 'Empresas',
     'companies_count'      => 'N° de empresas',
     // Etiquetas del aviso de borrado: «3 firmas dependen de este registro».
@@ -92,7 +92,7 @@ return [
     'biometric'            => 'Rostro',
     'signatures'           => 'Firmas',
     'is_active'            => 'Estado',
-    'is_active_help'       => 'Si está inactiva, la persona no aparecerá al asignar trabajadores a un plan.',
+    'is_active_help'       => 'Si está inactivo, el trabajador no aparecerá al asignarlo a un plan.',
     'filter_name'          => 'Nombre o apellido',
     'search_placeholder'   => 'Buscar por nombre o apellido…',
     'trash_search_placeholder' => 'Buscar por nombre, apellido o documento…',
@@ -118,18 +118,18 @@ return [
     // el trabajador acepta antes de enrolarse dice que puede pedir que se borre
     // en cualquier momento, y hasta ahora eso sólo se hacía por SQL.
     'biometric_forget'         => 'Retirar el rostro',
-    'biometric_forget_hint'    => 'Borra los datos del rostro de esta persona. Podrá volver a registrarlo cuando quiera, dando otra vez su permiso.',
+    'biometric_forget_hint'    => 'Borra los datos del rostro de este trabajador. Podrá volver a registrarlo cuando quiera, dando otra vez su permiso.',
     'biometric_forget_confirm' => '¿Retirar el rostro registrado de :name? Se borra de verdad, no se desactiva. Las firmas que ya dio no se tocan: siguen diciendo cómo se la identificó ese día.',
     'biometric_forgotten'      => 'Rostro retirado. La próxima vez que firme tendrá que registrarlo otra vez o firmar por otro medio.',
-    'biometric_none_to_forget' => 'Esta persona no tiene ningún rostro registrado.',
+    'biometric_none_to_forget' => 'Este trabajador no tiene ningún rostro registrado.',
 
     'edit_hint'   => 'Modificar este registro',
     'delete_hint' => 'Eliminar (queda en papelera)',
     'restore_hint'=> 'Volverá a estar disponible en el listado principal.',
 
-    'created' => 'Persona creada.',
-    'saved'   => 'Persona actualizada.',
-    'deleted' => 'Persona eliminada.',
+    'created' => 'Trabajador creado.',
+    'saved'   => 'Trabajador actualizado.',
+    'deleted' => 'Trabajador eliminado.',
 
     'delete_about'                 => 'Va a eliminar ":name". Quedará en papelera.',
     'deleted_description_required' => 'Indica el motivo del borrado.',
@@ -137,9 +137,9 @@ return [
     'deleted_description_max'      => 'El motivo no puede superar los 1000 caracteres.',
 
     // Export
-    'export_filename'           => 'exportacion_personas',
-    'import_template_filename'  => 'plantilla-personas.xlsx',
-    'export_title'              => 'Reporte de personas',
+    'export_filename'           => 'exportacion_trabajadores',
+    'import_template_filename'  => 'plantilla-trabajadores.xlsx',
+    'export_title'              => 'Reporte de trabajadores',
     'export_limit_exceeded'     => 'El export en :format excede el límite (:count filas vs :limit máximo). Usa CSV para datasets grandes (sin límite).',
     'export_format_limit_hint'  => 'Máximo :limit filas para este formato. Usa CSV para datasets grandes.',
     'export_no_limit_hint'      => 'Sin límite — recomendado para datasets grandes.',
@@ -148,14 +148,14 @@ return [
     'name_required'              => 'Los nombres son obligatorios.',
     'lastname_required'          => 'Los apellidos son obligatorios.',
     'name_and_lastname_required' => 'Para dar de alta a alguien hacen falta nombres y apellidos.',
-    'name_unique'                => 'Esta persona ya existe.',
+    'name_unique'                => 'Este trabajador ya existe.',
     'num_doc_required'           => 'El número de documento es obligatorio.',
     'num_doc_too_short' => 'Un :type tiene al menos :min caracteres.',
     'num_doc_too_long' => 'Un :type tiene como mucho :max caracteres.',
     'num_doc_solo_cifras'      => 'Un :type lleva solo números.',
     'num_doc_cifras_y_letras'  => 'Un :type lleva solo números y letras.',
     'num_doc_sin_espacios'     => 'El número de documento no lleva espacios.',
-    'num_doc_unique'             => 'Ya existe una persona con este documento en el mismo país.',
+    'num_doc_unique'             => 'Ya existe un trabajador con este documento en el mismo país.',
     'roles_solo_de_mi_empresa'   => 'Los roles en obra solo se le ponen a la gente de tu empresa: quien autoriza un plan es del que contrata.',
     'doc_type_invalid'           => 'Tipo de documento no válido para ese país. Admitidos: :types.',
     'doc_type_ninguno'           => 'Sin tipos para este país',
@@ -172,12 +172,12 @@ return [
     'import_padded_zero'         => 'Se le devolvió el cero de delante que Excel se comió: :value.',
 
     // Edit All
-    'edit_all_title'    => 'Personas — Editar todo',
-    'edit_all_subtitle' => 'Corrige nombres y apellidos de varias personas a la vez — en la migración del sistema anterior llegaron muchos cruzados. El documento no se edita aquí.',
+    'edit_all_title'    => 'Trabajadores — Editar todo',
+    'edit_all_subtitle' => 'Corrige nombres y apellidos de varios trabajadores a la vez — en la migración del sistema anterior llegaron muchos cruzados. El documento no se edita aquí.',
     'edit_all_changes'  => '{0} Sin cambios|{1} 1 cambio pendiente|[2,*] :count cambios pendientes',
     'edit_all_save_all' => 'Guardar todo',
     'edit_all_discard'  => 'Descartar cambios',
-    'edit_all_no_results' => 'No hay personas que coincidan con el filtro.',
+    'edit_all_no_results' => 'No hay trabajadores que coincidan con el filtro.',
 
     'table_headers' => [
         'editable_name'     => 'Nombres (editable)',
@@ -187,7 +187,7 @@ return [
 
     // Onboarding tour
     'tour' => [
-        'step1_title' => 'Bienvenido a Personas',
+        'step1_title' => 'Bienvenido a Trabajadores',
         'step1_body'  => 'Aquí está la gente que trabaja en obra. Te mostramos los puntos clave en menos de 1 minuto.',
         'step2_title' => 'Filtros',
         'step2_body'  => 'Busca por nombre, apellido o documento, y filtra por empresa, rol, país y si tiene la cara enrolada.',
@@ -198,9 +198,9 @@ return [
         'step5_title' => 'Exportar & Importar',
         'step5_body'  => 'Exporta a Excel/PDF/Word en segundo plano — se te notificará cuando esté listo. Importa desde Excel/CSV con vista previa antes de confirmar.',
         'step6_title' => 'Editar muchas a la vez',
-        'step6_body'  => '"Editar todo" permite corregir nombres y apellidos de varias personas juntas y guardarlos de una sola vez.',
+        'step6_body'  => '"Editar todo" permite corregir nombres y apellidos de varios trabajadores juntos y guardarlos de una sola vez.',
         'step7_title' => 'Favoritos ★',
-        'step7_body'  => 'La estrella ★ marca a una persona como favorita. Los favoritos aparecen siempre arriba del listado y cada usuario tiene los suyos.',
+        'step7_body'  => 'La estrella ★ marca a un trabajador como favorito. Los favoritos aparecen siempre arriba del listado y cada usuario tiene los suyos.',
         'step8_title' => 'Operaciones masivas',
         'step8_body'  => 'Selecciona filas con los checkboxes — aparece una barra para activar, desactivar o eliminar. Los lotes grandes se procesan en segundo plano.',
         'step9_title' => '¿Necesitas un repaso?',

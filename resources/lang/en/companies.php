@@ -53,7 +53,7 @@ return [
     'num_doc_falta_uno'        => '1 digit to go.',
     'country'                  => 'Country',
     'country_help'             => 'Where it is registered. Decides which document it carries — every country has its own — and, together with the number, defines uniqueness.',
-    'people_count'             => 'People',
+    'people_count'             => 'Workers',
     'plans_count'              => 'Plans',
     'is_active'                => 'Status',
     'is_active_help'           => 'If inactive, the company will not show up when creating a work plan.',

@@ -21,7 +21,7 @@ return [
     // ── Personas y empresas ───────────────────────────────────────────────
     // El cargo y el tipo de documento son atributos de una persona, y por eso
     // viven aqui y no con los catalogos de obra.
-    'group_people'       => 'Personas y empresas',
+    'group_people'       => 'Trabajadores y empresas',
     'people'             => 'Trabajadores',
     'companies'          => 'Empresas',
     'positions'          => 'Cargos',

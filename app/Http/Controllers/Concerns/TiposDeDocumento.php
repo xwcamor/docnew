@@ -25,7 +25,7 @@ use App\Models\DocumentType;
 trait TiposDeDocumento
 {
     /**
-     * @return array<int, array<int, array{value: string, label: string, min: int|null, max: int|null, allowed_chars: string|null}>>
+     * @return array<int, array<int, array{value: string, label: string, min: int|null, max: int|null, allowed_chars: string|null, national: bool}>>
      */
     protected function docTypesByCountry(string $scope = DocumentType::PERSONA): array
     {
@@ -33,7 +33,7 @@ trait TiposDeDocumento
             ->active()
             ->where('scope', $scope)
             ->orderBy('code')
-            ->get(['country_id', 'code', 'name', 'min_length', 'max_length', 'allowed_chars'])
+            ->get(['country_id', 'code', 'name', 'min_length', 'max_length', 'allowed_chars', 'for_foreigners'])
             ->groupBy('country_id')
             ->map(fn ($tipos) => $tipos
                 ->map(fn ($t) => [
@@ -42,6 +42,12 @@ trait TiposDeDocumento
                     'min'           => $t->min_length,
                     'max'           => $t->max_length,
                     'allowed_chars' => $t->allowed_chars,
+                    // El documento nacional del pais (DNI en Peru, RUN en
+                    // Chile): es el que se propone por defecto al dar de alta,
+                    // porque es el que lleva casi todo el mundo. Sin esta marca
+                    // el formulario proponia «DNI» por su nombre, que solo
+                    // funciona en los paises donde se llama asi.
+                    'national'      => ! $t->for_foreigners,
                 ])
                 ->values()
                 ->all())

@@ -1,23 +1,23 @@
 <?php
 
 return [
-    'singular'      => 'Person',
-    'plural'        => 'People',
-    'record'        => 'person',
-    'records'       => 'people',
-    'new'           => 'Create person',
+    'singular'      => 'Worker',
+    'plural'        => 'Workers',
+    'record'        => 'worker',
+    'records'       => 'workers',
+    'new'           => 'Create worker',
     'id'            => 'No.',
 
-    'index_title'    => 'People',
+    'index_title'    => 'Workers',
     'index_subtitle' => 'Who works on site: their ID document, the companies they belong to and whether their face is enrolled for signing.',
-    'create_title'   => 'Create person',
-    'create_subtitle'=> 'Register the person with their ID document. Face and signature are captured later, on site.',
-    'edit_title'     => 'Edit person',
-    'delete_title'   => 'Delete person',
-    'show_title'     => 'Person — Details',
-    'trash_title'    => 'People trash',
-    'form_create_hint' => 'Register the person with their ID document. Face and signature are captured later, on site.',
-    'empty_hint'      => 'Create your first person or import a batch from Excel.',
+    'create_title'   => 'Create worker',
+    'create_subtitle'=> 'Register the worker with their ID document. Face and signature are captured later, on site.',
+    'edit_title'     => 'Edit worker',
+    'delete_title'   => 'Delete worker',
+    'show_title'     => 'Worker — Details',
+    'trash_title'    => 'Workers trash',
+    'form_create_hint' => 'Register the worker with their ID document. Face and signature are captured later, on site.',
+    'empty_hint'      => 'Create your first worker or import a batch from Excel.',
 
     // ── Fields ──────────────────────────────────────────────────────────────
     'name'                 => 'First names',
@@ -26,11 +26,11 @@ return [
     'lastname'             => 'Last names',
     'lastname_help'        => 'Full last names exactly as they appear on the ID document.',
     'lastname_placeholder' => 'E.g.: Pérez Gómez',
-    'full_name'            => 'Person',
+    'full_name'            => 'Worker',
     'document'             => 'ID document',
     'doc_type'             => 'Document type',
     'num_doc'              => 'Document number',
-    'num_doc_help'         => 'Identifies the person. It cannot repeat within the same country.',
+    'num_doc_help'         => 'Identifies the worker. It cannot repeat within the same country.',
     'num_doc_placeholder'  => 'E.g.: 12345678',
     'num_doc_faltan'       => ':n digits to go.',
     'num_doc_falta_uno'    => '1 digit to go.',
@@ -47,7 +47,7 @@ return [
     // Reference photo and stored signature. Requires `people.view_media`.
     'media_title'  => 'Photo and signature',
     'media_file'   => 'file',
-    'media_help'   => 'Internal material: neither the worker nor the field profiles see it. The photo is for recognising the person; the signature is printed in the PDFs.',
+    'media_help'   => 'Internal material: neither the worker themselves nor the field profiles see it. The photo is for recognising them; the signature is printed in the PDFs.',
     'photo'        => 'Reference photo',
     // It was missing, and the record printed «people.signature» raw under the trace.
     'signature'    => 'Signature',
@@ -65,7 +65,7 @@ return [
     'signer_face'  => 'See the face they signed with',
 
     'country'              => 'Country',
-    'country_help'         => 'Country of the document. Together with the number it defines the person uniqueness.',
+    'country_help'         => 'Country of the document. Together with the number it defines the worker uniqueness.',
     'origin'               => 'Origin',
     // No longer asked: the document type says it. In Peru a local carries a
     // DNI and someone from abroad carries a foreigner card, a PTP or a
@@ -82,7 +82,7 @@ return [
     // the roles at all, with no way to tell what they depended on.
     'roles_solo_los_mios'  => 'Only for your own company',
     'roles_elige_empresa'  => 'Pick the company first: site roles are only asked for your own people.',
-    'roles_no_es_mi_empresa' => 'This person works for a contractor, and whoever authorises a plan belongs to the hiring company. Site roles are only asked for your own people — the company set under Settings → My company.',
+    'roles_no_es_mi_empresa' => 'Site roles are only for your own company\'s staff.',
     'companies'            => 'Companies',
     'companies_count'      => 'Company count',
     // Labels for the delete warning: «3 signatures depend on this record».
@@ -92,7 +92,7 @@ return [
     'biometric'            => 'Face',
     'signatures'           => 'Signatures',
     'is_active'            => 'Status',
-    'is_active_help'       => 'If inactive, the person will not show up when assigning workers to a plan.',
+    'is_active_help'       => 'If inactive, the worker will not show up when assigning workers to a plan.',
     'filter_name'          => 'First or last name',
     'search_placeholder'   => 'Search by first or last name…',
     'trash_search_placeholder' => 'Search by name or document…',
@@ -116,18 +116,18 @@ return [
 
     // Withdrawing the registered face — see the note in the Spanish file.
     'biometric_forget'         => 'Withdraw face',
-    'biometric_forget_hint'    => 'Deletes this person\'s face data. They can register it again whenever they want, giving their permission once more.',
+    'biometric_forget_hint'    => 'Deletes this worker\'s face data. They can register it again whenever they want, giving their permission once more.',
     'biometric_forget_confirm' => 'Withdraw the registered face of :name? It is deleted, not disabled. Signatures already given are untouched: they still say how the person was identified that day.',
     'biometric_forgotten'      => 'Face withdrawn. Next time they sign they will have to register it again or sign by other means.',
-    'biometric_none_to_forget' => 'This person has no registered face.',
+    'biometric_none_to_forget' => 'This worker has no registered face.',
 
     'edit_hint'   => 'Edit this record',
     'delete_hint' => 'Delete (goes to trash)',
     'restore_hint'=> 'Will go back to the main list.',
 
-    'created' => 'Person created.',
-    'saved'   => 'Person updated.',
-    'deleted' => 'Person deleted.',
+    'created' => 'Worker created.',
+    'saved'   => 'Worker updated.',
+    'deleted' => 'Worker deleted.',
 
     'delete_about'                 => 'You are about to delete ":name". It will go to the trash.',
     'deleted_description_required' => 'Provide a reason for the deletion.',
@@ -135,9 +135,9 @@ return [
     'deleted_description_max'      => 'Reason cannot exceed 1000 characters.',
 
     // Export
-    'export_filename'           => 'people_export',
-    'import_template_filename'  => 'people-template.xlsx',
-    'export_title'              => 'People Report',
+    'export_filename'           => 'workers_export',
+    'import_template_filename'  => 'workers-template.xlsx',
+    'export_title'              => 'Workers Report',
     'export_limit_exceeded'     => 'The :format export exceeds the limit (:count rows vs :limit max). Use CSV for large datasets (no limit).',
     'export_format_limit_hint'  => 'Max :limit rows for this format. Use CSV for large datasets.',
     'export_no_limit_hint'      => 'No limit — recommended for large datasets.',
@@ -145,15 +145,15 @@ return [
     // Validation
     'name_required'              => 'First names are required.',
     'lastname_required'          => 'Last names are required.',
-    'name_and_lastname_required' => 'Creating a person requires both first and last names.',
-    'name_unique'                => 'This person already exists.',
+    'name_and_lastname_required' => 'Creating a worker requires both first and last names.',
+    'name_unique'                => 'This worker already exists.',
     'num_doc_required'           => 'The document number is required.',
     'num_doc_too_short' => 'A :type has at least :min characters.',
     'num_doc_too_long' => 'A :type has at most :max characters.',
     'num_doc_solo_cifras'      => 'A :type has digits only.',
     'num_doc_cifras_y_letras'  => 'A :type has digits and letters only.',
     'num_doc_sin_espacios'     => 'The document number has no spaces.',
-    'num_doc_unique'             => 'A person with this document already exists in the same country.',
+    'num_doc_unique'             => 'A worker with this document already exists in the same country.',
     'roles_solo_de_mi_empresa'   => 'Site roles are only given to your own people: whoever authorises a plan belongs to the hiring company.',
     'doc_type_invalid'           => 'Document type not valid for that country. Allowed: :types.',
     'doc_type_ninguno'           => 'No types for this country',
@@ -166,17 +166,17 @@ return [
     // The spreadsheet asks for the same as the form: without a company the
     // person cannot join any plan, and without a position nobody knows what
     // they do on site.
-    'import_company_position_required' => 'Creating a person requires the company and the position (columns company and position).',
+    'import_company_position_required' => 'Creating a worker requires the company and the position (columns company and position).',
     'import_role_unknown'        => 'Unknown site role: ":value". Allowed: :roles.',
     'import_padded_zero'         => 'The leading zero Excel ate was put back: :value.',
 
     // Edit All
-    'edit_all_title'    => 'People — Edit All',
-    'edit_all_subtitle' => 'Fix first and last names across many people at once — the legacy migration brought plenty of them swapped. The document is not editable here.',
+    'edit_all_title'    => 'Workers — Edit All',
+    'edit_all_subtitle' => 'Fix first and last names across many workers at once — the legacy migration brought plenty of them swapped. The document is not editable here.',
     'edit_all_changes'  => '{0} No changes|{1} 1 pending change|[2,*] :count pending changes',
     'edit_all_save_all' => 'Save all',
     'edit_all_discard'  => 'Discard changes',
-    'edit_all_no_results' => 'No people match the filter.',
+    'edit_all_no_results' => 'No workers match the filter.',
 
     'table_headers' => [
         'editable_name'     => 'First names (editable)',
@@ -186,7 +186,7 @@ return [
 
     // Onboarding tour
     'tour' => [
-        'step1_title' => 'Welcome to People',
+        'step1_title' => 'Welcome to Workers',
         'step1_body'  => 'This is the crew that works on site. Quick tour in under a minute.',
         'step2_title' => 'Filters',
         'step2_body'  => 'Search by first name, last name or document, and filter by company, role, country and face enrollment.',
@@ -197,9 +197,9 @@ return [
         'step5_title' => 'Export & Import',
         'step5_body'  => 'Export to Excel/PDF/Word in the background — you will be notified. Import from Excel/CSV with preview.',
         'step6_title' => 'Edit many at once',
-        'step6_body'  => '"Edit all" lets you fix first and last names across many people and save in one go.',
+        'step6_body'  => '"Edit all" lets you fix first and last names across many workers and save in one go.',
         'step7_title' => 'Favorites ★',
-        'step7_body'  => 'The star ★ marks a person as a favorite. Favorites always show at the top of the list; each user has their own.',
+        'step7_body'  => 'The star ★ marks a worker as a favorite. Favorites always show at the top of the list; each user has their own.',
         'step8_title' => 'Bulk operations',
         'step8_body'  => 'Select rows with the checkboxes — a bar appears to activate, deactivate or delete. Large batches run in the background.',
         'step9_title' => 'Need a refresher?',

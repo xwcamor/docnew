@@ -53,7 +53,7 @@ return [
     'num_doc_falta_uno'        => 'Falta 1 dígito.',
     'country'                  => 'País',
     'country_help'             => 'País donde está registrada. Decide qué documento lleva —cada país tiene el suyo— y, junto con el número, define su unicidad.',
-    'people_count'             => 'Personas',
+    'people_count'             => 'Trabajadores',
     'plans_count'              => 'Planes',
     'is_active'                => 'Estado',
     'is_active_help'           => 'Si está inactiva, la empresa no aparecerá al crear un plan de trabajo.',

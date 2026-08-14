@@ -1221,6 +1221,40 @@ class WorkPlanSetupTest extends TestCase
     }
 
     /**
+     * El alta desde el plan propone el documento NACIONAL del pais y, con Peru
+     * y DNI delante, consulta RENIEC — como el formulario de trabajadores.
+     *
+     * Sin tipo propuesto el numero no se validaba contra nada («no se esta
+     * validando por el tipo de documento minimo y maximo»), y el nombre se
+     * tecleaba a mano aunque la API pudiera traerlo: «la unica condicion para
+     * que busque personas de Peru de tipo DNI es usando la API».
+     */
+    public function test_el_alta_desde_el_plan_propone_el_nacional_y_consulta_reniec(): void
+    {
+        $plan = $this->plan();
+        $this->sembrarElDni();
+        $this->actingAs($this->supervisor());
+
+        // La marca `national` viaja en el catalogo por pais de la ficha: es lo
+        // que deja proponer el tipo sin adivinarlo por su nombre.
+        $this->get(route('business_management.work_plans.show', $plan->slug))
+            ->assertInertia(fn ($page) => $page
+                ->where('setupOptions.docTypesByCountry.1.0.value', 'DNI')
+                ->where('setupOptions.docTypesByCountry.1.0.national', true));
+
+        $vue = file_get_contents(resource_path('js/Components/WorkPlans/WorkPlanCrewCard.vue'));
+
+        $this->assertStringContainsString('find((o) => o.national)', $vue,
+            'el alta del plan tiene que proponer el documento nacional del pais elegido');
+        $this->assertStringContainsString('business_management.people.lookup_dni', $vue,
+            'el alta del plan tiene que consultar RENIEC con Peru y DNI, como el formulario de trabajadores');
+
+        $form = file_get_contents(resource_path('js/Pages/People/Form.vue'));
+        $this->assertStringContainsString('find((o) => o.national)', $form,
+            'el formulario de trabajadores propone el nacional por su marca, no por llamarse «DNI»');
+    }
+
+    /**
      * Un ajuste mal puesto no puede volver a abrir la puerta.
      *
      * Con el minimo en cero, la busqueda vacia devolveria el padron entero con

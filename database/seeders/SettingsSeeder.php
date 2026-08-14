@@ -66,7 +66,15 @@ class SettingsSeeder extends Seeder
             ['key' => 'docufiz.face_threshold', 'name' => 'Umbral de coincidencia facial', 'type' => 'string', 'value' => '0.50', 'group' => 'field_work', 'description' => 'Distancia maxima para dar una cara por reconocida (0,35 a 0,65). Mas bajo es mas exigente. Se ajusta con las distancias reales que registre el sistema, no por corazonada.'],
             ['key' => 'docufiz.face_timeout_seconds', 'name' => 'Segundos antes de capturar evidencia', 'type' => 'int', 'value' => '20', 'group' => 'field_work', 'description' => 'Cuanto se intenta reconocer una cara antes de pasar a tomar la foto de evidencia y dejar la firma pendiente de revision.'],
             ['key' => 'docufiz.face_liveness', 'name' => 'Pedir gesto de vida al firmar', 'type' => 'bool', 'value' => '1', 'group' => 'field_work', 'description' => 'Pide girar la cabeza o asentir, y volver al centro. Para una foto impresa o una pantalla quieta. Si no se completa, la firma se registra igual y queda pendiente de revision.'],
-            ['key' => 'docufiz.num_doc_minimum', 'name' => 'Mínimo de dígitos para buscar un documento', 'type' => 'int', 'value' => '7', 'group' => 'field_work', 'description' => 'Cuántos caracteres hay que teclear antes de que la búsqueda de personas conteste. Por debajo no devuelve nada, para que el buscador no acabe siendo un volcado del padrón. En el sistema anterior era 7 y estaba por país (settings.num_doc_minimum); aquí es uno solo, porque el 100 % de los planes son de Perú.'],
+            // Aqui se sembraba `docufiz.num_doc_minimum` en 7, el default de la
+            // v1. Ya no: el minimo del buscador sale del documento nacional del
+            // pais de la empresa del plan (WorkPlan::minimoDocumento) — «si la
+            // empresa es de Peru saldria 8 y deberia respetarse», dueño del
+            // producto — y como el ajuste GANA cuando existe, la fila de
+            // fabrica hacia que la regla del pais no llegara a aplicarse en
+            // ninguna instalacion. El ajuste sigue mandando si alguien lo crea
+            // a mano; lo que no puede es venir puesto sin que nadie lo pida.
+            // La limpieza del 7 sembrado esta despues del bucle.
             ['key' => 'docufiz.legacy_site_coords', 'name' => 'Dónde se firmaba en el sistema anterior', 'type' => 'string', 'value' => '-12.297842,-76.835961', 'group' => 'field_work', 'description' => 'Latitud,longitud del sitio de obra al que pertenece TODO el histórico importado. La v1 guardaba la ubicación que le daba el navegador, que sin GPS es la del proveedor de internet y acaba señalando el centro de Lima en vez de la obra. Con esto la importación deja las firmas antiguas en el sitio donde de verdad se trabajó. En blanco, se respeta lo que trajo la v1.'],
             ['key' => 'docufiz.sequential_approvals', 'name' => 'Aprobaciones en orden', 'type' => 'bool', 'value' => '0', 'group' => 'field_work', 'description' => 'Exige que las aprobaciones se firmen por nivel: nadie firma hasta que firmen las obligatorias anteriores. Apagado por defecto, porque en obra el HSE a veces pasa antes que el supervisor.'],
 
@@ -122,6 +130,15 @@ class SettingsSeeder extends Seeder
                 'updated_at'  => now(),
             ]);
         }
+
+        // El 7 que este seeder dejo puesto en instalaciones anteriores se
+        // retira, pero SOLO si sigue en 7: ese valor no lo decidio nadie, es el
+        // default de fabrica, y mientras exista el minimo del pais no aplica
+        // nunca. Un valor distinto si es una decision del super y se respeta.
+        DB::table('settings')
+            ->where('key', 'docufiz.num_doc_minimum')
+            ->where('value', '7')
+            ->delete();
 
         if (DB::getDriverName() === 'pgsql') {
             DB::statement("SELECT setval('settings_id_seq', COALESCE((SELECT MAX(id) FROM settings), 0) + 1, false)");

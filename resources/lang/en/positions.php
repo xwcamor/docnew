@@ -26,8 +26,8 @@ return [
     'is_active'                    => 'Status',
     'is_active_help'               => 'An inactive position is no longer offered when linking a person. Whoever already holds it keeps it.',
     'filter_name'                  => 'Search',
-    'usage_count'                  => 'People holding it',
-    'usage_list_title'             => 'People holding this position',
+    'usage_count'                  => 'Workers holding it',
+    'usage_list_title'             => 'Workers holding this position',
     'usage_list_none'              => 'Nobody holds it yet: it can be deleted without breaking anything.',
 
     // Messages
@@ -59,7 +59,7 @@ return [
         'step3_title' => 'Columns',
         'step3_body'  => 'Show or hide columns; the choice is remembered for next time.',
         'step4_title' => 'In use',
-        'step4_body'  => 'The "People holding it" column says how many records depend on each row. With one or more it can no longer be deleted: it gets deactivated instead.',
+        'step4_body'  => 'The "Workers holding it" column says how many records depend on each row. With one or more it can no longer be deleted: it gets deactivated instead.',
         'step5_title' => 'Bulk actions',
         'step5_body'  => 'Tick rows to activate, deactivate or delete in bulk. Rows in use are skipped and you are told how many.',
     ],

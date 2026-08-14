@@ -26,8 +26,8 @@ return [
     'is_active'                    => 'Estado',
     'is_active_help'               => 'Un cargo inactivo deja de ofrecerse al vincular a una persona. Quien ya lo tiene lo conserva.',
     'filter_name'                  => 'Buscar',
-    'usage_count'                  => 'Personas con este cargo',
-    'usage_list_title'             => 'Personas con este cargo',
+    'usage_count'                  => 'Trabajadores con este cargo',
+    'usage_list_title'             => 'Trabajadores con este cargo',
     'usage_list_none'              => 'Nadie lo tiene todavía: se puede eliminar sin romper nada.',
 
     // Mensajes
@@ -59,7 +59,7 @@ return [
         'step3_title' => 'Columnas',
         'step3_body'  => 'Muestra u oculta columnas; la elección se recuerda para la próxima vez.',
         'step4_title' => 'En uso',
-        'step4_body'  => 'La columna «Personas con este cargo» dice de cuántos registros depende cada fila. Con uno o más, ya no se puede borrar: se desactiva.',
+        'step4_body'  => 'La columna «Trabajadores con este cargo» dice de cuántos registros depende cada fila. Con uno o más, ya no se puede borrar: se desactiva.',
         'step5_title' => 'Operaciones masivas',
         'step5_body'  => 'Marca filas con las casillas para activar, desactivar o eliminar en bloque. Las que estén en uso se saltan y se te dice cuántas.',
     ],

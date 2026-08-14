@@ -108,14 +108,15 @@ const docTypesForCountry = computed(() => {
 // Al cambiar de país, el tipo que ya no existe allí se descarta: elegir Chile y
 // dejar «DNI» —que es peruano— reventaba el alta sin forma de arreglarlo.
 //
-// El que se propone es el DNI y no el primero de la lista. El catálogo va por
-// código y «CE» va antes que «DNI» alfabéticamente, así que el formulario abría
-// proponiendo carné de extranjería: cuatro personas de 228 lo llevan. Con el
-// tipo equivocado delante el tope del número es otro y RENIEC ni se consulta.
+// El que se propone es el documento NACIONAL del país (`national`), no el
+// primero de la lista. El catálogo va por código y «CE» va antes que «DNI»
+// alfabéticamente, así que el formulario abría proponiendo carné de
+// extranjería: cuatro personas de 228 lo llevan. Con el tipo equivocado
+// delante el tope del número es otro y RENIEC ni se consulta.
 watch(docTypesForCountry, (opciones) => {
     if (docLocked.value) return;
     if (!opciones.some((o) => o.value === form.doc_type)) {
-        const porDefecto = opciones.find((o) => o.value === 'DNI') ?? opciones[0];
+        const porDefecto = opciones.find((o) => o.national) ?? opciones[0];
         form.doc_type = porDefecto?.value ?? null;
     }
 }, { immediate: true });

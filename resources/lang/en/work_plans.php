@@ -298,11 +298,11 @@ return [
     // Assign and sign
     'approval_assign'    => 'Assign signer',
     'approval_change_hint' => 'Change who signs as :role',
-    'approval_assign_hint' => 'Scan or type the document. If the person exists, their name appears.',
+    'approval_assign_hint' => 'Scan or type the document. If the worker exists, their name appears.',
     'approval_assigned'  => ':name is now the signer.',
     'approval_change'    => 'Change',
     'approval_sign'      => 'Sign',
-    'approval_no_one_with_role' => 'No :role with that document. Check the person has that role on their record.',
+    'approval_no_one_with_role' => 'No :role with that document. Check the worker has that role on their record.',
     'approval_wrong_role' => ':name is not a :role. Only someone with that role on their worker record can sign this approval.',
     'approval_person_taken' => ':name already signs another role on this plan. One person does not cover two signatures.',
     'approval_signed_cannot_reassign' => 'This approval is already signed: the signer cannot be changed. The signature is the proof of who took responsibility.',

@@ -7,7 +7,7 @@ import {
 } from 'ant-design-vue';
 import {
     TeamOutlined, DeleteOutlined, EditOutlined, IdcardOutlined, LoadingOutlined,
-    UserAddOutlined,
+    UserAddOutlined, SafetyCertificateOutlined,
 } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
@@ -208,9 +208,14 @@ const abriendoAlta = ref(false);
 // Los tipos de documento del país elegido EN EL MODAL, no los del plan.
 const tiposDelPais = computed(() => props.docTypesByCountry?.[alta.country_id] ?? []);
 
-// Cambiar de país invalida el tipo: un DNI peruano no es un tipo de Venezuela.
+// Cambiar de país invalida el tipo, y se propone el documento NACIONAL del
+// país nuevo (el DNI en Perú), igual que el formulario de trabajadores. Sin
+// tipo elegido el número no se validaba contra nada: se podían teclear tres
+// cifras o veinte letras y no se sabía hasta darle a Guardar — «no se está
+// validando por el tipo de documento mínimo y máximo», dueño del producto.
 const cambioPais = () => {
-    alta.doc_type = tiposDelPais.value.length === 1 ? tiposDelPais.value[0].value : null;
+    const porDefecto = tiposDelPais.value.find((o) => o.national) ?? tiposDelPais.value[0];
+    alta.doc_type = porDefecto?.value ?? null;
 };
 
 // La FORMA del tipo elegido — largo mínimo, máximo y caracteres — igual que el
@@ -243,6 +248,57 @@ const faltanDigitos = computed(() => {
     const largo = (alta.num_doc ?? '').trim().length;
 
     return min && largo > 0 && largo < min ? min - largo : 0;
+});
+
+// ── RENIEC ── igual que el formulario de trabajadores, porque es la misma
+// alta: «la única condición para que busque personas de Perú de tipo DNI es
+// usando la API» (dueño del producto). Solo Perú y solo DNI — un carné o un
+// pasaporte no están en RENIEC — y si no hay token o no contesta, se escribe
+// el nombre a mano y ya.
+const paisEsPeru = computed(() => {
+    const p = (props.countries ?? []).find((o) => o.value === alta.country_id);
+    return /\(PE\)\s*$/.test(p?.label ?? '');
+});
+
+const dniEstado = ref(null);
+// Con el nombre traído de RENIEC los campos se bloquean: es el nombre oficial.
+// Queda la salida a mano por si la consulta devuelve algo raro.
+const nombreVerificado = ref(false);
+let temporizadorDni = null;
+
+const consultarDni = async (dni) => {
+    dniEstado.value = 'buscando';
+    try {
+        const { data } = await axios.get(route('business_management.people.lookup_dni'), { params: { dni } });
+
+        // `sin_configurar` no se enseña: el usuario no puede arreglarlo.
+        dniEstado.value = data.estado === 'sin_configurar' ? null : data.estado;
+
+        if (data.estado === 'encontrado') {
+            alta.name = data.nombres;
+            alta.lastname = data.apellidos;
+            nombreVerificado.value = true;
+        }
+    } catch {
+        dniEstado.value = 'error';
+    }
+};
+
+watch([() => alta.num_doc, () => alta.doc_type, () => alta.country_id], () => {
+    clearTimeout(temporizadorDni);
+
+    const dni = (alta.num_doc ?? '').replace(/\D/g, '');
+    const consultable = paisEsPeru.value && alta.doc_type === 'DNI' && dni.length === 8;
+
+    if (! consultable) {
+        // Al romper la condición se suelta el nombre: cambiado el documento,
+        // el nombre de antes ya no está verificado.
+        dniEstado.value = null;
+        nombreVerificado.value = false;
+        return;
+    }
+
+    temporizadorDni = setTimeout(() => consultarDni(dni), 500);
 });
 
 const abrirAlta = () => {
@@ -454,6 +510,7 @@ const guardarAlta = () => {
                     required
                     :validate-status="(alta.errors.doc_type || alta.errors.num_doc) ? 'error' : ''"
                     :help="alta.errors.doc_type || alta.errors.num_doc
+                        || (dniEstado ? $t(`people.dni_${dniEstado}`) : '')
                         || (faltanDigitos === 1 ? $t('people.num_doc_falta_uno') : '')
                         || (faltanDigitos > 1 ? $t('people.num_doc_faltan', { n: faltanDigitos }) : '')"
                 >
@@ -464,9 +521,33 @@ const guardarAlta = () => {
                             :placeholder="$t('people.doc_type')"
                             class="wp-alta__doc-type"
                         />
-                        <Input v-model:value="alta.num_doc" inputmode="numeric" class="wp-alta__doc-num" />
+                        <Input v-model:value="alta.num_doc" inputmode="numeric" class="wp-alta__doc-num">
+                            <!-- RENIEC puede tardar; sin algo que se mueva el
+                                 campo parece muerto y se teclea el nombre. -->
+                            <template v-if="dniEstado === 'buscando'" #suffix>
+                                <LoadingOutlined />
+                            </template>
+                        </Input>
                     </InputGroup>
                 </FormItem>
+
+                <!-- Con el nombre traído de RENIEC los dos campos se bloquean:
+                     es el nombre oficial. Queda la salida a mano por si la
+                     consulta devolviera algo raro. -->
+                <Alert
+                    v-if="nombreVerificado"
+                    type="success"
+                    show-icon
+                    class="wp-alta__verificado"
+                    :message="$t('people.dni_verificado')"
+                >
+                    <template #icon><SafetyCertificateOutlined /></template>
+                    <template #action>
+                        <Button size="small" type="link" @click="nombreVerificado = false">
+                            {{ $t('people.dni_editar_a_mano') }}
+                        </Button>
+                    </template>
+                </Alert>
 
                 <FormItem
                     :label="$t('people.name')"
@@ -474,7 +555,7 @@ const guardarAlta = () => {
                     :validate-status="alta.errors.name ? 'error' : ''"
                     :help="alta.errors.name"
                 >
-                    <Input v-model:value="alta.name" size="large" autocomplete="off" />
+                    <Input v-model:value="alta.name" size="large" autocomplete="off" :disabled="nombreVerificado" />
                 </FormItem>
 
                 <FormItem
@@ -483,7 +564,7 @@ const guardarAlta = () => {
                     :validate-status="alta.errors.lastname ? 'error' : ''"
                     :help="alta.errors.lastname"
                 >
-                    <Input v-model:value="alta.lastname" size="large" autocomplete="off" />
+                    <Input v-model:value="alta.lastname" size="large" autocomplete="off" :disabled="nombreVerificado" />
                 </FormItem>
 
                 <FormItem
@@ -522,6 +603,7 @@ const guardarAlta = () => {
 /* El alta rápida. El documento va en una línea: el tipo manda poco espacio y el
    número mucho, que es como se lee. */
 .wp-alta__hint { margin: 0 0 16px; font-size: 0.8125rem; color: var(--color-text-muted, #6A6D70); }
+.wp-alta__verificado { margin-bottom: 16px; }
 .wp-alta__doc { display: flex; width: 100%; }
 .wp-alta__doc-type { flex: 0 0 40%; }
 .wp-alta__doc-num  { flex: 1 1 auto; }

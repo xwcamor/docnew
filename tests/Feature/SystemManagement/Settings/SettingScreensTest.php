@@ -110,6 +110,39 @@ class SettingScreensTest extends SettingTestCase
         $this->assertSame('8', $fila->fresh()->value);
     }
 
+    /**
+     * El seeder ya no trae el mínimo de dígitos puesto de fábrica, y retira el
+     * 7 que dejó en instalaciones anteriores.
+     *
+     * El ajuste GANA cuando existe, así que con la fila sembrada la regla del
+     * país —«si la empresa es de Perú saldría 8 y debería respetarse»— no
+     * llegaba a aplicarse nunca: el buscador decía 7 en todas partes. Un valor
+     * distinto de 7 sí es una decisión del super y el seeder lo respeta.
+     */
+    public function test_el_seeder_retira_el_minimo_de_fabrica_pero_respeta_el_elegido(): void
+    {
+        $this->crear([
+            'key' => 'docufiz.num_doc_minimum', 'name' => 'Mínimo de dígitos',
+            'type' => 'int', 'value' => '7',
+        ]);
+
+        (new \Database\Seeders\SettingsSeeder())->run();
+
+        $this->assertDatabaseMissing('settings', ['key' => 'docufiz.num_doc_minimum']);
+
+        // Y correrlo otra vez no lo resucita.
+        (new \Database\Seeders\SettingsSeeder())->run();
+        $this->assertDatabaseMissing('settings', ['key' => 'docufiz.num_doc_minimum']);
+
+        // El valor que alguien eligió a mano se queda.
+        $this->crear([
+            'key' => 'docufiz.num_doc_minimum', 'name' => 'Mínimo de dígitos',
+            'type' => 'int', 'value' => '9',
+        ]);
+        (new \Database\Seeders\SettingsSeeder())->run();
+        $this->assertDatabaseHas('settings', ['key' => 'docufiz.num_doc_minimum', 'value' => '9']);
+    }
+
     /** El umbral facial se guarda como texto pero es un número acotado. */
     public function test_face_threshold_stays_inside_its_range(): void
     {
