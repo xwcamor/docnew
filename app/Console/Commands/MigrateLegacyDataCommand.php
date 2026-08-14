@@ -364,24 +364,51 @@ class MigrateLegacyDataCommand extends Command
             // existe —solo hay `num_doc`— asi que la identidad es el numero.
             // Filtrar por 'DNI' dejaba fuera al extranjero en cuanto su tipo
             // pasa a ser 'CE', y su plan se quedaba sin el.
-            $persona = Person::withTrashed()->where('country_id', $this->countryId)
+            //
+            // Y por tenant, NO por pais: desde que la nacionalidad manda el
+            // pais de la persona, el venezolano vive con `country_id` de
+            // Venezuela — buscarlo «dentro de Peru» no lo encontraria y cada
+            // corrida lo duplicaria.
+            $persona = Person::withTrashed()->where('tenant_id', $this->tenantId)
                 ->where('num_doc', $doc)->first();
 
             $nacionalidadId = $d['nacionalidad'] ? ($nacionalidades[$d['nacionalidad']] ?? null) : null;
 
             if (! $persona) {
+                // Su pais es el de su nacionalidad, no el del workspace. Lo
+                // dijo el dueño del producto: «si fue diferente a Peru tu le
+                // pusiste pais Peru y CE, pero debio haber sido su pais y su
+                // tipo de documento que corresponde». En el sistema nuevo el
+                // pais de la persona ES su nacionalidad —la ficha del plan lo
+                // enseña asi— y el tipo de documento sale de ese pais.
                 $persona = Person::create([
-                    'slug' => Str::random(22), 'country_id' => $this->countryId,
+                    'slug' => Str::random(22), 'country_id' => $nacionalidadId ?? $this->countryId,
                     'doc_type' => $this->tipoDeDocumento($nacionalidadId), 'num_doc' => $doc,
                     'name' => $d['name'], 'lastname' => $d['lastname'],
                     'tenant_id' => $this->tenantId, 'created_by' => 1,
                     'legacy_table' => implode(', ', $d['legacy']),
                 ]);
                 $creadas++;
-            } elseif ($nacionalidadId && $persona->doc_type !== $this->tipoDeDocumento($nacionalidadId)) {
-                // Ya existia de una pasada anterior, de cuando el tipo no se
-                // deducia y todos entraban como DNI. Se le corrige.
-                $persona->update(['doc_type' => $this->tipoDeDocumento($nacionalidadId)]);
+            } elseif ($nacionalidadId !== null) {
+                // Ya existia de una pasada anterior: de cuando todos entraban
+                // como DNI, o de cuando el extranjero entraba como Peru+CE.
+                // Se le cura el pais y el tipo; sin nacionalidad conocida no
+                // se toca nada, que lo puesto a mano vale mas que una
+                // deduccion.
+                $tipo = $this->tipoDeDocumento($nacionalidadId);
+                $cura = [];
+
+                if ((int) $persona->country_id !== $nacionalidadId) {
+                    $cura['country_id'] = $nacionalidadId;
+                }
+
+                if ($persona->doc_type !== $tipo) {
+                    $cura['doc_type'] = $tipo;
+                }
+
+                if ($cura !== []) {
+                    $persona->update($cura);
+                }
             }
 
             foreach (array_keys($d['roles']) as $rol) {
@@ -1124,6 +1151,9 @@ class MigrateLegacyDataCommand extends Command
 
         // Por documento a secas, por lo mismo que arriba: el tipo lo deduce la
         // migracion a partir de la nacionalidad y no forma parte de la identidad.
+        // Y por tenant, no por pais: el extranjero migrado vive con el pais de
+        // su nacionalidad, y filtrar por Peru lo dejaba fuera del mapa — sus
+        // firmas y sus filas de cuadrilla no encontraban a su persona.
         //
         // El mapa se arma por el HASH y no por el numero: `people.num_doc` va
         // cifrado, asi que las claves de un `pluck('id', 'num_doc')` serian
@@ -1131,7 +1161,7 @@ class MigrateLegacyDataCommand extends Command
         // v1 pasa por la misma normalizacion, que ademas es lo unico que hace
         // que un «12 345 678» de alli encuentre al «12345678» de aqui.
         $porDocumento = DB::table('people')
-            ->where('country_id', $this->countryId)
+            ->where('tenant_id', $this->tenantId)
             ->whereNotNull('num_doc_hash')
             ->pluck('id', 'num_doc_hash');
 
@@ -1221,10 +1251,22 @@ class MigrateLegacyDataCommand extends Command
      * los 11 extranjeros no — un peruano no puede tener carne de extranjeria y
      * un extranjero no puede tener DNI.
      *
-     * **Es una deduccion, no un dato del origen**, y conviene saberlo. La
-     * sostiene el propio volcado: los 11 extranjeros tienen documento de nueve
-     * caracteres y los peruanos de ocho, sin una sola excepcion en cinco años.
-     * Aun asi, si alguno lleva PTP o pasaporte en vez de carne, hay que
+     * El extranjero lleva EL DOCUMENTO NACIONAL DE SU PAIS, no el carne de
+     * extranjeria peruano. Es la correccion del dueño del producto: «si fue
+     * diferente a Peru tu le pusiste pais Peru y CE, pero debio haber sido su
+     * pais y su tipo de documento que corresponde». En el sistema nuevo la
+     * persona vive con su pais y el formulario ofrece los tipos de ESE pais
+     * (el venezolano con su cedula, el chileno con su RUN); Peru+CE la dejaba
+     * con una combinacion que la pantalla ni ofrece.
+     *
+     * El tipo sale del catalogo de `document_types`: el de alcance persona que
+     * NO es de extranjeros — ese es el documento nacional. Los 21 paises de
+     * Latinoamerica vienen sembrados; si un dia una nacionalidad cae en un
+     * pais sin tipos, se cae al CE de siempre, que es peor que el suyo pero
+     * mejor que inventar una sigla.
+     *
+     * **Es una deduccion, no un dato del origen**, y conviene saberlo. Si
+     * alguno lleva pasaporte o PTP en vez del documento de su pais, hay que
      * corregirlo a mano (queda anotado en docs/MIGRACION.md).
      *
      * Sin nacionalidad no se deduce nada: se deja el DNI de siempre.
@@ -1232,15 +1274,16 @@ class MigrateLegacyDataCommand extends Command
     protected function tipoDeDocumento(?int $nacionalidadId): string
     {
         // Sin nacionalidad no se deduce nada: se deja el DNI de siempre.
-        if ($nacionalidadId === null) {
+        if ($nacionalidadId === null || $nacionalidadId === $this->countryId) {
             return 'DNI';
         }
 
-        // Comparando IDS y no textos. Antes se comparaba el nombre de la
-        // nacionalidad con el del pais —«Peru» contra «Peru»— y bastaba con que
-        // la fila se hubiera sembrado como «Peruana» para que los 224 peruanos
-        // salieran con carne de extranjeria. Ahora la nacionalidad ES un pais.
-        return $nacionalidadId === $this->countryId ? 'DNI' : 'CE';
+        return \App\Models\DocumentType::query()
+            ->where('country_id', $nacionalidadId)
+            ->where('scope', \App\Models\DocumentType::PERSONA)
+            ->where('for_foreigners', false)
+            ->orderBy('id')
+            ->value('code') ?? 'CE';
     }
 
     /**
@@ -1249,8 +1292,9 @@ class MigrateLegacyDataCommand extends Command
      * En la v1 `workers.nationality_id` es NOT NULL: los 391 trabajadores traen
      * una, y la ficha del plan la enseñaba con una banderita al lado del
      * nombre. El reparto real: 380 Peru, 9 Venezuela, 1 Chile, 1 Argentina.
-     * Son once personas, pero son once que llevan carne de extranjeria en vez
-     * de DNI, y eso es justo lo que el supervisor comprueba en la puerta.
+     * Son once personas, pero son once que entran con SU pais y el documento
+     * nacional de ese pais — y eso es justo lo que el supervisor comprueba en
+     * la puerta.
      *
      * Aqui NO se crea nada: una nacionalidad es un pais y `countries` ya los
      * tiene los 26. Se empareja por nombre sin tildes ni mayusculas —«Perú» con

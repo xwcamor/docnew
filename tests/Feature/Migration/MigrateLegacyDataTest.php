@@ -397,20 +397,26 @@ class MigrateLegacyDataTest extends TestCase
     }
 
     /**
-     * La nacionalidad de la v1 decide el tipo de documento, y no se guarda.
+     * La nacionalidad de la v1 se vuelve el PAIS de la persona, y su tipo.
      *
      * La v1 no tiene tipo de documento: `workers.num_doc` es texto pelado y
      * aqui se escribia «DNI» para los 391. Para 380 es cierto; para los 11
-     * extranjeros no, porque un extranjero no puede tener DNI. `nationality_id`
-     * es NOT NULL alli —el reparto real es 380 Peru, 9 Venezuela, 1 Chile y 1
-     * Argentina— y de ahi sale el tipo.
+     * extranjeros no. `nationality_id` es NOT NULL alli —el reparto real es
+     * 380 Peru, 9 Venezuela, 1 Chile y 1 Argentina— y de ahi salen las dos
+     * cosas.
      *
-     * Lo que NO pasa es guardarla: `people.nationality_id` se borro por
-     * redundante. Ya estan el pais del documento y el tipo, que dicen lo mismo.
-     * Se lee del origen, se usa para deducir, y se tira.
+     * LAS DOS, no una: la version anterior dejaba al venezolano como Peru+CE,
+     * y el dueño del producto la corrigio — «debio haber sido su pais y su
+     * tipo de documento que corresponde». En el sistema nuevo la persona vive
+     * con su pais y el formulario ofrece los tipos de ese pais; Peru+CE es
+     * una combinacion que la pantalla ni ofrece para el.
+     *
+     * Lo que NO pasa es guardar la nacionalidad aparte: `people.nationality_id`
+     * se borro por redundante. Ya estan el pais y el tipo, que dicen lo mismo.
      */
-    public function test_la_nacionalidad_de_la_v1_decide_el_tipo_de_documento(): void
+    public function test_la_nacionalidad_de_la_v1_decide_el_pais_y_el_tipo_de_documento(): void
     {
+        $this->sembrarLaCedulaVenezolana();
         $this->migrarTodo();
 
         // Por el indice ciego: `people.num_doc` va cifrado, asi que una
@@ -420,7 +426,10 @@ class MigrateLegacyDataTest extends TestCase
         $extranjero = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000002'))->first();
 
         $this->assertSame('DNI', $peruano->doc_type);
-        $this->assertSame('CE', $extranjero->doc_type);
+        $this->assertSame(1, (int) $peruano->country_id);
+
+        $this->assertSame(2, (int) $extranjero->country_id, 'su pais es Venezuela, no el del workspace');
+        $this->assertSame('CI', $extranjero->doc_type, 'la cedula de SU pais, no el carne de extranjeria peruano');
 
         $this->assertFalse(
             \Illuminate\Support\Facades\Schema::hasColumn('people', 'nationality_id'),
@@ -429,24 +438,66 @@ class MigrateLegacyDataTest extends TestCase
     }
 
     /**
-     * A quien se migro con el tipo mal se le corrige al repetir la migracion.
+     * Sin el catalogo de tipos de ese pais, la caida es el CE de siempre.
      *
-     * Los 391 ya estaban en la base como «DNI», de la pasada anterior, cuando
-     * el tipo todavia no se deducia. Si solo se decidiera al CREAR la persona,
-     * los once extranjeros se quedarian con un DNI que no pueden tener y habria
-     * que borrarlos y empezar de nuevo.
+     * Los 21 paises de Latinoamerica vienen sembrados, asi que esto casi no
+     * pasa; pero si una nacionalidad cae en un pais sin tipos de persona, un
+     * CE conocido es mejor que una sigla inventada.
      */
-    public function test_al_repetir_la_migracion_se_corrige_el_tipo_que_estaba_mal(): void
+    public function test_sin_tipos_del_pais_se_cae_al_carne_de_extranjeria(): void
     {
         $this->migrarTodo();
 
-        // Se simula el estado en que quedo la base con la migracion vieja.
-        DB::table('people')->update(['doc_type' => 'DNI']);
+        $extranjero = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000002'))->first();
+
+        $this->assertSame(2, (int) $extranjero->country_id);
+        $this->assertSame('CE', $extranjero->doc_type);
+    }
+
+    /**
+     * A quien se migro con el pais o el tipo mal se le corrige al re-correr.
+     *
+     * Los 391 ya estaban en la base de pasadas anteriores: primero todos como
+     * DNI (cuando el tipo no se deducia), despues los extranjeros como Peru+CE
+     * (cuando el pais no se corregia). Si solo se decidiera al CREAR la
+     * persona, habria que borrarlos y empezar de nuevo.
+     */
+    public function test_al_repetir_la_migracion_se_corrige_lo_que_estaba_mal(): void
+    {
+        $this->sembrarLaCedulaVenezolana();
+        $this->migrarTodo();
+
+        // Los dos estados viejos a la vez: todos DNI y todos de Peru.
+        DB::table('people')->update(['doc_type' => 'DNI', 'country_id' => 1]);
 
         $this->migrarTodo();
 
-        $this->assertSame('CE', DB::table('people')
-            ->where('num_doc_hash', DocumentoBuscable::hash('10000002'))->value('doc_type'));
+        $extranjero = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000002'))->first();
+
+        $this->assertSame(2, (int) $extranjero->country_id);
+        $this->assertSame('CI', $extranjero->doc_type);
+
+        // Y al peruano no se le toco nada.
+        $peruano = DB::table('people')->where('num_doc_hash', DocumentoBuscable::hash('10000001'))->first();
+        $this->assertSame('DNI', $peruano->doc_type);
+        $this->assertSame(1, (int) $peruano->country_id);
+    }
+
+    /**
+     * El documento nacional de Venezuela, como lo dejaria el sembrado real.
+     *
+     * `DocumentTypesSeeder` trae los 21 paises; aqui solo hace falta este.
+     */
+    private function sembrarLaCedulaVenezolana(): void
+    {
+        DB::table('document_types')->insert([
+            'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 2,
+            'scope' => \App\Models\DocumentType::PERSONA, 'code' => 'CI',
+            'name' => 'Cédula de Identidad', 'min_length' => 5, 'max_length' => 9,
+            'allowed_chars' => \App\Models\DocumentType::SOLO_CIFRAS,
+            'for_foreigners' => false, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     /**
