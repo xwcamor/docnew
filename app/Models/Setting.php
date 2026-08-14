@@ -64,7 +64,13 @@ class Setting extends Model
         // marcarían como atascadas descargas que siguen corriendo bien.
         'downloads.stale_processing_minutes'  => ['min' => 11, 'max' => 1440],
         'notifications.poll_interval_seconds' => ['min' => 4,  'max' => 600],
+        // Los tres relojes del historial de cambios. El mínimo de 30 no es
+        // cosmético: por debajo, el historial deja de cubrir el mes en curso y
+        // ya no sirve para revisar nada. La poda del contenido admite bajar a 7
+        // porque ahí no se pierde el rastro, solo el «de qué a qué».
         'audit.retention_days'                => ['min' => 30, 'max' => 3650],
+        'audit.security_retention_days'       => ['min' => 30, 'max' => 3650],
+        'audit.redact_payload_days'           => ['min' => 7,  'max' => 3650],
         'uploads.user_photo_max_mb'           => ['min' => 1,  'max' => 50],
         'uploads.tenant_logo_max_mb'          => ['min' => 1,  'max' => 50],
         // 0 = sin límite (CSV va en streaming); el resto se arma en memoria.

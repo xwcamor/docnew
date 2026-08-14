@@ -16,6 +16,20 @@ Schedule::command('app:purge-soft-deleted')
     ->onOneServer()
     ->appendOutputTo(storage_path('logs/purge.log'));
 
+// Purga del historial de cambios (`audit_logs`): poda el contenido de las filas
+// viejas y borra las que ya pasaron su plazo. La política, con su porqué, está
+// en config/purge.php → bloque `audit_logs`.
+//
+// A las 03:30 y no a las 03:00: la purga de soft-deleted de arriba escribe su
+// propio resumen en el historial, y lanzar las dos a la vez es pelearse por la
+// misma tabla de madrugada sin ganar nada. `withoutOverlapping` no serviría
+// aquí — son comandos distintos, cada uno con su candado.
+Schedule::command('app:purge-audit-logs')
+    ->dailyAt('03:30')
+    ->withoutOverlapping()
+    ->onOneServer()
+    ->appendOutputTo(storage_path('logs/purge.log'));
+
 // Limpieza de archivos físicos de exports expirados o descargados (>24h).
 // Corre cada hora — el costo es bajo (solo I/O del disco) y mantiene
 // `storage/app/downloads/` chico sin acumular MBs de reportes viejos.

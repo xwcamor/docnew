@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 
@@ -39,6 +40,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->forzarHttpsFueraDeLocal();
+
         // ── `route:list` de vuelta ────────────────────────────────────────
         // laravel-localization hereda la `$signature` de RouteListCommand, asi
         // que su comando se registra como `route:list` y pisa al de Laravel —
@@ -124,6 +127,66 @@ class AppServiceProvider extends ServiceProvider
 
             $view->with('tenant_name', $tenantName);
         });
+    }
+
+    /**
+     * HTTPS obligatorio en todo lo que no sea la máquina de quien desarrolla.
+     *
+     * Había dos cabos sueltos, y los dos dependían de que alguien no se
+     * equivocara al configurar el servidor:
+     *
+     *   - Ningún `forceScheme`. Laravel arma sus URLs a partir del esquema con
+     *     el que llegó la petición, así que una petición que entre por http
+     *     —un enlace viejo, un `curl`, un redirect mal puesto delante— genera
+     *     un formulario de login que postea a http. Y el POST de un login sale
+     *     con la contraseña dentro.
+     *
+     *   - `SESSION_SECURE_COOKIE` sin valor en `.env` deja
+     *     `config('session.secure')` en null, que Laravel trata como «no». Sin
+     *     el flag `secure`, el navegador manda la cookie de sesión también por
+     *     http: basta una sola petición que caiga a http para que la sesión
+     *     entera viaje en claro por la red, y con esa cookie se entra sin
+     *     contraseña. La contraseña ni hace falta robarla.
+     *
+     * Los dos se cierran aquí, desde la aplicación, y no en el `.env`: un
+     * `.env` de producción se escribe a mano una vez y nadie lo vuelve a mirar.
+     * Esto no sustituye al HTTPS del servidor (Let's Encrypt, redirección
+     * 80→443, HSTS — ver docs/SECURITY.md); es la red por debajo, para el día
+     * que esa configuración se caiga o se despliegue en otro sitio.
+     *
+     * ── Por qué `local` y `testing` quedan fuera ──────────────────────────
+     *
+     * En desarrollo se corre con `php artisan serve` en http://localhost:8000,
+     * sin certificado. Forzar https ahí manda al navegador a
+     * https://localhost:8000, que no contesta: el sistema deja de arrancar en
+     * la máquina de quien lo está construyendo.
+     *
+     * `testing` es el conjunto de pruebas, que es http://localhost y comprueba
+     * redirecciones por su URL completa. La condición se escribe con los dos
+     * nombres a la vista, y no con `isProduction()`, porque lo que se quiere
+     * decir es «en todo lo demás, sí»: un entorno nuevo —staging, demo, una
+     * preview— nace protegido sin que nadie tenga que acordarse de añadirlo.
+     *
+     * Es público para poder comprobarlo con cada entorno delante sin arrancar
+     * el `boot()` entero: ese también registra observadores, oyentes y
+     * `prohibitDestructiveCommands`, y ese último, encendido dentro de una
+     * prueba, se queda encendido para el resto del proceso y deja sin base de
+     * datos a todo lo que corra después. Ver tests/Feature/HttpsForzadoTest.
+     */
+    public function forzarHttpsFueraDeLocal(): void
+    {
+        if ($this->app->environment(['local', 'testing'])) {
+            return;
+        }
+
+        URL::forceScheme('https');
+
+        // Se pisa el valor de config, no el del `.env`: así el flag queda
+        // puesto aunque `SESSION_SECURE_COOKIE` no esté escrita, y también
+        // aunque esté escrita en `false` por descuido o copiada del `.env` de
+        // desarrollo. Fuera de local no hay caso legítimo de cookie sin
+        // `secure`, así que no se deja opción de apagarlo.
+        config(['session.secure' => true]);
     }
 
 }

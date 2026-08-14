@@ -94,22 +94,18 @@ php artisan schedule:list
 |---|---|---|---|
 | `app:cleanup-expired-downloads` | cada hora | Borra los archivos de exportación expirados o ya descargados | `routes/console.php` |
 | `automations:purge-old-notifications` | cada hora | Borra notificaciones de automatización de más de 12 h, para que la campana no se llene | `routes/console.php` |
-| `app:purge-soft-deleted` | diario 03:00 **y** 04:00 | Borra registros borrados hace tiempo, según `config/purge.php` | `routes/console.php` **y** `bootstrap/app.php` |
+| `app:purge-soft-deleted` | diario 03:00 | Borra registros borrados hace tiempo, según `config/purge.php` | `routes/console.php` |
+| `app:purge-audit-logs` | diario 03:30 | Poda el contenido de las filas viejas del historial y borra las que pasaron su plazo, según `config/purge.php` → `audit_logs` | `routes/console.php` |
 | `api:purge-idempotency-keys` | diario 04:30 | Borra las claves de idempotencia de la API ya vencidas | `routes/console.php` |
 | `subscriptions:check-expirations` | diario 03:00 | Expira suscripciones vencidas y avisa por email "tu plan vence en 7 días" | `bootstrap/app.php` |
 | `automations:tick` | cada minuto | Busca automatizaciones con `next_run_at <= now()` y las despacha a la cola | `bootstrap/app.php` |
 
-> **`app:purge-soft-deleted` está agendado dos veces**: a las 03:00 en
-> `routes/console.php` y a las 04:00 en `bootstrap/app.php`. `withoutOverlapping()`
-> evita que choquen, pero corre dos veces al día sin motivo. Quitar una antes de
-> producción.
-
-> **Dos schedules apuntan a comandos que ya no existen.** `routes/console.php`
-> agenda `reports:purge-chart-cache` (domingos 03:30) y `reports:purge-frozen`
-> (diario). Los dos eran del flujo de informes de diagnóstico y se fueron con la
-> purga; sus clases no están en `app/Console/Commands/`. Cada corrida falla y
-> ensucia `storage/logs/purge.log`. Se arregla borrando esas dos entradas; es
-> cambio de código, no de este documento.
+> **Las tres purgas de madrugada van escalonadas y no a la vez**: soft-deleted a
+> las 03:00, historial a las 03:30, claves de idempotencia a las 04:30. La del
+> historial va detrás de la de soft-deleted a propósito — esa escribe su resumen
+> en `audit_logs`, y arrancar las dos juntas es pelearse por la misma tabla sin
+> ganar nada. `withoutOverlapping()` no lo evitaría: son comandos distintos, y
+> cada uno tiene su propio candado.
 
 ### D. Los comandos de migración del sistema anterior
 
@@ -206,9 +202,16 @@ Si necesitas multi-tenant whitelabel (cada workspace con su propio remitente), e
 
 ### Grupo `audit`
 
+Los tres relojes de `app:purge-audit-logs`. El razonamiento completo de cada
+plazo está en `config/purge.php` → bloque «Historial de cambios»; aquí solo se
+ajustan sin redeploy. Un ajuste en 0 no purga al instante: cae al defecto del
+config.
+
 | Key | Tipo | Default | Para qué |
 |---|---|---|---|
-| `audit.retention_days` | int | 365 | Días que se conservan los registros de auditoría antes de purgarlos. |
+| `audit.redact_payload_days` | int | 180 | Días tras los que se **vacía el contenido** (`old_values`/`new_values`) de una fila. La fila NO se borra: sobrevive quién hizo qué, cuándo y desde dónde. Es lo que impide que el historial siga guardando nombres y documentos de gente ya borrada del padrón. |
+| `audit.retention_days` | int | 365 | Días que se conserva la **fila entera** de un cambio corriente antes de borrarla. Pasado el plazo se pierde también el rastro. |
+| `audit.security_retention_days` | int | 1095 | Plazo aparte y más largo para accesos, intentos fallidos, cuentas frenadas, firmas en obra, aprobaciones, consentimientos y borrados permanentes. Nunca se aplica por debajo de `audit.retention_days`. |
 
 ### Los ajustes de la firma facial — se leen, pero NO se siembran
 
@@ -304,7 +307,9 @@ que sí, y la de los que no.
 | `security.session_lifetime_minutes` | `SettingsServiceProvider` override `config('session.lifetime')` | Minutos de inactividad antes de cerrar sesión |
 | `uploads.user_photo_max_mb` | User `StoreRequest` / `UpdateRequest` rule `max:N` | Tope upload de foto de perfil |
 | `uploads.tenant_logo_max_mb` | Tenant `StoreRequest` rule `max:N` | Tope upload de logo workspace |
-| `audit.retention_days` | `PurgeSoftDeleted::purgeModule('audit_logs')` | Días que se mantienen los registros de auditoría antes de purgarlos |
+| `audit.redact_payload_days` | `PurgeAuditLogs::podarContenido()` | Días antes de vaciar el contenido de una fila del historial, conservando la fila |
+| `audit.retention_days` | `PurgeAuditLogs::borrarFilas()` | Días que se mantiene la fila de un cambio corriente |
+| `audit.security_retention_days` | `PurgeAuditLogs::borrarFilas()` | Días que se mantiene la fila de un acceso, una firma o un consentimiento |
 | `legal.terms_version` | Comprobación de aceptación de términos | Subirla obliga a todos a aceptar de nuevo |
 
 ### Sembrados, pero sin conectar

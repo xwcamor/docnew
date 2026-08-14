@@ -69,13 +69,14 @@ class PurgeSoftDeleted extends Command
     protected function purgeModule(string $key, array $cfg, bool $dryRun, ?string $daysOverride): int
     {
         // Resolucion del grace period con la cascada:
-        //   --days override > setting global por modulo > config/purge.php > 0
-        // Para 'audit_logs' el setting `audit.retention_days` (default 365)
-        // permite ajustar la retencion desde la UI sin redeploy.
-        $settingDays = $key === 'audit_logs'
-            ? \App\Models\Setting::getInt('audit.retention_days', 0)
-            : 0;
-        $days = (int) ($daysOverride ?? ($settingDays > 0 ? $settingDays : ($cfg['days'] ?? 0)));
+        //   --days override > config/purge.php > 0
+        //
+        // Aqui habia una rama para 'audit_logs' que leia
+        // `audit.retention_days`. Nunca hizo nada: `audit_logs` no es un modulo
+        // de esta lista —no tiene `deleted_at`, asi que este comando no puede
+        // tocarla— y el historial se quedo sin purgar desde el primer dia. Lo
+        // purga `app:purge-audit-logs`, que es donde vive ahora ese ajuste.
+        $days = (int) ($daysOverride ?? ($cfg['days'] ?? 0));
         if ($days <= 0) {
             $this->line("  <fg=yellow>{$key}: skipping (days <= 0, deshabilitado)</>");
             return 0;

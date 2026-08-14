@@ -76,7 +76,13 @@ class SettingsSeeder extends Seeder
             ['key' => 'uploads.tenant_logo_max_mb',  'name' => 'Logo workspace máx (MB)', 'type' => 'int', 'value' => '2', 'group' => 'uploads', 'description' => 'Tamaño máximo del logo del workspace. Mismo criterio que la foto de perfil.'],
 
             // ─── Grupo: audit ─────────────────────────────────────────────────
-            ['key' => 'audit.retention_days', 'name' => 'Retención de audit logs (días)', 'type' => 'int', 'value' => '365', 'group' => 'audit', 'description' => 'Cuántos días se conservan los registros del audit log antes de ser purgados por el comando nocturno.'],
+            // Los tres relojes de `app:purge-audit-logs`. El razonamiento de
+            // cada plazo está en config/purge.php → bloque `audit_logs`; aquí
+            // solo se puede ajustar sin redeploy. Los tres en 0 dejan la fase
+            // correspondiente en el defecto del config, no la desactivan.
+            ['key' => 'audit.redact_payload_days', 'name' => 'Poda del contenido del historial (días)', 'type' => 'int', 'value' => '180', 'group' => 'audit', 'description' => 'A los cuántos días se vacían los «valores anteriores» y «valores nuevos» de una fila del historial. La fila NO se borra: se conserva quién hizo qué, cuándo y desde dónde, y se deja de guardar la copia de los datos que cambiaron (nombres, documentos, teléfonos). Es lo que impide que el historial siga guardando datos de personas que ya se borraron del padrón.'],
+            ['key' => 'audit.retention_days', 'name' => 'Retención del historial (días)', 'type' => 'int', 'value' => '365', 'group' => 'audit', 'description' => 'Cuántos días se conserva la fila entera de un cambio corriente (altas, ediciones y bajas de catálogo y de negocio) antes de borrarla. Pasado este plazo se pierde también el rastro de quién lo hizo.'],
+            ['key' => 'audit.security_retention_days', 'name' => 'Retención de eventos de seguridad y firma (días)', 'type' => 'int', 'value' => '1095', 'group' => 'audit', 'description' => 'Plazo aparte, y más largo, para lo que no es rutina: accesos, intentos fallidos, cuentas frenadas, firmas en obra, aprobaciones de plan, consentimientos y borrados permanentes. Son las filas que se consultan cuando hay una investigación o un reclamo, y esas llegan tarde por definición. Nunca se aplica por debajo de la retención general.'],
             ['key' => 'reports.frozen_retention_years', 'name' => 'Retención de PDF congelados (años)', 'type' => 'int', 'value' => '2', 'group' => 'downloads', 'description' => 'Años que se conserva el ARCHIVO del informe aprobado (acta congelada). Al purgarse el archivo se conservan el snapshot de datos y la huella sha256 para auditoría. 0 = nunca purgar.'],
 
             // ─── Grupo: diagnostics (coloreo de celdas por límite) ────────────
