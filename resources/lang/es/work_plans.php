@@ -435,4 +435,8 @@ return [
         'step9_title' => '¿Necesitas un repaso?',
         'step9_body'  => 'Reabre este tour cuando quieras con el botón ? aquí arriba. También tienes "Recientes" en el menú del avatar — los últimos registros que viste en cualquier módulo.',
     ],
+    // El catalogo plegado de la tarjeta de documentos: el boton solo existe si
+    // hay formatos que este plan no usa y quien mira puede armarlo.
+    'forms_add'       => 'Añadir formatos (:count)',
+    'forms_add_close' => 'Ocultar los formatos disponibles',
 ];

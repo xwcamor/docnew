@@ -411,4 +411,6 @@ return [
         'step9_title' => 'Need a refresher?',
         'step9_body'  => 'Reopen this tour anytime with the ? button. "Recent" in the avatar menu shows the last records you viewed.',
     ],
+    'forms_add'       => 'Add forms (:count)',
+    'forms_add_close' => 'Hide available forms',
 ];

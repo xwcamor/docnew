@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import { Card, Tag, Button, Switch, Tooltip } from 'ant-design-vue';
-import { FileTextOutlined, FilePdfOutlined, EditOutlined, EyeOutlined } from '@ant-design/icons-vue';
+import { FileTextOutlined, FilePdfOutlined, EditOutlined, EyeOutlined, PlusOutlined } from '@ant-design/icons-vue';
 import { useI18n } from '@/Plugins/i18n';
 import WorkPlanBoardRow from '@/Components/WorkPlans/WorkPlanBoardRow.vue';
 import { useDateFormat } from '@/Composables/useDateFormat';
@@ -48,6 +48,24 @@ const { formatDateTime } = useDateFormat();
 
 // Sólo cuentan los que el plan exige: los apagados no son trabajo pendiente.
 const enElPlan    = computed(() => props.forms.filter((f) => f.included));
+
+/**
+ * El catalogo que este plan NO usa, plegado detras de «Añadir formatos».
+ *
+ * Lo pidio el dueño del producto con su caso: «imagina que creo 10 formatos
+ * nuevos, esto provocara una lista larga» — y tenia razon dos veces. Primero se
+ * arreglo la mitad logica (un plan abierto ya no hereda documentos publicados
+ * despues de crearse); esto es la otra mitad, la visual: los no incluidos ya no
+ * ocupan una fila gris cada uno en todos los planes. La tarjeta enseña los
+ * documentos DEL PLAN, y el boton —que solo existe si hay algo que añadir y
+ * quien mira puede armarlo— despliega el resto.
+ *
+ * Quien no puede editar no ve ni el boton ni el catalogo: para el, un formato
+ * que no esta en el plan no es informacion, es ruido.
+ */
+const disponibles = computed(() => props.forms.filter((f) => !f.included));
+
+const catalogoAbierto = ref(false);
 const confirmados = computed(() => enElPlan.value.filter((f) => f.status === 'confirmed').length);
 const todosLlenos = computed(() => enElPlan.value.length > 0 && confirmados.value === enElPlan.value.length);
 
@@ -154,7 +172,7 @@ const alternar = (f, valor) => {
 
         <ul v-else class="wp-rows">
             <WorkPlanBoardRow
-                v-for="f in forms"
+                v-for="f in (catalogoAbierto ? forms : enElPlan)"
                 :key="f.slug"
                 :state="!f.included ? 'optional' : (f.status === 'confirmed' ? 'done' : 'pending')"
                 :title="f.name || f.code"
@@ -253,11 +271,31 @@ const alternar = (f, valor) => {
                     </Tooltip>
                 </template>
             </WorkPlanBoardRow>
-        </ul>
+                </ul>
+
+        <!-- «Añadir formatos»: el catalogo plegado. Solo existe si hay algo que
+             añadir Y quien mira puede armar el plan — un boton que solo puede
+             fallar es peor que no tenerlo (docs/UI.md §6). Con el catalogo
+             abierto, el mismo boton lo vuelve a plegar. -->
+        <Button
+            v-if="canEdit && disponibles.length"
+            type="dashed"
+            class="wp-forms__add"
+            @click="catalogoAbierto = !catalogoAbierto"
+        >
+            <PlusOutlined v-if="!catalogoAbierto" />
+            {{ catalogoAbierto
+                ? $t('work_plans.forms_add_close')
+                : $t('work_plans.forms_add', { count: disponibles.length }) }}
+        </Button>
     </Card>
 </template>
 
 <style scoped>
 /* Cada fila es WorkPlanBoardRow, la misma de las tres columnas del tablero. */
 .wp-rows { list-style: none; margin: 0; padding: 0; }
+
+/* El boton del catalogo plegado: punteado como todo «añadir» del sistema, y
+   con su alto de guantes. */
+.wp-forms__add { margin-top: 10px; min-height: 44px; }
 </style>

@@ -192,6 +192,37 @@ class PlanConoceSusDocumentosTest extends TestCase
             'el AST que este plan lleva llenando desde la v1 sigue siendo exigido');
     }
 
+    /**
+     * Y LA MITAD VISUAL: el catalogo no ocupa una fila gris por formato.
+     *
+     * La queja traia dos daños y el primero se arreglo solo a medias: los
+     * formatos nuevos dejaron de colarse como pendientes, pero seguian
+     * pintandose apagados en la tarjeta de cada plan — diez formatos nuevos
+     * eran diez filas grises en todos los planes. Ahora la tarjeta enseña los
+     * documentos DEL PLAN y el resto vive plegado detras de «Añadir formatos»,
+     * que solo existe si hay algo que añadir y quien mira puede armar el plan.
+     */
+    public function test_el_catalogo_vive_plegado_detras_de_añadir_formatos(): void
+    {
+        $tarjeta = file_get_contents(resource_path('js/Components/WorkPlans/WorkPlanFormsCard.vue'));
+
+        // Las filas de siempre son las DEL PLAN; el catalogo solo al abrirlo.
+        $this->assertStringContainsString('v-for="f in (catalogoAbierto ? forms : enElPlan)"', $tarjeta);
+
+        // El boton: con la cuenta, y solo si hay algo que añadir y se puede
+        // editar — un boton que solo puede fallar es peor que no tenerlo.
+        $this->assertStringContainsString('v-if="canEdit && disponibles.length"', $tarjeta);
+        $this->assertStringContainsString("work_plans.forms_add", $tarjeta);
+
+        foreach (['es', 'en'] as $idioma) {
+            $textos = require lang_path("{$idioma}/work_plans.php");
+
+            $this->assertStringContainsString(':count', $textos['forms_add'],
+                'el boton dice cuantos hay sin tener que abrirlo');
+            $this->assertNotEmpty($textos['forms_add_close']);
+        }
+    }
+
     // ── Decorado ────────────────────────────────────────────────────────────
 
     /** @return array{0: WorkPlan, 1: WorkType} */
