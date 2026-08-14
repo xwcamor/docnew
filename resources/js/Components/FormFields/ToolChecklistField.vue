@@ -29,13 +29,14 @@ import { Button } from 'ant-design-vue';
 import {
     ArrowRightOutlined, DeleteOutlined, DownOutlined, PlusOutlined, RightOutlined,
 } from '@ant-design/icons-vue';
-import AnswerToggle from './AnswerToggle.vue';
+import AnswerCycle from './AnswerCycle.vue';
 import CatalogSelect from './CatalogSelect.vue';
 import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
+import { useUltimoToque } from './ultimoToque';
 import {
-    catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaNoAplica, textoEstado,
+    catalogo, claveExigida, estadoChecklist, filaConforme, palabrasDelCiclo, respondidos, textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
 
@@ -58,15 +59,19 @@ const respuestas = computed(() => catalogo(config.value, 'answers'));
 const extras = computed(() => catalogo(config.value, 'extra'));
 
 /**
- * Cómo se llama aquí «no aplica», para poder nombrarlo en el aviso. Ver la nota
- * larga en PersonChecklistField: sustituye al botón «Marcar todo».
+ * Las palabras con las que se explica el ciclo de toques. Aquí el catálogo dice
+ * «Cumple/No cumple» y en el EPP «Conforme/No conforme»: por eso salen del
+ * `config.answers` del formato y no escritas a pelo. Ver la nota larga en
+ * PersonChecklistField.
  */
-const noAplica = computed(() => respuestaNoAplica(respuestas.value));
+const pista = computed(() => palabrasDelCiclo(respuestas.value));
 
 const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
 
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo, cerrar } =
     usePlegado(`ihm-${props.field?.id ?? 'x'}`);
+
+const { ultimo, anotar, olvidar, esUltimo } = useUltimoToque();
 
 function filaVacia() {
     return {
@@ -83,11 +88,29 @@ function publicar(nuevas) {
     })));
 }
 
-function responder(indice, item, respuesta) {
+function escribir(indice, item, respuesta) {
     publicar(filas.value.map((fila, i) => (i !== indice ? fila : {
         ...fila,
         items: (fila.items ?? []).map((x) => (x.item === item ? { ...x, answer: respuesta } : x)),
     })));
+}
+
+/** Un toque en una casilla: se apunta de dónde venía, para poder deshacerlo. */
+function responder(indice, item, respuesta) {
+    const previa = (filas.value[indice]?.items ?? []).find((x) => x.item === item)?.answer ?? null;
+
+    anotar(indice, item, previa);
+    escribir(indice, item, respuesta);
+}
+
+/** Deshacer el último toque. Un solo nivel a propósito — ver `ultimoToque.js`. */
+function deshacer() {
+    if (! ultimo.value) return;
+
+    const { fila, item, anterior } = ultimo.value;
+
+    olvidar();
+    escribir(fila, item, anterior);
 }
 
 function cambiar(indice, clave, valor) {
@@ -111,6 +134,10 @@ function agregar() {
 function quitar(indice) {
     emit('update:value', filas.value.filter((_, i) => i !== indice));
     cerrar();
+    // Y se olvida el ultimo toque, por lo mismo que se pliega todo: esta
+    // guardado por posicion, y al borrar la 2 de cuatro el boton de deshacer
+    // reaparecería sobre una casilla de OTRA herramienta.
+    olvidar();
 }
 
 const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length}`;
@@ -169,10 +196,13 @@ function siguientePendiente(indice) {
             {{ $t('field_work.tool_checklist.empty') }}
         </p>
 
-        <!-- Cómo se llena esto, dicho antes y no después. Sustituye al botón
+        <!-- Cómo se llena esto, dicho antes y no después: el ciclo de la
+             casilla y cómo se deshace un toque de más. Sustituye al botón
              «Marcar todo»: ver la nota larga en PersonChecklistField. -->
-        <p v-if="noAplica && !readonly && filas.length" class="ff-hint">
-            {{ $t('field_work.checklist_hint', { na: noAplica }) }}
+        <p v-if="pista && !readonly && filas.length" class="ff-hint">
+            {{ pista.na
+                ? $t('field_work.checklist_hint', pista)
+                : $t('field_work.checklist_hint_no_na', pista) }}
         </p>
 
         <RowNavigator
@@ -224,12 +254,17 @@ function siguientePendiente(indice) {
                     </div>
                 </div>
 
-                <ul class="ff-items">
-                    <li v-for="x in (fila.items ?? [])" :key="x.item" class="ff-item">
-                        <span class="ff-item__name">{{ x.item }}</span>
-                        <AnswerToggle
+                <!-- Cuadrícula, no lista: cada punto de inspección es una
+                     pastilla y caben las que quepan por línea. El IHM no se
+                     agrupa —el papel tampoco lo agrupaba, ver
+                     `EppPorGruposTest`— así que aquí es una sola cuadrícula. -->
+                <ul class="ff-checks">
+                    <li v-for="x in (fila.items ?? [])" :key="x.item">
+                        <AnswerCycle
                             :value="x.answer" :answers="respuestas" :readonly="readonly" :label="x.item"
-                            @update:value="responder(i, x.item, $event)" />
+                            :deshacible="esUltimo(i, x.item)"
+                            @update:value="responder(i, x.item, $event)"
+                            @deshacer="deshacer" />
                     </li>
                 </ul>
 

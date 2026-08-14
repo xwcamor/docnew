@@ -31,12 +31,13 @@
 import { computed } from 'vue';
 import { Alert, Button } from 'ant-design-vue';
 import { ArrowRightOutlined, DownOutlined, RightOutlined } from '@ant-design/icons-vue';
-import AnswerToggle from './AnswerToggle.vue';
+import AnswerCycle from './AnswerCycle.vue';
 import ExtraFields from './ExtraFields.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
+import { useUltimoToque } from './ultimoToque';
 import {
-    agrupar, catalogo, claveExigida, estadoChecklist, filaConforme, respondidos, respuestaNoAplica,
+    agrupar, catalogo, claveExigida, estadoChecklist, filaConforme, palabrasDelCiclo, respondidos,
     textoEstado,
 } from './respuestas';
 import { useI18n } from '@/Plugins/i18n';
@@ -79,17 +80,23 @@ const grupos = computed(() => agrupar(items.value, config.value?.groups));
 const conGrupos = computed(() => grupos.value.some((g) => g.name));
 
 /**
- * Cómo se llama aquí «no aplica», para poder nombrarlo en el aviso.
+ * Las palabras con las que se explica el ciclo de toques: la positiva, la
+ * negativa y —si el catálogo la tiene— la de «no aplica».
  *
- * Es la respuesta que el servidor escribe al cerrar el documento en todo lo que
- * se haya dejado sin marcar. El aviso tiene que decir la palabra que va a
- * quedar escrita —la del catálogo de ESTE formato— y no una nuestra; si el
- * catálogo no tiene ninguna, el servidor no rellena nada y el aviso no sale.
+ * Salen del catálogo de ESTE formato y no escritas a pelo: el EPP dice
+ * «Conforme/No conforme» y el IHM «Cumple/No cumple». La de «no aplica» es
+ * además la que el servidor va a escribir al cerrar el documento en todo lo que
+ * quede sin marcar, así que la leyenda tiene que decir esa y no una nuestra.
+ *
+ * Viene a null cuando el formato no tiene un ciclo que explicar (le falta la
+ * respuesta positiva o la negativa), y entonces no hay leyenda.
  */
-const noAplica = computed(() => respuestaNoAplica(respuestas.value));
+const pista = computed(() => palabrasDelCiclo(respuestas.value));
 
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo } =
     usePlegado(`epp-${props.field?.id ?? 'x'}`);
+
+const { ultimo, anotar, olvidar, esUltimo } = useUltimoToque();
 
 function filaVacia(persona) {
     return {
@@ -138,11 +145,30 @@ function publicar(nuevas) {
     emit('update:value', nuevas.map((fila) => ({ ...fila, conforme: filaConforme(fila.items) })));
 }
 
-function responder(indice, item, respuesta) {
+function escribir(indice, item, respuesta) {
     publicar(filas.value.map((fila, i) => (i !== indice ? fila : {
         ...fila,
         items: (fila.items ?? []).map((x) => (x.item === item ? { ...x, answer: respuesta } : x)),
     })));
+}
+
+/** Un toque en una casilla: se apunta de dónde venía, para poder deshacerlo. */
+function responder(indice, item, respuesta) {
+    anotar(indice, item, respuestaPorItem.value[indice]?.get(item) ?? null);
+    escribir(indice, item, respuesta);
+}
+
+/**
+ * Deshacer el último toque: la casilla vuelve al valor que tenía y el botón
+ * desaparece. Un solo nivel a propósito — ver `ultimoToque.js`.
+ */
+function deshacer() {
+    if (! ultimo.value) return;
+
+    const { fila, item, anterior } = ultimo.value;
+
+    olvidar();
+    escribir(fila, item, anterior);
 }
 
 function cambiarExtra(indice, clave, valor) {
@@ -230,13 +256,21 @@ function siguientePendiente(indice) {
         />
 
         <!-- CÓMO SE LLENA ESTO, dicho antes y no después.
-             Sustituye al botón «Marcar todo», que ponía Conforme en los
-             veinticinco equipos de un toque: eso afirma que veinticinco cosas
-             están bien cuando nadie ha mirado ninguna, y encima era el camino
-             cómodo. Se marca lo que corresponde y lo que se deja en blanco es
-             que a esa persona no le tocaba — como en el papel. -->
-        <p v-if="noAplica && !readonly" class="ff-hint">
-            {{ $t('field_work.checklist_hint', { na: noAplica }) }}
+             El ciclo de la casilla tiene que entenderse sin que nadie lo
+             explique, así que la leyenda dice las tres cosas: qué pasa al
+             tocar, qué pasa al volver a tocar y cómo se deshace un toque de
+             más.
+
+             Y sigue diciendo lo que ya decía: sustituye al botón «Marcar
+             todo», que ponía Conforme en los veinticinco equipos de un toque
+             —eso afirma que veinticinco cosas están bien cuando nadie ha
+             mirado ninguna, y encima era el camino cómodo—. Lo que se deja sin
+             marcar es que a esa persona no le tocaba, como en el papel, y por
+             eso «No aplica» no entra en el ciclo. -->
+        <p v-if="pista && !readonly" class="ff-hint">
+            {{ pista.na
+                ? $t('field_work.checklist_hint', pista)
+                : $t('field_work.checklist_hint_no_na', pista) }}
         </p>
 
         <!-- El guardado dejo el campo pendiente: en rojo, con la cuenta de
@@ -305,13 +339,21 @@ function siguientePendiente(indice) {
                 <template v-for="grupo in grupos" :key="grupo.name ?? '_'">
                     <h5 v-if="conGrupos" class="ff-group">{{ grupo.name || $t('field_work.person_checklist.other_group') }}</h5>
 
-                    <ul class="ff-items">
-                        <li v-for="item in grupo.items" :key="item" class="ff-item">
-                            <span class="ff-item__name">{{ item }}</span>
-                            <AnswerToggle
+                    <!-- Cuadrícula, no lista: cada equipo es una pastilla y
+                         caben las que quepan por línea. La agrupación por parte
+                         del cuerpo manda igual —cada rótulo lleva DEBAJO su
+                         propia cuadrícula, que se corta al llegar al siguiente
+                         rótulo— porque un cuadro corrido de veinticinco
+                         pastillas se recorre leyendo una a una, que es justo lo
+                         que los grupos vinieron a arreglar. -->
+                    <ul class="ff-checks">
+                        <li v-for="item in grupo.items" :key="item">
+                            <AnswerCycle
                                 :value="respuestaPorItem[i].get(item) ?? null"
                                 :answers="respuestas" :readonly="readonly" :label="item"
-                                @update:value="responder(i, item, $event)" />
+                                :deshacible="esUltimo(i, item)"
+                                @update:value="responder(i, item, $event)"
+                                @deshacer="deshacer" />
                         </li>
                     </ul>
                 </template>

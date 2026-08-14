@@ -127,8 +127,15 @@ return [
     // Flashes that used to live hardcoded in the controller. Ver la nota en `es`.
     'attached_flash'  => '{1} Document attached.|[2,*] :count documents attached.',
     'confirmed_flash' => 'Form confirmed.',
-    // How a checklist is filled in — see the note in `es`.
-    'checklist_hint'  => 'Mark only what applies. When the document is closed, anything left unmarked is saved as ":na".',
+    // How a checklist is filled in: the legend above the boxes, and the three
+    // things a tap cycle has to say out loud. Ver la nota larga en `es`.
+    'checklist_hint'  => 'Tap an item and it turns ":ok". Tap it again if something is wrong and it turns ":bad"; a third tap leaves it unmarked. Anything left unmarked is saved as ":na" when the document is closed, and if you tap once too many, the undo button next to it puts the item back.',
+    // The same legend for a form whose catalogue has no "not applicable".
+    'checklist_hint_no_na' => 'Tap an item and it turns ":ok". Tap it again if something is wrong and it turns ":bad"; a third tap leaves it unmarked. If you tap once too many, the undo button next to it puts the item back.',
+    // A grey box, said in words: colour never travels alone (docs/UI.md §5).
+    'checklist_unmarked' => 'Unmarked',
+    'checklist_tap_next' => 'Tap to mark it ":next".',
+    'checklist_undo'  => 'Undo the last tap on ":item"',
 
     // The way out of the footer, the same in both states. Ver la nota en `es`.
     'back_to_plan'    => 'Back to the plan',

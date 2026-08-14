@@ -1966,6 +1966,117 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-answer__icon { font-size: 0.95rem; }
 .ff-answer__none { color: var(--color-text-muted, #6A6D70); }
 
+/* ── Casillas que ciclan: la cuadricula del EPP y del IHM ────────────────────
+
+   Los dos checklists eran una fila por punto —texto a la izquierda, tres
+   botones a la derecha—, y con veinte puntos por herramienta y veinticinco
+   equipos por trabajador eso es una lista kilometrica: «se siente una hoja de
+   papel». Aqui el punto Y su respuesta son la misma pastilla, y las pastillas
+   se reparten el ancho. Ver `AnswerCycle.vue`.
+
+   SIN MEDIA QUERIES: la cuadricula la resuelve `auto-fit` sola. Las etiquetas
+   son largas —«Resp. con filtro para humos», «Condiciones generales de las
+   herramientas.»— asi que la columna pide 15rem de base: dos por linea en una
+   tablet en vertical, tres en horizontal, cinco en un escritorio de 1440, y una
+   sola cuando no cabe otra. Mas estrecha entraria una columna mas y los rotulos
+   largos se irian a tres lineas, que es cambiar una lista larga por pastillas
+   altas.
+
+   Y la condicion de verdad es el ancho de la TARJETA, no el de la ventana: el
+   mismo campo se pinta en una tablet en vertical y en un escritorio de 1440, y
+   una @media no distingue esos dos casos (es el mismo fallo que documenta
+   `.ff-item__main` mas abajo). */
+.ff-checks {
+    list-style: none; margin: 0; padding: 10px 12px;
+    display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+/* La celda: la pastilla y, cuando toca, el boton de deshacer a su lado. Que el
+   boton viva DENTRO de la celda es lo que impide que al salir se lleve por
+   delante la cuadricula: ninguna pastilla cambia de columna ni de ancho, y lo
+   unico que puede moverse es el rotulo de la que se acaba de tocar —si era muy
+   largo, gana una linea—, que es justo la que se esta mirando. */
+.ff-check { display: flex; align-items: stretch; gap: 6px; min-width: 0; }
+
+.ff-cycle {
+    flex: 1 1 auto; min-width: 0;
+    display: flex; align-items: center; gap: 10px;
+    /* Guantes y sol: el objetivo de toque es toda la pastilla y mide 56, muy
+       por encima de los 48 minimos. Un rotulo de dos lineas la estira, no la
+       encoge. */
+    min-height: 56px; padding: 8px 12px;
+    text-align: left; font: inherit;
+    border: 1px solid var(--color-border-strong, #cbd5e1); border-radius: 12px;
+    background: var(--color-surface, #fff);
+    color: var(--color-text, #32363A);
+    font-size: 0.9375rem; font-weight: 600; line-height: 1.25;
+    cursor: pointer; user-select: none;
+    transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.ff-cycle:hover { background: var(--color-surface-hover, #f5f9fe); }
+/* El teclado tiene que ver donde esta, y el anillo va por fuera para no comerse
+   el borde de color que ES el estado. */
+.ff-cycle:focus-visible { outline: 3px solid var(--color-primary, #0A6ED1); outline-offset: 2px; }
+.ff-cycle.is-ro { cursor: default; }
+.ff-cycle.is-ro:hover { background: var(--color-surface, #fff); }
+
+/* Los tres estados. Relleno y no tintado: al sol un fondo palido no se
+   distingue del blanco, y lo que hay que ver de lejos es cuales estan marcadas.
+   Los colores son los mismos `--ff-*` que ya usaban los botones de respuesta,
+   que es lo que impide que el verde de aqui y el de alla se separen. */
+.ff-cycle.is-ok  { background: var(--ff-ok);  border-color: var(--ff-ok);  color: #fff; }
+.ff-cycle.is-bad { background: var(--ff-bad); border-color: var(--ff-bad); color: #fff; }
+/* «No aplica» escrito de verdad: lo unico que lo pinta es una entrega que se
+   cerro —el servidor rellena los huecos— y se volvio a abrir. No es lo mismo
+   que la casilla en blanco y no puede verse igual. */
+.ff-cycle.is-na  { background: var(--ff-na);  border-color: var(--ff-na);  color: #fff; }
+
+/* La marca. Sin marcar es un recuadro vacio —una casilla de papel sin tocar— y
+   por eso el recuadro lo dibuja el CSS y no un icono: el estado neutro no tiene
+   simbolo que pintar. Marcada lleva dentro el ✔ o la ✘, que es la parte del
+   estado que NO es color: se ve fotocopiada y la lee quien no distingue el rojo
+   del verde (docs/UI.md §5). */
+.ff-cycle__mark {
+    flex-shrink: 0;
+    width: 26px; height: 26px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1rem;
+    border: 2px solid var(--color-border-strong, #cbd5e1);
+}
+.ff-cycle.is-ok .ff-cycle__mark,
+.ff-cycle.is-bad .ff-cycle__mark,
+.ff-cycle.is-na .ff-cycle__mark { border-color: rgba(255, 255, 255, 0.55); }
+
+/* El rotulo se parte en las lineas que haga falta: son nombres de equipo y de
+   punto de inspeccion, y cortarlos con puntos suspensivos dejaria «Resp. con
+   filtro para…», que no dice cual. */
+.ff-cycle__text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ff-cycle__name { overflow-wrap: anywhere; }
+/* La palabra del estado, debajo del rotulo y no a su lado: al lado le robaria
+   el ancho justo a la pastilla que mas texto lleva. */
+.ff-cycle__state {
+    font-size: 0.75rem; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.04em;
+}
+.ff-cycle.is-ro:not(.is-ok):not(.is-bad):not(.is-na) .ff-cycle__state { color: var(--color-text-muted, #6A6D70); }
+
+/* Deshacer el toque de mas: mismo alto que la pastilla, pegado a ella y solo en
+   la que se acaba de tocar. Es un icono solo —«Deshacer» escrito se comeria la
+   mitad de la celda— con su `aria-label`, y la leyenda de arriba lo anuncia
+   para que no haya que descubrirlo. */
+.ff-undo {
+    flex-shrink: 0;
+    width: 48px; min-height: 56px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 1.125rem;
+    border: 1px solid var(--color-border-strong, #cbd5e1); border-radius: 12px;
+    background: var(--color-surface-alt, #f8fafc);
+    color: var(--color-text, #32363A);
+    cursor: pointer;
+}
+.ff-undo:hover { background: var(--color-surface-hover, #f5f9fe); }
+.ff-undo:focus-visible { outline: 3px solid var(--color-primary, #0A6ED1); outline-offset: 2px; }
+
 /* Chips de severidad / probabilidad: los catalogos son cortos (c1..c5). */
 .ff-chips { display: flex; gap: 6px; flex-wrap: wrap; }
 .ff-chip {

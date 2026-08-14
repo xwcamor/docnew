@@ -155,14 +155,40 @@ return [
     // adjuntado.», «Formato confirmado.»): en inglés salían en castellano.
     'attached_flash'  => '{1} Documento adjuntado.|[2,*] :count documentos adjuntados.',
     'confirmed_flash' => 'Formato confirmado.',
-    // Cómo se llena un checklist. Sustituye al botón «Marcar todo», que ponía
-    // Conforme en los veinticinco equipos de un trabajador de un toque: eso
-    // afirma que veinticinco cosas están bien cuando nadie ha mirado ninguna, y
-    // era además el camino cómodo, o sea el que se acababa usando siempre.
+    // Cómo se llena un checklist: la leyenda que va ENCIMA de las casillas.
     //
-    // `:na` es la palabra del catálogo del propio formato («No aplica», «N/A»),
-    // no una nuestra: es la que va a quedar escrita en el documento.
-    'checklist_hint'  => 'Marca sólo lo que corresponda. Al cerrar el documento, lo que quede sin marcar se guarda como «:na».',
+    // Cada punto es una pastilla que cicla al tocarla, y un ciclo que no se
+    // explica no se descubre: hay que decir qué pasa al tocar, qué pasa al
+    // volver a tocar y —lo que más se pregunta— cómo se sale de un toque de
+    // más. Las tres frases son las tres cosas, en ese orden.
+    //
+    // Sigue diciendo lo que decía antes, porque es lo que sustituyó al botón
+    // «Marcar todo»: ese ponía Conforme en los veinticinco equipos de un
+    // trabajador de un toque, o sea afirmaba que veinticinco cosas están bien
+    // cuando nadie ha mirado ninguna, y encima era el camino cómodo. Que lo
+    // que se deja sin marcar valga como «no aplica» es justo lo que permite
+    // que el ciclo tenga sólo dos toques útiles.
+    //
+    // `:ok` y `:bad` son las respuestas del catálogo del propio formato —el
+    // EPP dice «Conforme/No conforme» y el IHM «Cumple/No cumple»— y `:na` es
+    // la que el servidor va a escribir al cerrar en lo que quede sin marcar.
+    // Ninguna de las tres se escribe aquí: son las que se van a ver en la
+    // pantalla y a quedar en el documento.
+    'checklist_hint'  => 'Toca un punto y queda «:ok». Tócalo otra vez si algo falla y queda «:bad»; una tercera vez lo deja sin marcar. Lo que quede sin marcar se guarda como «:na» al cerrar el documento, y si te pasas de toque, el botón de deshacer que sale al lado devuelve el punto a como estaba.',
+    // La misma leyenda para el formato cuyo catálogo NO tiene un «no aplica»:
+    // ahí el servidor no rellena nada al cerrar, y prometerlo sería mentir.
+    'checklist_hint_no_na' => 'Toca un punto y queda «:ok». Tócalo otra vez si algo falla y queda «:bad»; una tercera vez lo deja sin marcar. Si te pasas de toque, el botón de deshacer que sale al lado devuelve el punto a como estaba.',
+    // El estado de una casilla en gris, para decirlo en palabra: en el
+    // `aria-label` de la pastilla y en el documento ya cerrado. El color nunca
+    // va solo (docs/UI.md §5), y el gris tampoco.
+    'checklist_unmarked' => 'Sin marcar',
+    // Qué hace el siguiente toque, dicho en el `aria-label`: un botón que
+    // cambia de significado cada vez que se pulsa no se puede usar a ciegas si
+    // no anuncia a dónde lleva ahora.
+    'checklist_tap_next' => 'Toca para marcar «:next».',
+    // El botón de deshacer, que es sólo el símbolo: la palabra vive aquí, en su
+    // `aria-label` y en el rótulo que sale al dejar el dedo encima.
+    'checklist_undo'  => 'Deshacer el último toque en «:item»',
 
     // La salida del pie, la misma en los dos estados: llenando y mirando un
     // formato ya confirmado. Nombra el destino en vez de decir «Cancelar»,

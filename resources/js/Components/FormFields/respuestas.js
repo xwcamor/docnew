@@ -53,6 +53,80 @@ export function respuestaNoAplica(respuestas = []) {
     return respuestas.find((r) => tono(r) === 'na') ?? null;
 }
 
+/** La primera respuesta negativa del catalogo: «No conforme», «No cumple», «No». */
+export function respuestaNegativa(respuestas = []) {
+    return respuestas.find((r) => tono(r) === 'bad') ?? null;
+}
+
+/**
+ * El ciclo de toques de una casilla de checklist: [sin marcar, conforme, no
+ * conforme].
+ *
+ * POR QUE SOLO DOS RESPUESTAS Y NO LAS TRES DEL CATALOGO
+ * -----------------------------------------------------
+ * «No aplica» NO entra en el ciclo porque ya no hace falta tocarla: al
+ * confirmar, el servidor escribe esa misma palabra en todo lo que quedo en
+ * blanco (`FormSubmissionService::cerrarLoSinMarcarComoNoAplica`). Dejar la
+ * casilla en gris ES decir «no aplica», asi que meterla en el ciclo pondria un
+ * tercer toque para llegar a un sitio en el que ya se estaba —y un toque de
+ * mas en una lista de veinticinco casillas por trabajador se paga caro.
+ *
+ * Se ordena a proposito: primero lo que se marca casi siempre (conforme) y
+ * despues la excepcion (no conforme). El caso comun cuesta un toque.
+ *
+ * Es estricto con el tono: `respuestaPositiva()` se inventa una positiva
+ * (`?? respuestas[0]`) cuando el catalogo no la tiene, y aqui eso convertiria
+ * un «No aplica» suelto en el estado verde del ciclo. Un catalogo sin positiva
+ * o sin negativa devuelve un ciclo mas corto y la casilla sigue funcionando.
+ *
+ * @param {string[]} respuestas  `config.answers` del campo
+ * @returns {Array<string|null>} el ciclo, empezando siempre por `null`
+ */
+export function cicloRespuestas(respuestas = []) {
+    const ok = respuestas.find((r) => tono(r) === 'ok') ?? null;
+    const bad = respuestaNegativa(respuestas);
+
+    return [null, ok, bad].filter((r, i) => i === 0 || r !== null);
+}
+
+/**
+ * A donde lleva el siguiente toque.
+ *
+ * Una respuesta que NO esta en el ciclo —«No aplica» escrita por el servidor en
+ * una entrega que se volvio a abrir— cuenta como sin marcar, que es lo que
+ * significa: el toque la lleva a conforme, igual que si estuviera en blanco. Si
+ * la mandara a `null` el usuario veria gris antes y gris despues, y pensaria
+ * que la pantalla no le hizo caso.
+ */
+export function siguienteEnCiclo(ciclo, valor) {
+    const actual = ciclo.indexOf(valor ?? null);
+
+    return ciclo[((actual < 0 ? 0 : actual) + 1) % ciclo.length];
+}
+
+/**
+ * Las palabras que nombra la leyenda del ciclo, o null si este formato no tiene
+ * ciclo que explicar (le falta la respuesta positiva o la negativa).
+ *
+ * Salen del catalogo del propio formato —el EPP dice «Conforme/No conforme» y
+ * el IHM «Cumple/No cumple»— y nunca escritas a pelo: la leyenda tiene que
+ * decir la palabra que se va a ver en la casilla y a quedar en el documento.
+ *
+ * `na` puede venir a null: es el formato cuyo catalogo no tiene «no aplica», y
+ * entonces el servidor tampoco rellena los huecos al cerrar. La leyenda que se
+ * elige con eso es otra, porque prometer lo que no va a pasar es peor que
+ * callarse.
+ *
+ * @returns {{ok: string, bad: string, na: string|null}|null}
+ */
+export function palabrasDelCiclo(respuestas = []) {
+    const [, ok, bad] = cicloRespuestas(respuestas);
+
+    if (! ok || ! bad) return null;
+
+    return { ok, bad, na: respuestaNoAplica(respuestas) };
+}
+
 /**
  * Una fila esta conforme mientras ninguna de sus respuestas sea negativa. Es lo
  * que en el formato de papel era la columna "apto / no apto", y lo que decide
