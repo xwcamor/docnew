@@ -254,4 +254,13 @@ return [
     // face— which reads backwards from how people think about it.
     'match_percent' => 'Face match: :percent%',
     'signature_reason_placeholder' => 'Reason (optional)',
+
+    // The generic «table» field. Ver la nota en `es`.
+    'table' => [
+        'add_row'    => 'Add row',
+        'remove_row' => 'Remove this row',
+        'empty'      => 'No rows yet. Add the first one.',
+        'no_columns' => 'This field has no columns configured: tell whoever manages the forms.',
+        'missing'    => 'This table is empty: add at least one row.',
+    ],
 ];

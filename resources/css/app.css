@@ -2141,6 +2141,63 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-risk.is-none,
 .ff-risk.is-off  { color: var(--state-off-text);  background: var(--state-off-bg);  border-color: var(--state-off-border); }
 
+/* ── Campo «tabla»: filas con las columnas que defina el formato ──────────
+   NO es una `<table>`, y es a proposito: esto se llena en una tablet de 10" y
+   seis columnas ahi solo caben con scroll horizontal, que esta vetado
+   (docs/UI.md §3). Cada fila es una tarjeta y cada celda lleva su rotulo
+   encima: en pantalla ancha las celdas se reparten en linea y se lee como una
+   tabla; en la tablet se apilan. Y con el rotulo pegado a la casilla no hay que
+   acordarse de cual era la cuarta columna mientras se escribe con guantes.
+
+   El reparto es por ancho del CONTENEDOR y no de la ventana: el campo vive
+   dentro de tarjetas con rellenos propios, y lo que decide si caben tres celdas
+   es el hueco real. Es la misma leccion que ya esta escrita en `.ff-checks`. */
+.ff-tab { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+
+.ff-tab__fila {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--color-border-soft, #f0f0f0);
+    border-radius: 10px;
+    background: var(--color-surface, #fff);
+}
+/* La fila que el guardado dejo en blanco: filete rojo al canto y fondo teñido,
+   igual que la pregunta sin responder del banco. */
+.ff-tab__fila.is-missing {
+    background: var(--state-bad-bg);
+    box-shadow: inset 3px 0 0 var(--state-bad-text);
+}
+
+.ff-tab__num {
+    flex: 0 0 auto;
+    min-width: 1.5rem; padding-top: 22px;
+    font-size: 0.8125rem; font-weight: 700;
+    color: var(--color-text-dim);
+}
+
+.ff-tab__celdas {
+    flex: 1 1 auto; min-width: 0;
+    display: grid; gap: 8px 10px;
+    grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+}
+
+.ff-tab__celda { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ff-tab__rotulo {
+    font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;
+    color: var(--color-text-muted, #6A6D70);
+}
+
+/* 44px: el objetivo de toque con guantes (docs/UI.md §3). */
+.ff-tab__quitar {
+    flex: 0 0 auto;
+    width: 44px; height: 44px; margin-top: 18px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0;
+    color: var(--color-danger);
+}
+
+.ff-tab__add { align-self: flex-start; margin-top: 8px; min-height: 44px; }
+
 /* ── Contadores de avance ────────────────────────────────────────────────── */
 .ff-count {
     flex-shrink: 0; padding: 2px 10px; border-radius: 999px;

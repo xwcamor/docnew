@@ -460,6 +460,52 @@ class EscalabilidadDelMotorTest extends TestCase
         );
     }
 
+    /**
+     * EL CAMPO «TABLA» SE PUEDE LLENAR.
+     *
+     * Llevaba desde el primer dia en `FormField::TIPOS` —o sea que el editor lo
+     * ofrecia y pedia sus columnas— y la pantalla de llenado no lo despachaba:
+     * caia en el `<a-input v-else>` del final y se pintaba como una caja de
+     * texto de una linea. Quien lo eligiera de buena fe se encontraba un campo
+     * con seis columnas configuradas y un renglon para escribirlas todas, y el
+     * PDF recibia una cadena donde esperaba filas.
+     *
+     * Un tipo que se ofrece y no se puede llenar es peor que un tipo que no
+     * existe (docs/UI.md §6, leido para el motor).
+     */
+    public function test_todos_los_tipos_que_ofrece_el_editor_se_pueden_llenar(): void
+    {
+        $pantalla = file_get_contents(resource_path('js/Pages/FieldWork/FormFill.vue'));
+
+        // Los que tienen control propio, cada uno con su componente.
+        foreach (['risk_matrix', 'person_checklist', 'tool_checklist', 'question_bank', 'table'] as $tipo) {
+            $this->assertMatchesRegularExpression(
+                '/\b' . preg_quote($tipo, '/') . ':\s*\w+Field,/',
+                $pantalla,
+                "«{$tipo}» se ofrece en el editor y la pantalla de llenado no lo despacha",
+            );
+        }
+
+        // Y ninguno de los tipos declarados se queda sin forma de llenarse: los
+        // simples caen en su control de Ant, y eso tambien cuenta.
+        //
+        // `text` no esta en la lista y es correcto: es el CONTROL POR DEFECTO,
+        // el `v-else` del final de la cadena. Un tipo desconocido cae ahi y se
+        // pinta como un renglon de texto — que es exactamente lo que le pasaba a
+        // `table` y por lo que existe esta prueba.
+        $simples = ['textarea', 'number', 'date', 'time', 'select', 'multiselect', 'checkbox', 'radio'];
+
+        foreach ($simples as $tipo) {
+            $this->assertStringContainsString("c.field_type === '{$tipo}'", $pantalla,
+                "«{$tipo}» no tiene control de llenado propio");
+        }
+
+        // El resto son los de archivo, que van por su mapa aparte.
+        foreach (\App\Models\FormField::CON_ARCHIVO as $tipo) {
+            $this->assertStringContainsString("{$tipo}:", $pantalla);
+        }
+    }
+
     /** @return array<int, string> */
     private function configurablesDe(string $tipo): array
     {

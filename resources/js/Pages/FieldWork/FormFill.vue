@@ -15,6 +15,7 @@ import RiskMatrixField from '@/Components/FormFields/RiskMatrixField.vue';
 import PersonChecklistField from '@/Components/FormFields/PersonChecklistField.vue';
 import ToolChecklistField from '@/Components/FormFields/ToolChecklistField.vue';
 import QuestionBankField from '@/Components/FormFields/QuestionBankField.vue';
+import TableField from '@/Components/FormFields/TableField.vue';
 import AttachField from '@/Components/FormFields/AttachField.vue';
 import SignatureField from '@/Components/FormFields/SignatureField.vue';
 import { humanizar } from '@/Components/FormFields/respuestas';
@@ -63,6 +64,12 @@ const COMPUESTOS = {
     person_checklist: PersonChecklistField,
     tool_checklist: ToolChecklistField,
     question_bank: QuestionBankField,
+    // `table` llevaba desde el primer dia en `FormField::TIPOS` —o sea que el
+    // editor lo ofrecia y pedia sus columnas— y no estaba aqui: caia en el
+    // `<a-input v-else>` del final y se pintaba como una caja de texto de una
+    // linea. Un tipo que se ofrece y no se puede llenar es peor que uno que no
+    // existe.
+    table: TableField,
 };
 
 /**

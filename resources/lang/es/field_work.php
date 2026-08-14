@@ -335,4 +335,14 @@ return [
     // distancia —0 es la misma cara— que se lee al reves de como se piensa.
     'match_percent' => 'Coincidencia de la cara: :percent%',
     'signature_reason_placeholder' => 'Motivo (opcional)',
+
+    // El campo «tabla»: el generico del motor, con las columnas que defina el
+    // formato. Estaba ofreciendose en el editor y no se podia llenar.
+    'table' => [
+        'add_row'    => 'Añadir fila',
+        'remove_row' => 'Quitar esta fila',
+        'empty'      => 'Todavía no hay ninguna fila. Añade la primera.',
+        'no_columns' => 'Este campo no tiene columnas configuradas: díselo a quien administre los formatos.',
+        'missing'    => 'Falta llenar esta tabla: añade al menos una fila.',
+    ],
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Services\FieldWork;
 
+use App\Support\Catalogo;
 use App\Models\EvidenceFile;
 use App\Models\FormAttachment;
 use App\Models\FormField;
@@ -483,10 +484,14 @@ class FormSubmissionPdfService
         $filasCrudas = [];
 
         // `columns` de un campo de tipo tabla fija el orden de las columnas.
-        foreach (($campo->config['columns'] ?? []) as $columna) {
-            if (is_string($columna)) {
-                $claves[$columna] = true;
-            }
+        //
+        // Por VALOR, que es la clave con la que la pantalla guarda cada celda.
+        // Una columna puede venir con rotulo traducido (`{value, label}`) y
+        // entonces el rotulo es lo que se lee y el valor lo que casa con la
+        // fila; leerlas como cadenas sueltas —que es lo que se hacia— dejaba
+        // fuera del papel toda columna que se hubiera traducido.
+        foreach (Catalogo::entradas($campo->config['columns'] ?? []) as $columna) {
+            $claves[$columna['value']] = true;
         }
 
         foreach ($respuestas->sortBy('row_index') as $respuesta) {
