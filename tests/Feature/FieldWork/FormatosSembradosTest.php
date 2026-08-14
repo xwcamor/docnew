@@ -275,15 +275,27 @@ class FormatosSembradosTest extends TestCase
 
         // Y en este orden: la buena, «no aplica», la mala. Es como se lee, y
         // evita el toque equivocado por prisa — que en un EPP significa dar por
-        // bueno un arnes roto. Reordenar no toca nada de lo ya guardado: lo que
-        // se guarda es la etiqueta, y el tono se deduce del texto.
-        $this->assertSame(['Conforme', 'No aplica', 'No conforme'],
-            $config('EPP', 'epp_por_trabajador')['answers']);
-        $this->assertSame(['Cumple', 'No aplica', 'No cumple'],
-            $config('IHM', 'inspeccion_de_herramientas')['answers']);
+        // bueno un arnes roto.
+        //
+        // Se comparan los VALORES, no la forma cruda: desde que las respuestas
+        // declaran su tono, cada entrada es `{value, tone}` y lo que tiene que
+        // casar con la migracion es el valor — que es lo que se guarda.
+        $valores = fn (string $plantilla, string $campo) => \App\Support\Catalogo::valores(
+            $config($plantilla, $campo)['answers'],
+        );
+
+        $this->assertSame(['Conforme', 'No aplica', 'No conforme'], $valores('EPP', 'epp_por_trabajador'));
+        $this->assertSame(['Cumple', 'No aplica', 'No cumple'], $valores('IHM', 'inspeccion_de_herramientas'));
 
         // El PTF tiene dos, no tres: el formulario de la v1 pinta dos radios.
-        $this->assertSame(['Si', 'No'], $config('PTF', 'preguntas')['answers']);
+        $this->assertSame(['Si', 'No'], $valores('PTF', 'preguntas'));
+
+        // Y los tonos van DECLARADOS: los formatos sembrados no dependen de la
+        // heuristica del castellano, que existe solo por compatibilidad.
+        $this->assertSame(
+            ['ok', 'na', 'bad'],
+            array_column(\App\Support\Catalogo::entradas($config('EPP', 'epp_por_trabajador')['answers']), 'tone'),
+        );
     }
 
     /**
@@ -300,7 +312,10 @@ class FormatosSembradosTest extends TestCase
         $config = FormField::whereHas('section.formTemplate', fn ($q) => $q->where('code', 'IHM'))
             ->where('code', 'inspeccion_de_herramientas')->firstOrFail()->config;
 
-        $this->assertSame(['correction_measure', 'responsible'], $config['extra']);
+        // `correction_verification` es del #57: el PDF imprime ese hueco
+        // siempre que algo sale no conforme, y sin la clave en la config el
+        // formulario no ofrecia donde llenarlo — el plan quedaba atrapado.
+        $this->assertSame(['correction_measure', 'responsible', 'correction_verification'], $config['extra']);
     }
 
     /**

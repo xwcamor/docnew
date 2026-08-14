@@ -242,6 +242,9 @@ return [
     'crew_signed_cannot_remove' => 'No se puede quitar a :name: ya firmó el plan.',
 
     'forms_title'    => 'Documentos',
+    // La versión, en corto: «v3». La palabra entera se comería la línea
+    // del subtítulo, y el número al lado del nombre ya se entiende.
+    'forms_version_short' => 'v:n',
     'forms_not_in_plan'  => 'No se exige en este plan',
     'forms_toggle_hint'  => 'Exigir o no el formato :code en este plan',
     'forms_open_hint'    => 'Abrir el :code para llenarlo',

@@ -30,8 +30,27 @@ class FormSubmissionService
      */
     public function abrir(WorkPlan $plan, FormTemplate $plantilla, ?int $usuarioId = null): FormSubmission
     {
+        // Lo que YA se abrio se vuelve a abrir siempre, este la plantilla como
+        // este. Aqui hubo un 500 de verdad: publicar una version nueva ARCHIVA
+        // la anterior, asi que en cuanto alguien editaba un formato, todos los
+        // planes con ese formato ya llenado reventaban al entrar — «La
+        // plantilla no esta publicada» sobre un documento que se lleno cuando
+        // SI lo estaba. La entrega recuerda su `template_version` justo para
+        // esto: lo llenado con la v1 se sigue leyendo con la v1, y que hoy
+        // exista una v2 no lo toca.
+        $existente = FormSubmission::where('work_plan_id', $plan->id)
+            ->where('form_template_id', $plantilla->id)
+            ->first();
+
+        if ($existente !== null) {
+            return $existente;
+        }
+
+        // Crear una entrega NUEVA si exige plantilla publicada: un borrador no
+        // se puede llenar, y una archivada ya fue reemplazada por su siguiente
+        // version.
         if ($plantilla->status !== 'published') {
-            throw new \InvalidArgumentException('La plantilla no esta publicada.');
+            throw new \InvalidArgumentException(__('work_plans.form_not_published', ['code' => $plantilla->code]));
         }
 
         return FormSubmission::firstOrCreate(
@@ -357,7 +376,7 @@ class FormSubmissionService
      * conformidades. Un formato cuyo catalogo no tenga un «no aplica» se queda
      * exactamente como estaba.
      */
-    protected function cerrarLoSinMarcarComoNoAplica(FormSubmission $entrega): void
+    public function cerrarLoSinMarcarComoNoAplica(FormSubmission $entrega): void
     {
         $campos = $entrega->formTemplate?->fields()
             ->whereIn('field_type', ['person_checklist', 'tool_checklist'])
@@ -391,17 +410,22 @@ class FormSubmissionService
      * su plantilla obtiene lo mismo sin tocar codigo, y no hay dos sitios
      * clasificando respuestas con criterios que puedan separarse.
      *
-     * @param  array<int, string>  $respuestas  `config.answers` del campo
+     * Lee el catalogo por `Catalogo::entradas()`, que acepta las dos formas: la
+     * cadena suelta de los formatos migrados y la entrada con su tono declarado.
+     * Con la forma larga, `trim((string) $respuesta)` reventaba contra el array.
+     *
+     * @param  mixed  $respuestas  `config.answers` del campo, en cualquier forma
      */
-    protected function etiquetaNoAplica(array $respuestas): ?string
+    protected function etiquetaNoAplica(mixed $respuestas): ?string
     {
         $reglas = app(FormFindingsService::class);
 
-        foreach ($respuestas as $respuesta) {
-            $texto = trim((string) $respuesta);
+        foreach (\App\Support\Catalogo::entradas($respuestas) as $entrada) {
+            $tono = $entrada['tone'] ?? $reglas->tonoDeducido($entrada['value']);
 
-            if ($texto !== '' && $reglas->tono($texto) === FormFindingsService::NO_APLICA) {
-                return $texto;
+            if ($tono === FormFindingsService::NO_APLICA) {
+                // El VALOR, no el rotulo: es lo que se guarda en la respuesta.
+                return $entrada['value'];
             }
         }
 

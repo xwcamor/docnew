@@ -243,7 +243,13 @@ class ChecklistCicloTest extends TestCase
                 ->where('field_type', $tipo)
                 ->firstOrFail();
 
-            $tonos = array_map(fn ($r) => $reglas->tono($r), $campo->config['answers'] ?? []);
+            // Por el catalogo normalizado: desde que las respuestas declaran su
+            // tono, cada entrada es `{value, tone}` y clasificar el crudo seria
+            // pasarle un array a una funcion que espera la respuesta.
+            $tonos = array_map(
+                fn ($e) => $e['tone'] ?? $reglas->tonoDeducido($e['value']),
+                \App\Support\Catalogo::entradas($campo->config['answers'] ?? []),
+            );
 
             $this->assertContains('ok', $tonos, "el {$codigo} necesita una respuesta positiva que marcar");
             $this->assertContains(FormFindingsService::MALA, $tonos, "el {$codigo} necesita poder decir que algo falla");

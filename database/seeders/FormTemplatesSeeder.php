@@ -127,6 +127,8 @@ class FormTemplatesSeeder extends Seeder
             ]))->save();
 
             if ($plantilla->fields()->exists()) {
+                $this->repararConfigs($formato['code']);
+
                 return false;
             }
         }
@@ -134,6 +136,12 @@ class FormTemplatesSeeder extends Seeder
         foreach ($formato['secciones'] as $posicion => $seccion) {
             $this->sembrarSeccion($plantilla, $posicion, $seccion);
         }
+
+        // Tambien lo recien sembrado: los catalogos de arriba estan escritos en
+        // la forma corta —que es la que se lee— y la reparacion es quien
+        // declara los tonos. Sin esta llamada, una instalacion nueva y una
+        // reparada quedarian con configs distintas.
+        $this->repararConfigs($formato['code']);
 
         return $nueva;
     }
@@ -412,6 +420,73 @@ class FormTemplatesSeeder extends Seeder
     }
 
     /**
+     * Repara la config de los campos de un formato YA sembrado, sin pisar nada.
+     *
+     * El seeder no toca la estructura de una plantilla con campos —puede tener
+     * entregas firmadas y ediciones del cliente— pero hay arreglos que SI
+     * tienen que llegar a lo existente, porque el codigo nuevo los da por
+     * hechos. Se aplican a TODAS las versiones del codigo: la config viaja
+     * copiada en cada version, y reparar solo la vigente dejaria el fallo vivo
+     * en los documentos que se leen por su version congelada.
+     *
+     * Dos reparaciones, las dos aditivas:
+     *
+     *  1. El `extra` del IHM gana `correction_verification` si no lo tiene. El
+     *     PDF imprime ese hueco siempre que algo sale no conforme, y sin la
+     *     clave en la config el formulario no ofrecia donde llenarlo (#57).
+     *
+     *  2. Toda respuesta de catalogo que sea una cadena suelta pasa a declarar
+     *     su tono. NO cambia ningun comportamiento — el tono declarado es
+     *     exactamente el que la deduccion ya daba para esa cadena — pero deja
+     *     los formatos sembrados independientes de la heuristica del
+     *     castellano, que existe solo por compatibilidad. El VALOR no se toca:
+     *     es lo que casa con las 14 000 entregas.
+     */
+    protected function repararConfigs(string $codigo): void
+    {
+        $reglas = app(\App\Services\FieldWork\FormFindingsService::class);
+
+        $campos = \App\Models\FormField::whereHas(
+            'section.formTemplate',
+            fn ($q) => $q->withTrashed()->where('code', $codigo),
+        )->whereIn('field_type', ['person_checklist', 'tool_checklist', 'question_bank'])->get();
+
+        foreach ($campos as $campo) {
+            $config = $campo->config ?? [];
+            $tocado = false;
+
+            if ($campo->field_type === 'tool_checklist') {
+                $extra = array_values(array_filter((array) ($config['extra'] ?? []), 'is_string'));
+
+                if (! in_array('correction_verification', $extra, true)) {
+                    $config['extra'] = [...$extra, 'correction_verification'];
+                    $tocado = true;
+                }
+            }
+
+            $respuestas = $config['answers'] ?? null;
+
+            if (is_array($respuestas)) {
+                $declaradas = array_map(
+                    fn ($r) => is_string($r)
+                        ? ['value' => $r, 'tone' => $reglas->tonoDeducido($r)]
+                        : $r,
+                    $respuestas,
+                );
+
+                if ($declaradas !== $respuestas) {
+                    $config['answers'] = $declaradas;
+                    $tocado = true;
+                }
+            }
+
+            if ($tocado) {
+                $campo->update(['config' => $config]);
+            }
+        }
+    }
+
+    /**
      * Los grupos del EPP, del catalogo que viaja en el repositorio.
      *
      * DOS COSAS QUE HAY QUE SABER DE ESTOS DATOS
@@ -473,7 +548,17 @@ class FormTemplatesSeeder extends Seeder
                                 // falta: la v1 la marcaba sola con JavaScript
                                 // segun las respuestas, y aqui es el `conforme`
                                 // que ya calcula el propio campo.
-                                'extra'   => ['correction_measure', 'responsible'],
+                                //
+                                // `correction_verification` va porque el PDF la
+                                // IMPRIME siempre que algo sale no conforme
+                                // (`ToolChecklistPdf::VERIFICACION`: el hueco de
+                                // la verificacion se enseña aunque nadie lo
+                                // declare). Sin ella aqui, el papel decia
+                                // «Verificacion de la correccion: sin registrar»
+                                // y el formulario no ofrecia donde registrarla —
+                                // un hueco imposible de llenar, que ademas es lo
+                                // que atrapaba el plan (#57).
+                                'extra'   => ['correction_measure', 'responsible', 'correction_verification'],
                             ],
                         ],
                         $this->observaciones(),

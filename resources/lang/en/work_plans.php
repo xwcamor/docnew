@@ -228,6 +228,7 @@ return [
     'crew_signed_cannot_remove' => 'Cannot remove :name: they already signed the plan.',
 
     'forms_title'    => 'Documents',
+    'forms_version_short' => 'v:n',
     'forms_not_in_plan'  => 'Not required on this plan',
     'forms_toggle_hint'  => 'Require form :code on this plan, or not',
     'forms_open_hint'    => 'Open form :code to fill it in',

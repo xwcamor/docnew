@@ -493,6 +493,12 @@ class WorkPlanController extends Controller
                     // Trabajo)». El código es una sigla que hay que saberse.
                     'name'        => $plantilla->name ?: $plantilla->code,
                     'kind'        => $plantilla->kind,
+                    // La versión que VALE para este plan: la congelada en la
+                    // entrega si ya se abrió, y la vigente de la plantilla si
+                    // todavía no. Sale pequeña en la fila — es lo que permite
+                    // saber con qué revisión del documento se trabajó ese día
+                    // sin abrir el PDF.
+                    'version'     => $entrega?->template_version ?? $plantilla->version,
                     'included'    => $enElPlan->has($plantilla->id),
                     'required'    => $item['is_required'],
                     'source'      => $item['source'],

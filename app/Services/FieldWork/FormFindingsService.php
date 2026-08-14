@@ -273,6 +273,14 @@ class FormFindingsService
     /** Minusculas y sin tildes, para que 'Sí' y 'Si' se comparen igual. */
     protected function normalizar(mixed $texto): string
     {
+        // Un array no es un texto. Puede llegar si alguien clasifica una
+        // entrada cruda del catalogo en vez de su valor; se trata como vacio
+        // —que clasifica «no aplica», el tono que no suma nada— en vez de
+        // reventar con «Array to string» en mitad de un contador.
+        if (! is_scalar($texto) && $texto !== null) {
+            return '';
+        }
+
         $limpio = mb_strtolower(trim((string) $texto));
 
         return preg_replace('/\p{Mn}/u', '', \Normalizer::normalize($limpio, \Normalizer::FORM_D) ?: $limpio) ?? $limpio;

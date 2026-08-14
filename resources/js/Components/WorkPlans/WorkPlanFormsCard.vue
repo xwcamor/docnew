@@ -74,9 +74,13 @@ const conPdf = (f) => f.submission && f.status === 'confirmed';
  * algo —el PDF, los avisos del interruptor— se sigue diciendo.
  */
 const subtitulo = (f) => {
-    const partes = [];
+    // La versión del documento, pequeña y siempre: es la congelada en la
+    // entrega si el formato ya se abrió —lo que de verdad se llenó ese día— y
+    // la vigente si no. Con formatos que ya van por su v3, «¿con qué revisión
+    // se trabajó?» dejó de poder contestarse mirando la ficha.
+    const partes = f.version ? [t('work_plans.forms_version_short', { n: f.version })] : [];
 
-    if (!f.included) return t('work_plans.forms_not_in_plan');
+    if (!f.included) return [...partes, t('work_plans.forms_not_in_plan')].join(' · ');
 
     if (!f.locked_by_work_type) partes.push(t('work_plans.forms_optional'));
 

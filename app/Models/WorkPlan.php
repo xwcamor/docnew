@@ -402,6 +402,44 @@ class WorkPlan extends Model
             $estandar = $estandar->filter(
                 fn ($plantilla) => in_array($plantilla->id, $conEntrega) || $overrides->has($plantilla->id),
             );
+        } else {
+            // Un plan ABIERTO tampoco hereda DOCUMENTOS nuevos: espera los que
+            // existían cuando se creó. Publicar cinco formatos y colgarlos del
+            // tipo de trabajo los metía como pendientes en todos los planes
+            // abiertos y reabiertos de ese tipo — planes que iban a cerrarse ese
+            // día amanecían con cinco documentos «sin llenar» que nadie pidió
+            // para esa jornada. El formato nuevo sale en el catálogo de la
+            // ficha, apagado, y quien arma el plan lo enciende si esa obra lo
+            // necesita (`WorkPlanSetupService::addFormTemplate`).
+            //
+            // La identidad de un documento es su CÓDIGO, no el id: una versión
+            // nueva de un formato que el plan ya conocía no es un documento
+            // nuevo y tiene que seguir llegando — si el plan aún no lo llenó, se
+            // llena con la versión vigente, como siempre. Por eso se mira
+            // cuándo nació la PRIMERA versión del código.
+            $nacimientos = FormTemplate::query()
+                ->whereIn('code', $estandar->pluck('code'))
+                ->groupBy('code')
+                ->selectRaw('code, min(created_at) as nacio')
+                ->pluck('nacio', 'code');
+
+            // Un documento del que este plan YA tiene entrega tambien es
+            // conocido, tenga la fecha que tenga. No es un caso raro: los
+            // planes migrados guardan el `created_at` de la v1 —anterior a que
+            // estos formatos se sembraran aqui— y sin esta clausula un plan
+            // reabierto de entonces perderia la exigencia de los cuatro
+            // formatos que lleva llenando desde siempre.
+            $codigosConEntrega = FormTemplate::query()
+                ->whereIn('id', $this->submissions()->pluck('form_template_id'))
+                ->pluck('code')
+                ->flip();
+
+            $estandar = $estandar->filter(
+                fn ($plantilla) => $overrides->has($plantilla->id)
+                    || $codigosConEntrega->has($plantilla->code)
+                    || (($nacimientos[$plantilla->code] ?? null) !== null
+                        && \Illuminate\Support\Carbon::parse($nacimientos[$plantilla->code])->lte($this->created_at)),
+            );
         }
 
         foreach ($estandar as $plantilla) {
@@ -460,7 +498,51 @@ class WorkPlan extends Model
             ]);
         }
 
-        return $esperados;
+        return $this->unaVersionPorDocumento($esperados);
+    }
+
+    /**
+     * Un documento, UNA fila — aunque el catálogo lleve dos versiones de él.
+     *
+     * Pasa en cuanto alguien edita un formato con planes a medias: la entrega
+     * del plan apunta a la versión vieja (archivada al publicar la nueva) y el
+     * tipo de trabajo ya apunta a la nueva. Sin esto, el plan enseñaba el MISMO
+     * documento dos veces —el llenado, por la red de seguridad de arriba, y la
+     * versión nueva como pendiente— y un plan que estaba terminado amanecía
+     * con un formato «sin llenar» que ya se llenó y se firmó.
+     *
+     * Gana la versión CON entrega: es la que este plan conoció y la que dice la
+     * verdad de esa jornada. La exigencia no se pierde — si la versión nueva
+     * venía obligatoria del tipo, la fila superviviente lo hereda.
+     *
+     * @param  \Illuminate\Support\Collection<int, array>  $esperados
+     * @return \Illuminate\Support\Collection<int, array>
+     */
+    protected function unaVersionPorDocumento(\Illuminate\Support\Collection $esperados): \Illuminate\Support\Collection
+    {
+        $porCodigo = $esperados->groupBy(fn ($item) => $item['template']->code);
+
+        if ($porCodigo->every(fn ($grupo) => $grupo->count() === 1)) {
+            return $esperados;
+        }
+
+        $conEntrega = $this->submissions()->pluck('form_template_id')->flip();
+
+        return $porCodigo
+            ->map(function ($grupo) use ($conEntrega) {
+                if ($grupo->count() === 1) {
+                    return $grupo->first();
+                }
+
+                $superviviente = $grupo->first(fn ($item) => $conEntrega->has($item['template']->id))
+                    ?? $grupo->sortByDesc(fn ($item) => $item['template']->version)->first();
+
+                $superviviente['is_required'] = $grupo->contains(fn ($i) => $i['is_required']);
+                $superviviente['from_type_required'] = $grupo->contains(fn ($i) => $i['from_type_required'] ?? false);
+
+                return $superviviente;
+            })
+            ->keyBy(fn ($item) => $item['template']->id);
     }
 
     /** El plan esta completo cuando todo formato exigido esta confirmado y toda
