@@ -221,6 +221,14 @@ return [
         'dangers'       => 'Peligros',
         'risks'         => 'Riesgos',
         'controls'      => 'Controles',
+        // La tabla y las bandas: se leían desde que existe el motor y no había
+        // cómo escribirlas, así que cargar la matriz de otra empresa pedía
+        // entrar a la base. Y los rótulos de los ejes son lo que convierte
+        // «c3» en «Permanente» en la tablet y en el papel.
+        'matrix'             => 'Tabla de puntajes',
+        'levels'             => 'Bandas de riesgo',
+        'severity_labels'    => 'Nombres de las severidades',
+        'probability_labels' => 'Nombres de las probabilidades',
         'min'           => 'Mínimo',
         'max'           => 'Máximo',
         'decimals'      => 'Decimales',
@@ -279,4 +287,37 @@ return [
         'step9_title' => '¿Necesitas un repaso?',
         'step9_body'  => 'Reabre este tour cuando quieras con el botón ? aquí arriba. También tienes "Recientes" en el menú del avatar — los últimos registros que viste en cualquier módulo.',
     ],
+
+    // ── Respuestas con su tono, tabla y bandas de la matriz ──────────────────
+    //
+    // Todo esto viene de una pregunta del dueño del producto: «ese puntaje de
+    // catastrófico, ¿qué pasa si otra empresa tiene otros valores?». Se leía
+    // todo y no se podía escribir nada.
+    'answer_tone_hint'  => 'Di qué significa cada respuesta. Es lo que decide si cuenta como observación, con qué símbolo sale en el PDF y de qué color se ve en la tablet.',
+    'answer_tone_guess' => 'Deducir del texto',
+    'answer_tone_ok'    => 'Conformidad',
+    'answer_tone_bad'   => 'No conformidad',
+    'answer_tone_na'    => 'No aplica',
+    'answer_value_placeholder' => 'Lo que se guarda: «Conforme», «Rechazado»…',
+    'answer_labels'     => 'Cómo se lee en cada idioma',
+
+    'matrix_hint'       => 'El puntaje de cada cruce, como en la tabla de tu empresa. No es severidad × probabilidad: cópiala tal cual. El color sale solo, de la banda en la que cae cada número.',
+    'matrix_needs_axes' => 'Primero configura las severidades y las probabilidades: son las filas y las columnas de esta tabla.',
+
+    'levels_empty'      => 'Sin bandas, el nivel de riesgo sale «sin evaluar» y ningún peligro cuenta como observación.',
+    'levels_hint'       => 'Desde qué puntaje hasta cuál es cada nivel. Da igual si lo peor de tu escala es el 1 o el 25: lo que manda es el tramo.',
+    'level_key_placeholder' => 'Nombre interno: alto, critico…',
+    'level_from'        => 'De',
+    'level_to'          => 'a',
+    'level_tolerable'   => 'Tolerable',
+    'level_tolerable_help' => 'La banda que NO cuenta como observación. Sin marcar ninguna se toma la última.',
+    'level_tone_auto'   => 'Color automático',
+    'level_tone_bad'    => 'Rojo',
+    'level_tone_warn'   => 'Ámbar',
+    'level_tone_ok'     => 'Verde',
+    'level_tone_info'   => 'Azul',
+    'level_tone_off'    => 'Gris',
+
+    'labels_need_keys'  => 'Primero configura las claves de este eje.',
+    'labels_key_help'   => 'Nombre interno: es lo que se guarda en cada peligro y no cambia nunca.',
 ];

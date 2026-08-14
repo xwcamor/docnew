@@ -18,12 +18,17 @@
  * nada, sólo traslada el problema a quien está en obra con guantes.
  */
 import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { InputNumber, Input } from 'ant-design-vue';
 import StringListEditor from './StringListEditor.vue';
 import GroupListEditor from './GroupListEditor.vue';
+import AnswerListEditor from './AnswerListEditor.vue';
+import RiskMatrixTableEditor from './RiskMatrixTableEditor.vue';
+import RiskLevelsEditor from './RiskLevelsEditor.vue';
+import LabelMapEditor from './LabelMapEditor.vue';
 
 const props = defineProps({
-    // [{ key, label, control: 'list'|'number'|'text', required }]
+    // [{ key, label, control: 'list'|'answers'|'groups'|'matrix'|'levels'|'labels'|'number'|'text', required }]
     spec:       { type: Array,  default: () => [] },
     modelValue: { type: Object, default: () => ({}) },
     disabled:   { type: Boolean, default: false },
@@ -32,6 +37,17 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue']);
+
+const pagina = usePage();
+
+/**
+ * Los idiomas en los que se puede escribir un rótulo del cliente.
+ *
+ * Son los que el super tiene activos, los mismos del selector de la barra: dar
+ * de alta uno nuevo abre su recuadro aquí sin tocar nada más, que es justo lo
+ * que no pasaba cuando esto eran dos claves paralelas (`…` y `…_en`).
+ */
+const idiomas = computed(() => pagina.props?.availableLocales ?? []);
 
 const hayAlgoQueConfigurar = computed(() => props.spec.length > 0);
 
@@ -80,6 +96,51 @@ function lista(clave) {
                 :model-value="Array.isArray(modelValue?.[item.key]) ? modelValue[item.key] : []"
                 :items="lista('items')"
                 :disabled="disabled"
+                @update:model-value="fijar(item.key, $event)"
+            />
+
+            <!-- Las respuestas llevan su TONO: cuál cuenta como no conformidad
+                 no se puede adivinar del castellano. Ver `AnswerListEditor`. -->
+            <AnswerListEditor
+                v-else-if="item.control === 'answers'"
+                :model-value="Array.isArray(modelValue?.[item.key]) ? modelValue[item.key] : []"
+                :disabled="disabled"
+                :locales="idiomas"
+                @update:model-value="fijar(item.key, $event)"
+            />
+
+            <!-- La tabla de la matriz, pintada como el papel del cliente para
+                 poder cotejarla de un vistazo. El puntaje NO es severidad ×
+                 probabilidad: doce de las veinticinco celdas de la matriz de la
+                 v1 caen en otra banda si se multiplica. -->
+            <RiskMatrixTableEditor
+                v-else-if="item.control === 'matrix'"
+                :model-value="Array.isArray(modelValue?.[item.key]) ? modelValue[item.key] : []"
+                :config="modelValue ?? {}"
+                :disabled="disabled"
+                @update:model-value="fijar(item.key, $event)"
+            />
+
+            <!-- Las bandas: rango, rótulo, color y cuál es la tolerable. -->
+            <RiskLevelsEditor
+                v-else-if="item.control === 'levels'"
+                :model-value="Array.isArray(modelValue?.[item.key]) ? modelValue[item.key] : []"
+                :config="modelValue ?? {}"
+                :disabled="disabled"
+                :locales="idiomas"
+                @update:model-value="fijar(item.key, $event)"
+            />
+
+            <!-- Los nombres de las claves internas de cada eje («c3» →
+                 «Permanente»). Las filas salen del eje, no se escriben aquí. -->
+            <LabelMapEditor
+                v-else-if="item.control === 'labels'"
+                :model-value="modelValue?.[item.key] ?? {}"
+                :claves="item.key === 'severity_labels'
+                    ? (modelValue?.severities ?? modelValue?.severidades ?? [])
+                    : (modelValue?.probabilities ?? modelValue?.probabilidades ?? [])"
+                :disabled="disabled"
+                :locales="idiomas"
                 @update:model-value="fijar(item.key, $event)"
             />
 

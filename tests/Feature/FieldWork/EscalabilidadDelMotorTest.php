@@ -366,4 +366,110 @@ class EscalabilidadDelMotorTest extends TestCase
             $this->assertStringContainsString(".ff-risk.{$tono}", $css);
         }
     }
+    // ── Y todo esto se configura en pantalla, no por SQL ────────────────────
+
+    /**
+     * LA MATRIZ DE OTRA EMPRESA SE CARGA DESDE EL EDITOR.
+     *
+     * Este era el cabo suelto mas practico de todos: `config.matrix` y
+     * `config.levels` se LEIAN desde que existe el motor y no estaban en la
+     * lista de claves configurables, asi que la unica forma de cargar la tabla
+     * de otra empresa era entrar a la base y editar el JSON a mano. Con los
+     * rotulos de los ejes pasaba lo mismo: un formato que no viniera de la
+     * migracion enseñaba «c3» y «p2» pelados en la tablet y en el papel.
+     */
+    public function test_la_matriz_las_bandas_y_los_rotulos_se_configuran_en_pantalla(): void
+    {
+        $ofrecidas = $this->configurablesDe('risk_matrix');
+
+        foreach (['matrix', 'levels', 'severity_labels', 'probability_labels'] as $clave) {
+            $this->assertContains($clave, $ofrecidas,
+                "«{$clave}» solo se podia cargar por SQL: tiene que ofrecerla el editor");
+        }
+    }
+
+    /**
+     * Y cada una con SU control, no con el de lista.
+     *
+     * Con el control de textos, una banda se guardaria como «[object Object]» y
+     * el AST se quedaria sin niveles al primer guardado desde la pantalla, sin
+     * avisar. Es el mismo fallo que ya documentaron los grupos del EPP.
+     */
+    public function test_cada_configuracion_tiene_el_control_que_le_toca(): void
+    {
+        $controlador = new \App\Http\Controllers\BusinessManagement\FormTemplateController();
+
+        $metodo = new \ReflectionMethod($controlador, 'controlDeClave');
+        $metodo->setAccessible(true);
+
+        $esperado = [
+            'answers'            => 'answers',
+            'matrix'             => 'matrix',
+            'levels'             => 'levels',
+            'severity_labels'    => 'labels',
+            'probability_labels' => 'labels',
+            // Y lo que ya estaba sigue igual.
+            'groups'             => 'groups',
+            'items'              => 'list',
+        ];
+
+        foreach ($esperado as $clave => $control) {
+            $this->assertSame($control, $metodo->invoke($controlador, $clave),
+                "«{$clave}» necesita el control «{$control}»");
+        }
+
+        $editor = file_get_contents(resource_path('js/Components/FormTemplates/FieldConfigEditor.vue'));
+
+        foreach (array_unique(array_values($esperado)) as $control) {
+            $this->assertStringContainsString("item.control === '{$control}'", $editor,
+                "el editor no despacha el control «{$control}»");
+        }
+    }
+
+    /**
+     * Los idiomas del editor son los que el super tiene activos.
+     *
+     * Es lo que hace que dar de alta un idioma abra su recuadro sin tocar codigo.
+     * Escrita a mano la pareja es/en —que es lo que habia— el tercer idioma no
+     * tiene donde ir.
+     */
+    public function test_el_editor_ofrece_los_idiomas_activos_y_no_una_pareja_escrita(): void
+    {
+        $editor = file_get_contents(resource_path('js/Components/FormTemplates/FieldConfigEditor.vue'));
+
+        $this->assertStringContainsString('availableLocales', $editor);
+        $this->assertStringNotContainsString("['es', 'en']", $editor);
+    }
+
+    /**
+     * Guardar sin tocar nada NO reescribe la config de los cuatro formatos.
+     *
+     * Cada cambio de un formato publicado es una version nueva del documento, y
+     * convertir las tres respuestas de un EPP a la forma larga solo por haber
+     * abierto el editor seria ensuciar el historial de todos los clientes de
+     * golpe. Por eso los controles guardan la forma minima.
+     */
+    public function test_los_controles_guardan_la_forma_minima(): void
+    {
+        $respuestas = file_get_contents(resource_path('js/Components/FormTemplates/AnswerListEditor.vue'));
+
+        $this->assertStringContainsString(
+            'if (! tone && ! Object.keys(traducciones).length) return value;',
+            $respuestas,
+            'una respuesta sin tono ni traducciones se guarda como la cadena de siempre',
+        );
+    }
+
+    /** @return array<int, string> */
+    private function configurablesDe(string $tipo): array
+    {
+        $controlador = new \App\Http\Controllers\BusinessManagement\FormTemplateController();
+
+        $metodo = new \ReflectionMethod($controlador, 'catalogoDeTipos');
+        $metodo->setAccessible(true);
+
+        $catalogo = collect($metodo->invoke($controlador))->firstWhere('value', $tipo);
+
+        return array_column($catalogo['config'] ?? [], 'key');
+    }
 }

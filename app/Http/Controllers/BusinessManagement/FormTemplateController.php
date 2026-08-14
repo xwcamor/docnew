@@ -431,7 +431,17 @@ class FormTemplateController extends Controller
         // EPP de un cliente que no quiera grupos se pinta igual que antes.
         'person_checklist' => ['answers', 'extra', 'groups'],
         'tool_checklist'   => ['tools', 'answers', 'extra'],
-        'risk_matrix'      => ['activities', 'dangers', 'risks', 'controls'],
+        // La matriz: los catalogos de texto libre, y **la tabla y las bandas**.
+        //
+        // Estas dos ultimas se leian desde que existe el motor y no se podian
+        // escribir: no estaban en esta lista, asi que la unica manera de cargar
+        // la matriz de otra empresa era entrar a la base y editar el JSON. Con
+        // los rotulos de los ejes pasaba lo mismo — se pintaban «c3» y «p2»
+        // pelados en cuanto la plantilla no venia de la migracion.
+        'risk_matrix'      => [
+            'activities', 'dangers', 'risks', 'controls',
+            'matrix', 'levels', 'severity_labels', 'probability_labels',
+        ],
         'question_bank'    => ['answers'],
     ];
 
@@ -508,6 +518,33 @@ class FormTemplateController extends Controller
         // desde la pantalla, sin avisar.
         if ($clave === 'groups') {
             return 'groups';
+        }
+
+        // Las respuestas llevan su TONO, que es lo que decide si una cuenta como
+        // no conformidad. Con el control de lista habria que adivinarlo del
+        // texto, y esa adivinanza da «Rechazado» por conforme.
+        if ($clave === 'answers') {
+            return 'answers';
+        }
+
+        // La tabla de la matriz es una cuadricula de numeros, no una lista: se
+        // pinta como el papel del cliente para poder cotejarla de un vistazo.
+        if ($clave === 'matrix') {
+            return 'matrix';
+        }
+
+        // Y las bandas son rangos con rotulo, color y la marca de cual es
+        // tolerable. Con el control de lista se guardarian como «[object
+        // Object]» y el AST se quedaria sin niveles al primer guardado.
+        if ($clave === 'levels') {
+            return 'levels';
+        }
+
+        // Los rotulos de los ejes son un MAPA clave → texto («c1» →
+        // «Catastrofico»), no una lista: el orden no dice nada y lo que importa
+        // es a que clave corresponde cada palabra.
+        if (in_array($clave, ['severity_labels', 'probability_labels'], true)) {
+            return 'labels';
         }
 
         if (in_array($clave, ['min', 'max', 'decimals', 'max_files'], true)) {
