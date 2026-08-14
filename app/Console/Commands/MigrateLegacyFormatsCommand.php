@@ -80,6 +80,13 @@ class MigrateLegacyFormatsCommand extends Command
         // trajeron tambien lo desactivado. Ver el metodo.
         $this->retirarLoQueLaV1NoEnsenaba();
 
+        // El PTF migrado antes de que existieran los bloques los gana ahora,
+        // desde la relacion real de la base vieja. Solo cuando no tiene
+        // ninguno: unos bloques ya puestos —por el seeder o por el cliente—
+        // no se pisan, que aqui el unico escritor de lo existente es el que
+        // llega primero.
+        $this->plantarBloquesDelPtf($catalogos['bloques_ptf'] ?? []);
+
         $this->newLine();
         $this->table(
             ['Formato', 'Version', 'Estado', 'Campos'],
@@ -185,6 +192,118 @@ class MigrateLegacyFormatsCommand extends Command
         }
     }
 
+    /**
+     * Pone los bloques de la base vieja al PTF ya migrado que no tenga ninguno.
+     *
+     * Corre despues de la cura: los items de cada bloque vienen de la misma
+     * base y con los mismos filtros, asi que casan letra por letra con el
+     * catalogo recien curado.
+     */
+    protected function plantarBloquesDelPtf(array $bloques): void
+    {
+        if ($bloques === []) {
+            return;
+        }
+
+        $campos = \App\Models\FormField::whereHas(
+            'section.formTemplate',
+            fn ($q) => $q->withTrashed()->where('code', 'PTF'),
+        )->where('field_type', 'question_bank')->get();
+
+        foreach ($campos as $campo) {
+            $config = $campo->config ?? [];
+
+            if (! blank($config['groups'] ?? null)) {
+                continue;
+            }
+
+            $config['groups'] = $bloques;
+            $campo->update(['config' => $config]);
+            $this->info('PTF: bloques puestos desde la relacion de la base vieja.');
+        }
+    }
+
+    /**
+     * Los bloques del PTF tal como los agrupaba LA BASE DEL CLIENTE.
+     *
+     * La v1 no tenia una lista plana de preguntas: `ptf_question_titles` es el
+     * bloque («1. ¡DETENTE y piensa antes de actuar!») y cada `ptf_question`
+     * cuelga de uno por `ptf_question_title_id`. El migrador leia la tabla
+     * plana y perdia la agrupacion — lo vio el dueño del producto comparando
+     * con su PDF viejo.
+     *
+     * Se lee la relacion REAL —titulos activos, en su orden; sus preguntas
+     * activas, en el suyo— y no la del repositorio: si el cliente edito
+     * titulos o preguntas en su v1, sus bloques son los suyos. Los ICONOS no
+     * viajan en su base (alla son archivos del servidor web, que este comando
+     * no alcanza): se toman del repositorio cuando el titulo es uno de los
+     * cinco conocidos, casado por texto normalizado, y un titulo propio del
+     * cliente queda sin icono — se le sube uno desde el editor de grupos.
+     *
+     * @return array<int, array{name: array<string, string>, items: array<int, string>, image: ?string}>
+     */
+    protected function leerBloquesDelPtf(\Illuminate\Database\Connection $viejo): array
+    {
+        $esquema = $viejo->getSchemaBuilder();
+
+        if (! $esquema->hasTable('ptf_question_titles')
+            || ! $esquema->hasColumn('ptf_questions', 'ptf_question_title_id')) {
+            return [];
+        }
+
+        // Los iconos del repositorio, por titulo normalizado.
+        $conocidos = [];
+
+        $json = json_decode((string) file_get_contents(database_path('seeders/data/formatos-v1.json')), true);
+
+        foreach ($json['catalogos']['ptf_bloques'] ?? [] as $bloque) {
+            $conocidos[$this->norma($bloque['name']['es'] ?? '')] = $bloque['image'] ?? null;
+        }
+
+        $titulos = $viejo->table('ptf_question_titles')
+            ->where('is_deleted', 0)->where('is_active', 1)
+            ->orderBy('id')
+            ->get(['id', 'name_es', 'name_en', 'name_pt']);
+
+        $bloques = [];
+
+        foreach ($titulos as $titulo) {
+            $items = $viejo->table('ptf_questions')
+                ->where('is_deleted', 0)->where('is_active', 1)
+                ->where('ptf_question_title_id', $titulo->id)
+                ->orderBy('id')
+                ->pluck('name_es')->filter()->values()->all();
+
+            if ($items === []) {
+                continue;
+            }
+
+            // El nombre en los idiomas que la v1 tenga escritos, sin huecos.
+            $nombre = array_filter([
+                'es' => trim((string) $titulo->name_es) ?: null,
+                'en' => trim((string) $titulo->name_en) ?: null,
+                'pt' => trim((string) $titulo->name_pt) ?: null,
+            ]);
+
+            $bloques[] = [
+                'name'  => $nombre,
+                'items' => $items,
+                'image' => $conocidos[$this->norma($nombre['es'] ?? '')] ?? null,
+            ];
+        }
+
+        return $bloques;
+    }
+
+    /** Minusculas, sin tildes y con los espacios prensados: para casar titulos. */
+    protected function norma(mixed $texto): string
+    {
+        $limpio = mb_strtolower(trim((string) $texto));
+        $limpio = preg_replace('/\s+/u', ' ', $limpio) ?? $limpio;
+
+        return preg_replace('/\p{Mn}/u', '', \Normalizer::normalize($limpio, \Normalizer::FORM_D) ?: $limpio) ?? $limpio;
+    }
+
     /** Lee los catalogos de la base anterior. Solo lectura, nunca escribe alli. */
     protected function leerCatalogos(): array
     {
@@ -227,9 +346,19 @@ class MigrateLegacyFormatsCommand extends Command
             'epp'           => $nombres('epp_items'),
             'herramientas'  => $nombres('ihm_items'),
             'items_ihm'     => $nombres('ihm_tools'),
+            // En el orden del PAPEL: por bloque (`ptf_question_title_id`) y
+            // dentro del bloque por id. Ordenar por id a secas era leer la
+            // tabla y no el formulario: la v1 pintaba las preguntas agrupadas
+            // bajo sus titulos, y una pregunta añadida tarde a un bloque
+            // temprano salia al final de la lista plana.
             'preguntas'     => $viejo->table('ptf_questions')->where('is_deleted', 0)
                                 ->where('is_active', 1)
+                                ->when(
+                                    $viejo->getSchemaBuilder()->hasColumn('ptf_questions', 'ptf_question_title_id'),
+                                    fn ($q) => $q->orderBy('ptf_question_title_id'),
+                                )
                                 ->orderBy('id')->pluck('name_es')->filter()->values()->all(),
+            'bloques_ptf'   => $this->leerBloquesDelPtf($viejo),
             // severities y probabilities usan `name` (c1..c5), no los tres
             // idiomas. Y SIN filtrar `is_active`: el formulario de la v1
             // tampoco lo hacia con estas dos (`Probability.not_deleted` a
@@ -469,7 +598,11 @@ class MigrateLegacyFormatsCommand extends Command
         $s = $c->agregarSeccion($t);
         $c->agregarCampo($s, [
             'code' => 'preguntas', 'field_type' => 'question_bank', 'is_required' => true,
-            'config' => ['questions' => $cat['preguntas'], 'answers' => ['Si', 'No', 'No aplica']],
+            'config' => array_filter([
+                'questions' => $cat['preguntas'],
+                'answers'   => ['Si', 'No', 'No aplica'],
+                'groups'    => $cat['bloques_ptf'] ?? [],
+            ]),
         ]);
 
         $s2 = $c->agregarSeccion($t);

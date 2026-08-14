@@ -85,6 +85,69 @@ class CatalogosComoLosEnsenabaLaV1Test extends TestCase
         $this->assertContains('Tienes permiso?', $preguntas);
     }
 
+    /**
+     * Los bloques del PTF salen de LA RELACION de la base vieja, no del repo.
+     *
+     * Lo vio el dueño del producto: «la tabla tenia la columna
+     * ptf_question_title_id, ahi se agrupaban las preguntas». El migrador leia
+     * la tabla plana por id y perdia la agrupacion — y el orden: una pregunta
+     * añadida tarde a un bloque temprano salia al final de la lista.
+     */
+    public function test_los_bloques_del_ptf_vienen_de_la_relacion_de_la_base_vieja(): void
+    {
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $config = $this->campoDelPtf()->config;
+
+        // Dos bloques, los de la relacion. El titulo conocido trae el icono
+        // del repositorio; el bloque propio del cliente, no — su icono se sube
+        // desde el editor.
+        $this->assertCount(2, $config['groups']);
+        $this->assertSame('1. ¡DETÉNTE y piensa antes de actuar!', $config['groups'][0]['name']['es']);
+        $this->assertStringStartsWith('data:image/png;base64,', (string) $config['groups'][0]['image']);
+        $this->assertSame('Bloque propio del cliente', $config['groups'][1]['name']['es']);
+        $this->assertNull($config['groups'][1]['image']);
+
+        // Cada bloque con SUS preguntas, y la desactivada en ninguno.
+        $this->assertSame(['Tienes permiso?'], $config['groups'][0]['items']);
+        $this->assertSame(['Conoces la emergencia?'], $config['groups'][1]['items']);
+
+        // Y la lista plana en el orden del papel: por bloque, no por id. La
+        // pregunta con id 1 es del bloque 2 y va DESPUES.
+        $this->assertSame(['Tienes permiso?', 'Conoces la emergencia?'], $this->preguntasDelPtf());
+    }
+
+    /** El PTF migrado antes de que existieran los bloques los gana al re-correr. */
+    public function test_el_ptf_ya_migrado_sin_bloques_los_gana(): void
+    {
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        // El estado que dejo la version vieja del comando: sin bloques.
+        $campo = $this->campoDelPtf();
+        $config = $campo->config;
+        unset($config['groups']);
+        $campo->update(['config' => $config]);
+
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $this->assertCount(2, $this->campoDelPtf()->config['groups']);
+    }
+
+    /** Unos bloques que alguien ya armo —quien sea— no se pisan. */
+    public function test_unos_bloques_ya_puestos_no_se_pisan(): void
+    {
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $campo = $this->campoDelPtf();
+        $config = $campo->config;
+        $config['groups'] = [['name' => 'Mi bloque', 'items' => ['Tienes permiso?']]];
+        $campo->update(['config' => $config]);
+
+        $this->artisan('docufiz:migrate-formats')->assertSuccessful();
+
+        $this->assertSame('Mi bloque', $this->campoDelPtf()->config['groups'][0]['name']);
+    }
+
     // ── Decorado ────────────────────────────────────────────────────────────
 
     private function campoDelPtf(): FormField

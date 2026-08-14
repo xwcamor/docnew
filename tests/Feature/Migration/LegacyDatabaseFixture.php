@@ -143,6 +143,17 @@ class LegacyDatabaseFixture
             });
         }
 
+        // Los bloques del PTF: el titulo con su imagen, y cada pregunta cuelga
+        // de uno. Es la relacion que el migrador perdia al leer la tabla plana.
+        $esquema->create('ptf_question_titles', function ($t) {
+            $t->id(); $t->string('name_es'); $t->string('name_pt')->nullable(); $t->string('name_en')->nullable();
+            $t->string('image')->nullable();
+            $t->boolean('is_active')->default(true); $t->boolean('is_deleted')->default(false);
+        });
+        $esquema->table('ptf_questions', function ($t) {
+            $t->unsignedBigInteger('ptf_question_title_id')->nullable();
+        });
+
         // Plana y sin pais, como en la v1: dice de donde es la persona, no
         // donde se trabaja.
         $esquema->create('nationalities', function ($t) {
@@ -397,13 +408,25 @@ class LegacyDatabaseFixture
         $viejo->table('epp_items')->insert($catalogo(['Casco', 'Guantes']));
         $viejo->table('ihm_items')->insert($catalogo(['Condiciones generales', 'Guardas', 'Mango empunadora']));
         $viejo->table('ihm_tools')->insert($catalogo(['Amoladora']));
-        $viejo->table('ptf_questions')->insert($catalogo(['Tienes permiso?', 'Conoces la emergencia?']));
+        // Dos bloques, como el papel: cada pregunta cuelga del suyo. El titulo
+        // del primero es UNO DE LOS CINCO CONOCIDOS, para probar que el
+        // migrador le pega el icono del repositorio.
+        $viejo->table('ptf_question_titles')->insert([
+            ['id' => 1, 'name_es' => '1. ¡DETÉNTE y piensa antes de actuar!', 'name_pt' => '1. PARE e pense antes de agir!', 'name_en' => '1. STOP and think before acting!', 'is_active' => true, 'is_deleted' => false],
+            ['id' => 2, 'name_es' => 'Bloque propio del cliente', 'name_pt' => '', 'name_en' => '', 'is_active' => true, 'is_deleted' => false],
+        ]);
+        $viejo->table('ptf_questions')->insert([
+            // En orden cruzado a proposito: la pregunta 1 es del bloque 2. El
+            // orden del papel es por bloque, no por id.
+            ['id' => 1, 'name_es' => 'Conoces la emergencia?', 'name_pt' => '', 'name_en' => '', 'ptf_question_title_id' => 2, 'is_active' => true, 'is_deleted' => false],
+            ['id' => 2, 'name_es' => 'Tienes permiso?', 'name_pt' => '', 'name_en' => '', 'ptf_question_title_id' => 1, 'is_active' => true, 'is_deleted' => false],
+        ]);
         // La version vieja de una pregunta editada: desactivada, no borrada.
         // Es exactamente lo que el formulario de la v1 nunca enseñaba y lo que
         // el migrador barria por error.
         $viejo->table('ptf_questions')->insert([[
             'id' => 90, 'name_es' => 'Pregunta vieja desactivada', 'name_pt' => '', 'name_en' => '',
-            'is_active' => false, 'is_deleted' => false,
+            'ptf_question_title_id' => 1, 'is_active' => false, 'is_deleted' => false,
         ]]);
 
         $viejo->table('severities')->insert([['id' => 1, 'name' => 'c1', 'is_deleted' => false], ['id' => 3, 'name' => 'c3', 'is_deleted' => false]]);

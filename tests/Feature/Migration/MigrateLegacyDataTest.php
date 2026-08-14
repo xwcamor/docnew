@@ -585,7 +585,11 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertCount(1, $filas);
         $this->assertSame('Si', $filas[0][0]['answer']);
         $this->assertSame('No', $filas[0][1]['answer']);
-        $this->assertSame('Tienes permiso?', $filas[0][0]['question']);
+        // La pregunta con id 1 es «Conoces la emergencia?» desde que la maqueta
+        // cruza los bloques a proposito (la 1 cuelga del bloque 2): lo migrado
+        // conserva el orden de las RESPUESTAS del documento, que va por id de
+        // pregunta — el orden del papel lo ponen los bloques al pintar.
+        $this->assertSame('Conoces la emergencia?', $filas[0][0]['question']);
     }
 
     public function test_el_epp_llega_por_trabajador_y_apunta_a_la_persona_de_destino(): void

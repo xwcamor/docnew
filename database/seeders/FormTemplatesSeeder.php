@@ -489,7 +489,14 @@ class FormTemplatesSeeder extends Seeder
                     \App\Support\Catalogo::valores($config['questions'] ?? []),
                 );
 
-                if ((blank($config['groups'] ?? null) || $this->sonNuestrosBloques($config['groups']))
+                // Sin ningun item casado no se escribe nada: es el PTF de un
+                // cliente cuyas preguntas no son las del repositorio, y sus
+                // bloques reales los pone el migrador desde su base vieja
+                // (`MigrateLegacyFormatsCommand::plantarBloquesDelPtf`).
+                $casaron = array_sum(array_map(fn ($b) => count($b['items']), $bloques)) > 0;
+
+                if ($casaron
+                    && (blank($config['groups'] ?? null) || $this->sonNuestrosBloques($config['groups']))
                     && ($config['groups'] ?? null) !== $bloques) {
                     $config['groups'] = $bloques;
                     $tocado = true;
