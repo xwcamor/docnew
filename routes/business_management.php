@@ -357,6 +357,18 @@ Route::prefix('business_management')->name('business_management.')->group(functi
         Route::post('people/{person}/media/{kind}', [PersonController::class, 'storeMedia'])->name('people.media.store');
     });
 
+    // Retirar la cara registrada de una persona.
+    //
+    // Va con `people.edit` y no con `people.view_media`: no es mirar material
+    // de nadie, es borrar un dato biometrico a peticion de su dueño. El permiso
+    // de medios es del administrador del sistema —quien sube la foto buena— y
+    // esto lo tiene que poder hacer quien lleva el padron de personas, que es
+    // a quien el trabajador se lo va a pedir.
+    Route::middleware('permission:people.edit')->group(function () {
+        Route::delete('people/{person}/biometric', [PersonController::class, 'forgetBiometric'])
+            ->name('people.biometric.forget');
+    });
+
     // Consulta a RENIEC para rellenar el nombre desde el DNI. Va ANTES de
     // `people/{person}`, o el comodin se la come.
     //

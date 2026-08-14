@@ -361,6 +361,50 @@ class PersonController extends Controller
     }
 
     /**
+     * Retira la cara registrada de una persona.
+     *
+     * POR QUE ESTO TIENE QUE EXISTIR
+     * ------------------------------
+     * Porque se lo prometemos. El texto que el trabajador acepta antes de que
+     * se le registre la cara dice, con esas palabras, que puede pedir en
+     * cualquier momento que se borre. Hasta ahora eso solo se podia hacer
+     * entrando a la base por SQL, o sea que la promesa no era cierta — y
+     * prometer lo que el sistema no sabe hacer es peor que no prometerlo.
+     *
+     * SE BORRA DE VERDAD, NO SE DESACTIVA
+     * -----------------------------------
+     * Poner `is_active = false` habria sido mas comodo y no vale: los 128
+     * numeros seguirian en la tabla, y lo que se pidio retirar es el dato, no
+     * su disponibilidad.
+     *
+     * Lo que SI queda es el rastro de que se borro y quien lo hizo — eso es
+     * auditoria, no dato biometrico. Y como `PersonBiometric::$auditExclude`
+     * deja el descriptor fuera del historial, borrar aqui borra de verdad y no
+     * deja una copia en `audit_logs`.
+     *
+     * LO QUE NO SE TOCA
+     * -----------------
+     * Las firmas que esa persona ya dio. Un documento firmado hace ocho meses
+     * dice que ese dia se la reconocio por la cara, y eso paso: retirar el dato
+     * biometrico de hoy no reescribe lo que ocurrio entonces. Lo unico que
+     * cambia es que a partir de ahora tendra que volver a enrolarse —dando otra
+     * vez su permiso— o firmar por otro medio.
+     */
+    public function forgetBiometric(Request $request, Person $person): RedirectResponse
+    {
+        if ($person->biometrics()->count() === 0) {
+            return back()->with('error', __('people.biometric_none_to_forget'));
+        }
+
+        // Una por una y con el modelo, no un `delete()` de golpe sobre la
+        // consulta: asi cada borrado pasa por `Auditable` y deja su apunte.
+        // Son una o dos filas; el coste no es el problema, la trazabilidad si.
+        $person->biometrics()->get()->each->delete();
+
+        return back()->with('success', __('people.biometric_forgotten'));
+    }
+
+    /**
      * Que puede firmar esta persona en el flujo de aprobaciones.
      *
      * Sale del catalogo `approver_roles`, no de una lista escrita aqui. Eran

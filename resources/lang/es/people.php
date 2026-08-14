@@ -114,6 +114,15 @@ return [
     'biometric_yes' => 'Enrolado',
     'biometric_no'  => 'Sin enrolar',
 
+    // Retirar la cara registrada. Existe porque se lo prometemos: el texto que
+    // el trabajador acepta antes de enrolarse dice que puede pedir que se borre
+    // en cualquier momento, y hasta ahora eso sólo se hacía por SQL.
+    'biometric_forget'         => 'Retirar el rostro',
+    'biometric_forget_hint'    => 'Borra los datos del rostro de esta persona. Podrá volver a registrarlo cuando quiera, dando otra vez su permiso.',
+    'biometric_forget_confirm' => '¿Retirar el rostro registrado de :name? Se borra de verdad, no se desactiva. Las firmas que ya dio no se tocan: siguen diciendo cómo se la identificó ese día.',
+    'biometric_forgotten'      => 'Rostro retirado. La próxima vez que firme tendrá que registrarlo otra vez o firmar por otro medio.',
+    'biometric_none_to_forget' => 'Esta persona no tiene ningún rostro registrado.',
+
     'edit_hint'   => 'Modificar este registro',
     'delete_hint' => 'Eliminar (queda en papelera)',
     'restore_hint'=> 'Volverá a estar disponible en el listado principal.',

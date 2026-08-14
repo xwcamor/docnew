@@ -2,9 +2,9 @@
 import { computed, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
 import {
-    Card, Tag, Space, Alert, Upload, Button,
+    Card, Tag, Space, Alert, Modal, Upload, Button, Tooltip,
 } from 'ant-design-vue';
-import { IdcardOutlined, CameraOutlined, UploadOutlined } from '@ant-design/icons-vue';
+import { IdcardOutlined, CameraOutlined, UploadOutlined, DeleteOutlined } from '@ant-design/icons-vue';
 
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -14,6 +14,7 @@ import ViewDeletedButton from '@/Components/Common/ViewDeletedButton.vue';
 import RecordHistory from '@/Components/Common/RecordHistory.vue';
 import { useAuth } from '@/Composables/useAuth';
 import { useDateFormat } from '@/Composables/useDateFormat';
+import { useI18n } from '@/Plugins/i18n';
 
 defineOptions({ layout: AppLayout });
 
@@ -24,6 +25,9 @@ const props = defineProps({
 });
 
 const { can, isSuper, canSeeAudit } = useAuth();
+// `t` del composable y no el `$t` global: `$t` lee `this.$page`, y pasado a un
+// `Modal.confirm()` pierde el `this` y revienta.
+const { t } = useI18n();
 const { formatDateTimeFull } = useDateFormat();
 
 const isDeleted = computed(() => !!props.person.deleted_at);
@@ -31,6 +35,38 @@ const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--c
 
 // Wrapper local para mantener call-sites compactos (fmt(...) en templates).
 const fmt = (d) => formatDateTimeFull(d);
+
+// ── Retirar el rostro registrado ─────────────────────────────────────────────
+//
+// Existe porque se lo prometemos. El texto que el trabajador acepta antes de
+// que se le registre la cara dice que puede pedir en cualquier momento que se
+// borre, y hasta ahora eso sólo se podía hacer entrando a la base por SQL: la
+// promesa no era cierta.
+//
+// Con confirmación, y la confirmación dice las dos cosas que hay que saber
+// antes de pulsar: que se borra de verdad —no se desactiva— y que las firmas
+// que esa persona ya dio NO se tocan. Un documento firmado hace ocho meses dice
+// que ese día se la reconoció por la cara, y eso pasó; retirar el dato de hoy
+// no reescribe lo de entonces.
+const retirando = ref(false);
+
+function retirarRostro() {
+    Modal.confirm({
+        title: t('people.biometric_forget'),
+        content: t('people.biometric_forget_confirm', { name: props.person.full_name ?? props.person.name }),
+        okText: t('people.biometric_forget'),
+        okType: 'danger',
+        cancelText: t('global.cancel'),
+        onOk: () => {
+            retirando.value = true;
+
+            router.delete(route('business_management.people.biometric.forget', props.person.slug), {
+                preserveScroll: true,
+                onFinish: () => { retirando.value = false; },
+            });
+        },
+    });
+}
 
 // ── Foto de referencia y firma ───────────────────────────────────────────────
 //
@@ -172,6 +208,16 @@ const subir = (tipo, archivo) => {
                                 <Tag :color="person.has_biometric ? 'success' : 'error'" :bordered="false">
                                     {{ person.has_biometric ? $t('people.biometric_yes') : $t('people.biometric_no') }}
                                 </Tag>
+
+                                <!-- Sólo si hay algo que retirar. Un botón que
+                                     únicamente puede fallar es peor que un botón
+                                     que no está (docs/UI.md §6). -->
+                                <Tooltip v-if="person.has_biometric && can('people.edit')" :title="$t('people.biometric_forget_hint')">
+                                    <Button size="small" danger :loading="retirando" @click="retirarRostro">
+                                        <template #icon><DeleteOutlined /></template>
+                                        {{ $t('people.biometric_forget') }}
+                                    </Button>
+                                </Tooltip>
                             </span>
                         </div>
                         <div class="spec-cell">

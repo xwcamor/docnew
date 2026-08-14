@@ -114,6 +114,13 @@ return [
     'biometric_yes' => 'Enrolled',
     'biometric_no'  => 'Not enrolled',
 
+    // Withdrawing the registered face — see the note in the Spanish file.
+    'biometric_forget'         => 'Withdraw face',
+    'biometric_forget_hint'    => 'Deletes this person\'s face data. They can register it again whenever they want, giving their permission once more.',
+    'biometric_forget_confirm' => 'Withdraw the registered face of :name? It is deleted, not disabled. Signatures already given are untouched: they still say how the person was identified that day.',
+    'biometric_forgotten'      => 'Face withdrawn. Next time they sign they will have to register it again or sign by other means.',
+    'biometric_none_to_forget' => 'This person has no registered face.',
+
     'edit_hint'   => 'Edit this record',
     'delete_hint' => 'Delete (goes to trash)',
     'restore_hint'=> 'Will go back to the main list.',
