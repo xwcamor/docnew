@@ -11,9 +11,10 @@ class FormField extends Model
     use HasFactory;
     use Auditable;
 
-    protected $fillable = ['form_section_id', 'code', 'label_es', 'label_en', 'field_type',
+    protected $fillable = ['form_section_id', 'code', 'label_es', 'label_en', 'label_i18n', 'field_type',
                            'is_required', 'position', 'config', 'visibility_rule'];
-    protected $casts = ['is_required' => 'boolean', 'config' => 'array', 'visibility_rule' => 'array'];
+    protected $casts = ['is_required' => 'boolean', 'config' => 'array', 'visibility_rule' => 'array',
+                        'label_i18n' => 'array'];
 
     /**
      * La etiqueta que se lee al lado del campo, en el idioma en curso.
@@ -27,12 +28,18 @@ class FormField extends Model
      */
     public function getLabelAttribute(): string
     {
-        $preferido = app()->getLocale() === 'en' ? $this->label_en : $this->label_es;
+        // El es y el en viven en sus columnas; los demas idiomas, en
+        // `label_i18n`. `fundir()` los junta con las columnas mandando en su
+        // idioma, y `de()` resuelve idioma pedido → respaldo → el primero que
+        // haya: un rotulo en otro idioma dice mas que un hueco.
+        $texto = \App\Support\TextoTraducible::de(\App\Support\TextoTraducible::fundir(
+            ['es' => $this->label_es, 'en' => $this->label_en],
+            $this->label_i18n,
+        ));
 
-        return $preferido
-            ?? $this->label_es
-            ?? ($this->config['label'] ?? null)
-            ?? ucfirst(str_replace('_', ' ', (string) $this->code));
+        return $texto !== '' ? $texto
+            : (($this->config['label'] ?? null)
+                ?? ucfirst(str_replace('_', ' ', (string) $this->code)));
     }
 
     /**

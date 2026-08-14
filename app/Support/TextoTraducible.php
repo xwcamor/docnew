@@ -98,4 +98,34 @@ class TextoTraducible
     {
         return is_array($valor) && $valor !== [] && ! array_is_list($valor);
     }
+
+    /**
+     * Un mapa de idiomas a partir de columnas fijas mas la columna `_i18n`.
+     *
+     * Es la pieza de los NOMBRES: el nombre de un campo, de una seccion, de un
+     * formato y de un rol aprobador vive en parejas de columnas (`label_es` /
+     * `label_en`) que no se pueden tocar —las leen en crudo los exports, los
+     * filtros y las ordenaciones— y los demas idiomas viven en la columna JSON
+     * `*_i18n`. Aqui se funden para leerse como un solo mapa.
+     *
+     * LAS COLUMNAS MANDAN EN SU IDIOMA. Si el JSON trajera un `es` —por la API,
+     * por un volcado— se ignora: cada idioma tiene exactamente UN sitio donde
+     * vivir, o acabaria habiendo una copia rancia que gana a la editada.
+     *
+     * @param  array<string, mixed>  $columnas  ['es' => name_es, 'en' => name_en]
+     * @param  mixed  $extra  la columna `*_i18n`, si la hay
+     * @return array<string, string>
+     */
+    public static function fundir(array $columnas, mixed $extra): array
+    {
+        $limpiar = fn (array $mapa) => array_filter(
+            $mapa,
+            fn ($texto) => is_string($texto) && trim($texto) !== '',
+        );
+
+        $extra = self::esMapa($extra) ? $limpiar($extra) : [];
+
+        // `+` conserva la clave de la izquierda: la columna gana en su idioma.
+        return $limpiar($columnas) + array_diff_key($extra, $columnas);
+    }
 }

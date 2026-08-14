@@ -272,11 +272,11 @@ class FormTemplate extends Model
     //
     // `name` se queda como nombre por defecto: lo consultan `scopeFilter()` y
     // las pantallas ya escritas, y quitarlo seria romperlas sin necesidad.
-    protected $fillable = ['slug', 'country_id', 'code', 'name', 'name_es', 'name_en',
+    protected $fillable = ['slug', 'country_id', 'code', 'name', 'name_es', 'name_en', 'name_i18n',
                            'kind', 'status', 'version',
                            'requires_signature', 'pdf_template', 'pdf_orientation', 'published_at', 'is_active',
                            'tenant_id', 'created_by', 'deleted_by', 'deleted_description'];
-    protected $casts = ['requires_signature' => 'boolean', 'is_active' => 'boolean',
+    protected $casts = ['name_i18n' => 'array', 'requires_signature' => 'boolean', 'is_active' => 'boolean',
                         'published_at' => 'datetime'];
 
     /**
@@ -288,9 +288,13 @@ class FormTemplate extends Model
      */
     public function getLabelAttribute(): string
     {
-        $preferido = app()->getLocale() === 'en' ? $this->name_en : $this->name_es;
+        // es/en en sus columnas, el resto en `name_i18n`. Ver FormField::label.
+        $texto = \App\Support\TextoTraducible::de(\App\Support\TextoTraducible::fundir(
+            ['es' => $this->name_es, 'en' => $this->name_en],
+            $this->name_i18n,
+        ));
 
-        return $preferido ?? $this->name_es ?? $this->name ?? (string) $this->code;
+        return $texto !== '' ? $texto : ($this->name ?? (string) $this->code);
     }
 
     /** structured: campos propios · upload_only: solo se fotografia el papel · hybrid: ambos. */

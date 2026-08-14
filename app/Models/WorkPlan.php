@@ -434,11 +434,21 @@ class WorkPlan extends Model
                 ->pluck('code')
                 ->flip();
 
+            // Con un margen de minutos, y no al segundo. Dos motivos: el que se
+            // ve —quien crea el plan y EN LA MISMA SENTADA da de alta el
+            // formato que le faltaba quiere ese formato en ese plan— y el que
+            // no: comparar al segundo hace que dos filas creadas en la misma
+            // operacion caigan a lados distintos del corte segun donde pille el
+            // tic del reloj. Lo que se quiere excluir son los documentos
+            // publicados DIAS despues sobre planes que ya estaban andando, y a
+            // esos el margen no los alcanza.
+            $margen = $this->created_at?->clone()->addMinutes(10) ?? now();
+
             $estandar = $estandar->filter(
                 fn ($plantilla) => $overrides->has($plantilla->id)
                     || $codigosConEntrega->has($plantilla->code)
                     || (($nacimientos[$plantilla->code] ?? null) !== null
-                        && \Illuminate\Support\Carbon::parse($nacimientos[$plantilla->code])->lte($this->created_at)),
+                        && \Illuminate\Support\Carbon::parse($nacimientos[$plantilla->code])->lte($margen)),
             );
         }
 

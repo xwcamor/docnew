@@ -578,3 +578,17 @@ tabla, y por eso el editor la pide.
 
 Todo esto se configura en la pantalla de estructura del formato. Nada de ello
 necesita entrar a la base.
+
+### Los nombres, en cualquier idioma
+
+El nombre de un campo, el título de una sección, el nombre del formato y el del
+rol aprobador viven así: **es/en en sus columnas de siempre** (`label_es`,
+`name_en`…) y **cualquier otro idioma en la columna JSON `*_i18n`**. El accessor
+`label` funde las dos fuentes (`TextoTraducible::fundir`) con las columnas
+mandando en su idioma — cada idioma tiene exactamente un sitio donde vivir, así
+que no puede existir una copia rancia que gane a la editada.
+
+El editor de estructura escribe en el idioma en que se navega, vaya donde vaya
+ese idioma (`FormTemplateStructureService::escribirTexto`). Activar un idioma
+nuevo no toca el esquema: `lang/{idioma}` para el producto, y los nombres del
+cliente entran solos por `*_i18n`. Pruebas: `NombresEnCualquierIdiomaTest`.

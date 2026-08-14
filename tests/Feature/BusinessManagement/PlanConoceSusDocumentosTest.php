@@ -60,7 +60,9 @@ class PlanConoceSusDocumentosTest extends TestCase
         $conocido = $this->plantilla('AST', creada: now()->subYear());
         $tipo->formTemplates()->attach($conocido->id, ['is_required' => true]);
 
-        $nuevo = $this->plantilla('NUEVO', creada: now()->addMinute());
+        // Fuera del margen de «la misma sentada» (10 min): es el formato
+        // que alguien publica al dia siguiente sobre planes que ya andaban.
+        $nuevo = $this->plantilla('NUEVO', creada: now()->addDay());
         $tipo->formTemplates()->attach($nuevo->id, ['is_required' => true]);
 
         $esperados = $plan->fresh()->expectedFormTemplates();
@@ -75,7 +77,9 @@ class PlanConoceSusDocumentosTest extends TestCase
     {
         [$plan, $tipo] = $this->planConTipo();
 
-        $nuevo = $this->plantilla('NUEVO', creada: now()->addMinute());
+        // Fuera del margen de «la misma sentada» (10 min): es el formato
+        // que alguien publica al dia siguiente sobre planes que ya andaban.
+        $nuevo = $this->plantilla('NUEVO', creada: now()->addDay());
         $tipo->formTemplates()->attach($nuevo->id, ['is_required' => false]);
 
         app(\App\Services\BusinessManagement\WorkPlanSetupService::class)
@@ -95,7 +99,7 @@ class PlanConoceSusDocumentosTest extends TestCase
     {
         [$plan, $tipo] = $this->planConTipo();
 
-        $v2 = $this->plantilla('AST', creada: now()->addMinute(), version: 2);
+        $v2 = $this->plantilla('AST', creada: now()->addDay(), version: 2);
 
         // La primera version nacio antes que el plan: el documento es conocido.
         $this->plantilla('AST-v1', creada: now()->subYear())->update(['code' => 'AST', 'status' => 'archived']);

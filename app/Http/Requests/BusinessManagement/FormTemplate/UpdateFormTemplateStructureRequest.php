@@ -39,7 +39,7 @@ class UpdateFormTemplateStructureRequest extends FormRequest
             'sections.*.id'                => ['nullable', 'integer'],
             // El título del bloque. UNO, no uno por idioma: se guarda en la
             // columna del idioma en el que se está trabajando (ver
-            // `FormTemplateStructureService::columnaDelIdioma()`). Pedirle al
+            // `FormTemplateStructureService::escribirTexto()`). Pedirle al
             // cliente que escriba cada título dos veces es pedirle que traduzca
             // su propio trabajo.
             //

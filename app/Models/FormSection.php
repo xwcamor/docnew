@@ -11,7 +11,8 @@ class FormSection extends Model
     use HasFactory;
     use Auditable;
 
-    protected $fillable = ['form_template_id', 'name_es', 'name_en', 'position'];
+    protected $fillable = ['form_template_id', 'name_es', 'name_en', 'name_i18n', 'position'];
+    protected $casts = ['name_i18n' => 'array'];
 
     /**
      * El titulo de la seccion en el idioma en curso.
@@ -23,9 +24,11 @@ class FormSection extends Model
      */
     public function getLabelAttribute(): string
     {
-        $preferido = app()->getLocale() === 'en' ? $this->name_en : $this->name_es;
-
-        return $preferido ?? $this->name_es ?? '';
+        // es/en en sus columnas, el resto en `name_i18n`. Ver FormField::label.
+        return \App\Support\TextoTraducible::de(\App\Support\TextoTraducible::fundir(
+            ['es' => $this->name_es, 'en' => $this->name_en],
+            $this->name_i18n,
+        ));
     }
 
     public function formTemplate() { return $this->belongsTo(FormTemplate::class); }

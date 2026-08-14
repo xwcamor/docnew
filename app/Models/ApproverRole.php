@@ -25,10 +25,10 @@ class ApproverRole extends Model
     use SoftDeletes;
     use BelongsToTenantOrGlobal;
 
-    protected $fillable = ['slug', 'code', 'name_es', 'name_en', 'sort_order',
+    protected $fillable = ['slug', 'code', 'name_es', 'name_en', 'name_i18n', 'sort_order',
                            'is_active', 'tenant_id', 'created_by', 'deleted_by', 'deleted_description'];
 
-    protected $casts = ['is_active' => 'boolean', 'sort_order' => 'integer'];
+    protected $casts = ['name_i18n' => 'array', 'is_active' => 'boolean', 'sort_order' => 'integer'];
 
     /** Los tres que trae el sistema. Se conservan como constantes porque el
      *  motor de migracion y las reglas sembradas los nombran por su codigo. */
@@ -56,11 +56,17 @@ class ApproverRole extends Model
      */
     public function getLabelAttribute(): string
     {
-        [$propio, $otro] = app()->getLocale() === 'en'
-            ? [$this->name_en, $this->name_es]
-            : [$this->name_es, $this->name_en];
+        // es/en en sus columnas, el resto en `name_i18n`; `de()` resuelve
+        // idioma pedido → respaldo → el primero que haya. Es la misma pieza que
+        // lee los nombres de campo y de formato (ver FormField::label), y lo
+        // que hace que un rol como «Supervisor Autorizante - HITACHI» pueda
+        // leerse en un idioma que hoy no existe sin tocar ninguna tabla.
+        $texto = \App\Support\TextoTraducible::de(\App\Support\TextoTraducible::fundir(
+            ['es' => $this->name_es, 'en' => $this->name_en],
+            $this->name_i18n,
+        ));
 
-        return $propio ?: ($otro ?: (string) $this->code);
+        return $texto !== '' ? $texto : (string) $this->code;
     }
 
     /** code => etiqueta, para pintar selectores sin repetir la consulta. */

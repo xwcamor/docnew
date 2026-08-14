@@ -91,9 +91,9 @@ class FormTemplateStructureService
             foreach (array_values($secciones) as $iSeccion => $datosSeccion) {
                 $seccion = $this->seccion($plantilla, $seccionesVivas, $datosSeccion['id'] ?? null);
                 $seccion->position = $iSeccion + 1;
-                // Se escribe la columna del idioma en el que se está trabajando
-                // y NO SE TOCA la otra. Ver `columnaDelIdioma()`.
-                $seccion->{'name_' . $this->columnaDelIdioma()} = $this->texto($datosSeccion['name'] ?? null);
+                // Se escribe SOLO el idioma en el que se está trabajando y no
+                // se toca ningún otro. Ver `escribirTexto()`.
+                $this->escribirTexto($seccion, 'name', $this->texto($datosSeccion['name'] ?? null));
                 $seccion->save();
 
                 $seccionesQueSiguen[] = $seccion->id;
@@ -110,9 +110,8 @@ class FormTemplateStructureService
                     // existieran las columnas la traía en `config.label`, y el
                     // editor la sube ya rellena desde ahí (ver el payload de
                     // `structure()`), así que se rescata en vez de perderse.
-                    $campo->{'label_' . $this->columnaDelIdioma()} =
-                        $this->texto($datosCampo['label'] ?? null)
-                        ?? ($datosCampo['config']['label'] ?? null);
+                    $this->escribirTexto($campo, 'label', $this->texto($datosCampo['label'] ?? null)
+                        ?? ($datosCampo['config']['label'] ?? null));
                     $campo->config          = $this->limpiarConfig($datosCampo['config'] ?? []);
 
                     // Un campo nuevo necesita `code` ya, que la columna es NOT
@@ -262,9 +261,40 @@ class FormTemplateStructureService
      * Además evita un destrozo: mandando las dos columnas desde una pantalla
      * que solo enseña una, editar el AST en castellano le borraba el inglés.
      */
-    private function columnaDelIdioma(): string
+    /**
+     * Escribe un nombre en el idioma en que se esta navegando, VAYA DONDE VAYA
+     * ese idioma.
+     *
+     * El es y el en tienen columna propia (`label_es`, `name_en`...) y ahi se
+     * quedan: las leen en crudo los exports y los filtros, y moverlas seria
+     * crear una segunda verdad. Cualquier otro idioma vive en la columna
+     * `*_i18n` — que es lo que hace que activar portugues NO pida tocar el
+     * esquema: el editor abierto en pt escribe en `i18n['pt']` y la pantalla de
+     * llenado lo lee por el mismo camino (`TextoTraducible::fundir`).
+     *
+     * Se escribe SOLO el idioma en curso y no se toca ningun otro, que es la
+     * regla que ya tenia esto cuando eran dos columnas: quien edita en ingles
+     * no puede pisar sin querer lo escrito en castellano.
+     */
+    private function escribirTexto(\Illuminate\Database\Eloquent\Model $modelo, string $base, ?string $texto): void
     {
-        return app()->getLocale() === 'en' ? 'en' : 'es';
+        $idioma = app()->getLocale();
+
+        if (in_array($idioma, ['es', 'en'], true)) {
+            $modelo->{$base . '_' . $idioma} = $texto;
+
+            return;
+        }
+
+        $i18n = is_array($modelo->{$base . '_i18n'}) ? $modelo->{$base . '_i18n'} : [];
+
+        if ($texto === null) {
+            unset($i18n[$idioma]);
+        } else {
+            $i18n[$idioma] = $texto;
+        }
+
+        $modelo->{$base . '_i18n'} = $i18n === [] ? null : $i18n;
     }
 
     /** Un texto vacío es «sin nombre», y eso en la base es NULL, no `''`. */
