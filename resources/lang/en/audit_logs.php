@@ -7,6 +7,8 @@ return [
     'events_plural'   => 'events recorded',
     'visible_for'     => 'Visible to super and admin',
     'clear_filters'   => 'Clear filters',
+    // See the note in the Spanish file.
+    'unreadable'      => '(cannot be read with the current key)',
 
     // Filters
     'filter_module'    => 'Module',

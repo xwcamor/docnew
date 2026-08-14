@@ -118,6 +118,18 @@ class AuditLogController extends Controller
             ->paginate($perPage)
             ->withQueryString();
 
+        // Los valores, legibles. Esta pantalla enseña el JSON crudo del apunte,
+        // y desde que el documento y el consentimiento van cifrados ese crudo es
+        // base64: justo en el modulo que abre un auditor. Se abre el sobre al
+        // pintar —nunca al guardar— y el documento sale enmascarado con la misma
+        // regla que en el resto del sistema. Ver `ValoresAuditados`.
+        $logs->getCollection()->transform(function (AuditLog $log) use ($user) {
+            $log->old_values = \App\Support\ValoresAuditados::legibles($log->old_values, $user);
+            $log->new_values = \App\Support\ValoresAuditados::legibles($log->new_values, $user);
+
+            return $log;
+        });
+
         // Distinct module + event lists para filter dropdowns — también scoped por tenant.
         $modulesQuery = AuditLog::query()->whereNotNull('module');
         $eventsQuery  = AuditLog::query();

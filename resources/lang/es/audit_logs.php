@@ -7,6 +7,10 @@ return [
     'events_plural'   => 'eventos registrados',
     'visible_for'     => 'Visible para super y admin',
     'clear_filters'   => 'Limpiar filtros',
+    // Un valor cifrado que no abre con la clave de hoy. Es el síntoma de un
+    // APP_KEY rotado sin re-cifrar, y en un historial eso es información: se
+    // dice, no se inventa un valor ni se revienta la pantalla.
+    'unreadable'      => '(no se puede leer con la clave actual)',
 
     // Filters
     'filter_module'    => 'Módulo',
