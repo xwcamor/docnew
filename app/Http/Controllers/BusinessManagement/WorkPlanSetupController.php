@@ -64,14 +64,18 @@ class WorkPlanSetupController extends Controller
     /**
      * Cuando la busqueda empieza a contestar. Por debajo, nada.
      *
-     * Estaba fijo en 8 —el DNI peruano— y en la v1 es un ajuste: `settings.
-     * num_doc_minimum`, por pais, sembrado en **7** para los siete. O sea que
-     * aqui era mas estricto que alla y un documento de siete caracteres no se
-     * podia ni buscar.
+     * Es un umbral de la BUSQUEDA, no una regla del documento: existe para que
+     * teclear dos cifras no despliegue el padron entero. Lo pregunto el dueño
+     * del producto («¿lo detectas por el pais del usuario, por el de la
+     * empresa, o lo pusiste por default?») y la respuesta honesta era «por
+     * default»: el ajuste `docufiz.num_doc_minimum` venia sembrado en 7 a
+     * secas, herencia de la v1.
      *
-     * Aqui el ajuste es uno solo y no por pais, porque el 100 % de los planes
-     * son de Peru (ver docs/PENDIENTES.md #8). Si algun dia entra otro pais con
-     * otra longitud, esto es lo que hay que partir por pais.
+     * Ahora la caida sigue al CATALOGO: sin ajuste puesto, el minimo es el
+     * `min_length` mas corto de los tipos de documento de persona activos —
+     * en un workspace peruano sale 6 (el pasaporte), y si mañana el catalogo
+     * gana la cedula venezolana de 5, baja solo, sin tocar nada. El ajuste,
+     * si alguien lo pone, sigue mandando: es la perilla del workspace.
      */
     public const MINIMO_DOCUMENTO_POR_DEFECTO = 7;
 
@@ -82,7 +86,18 @@ class WorkPlanSetupController extends Controller
         // Un cero o un negativo dejaria que la busqueda vacia devolviera el
         // padron entero, que es justo el fallo que este minimo existe para
         // tapar. Un ajuste mal puesto no puede abrir esa puerta.
-        return $valor >= 1 ? $valor : self::MINIMO_DOCUMENTO_POR_DEFECTO;
+        if ($valor >= 1) {
+            return $valor;
+        }
+
+        $delCatalogo = (int) \App\Models\DocumentType::query()
+            ->active()
+            ->where('scope', \App\Models\DocumentType::PERSONA)
+            ->min('min_length');
+
+        // El tope inferior de 4 es el mismo que Setting impone al ajuste: por
+        // debajo la busqueda deja de ser una busqueda.
+        return $delCatalogo >= 4 ? $delCatalogo : self::MINIMO_DOCUMENTO_POR_DEFECTO;
     }
 
     public function personCandidates(Request $request, WorkPlan $workPlan): JsonResponse
@@ -211,11 +226,11 @@ class WorkPlanSetupController extends Controller
      * rellenar la ficha entera, volver al plan, buscarlo otra vez y volver a
      * teclear el documento. Con la cuadrilla esperando en la puerta.
      *
-     * Aqui se piden solo los cuatro datos que el plan no sabe: nombre,
-     * apellidos, tipo de documento y cargo. **La empresa y el pais salen del
-     * plan**, y no es un atajo — la empresa del plan es la contratista que
-     * ejecuta el trabajo, que es justo para quien trabaja esa persona, y el pais
-     * es donde se esta trabajando. Ofrecerlos a mano seria ofrecer equivocarse.
+     * Aqui se pide lo que el plan no sabe: nombre, apellidos, pais, tipo de
+     * documento y cargo. **La empresa sale del plan** — es la contratista que
+     * ejecuta el trabajo, justo para quien trabaja esa persona. El PAIS se
+     * pregunta desde que el pais de la persona es su nacionalidad: el del plan
+     * es solo el caso comun y va preseleccionado en el modal, no impuesto.
      *
      * Se crea y se mete al plan en el mismo gesto: nadie da de alta a alguien
      * desde aqui para dejarlo fuera de la cuadrilla.
@@ -232,7 +247,14 @@ class WorkPlanSetupController extends Controller
             'name'        => ['required', 'string', 'max:255'],
             'lastname'    => ['required', 'string', 'max:255'],
             'num_doc'     => ['required', 'string', 'max:20'],
-            'doc_type'    => ['required', 'string', 'max:20'],
+            // El pais viene del modal desde que el pais de la persona es su
+            // nacionalidad; el tipo tiene que ser un documento de ESE pais,
+            // que es la misma regla que el formulario de personas.
+            'country_id'  => ['required', 'integer', 'exists:countries,id'],
+            'doc_type'    => ['required', 'string', 'max:20',
+                \Illuminate\Validation\Rule::exists('document_types', 'code')
+                    ->where('country_id', $request->integer('country_id'))
+                    ->where('scope', \App\Models\DocumentType::PERSONA)],
             'position_id' => ['required', 'integer', 'exists:positions,id'],
         ]);
 
@@ -254,9 +276,10 @@ class WorkPlanSetupController extends Controller
             ])]);
         }
 
+        // La empresa si sale del plan: es la contratista que ejecuta. El pais
+        // ya viene en $datos, elegido en el modal.
         $persona = app(PersonService::class)->create($datos + [
             'company_id' => $workPlan->company_id,
-            'country_id' => $workPlan->country_id,
             'is_active'  => true,
         ]);
 

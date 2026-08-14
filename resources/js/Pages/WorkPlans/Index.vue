@@ -602,6 +602,11 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                             <div class="lead__txt">
                                 <Link :href="route('business_management.work_plans.show', record.slug)" class="lead__name lead__link mono">{{ record.code }}</Link>
                                 <span v-if="record.num_os" class="lead__sub">{{ $t('work_plans.num_os') }}: {{ record.num_os }}</span>
+                                <!-- La ausencia dicha y en ámbar, como en la
+                                     ficha: un hueco no distingue «no la tiene»
+                                     de «no se apuntó», y aquí es donde se
+                                     recorren cincuenta planes de un vistazo. -->
+                                <span v-else class="lead__sub lead__sub--warn">{{ $t('work_plans.num_os_none') }}</span>
                             </div>
                         </div>
                     </template>
@@ -865,5 +870,9 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
     opacity: 1;
     transform: scale(1.12);
 }
+
+/* La falta de orden de servicio, en ambar y no en gris: es un aviso, no un
+   dato apagado — la misma regla que la ficha del plan. */
+.lead__sub--warn { color: var(--color-warning); }
 </style>
 

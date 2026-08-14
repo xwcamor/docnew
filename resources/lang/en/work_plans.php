@@ -203,6 +203,7 @@ return [
     // The signature's trail, opened by clicking the face. It was stored from
     // the start and shown on no screen at all.
     'sign_audit_open'      => 'See the signature: face and trail',
+    'sign_audit_open_trail' => 'View the signature trail',
     'sign_audit_signed_at' => 'Signed',
     'sign_audit_match'     => 'Face match',
     'sign_audit_ip'        => 'From IP',

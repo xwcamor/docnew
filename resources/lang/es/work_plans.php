@@ -216,6 +216,8 @@ return [
     // El rastro de la firma, que se abre al pulsar la cara. Estaba guardado
     // desde el principio y no se enseñaba en ninguna pantalla.
     'sign_audit_open'      => 'Ver la firma: cara y rastro',
+    // La misma ficha sin la foto (admin): se promete lo que se va a enseñar.
+    'sign_audit_open_trail' => 'Ver el rastro de la firma',
     'sign_audit_signed_at' => 'Firmó',
     'sign_audit_match'     => 'Coincidencia de la cara',
     'sign_audit_ip'        => 'Desde la IP',
@@ -339,9 +341,10 @@ return [
     // Se dice «trabajadores», no la palabra que me inventé yo (docs/UI.md §2).
     'representative'        => 'Representante de los trabajadores',
     // Con la empresa dicha por su nombre corto, que es como se pide en obra.
-    // Lo pidio el dueño del producto: «debe decir representante de la "xxxx"».
+    // Sin articulo: «Representante de SERCE», no «de la SERCE» — el nombre de
+    // una empresa no lleva articulo delante, y el dueño lo corrigio al verlo.
     // La forma generica de arriba queda de respaldo para cuando no hay nombre.
-    'representative_of'     => 'Representante de la :company',
+    'representative_of'     => 'Representante de :company',
     // Se dice DENTRO del aviso de que falta, y solo cuando ya se puede elegir:
     // suelto encima de la tarjeta era un parrafo gris que nadie leia, y delante
     // de una lista donde todavia no ha firmado nadie, «sale de los que ya

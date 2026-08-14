@@ -28,6 +28,7 @@ class WorkPlanController extends Controller
 {
     use \App\Traits\BuildsRecordAudit;
     use \App\Http\Controllers\Concerns\HandlesRecordLocking;
+    use \App\Http\Controllers\Concerns\TiposDeDocumento;
 
     /** Pone el candado a la marca (super → nivel sistema; admin → nivel tenant). */
     public function lock(Request $request, WorkPlan $workPlan): RedirectResponse
@@ -714,12 +715,14 @@ class WorkPlanController extends Controller
                 ->all(),
 
             // Lo que hace falta para dar de alta a alguien sin salir de la
-            // ficha: el cargo y el tipo de documento. Nada mas — la empresa y
-            // el pais salen del plan.
+            // ficha: cargo, PAIS y tipo de documento. La empresa si sale del
+            // plan — es la contratista que ejecuta.
             //
-            // Los tipos son los DEL PAIS DEL PLAN, no una lista fija: dar de
-            // alta a un trabajador de una obra en Chile ofreciendo «DNI» es el
-            // fallo que ya se corrigio en el formulario de personas.
+            // El pais se pregunta desde que el pais de la persona es su
+            // nacionalidad («no estas poniendo el pais», dueño del producto):
+            // un venezolano dado de alta desde la obra en Peru entra con
+            // Venezuela y su cedula, no con el pais del plan. El del plan
+            // queda preseleccionado, que es el caso comun.
             'positions' => \App\Models\Position::query()
                 ->where('is_active', true)
                 ->where(fn ($q) => $q->where('country_id', $workPlan->country_id)->orWhereNull('country_id'))
@@ -727,10 +730,17 @@ class WorkPlanController extends Controller
                 ->get(['id', 'code'])
                 ->map(fn ($p) => ['value' => $p->id, 'label' => $p->code])
                 ->all(),
-            'docTypes' => \App\Models\DocumentType::delPais($workPlan->country_id)
-                ->map(fn ($t) => ['value' => $t->code, 'label' => $t->label])
-                ->values()
+            'countries' => \App\Models\Country::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'iso_code'])
+                ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name . ' (' . $c->iso_code . ')'])
                 ->all(),
+            // Los tipos de CADA pais, para que la lista siga al pais elegido
+            // en el propio modal — mismo arreglo que el formulario de
+            // personas.
+            'docTypesByCountry' => $this->docTypesByCountry(),
+            'planCountryId' => $workPlan->country_id,
         ];
     }
 

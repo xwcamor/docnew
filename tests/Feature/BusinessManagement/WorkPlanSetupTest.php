@@ -195,15 +195,16 @@ class WorkPlanSetupTest extends TestCase
      * entra hoy por primera vez— y hasta ahora eso obligaba a irse al modulo de
      * Personas, rellenar la ficha entera y volver. Con la cuadrilla esperando.
      *
-     * Se piden cuatro datos; **la empresa y el pais los pone el servidor desde
-     * el plan**, y eso es lo que fija esta prueba: si se rompe, la persona nace
-     * sin empresa o con el pais de otro sitio y nadie se entera hasta que
-     * alguien abre su ficha.
+     * **La empresa la pone el servidor desde el plan** — eso es lo que fija
+     * esta prueba. El PAIS se elige en el modal desde que el pais de la
+     * persona es su nacionalidad, con el del plan preseleccionado; aqui va
+     * explicito, como lo manda la pantalla.
      */
     public function test_se_da_de_alta_a_un_trabajador_desde_la_ficha_y_entra_al_plan(): void
     {
         $plan = $this->plan();
         $cargo = \App\Models\Position::firstOrCreate(['code' => 'TECNICO'], $this->base());
+        $this->sembrarElDni();
 
         $alta = $this->supervisor();
         $alta->givePermissionTo('people.create');
@@ -211,7 +212,7 @@ class WorkPlanSetupTest extends TestCase
         $this->actingAs($alta)
             ->post(route('business_management.work_plans.crew.person', $plan->slug), [
                 'name' => 'Ana', 'lastname' => 'Quispe',
-                'num_doc' => '40 999-111', 'doc_type' => 'DNI',
+                'num_doc' => '40 999-111', 'country_id' => 1, 'doc_type' => 'DNI',
                 'position_id' => $cargo->id,
             ]);
 
@@ -233,6 +234,7 @@ class WorkPlanSetupTest extends TestCase
     {
         $plan = $this->plan();
         $cargo = \App\Models\Position::firstOrCreate(['code' => 'TECNICO'], $this->base());
+        $this->sembrarElDni();
         $this->persona('Juan', 'Perez', '40000001');
 
         $alta = $this->supervisor();
@@ -241,12 +243,28 @@ class WorkPlanSetupTest extends TestCase
         $this->actingAs($alta)
             ->post(route('business_management.work_plans.crew.person', $plan->slug), [
                 'name' => 'Otro', 'lastname' => 'Distinto',
-                'num_doc' => '40000001', 'doc_type' => 'DNI',
+                'num_doc' => '40000001', 'country_id' => 1, 'doc_type' => 'DNI',
                 'position_id' => $cargo->id,
             ])
             ->assertSessionHasErrors('num_doc');
 
         $this->assertSame(0, $plan->people()->count());
+    }
+
+    /**
+     * El DNI del catalogo, porque el alta valida que el tipo sea un documento
+     * del pais elegido — la misma regla que el formulario de personas.
+     */
+    private function sembrarElDni(): void
+    {
+        \Illuminate\Support\Facades\DB::table('document_types')->insertOrIgnore([
+            'slug' => \Illuminate\Support\Str::random(22), 'country_id' => 1,
+            'scope' => \App\Models\DocumentType::PERSONA, 'code' => 'DNI',
+            'name' => 'Documento Nacional de Identidad', 'min_length' => 8, 'max_length' => 8,
+            'allowed_chars' => \App\Models\DocumentType::SOLO_CIFRAS,
+            'for_foreigners' => false, 'is_active' => true,
+            'created_at' => now(), 'updated_at' => now(),
+        ]);
     }
 
     /**

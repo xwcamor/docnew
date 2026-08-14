@@ -37,6 +37,15 @@ const props = defineProps({
     /** Cargos y tipos de documento del país del plan, para el alta rápida. */
     positions: { type: Array, default: () => [] },
     docTypes:  { type: Array, default: () => [] },
+    /**
+     * El país se elige en el propio modal: desde que el país de la persona es
+     * su nacionalidad, un venezolano dado de alta en una obra peruana entra
+     * con Venezuela y su cédula. Los tipos siguen al país elegido, y el del
+     * plan queda preseleccionado, que es el caso común.
+     */
+    countries: { type: Array, default: () => [] },
+    docTypesByCountry: { type: Object, default: () => ({}) },
+    planCountryId: { type: Number, default: null },
     /** Dar de alta es del módulo de personas, no del plan. */
     canCreatePerson: { type: Boolean, default: false },
 });
@@ -177,20 +186,30 @@ const firmar = (fila) => router.get(
 // buscarlo otra vez y volver a teclear el documento. Con la cuadrilla esperando
 // en la puerta.
 //
-// Se piden cuatro datos y no la ficha completa: **la empresa y el país los pone
-// el servidor desde el plan**. La empresa del plan es la contratista que
-// ejecuta el trabajo, que es para quien trabaja esa persona; el país es donde
-// se está trabajando. Ofrecerlos aquí sería ofrecer equivocarse.
+// Se pide lo mínimo y no la ficha completa: **la empresa la pone el servidor
+// desde el plan** — es la contratista que ejecuta el trabajo, para quien
+// trabaja esa persona. El PAÍS sí se pregunta («no estas poniendo el pais»,
+// dueño del producto): desde que el país de la persona es su nacionalidad, el
+// del plan es solo el caso común y va preseleccionado, no impuesto.
 
-const alta = useForm({ name: '', lastname: '', num_doc: '', doc_type: null, position_id: null });
+const alta = useForm({ name: '', lastname: '', num_doc: '', country_id: null, doc_type: null, position_id: null });
 const abriendoAlta = ref(false);
+
+// Los tipos de documento del país elegido EN EL MODAL, no los del plan.
+const tiposDelPais = computed(() => props.docTypesByCountry?.[alta.country_id] ?? []);
+
+// Cambiar de país invalida el tipo: un DNI peruano no es un tipo de Venezuela.
+const cambioPais = () => {
+    alta.doc_type = tiposDelPais.value.length === 1 ? tiposDelPais.value[0].value : null;
+};
 
 const abrirAlta = () => {
     alta.reset();
     alta.clearErrors();
     alta.num_doc = documento.value;
+    alta.country_id = props.planCountryId;
     // Con un solo tipo de documento en el país no hay nada que elegir.
-    alta.doc_type = props.docTypes.length === 1 ? props.docTypes[0].value : null;
+    cambioPais();
     abriendoAlta.value = true;
 };
 
@@ -365,6 +384,23 @@ const guardarAlta = () => {
             <p class="wp-alta__hint">{{ $t('work_plans.crew_create_person_help') }}</p>
 
             <Form layout="vertical" @submit.prevent="guardarAlta">
+                <!-- El país primero: de él dependen los tipos de documento de
+                     abajo. Preseleccionado el del plan, que es el caso común. -->
+                <FormItem
+                    :label="$t('people.country')"
+                    :validate-status="alta.errors.country_id ? 'error' : ''"
+                    :help="alta.errors.country_id"
+                >
+                    <Select
+                        v-model:value="alta.country_id"
+                        :options="countries"
+                        show-search
+                        option-filter-prop="label"
+                        style="width: 100%"
+                        @change="cambioPais"
+                    />
+                </FormItem>
+
                 <FormItem
                     :label="$t('people.num_doc')"
                     :validate-status="alta.errors.num_doc ? 'error' : ''"
@@ -373,7 +409,7 @@ const guardarAlta = () => {
                     <InputGroup compact class="wp-alta__doc">
                         <Select
                             v-model:value="alta.doc_type"
-                            :options="docTypes"
+                            :options="tiposDelPais"
                             :placeholder="$t('people.doc_type')"
                             class="wp-alta__doc-type"
                         />

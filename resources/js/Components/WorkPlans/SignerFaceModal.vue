@@ -49,6 +49,13 @@ const { formatDateTime } = useDateFormat();
 const abierto = ref(false);
 const auditoria = computed(() => props.signature?.audit ?? null);
 
+// El tooltip dice lo que la ficha va a enseñar DE VERDAD: prometer «cara y
+// rastro» a quien solo va a ver el rastro es el icono de la camara otra vez,
+// contado con palabras.
+const rotuloAbrir = computed(() => props.faceUrl
+    ? 'work_plans.sign_audit_open'
+    : 'work_plans.sign_audit_open_trail');
+
 /**
  * Las filas del rastro, ya resueltas: sólo se pintan las que tienen algo.
  *
@@ -129,11 +136,11 @@ const mapaEnlace = computed(() => punto.value
 
 <template>
     <template v-if="faceUrl || auditoria">
-        <Tooltip :title="$t('work_plans.sign_audit_open')">
+        <Tooltip :title="$t(rotuloAbrir)">
             <Button
                 size="small"
                 type="text"
-                :aria-label="$t('work_plans.sign_audit_open')"
+                :aria-label="$t(rotuloAbrir)"
                 @click="abierto = true"
             >
                 <!-- La cámara sólo cuando la ficha trae la foto (super); el
@@ -149,13 +156,16 @@ const mapaEnlace = computed(() => punto.value
 
         <Modal
             v-model:open="abierto"
-            :title="name || $t('work_plans.sign_audit_open')"
+            :title="name || $t(rotuloAbrir)"
             :footer="null"
-            :width="680"
+            :width="faceUrl ? 680 : 520"
             centered
             destroy-on-close
         >
-            <div class="firmante">
+            <!-- Sin foto la rejilla es de una columna: la de dos dejaba al
+                 rastro apretado en el hueco de 220px de la cara que no vino,
+                 con la otra columna vacía al lado. -->
+            <div class="firmante" :class="{ 'firmante--sin-cara': !faceUrl }">
                 <div v-if="faceUrl" class="firmante__cara-col">
                     <img :src="faceUrl" class="firmante__cara" alt="">
                     <SignatureMark :signature="signature" :name="name" />
@@ -225,6 +235,9 @@ const mapaEnlace = computed(() => punto.value
     gap: 20px;
     align-items: start;
 }
+
+/* La ficha del admin: solo el rastro, sin la columna de la cara. */
+.firmante--sin-cara { grid-template-columns: 1fr; }
 
 .firmante__cara-col {
     display: flex;
