@@ -230,7 +230,11 @@ class EppPorGruposTest extends TestCase
     {
         $vista = file_get_contents(resource_path('js/Components/FormFields/PersonChecklistField.vue'));
 
-        $this->assertStringContainsString('agrupar(items.value, config.value?.groups)', $vista);
+        // El idioma va detras porque el rotulo del grupo —«Cabeza», «Manos»— es
+        // texto del cliente y admite el mapa por idioma. La LISTA de dentro no
+        // se traduce: son valores, y un valor traducido dejaria de casar con el
+        // catalogo y con lo ya respondido.
+        $this->assertStringContainsString('agrupar(items.value, config.value?.groups, locale.value)', $vista);
         $this->assertStringContainsString('v-for="grupo in grupos"', $vista);
     }
 

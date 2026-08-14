@@ -54,6 +54,7 @@ import { computed } from 'vue';
 import AnswerCycle from './AnswerCycle.vue';
 import { useUltimoToque } from './ultimoToque';
 import { catalogo, palabrasDelCiclo, respondidos } from './respuestas';
+import { useCatalogos } from '@/Composables/useCatalogos';
 
 const props = defineProps({
     field:    { type: Object, required: true },
@@ -65,9 +66,21 @@ const props = defineProps({
 
 const emit = defineEmits(['update:value']);
 
+const { locale, etiqueta } = useCatalogos();
+
 const config = computed(() => props.field?.config ?? {});
 const preguntas = computed(() => catalogo(config.value, 'questions'));
-const respuestas = computed(() => catalogo(config.value, 'answers'));
+
+/**
+ * El texto que se LEE de una pregunta. Lo que se guarda es su valor —que es lo
+ * que casa con las entregas ya llenadas— y lo que se lee puede venir traducido.
+ */
+const rotulo = (question) => etiqueta(config.value?.questions, question);
+/**
+ * El catálogo de respuestas EN CRUDO: es lo que baja a `AnswerCycle` y tiene que
+ * llevar dentro el tono declarado y las traducciones. Ver `PersonChecklistField`.
+ */
+const respuestas = computed(() => config.value?.answers ?? []);
 
 /** Se recompone contra el catalogo vigente: si la plantilla cambio, no se pierde lo respondido. */
 const filas = computed(() => {
@@ -82,7 +95,7 @@ const filas = computed(() => {
 });
 
 /** Las palabras del ciclo, para la leyenda. Salen del catalogo, no de aqui. */
-const pista = computed(() => palabrasDelCiclo(respuestas.value));
+const pista = computed(() => palabrasDelCiclo(respuestas.value, locale.value));
 
 const { ultimo, anotar, olvidar, esUltimo } = useUltimoToque();
 
@@ -152,7 +165,7 @@ const pendientes = computed(() => filas.value.length - contestadas.value);
                     :value="f.answer"
                     :answers="respuestas"
                     :readonly="readonly"
-                    :label="f.question"
+                    :label="rotulo(f.question)"
                     :rellena-al-cerrar="false"
                     :deshacible="esUltimo(0, f.question)"
                     @update:value="responder(f.question, $event)"

@@ -6,6 +6,7 @@ use App\Models\FormAnswer;
 use App\Models\FormField;
 use App\Models\Person;
 use App\Services\FieldWork\FormFindingsService;
+use App\Support\Catalogo;
 use Illuminate\Support\Collection;
 
 /**
@@ -80,7 +81,7 @@ final class PersonChecklistPdf
         $noConformes = 0;
 
         foreach ($filas as $i => $fila) {
-            $trabajador = self::trabajador($fila, $i + 1, $items, $extra, $nombres);
+            $trabajador = self::trabajador($fila, $i + 1, $items, $extra, $nombres, $config);
 
             $noConformes += $trabajador['no_conformes'];
             $trabajadores[] = $trabajador;
@@ -345,8 +346,11 @@ final class PersonChecklistPdf
      * @param  array<int, string>  $items
      * @param  array<int, string>  $extra
      * @param  array<int, string>  $nombres  nombres resueltos por `person_id`
+     * @param  array<string, mixed>  $config   el del campo: de ahi sale el tono
+     *                                         DECLARADO de cada respuesta y su
+     *                                         rotulo traducido
      */
-    protected static function trabajador(array $fila, int $numero, array $items, array $extra, array $nombres): array
+    protected static function trabajador(array $fila, int $numero, array $items, array $extra, array $nombres, array $config = []): array
     {
         $suyas = self::itemsDeLaFila($fila);
         $celdas = [];
@@ -358,12 +362,12 @@ final class PersonChecklistPdf
         // hace legible una cuadricula de veinticinco columnas.
         foreach ($items as $item) {
             $respuesta = $suyas[$item] ?? null;
-            $tono = self::tonoDe($respuesta);
+            $tono = self::tonoDe($respuesta, $config);
 
             $noConformes += $tono === FormFindingsService::MALA ? 1 : 0;
             $sinResponder += $tono === self::SIN_RESPONDER ? 1 : 0;
 
-            $celdas[] = ['tono' => $tono, 'respuesta' => self::etiqueta($respuesta)];
+            $celdas[] = ['tono' => $tono, 'respuesta' => self::etiqueta($respuesta, $config)];
         }
 
         // Las respuestas cuyo item se quedo sin nombre no tienen columna donde
@@ -373,10 +377,10 @@ final class PersonChecklistPdf
         $huerfanas = [];
 
         foreach (self::huerfanas($fila) as $respuesta) {
-            $tono = self::tonoDe($respuesta);
+            $tono = self::tonoDe($respuesta, $config);
             $noConformes += $tono === FormFindingsService::MALA ? 1 : 0;
 
-            $huerfanas[] = ['respuesta' => self::etiqueta($respuesta), 'tono' => $tono];
+            $huerfanas[] = ['respuesta' => self::etiqueta($respuesta, $config), 'tono' => $tono];
         }
 
         return [
@@ -520,13 +524,16 @@ final class PersonChecklistPdf
      * trabajador no necesitaba careta de soldar); el hueco es un item que nadie
      * miro, y quien lea el documento tiene derecho a notar la diferencia.
      */
-    protected static function tonoDe(?string $respuesta): string
+    protected static function tonoDe(?string $respuesta, array $config = []): string
     {
         if ($respuesta === null) {
             return self::SIN_RESPONDER;
         }
 
-        return app(FormFindingsService::class)->tono($respuesta);
+        // Con el `config` delante, el tono DECLARADO por el catalogo manda sobre
+        // la deduccion del texto. Es lo que hace que un «Rechazado» salga con la
+        // equis en el papel de una empresa que no dice «No conforme».
+        return app(FormFindingsService::class)->tono($respuesta, $config);
     }
 
     /**
@@ -540,10 +547,20 @@ final class PersonChecklistPdf
      * las opciones desde la interfaz —«Correcto», «Defectuoso»— y traducir eso a
      * «Conforme» seria cambiar lo que se firmo; peor que dejarlo en su idioma.
      */
-    protected static function etiqueta(?string $respuesta): ?string
+    protected static function etiqueta(?string $respuesta, array $config = []): ?string
     {
         if ($respuesta === null) {
             return null;
+        }
+
+        // Lo primero, el catalogo del propio formato: si declara un rotulo para
+        // este valor —traducido o no— ese es el que se imprime, y no se le pasa
+        // por encima ninguna traduccion nuestra. Es el unico camino que funciona
+        // para un formato cuyas respuestas no sean las cuatro de la v1.
+        $delCatalogo = Catalogo::etiqueta($config['answers'] ?? null, $respuesta);
+
+        if ($delCatalogo !== $respuesta) {
+            return $delCatalogo;
         }
 
         $clave = match (mb_strtolower(trim($respuesta))) {

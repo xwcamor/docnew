@@ -4,6 +4,8 @@ namespace App\Services\FieldWork;
 
 use App\Models\FormAnswer;
 use App\Models\FormSubmission;
+use App\Support\BandasDeRiesgo;
+use App\Support\Catalogo;
 
 /**
  * Cuantas cosas salieron mal en un formato.
@@ -100,24 +102,37 @@ class FormFindingsService
 
         return match ($tipo) {
             'risk_matrix' => $this->esRiesgoNoTolerable($config, $valor) ? 1 : 0,
-            'person_checklist', 'tool_checklist' => $this->respuestasMalas($valor['items'] ?? []),
+            'person_checklist', 'tool_checklist' => $this->respuestasMalas($valor['items'] ?? [], $config),
             // El banco de preguntas guarda la lista entera en UNA respuesta, no
             // una fila por pregunta: aqui el valor ya es la lista.
-            'question_bank' => $this->respuestasMalas($valor),
+            'question_bank' => $this->respuestasMalas($valor, $config),
             default => 0,
         };
     }
 
     /**
-     * Un peligro que no esta en la banda de menor riesgo.
+     * Un peligro que no esta en la banda tolerable.
      *
-     * Las bandas vienen de la plantilla (`config.levels`), ordenadas de peor a
-     * mejor: la ultima es la buena. Si la plantilla no las declara —un formato
-     * nuevo hecho a mano— se cae a la banda `bajo`, que es como se llama en las
-     * cuatro plantillas que trajo la migracion.
+     * CUAL ES LA TOLERABLE LA DICE LA PLANTILLA, NO NOSOTROS. Antes se cogia la
+     * ultima banda declarada y, si no habia ninguna, la palabra `bajo` escrita
+     * aqui — que es el nombre que le puso la v1 y que no tiene por que usar la
+     * siguiente empresa. Ahora se marca con `tolerable: true`, y la ultima sigue
+     * siendo el valor por defecto porque las cuatro plantillas migradas van de
+     * peor a mejor. Ver `BandasDeRiesgo`.
+     *
+     * SIN BANDAS DECLARADAS NO SE INVENTA NINGUNA. Un formato hecho a mano al
+     * que le falten los niveles no tiene con que decidir si un peligro es
+     * tolerable, y responder que no lo es —que es lo que hacia el `'bajo'`
+     * cableado— convertia en observacion cada peligro evaluado del documento.
      */
     protected function esRiesgoNoTolerable(array $config, array $fila): bool
     {
+        $bandas = BandasDeRiesgo::de($config);
+
+        if ($bandas === []) {
+            return false;
+        }
+
         $nivel = $fila['nivel'] ?? null;
 
         // Si la fila no trae el nivel pero si el valor, se deduce. Las 3 657
@@ -126,7 +141,7 @@ class FormFindingsService
         // pantalla y sumaban cero observaciones — un AST con ocho peligros
         // altos se leia como una jornada limpia.
         if (! is_string($nivel) || $nivel === '') {
-            $nivel = self::nivelDeRiesgo($fila['valor_riesgo'] ?? null, self::bandasDe($config));
+            $nivel = self::nivelDeRiesgo($fila['valor_riesgo'] ?? null, $bandas);
         }
 
         // Sin nivel Y sin valor no hay peligro evaluado: una fila a medias no
@@ -136,21 +151,20 @@ class FormFindingsService
             return false;
         }
 
-        $bandas = $config['levels'] ?? $config['niveles'] ?? null;
-
-        $tolerable = is_array($bandas) && $bandas !== []
-            ? (end($bandas)['clave'] ?? 'bajo')
-            : 'bajo';
-
-        return $nivel !== $tolerable;
+        return $nivel !== BandasDeRiesgo::tolerable($bandas);
     }
 
-    /** Las bandas de la plantilla, se llamen como se llamen. */
-    public static function bandasDe(array $config): array
+    /**
+     * Las bandas de la plantilla, normalizadas.
+     *
+     * Se conserva el nombre porque lo llaman el PDF y las pruebas; lo que hace
+     * ahora es delegar en `BandasDeRiesgo`, que es quien sabe leer las dos
+     * formas —la vieja de `hasta` acumulado y la nueva de rangos— y quien
+     * resuelve rotulo y color.
+     */
+    public static function bandasDe(array $config, ?string $locale = null): array
     {
-        $bandas = $config['levels'] ?? $config['niveles'] ?? null;
-
-        return is_array($bandas) ? $bandas : [];
+        return BandasDeRiesgo::de($config, $locale);
     }
 
     /**
@@ -161,31 +175,28 @@ class FormFindingsService
      * v1 (`Risk#level_name`). Por eso se puede reconstruir de una fila que solo
      * guarde el numero, que es como llegaron las migradas.
      *
+     * UN VALOR FUERA DE TODAS LAS BANDAS NO CAE EN LA ULTIMA. Antes si, y con la
+     * matriz de la v1 no se notaba porque las tres bandas cubren el 1 al 25
+     * enteros. Con rangos escritos a mano puede quedar un hueco, y meter ahi
+     * «riesgo bajo» seria decir que un peligro es tolerable sin que nadie lo
+     * haya dicho: sale sin evaluar, que es lo que es.
+     *
      * Es la misma regla que `nivelRiesgo()` de RiskMatrixField.vue, que la pinta.
      * La prueba `test_el_nivel_se_calcula_igual_en_el_servidor_y_en_la_pantalla`
      * compara las dos.
+     *
+     * @param  array<int, array>  $bandas  las de `bandasDe()`, ya normalizadas
      */
     public static function nivelDeRiesgo(mixed $valor, array $bandas): ?string
     {
-        if (! is_numeric($valor) || (int) $valor <= 0) {
-            return null;
-        }
-
-        $valor = (int) $valor;
-
-        foreach ($bandas as $banda) {
-            if (isset($banda['hasta']) && $valor <= (int) $banda['hasta']) {
-                return $banda['clave'] ?? null;
-            }
-        }
-
-        // Sin bandas declaradas no se inventa ninguna: mejor «sin evaluar» que
-        // una banda a ojo en un documento de seguridad.
-        return $bandas === [] ? null : (end($bandas)['clave'] ?? null);
+        return BandasDeRiesgo::deValor($valor, $bandas)['clave'] ?? null;
     }
 
-    /** @param array<int, mixed> $items */
-    protected function respuestasMalas(mixed $items): int
+    /**
+     * @param  array<int, mixed>  $items
+     * @param  array<string, mixed>  $config  el del campo, para leer los tonos declarados
+     */
+    protected function respuestasMalas(mixed $items, array $config = []): int
     {
         if (! is_array($items)) {
             return 0;
@@ -193,25 +204,55 @@ class FormFindingsService
 
         return count(array_filter(
             $items,
-            fn ($i) => is_array($i) && $this->tono($i['answer'] ?? null) === self::MALA,
+            fn ($i) => is_array($i) && $this->tono($i['answer'] ?? null, $config) === self::MALA,
         ));
     }
 
     /**
-     * Que clase de respuesta es, deducida del texto.
+     * Que clase de respuesta es: la que diga el catalogo, y si no lo dice, la
+     * que se deduzca del texto.
      *
-     * Cada formato trae su propio catalogo —EPP usa Conforme / No conforme / No
-     * aplica, IHM No cumple / Cumple / No aplica— y en el IHM el orden ni
-     * siquiera empieza por la buena, asi que la posicion en la lista no dice
-     * nada. Por eso se lee el texto.
+     * LO PRIMERO ES PREGUNTAR AL CATALOGO
+     * -----------------------------------
+     * Una respuesta puede declarar su tono (`{"value": "Rechazado", "tone":
+     * "bad"}`), y cuando lo declara **manda**. Es el unico camino que funciona
+     * para un formato que no hable castellano de obra peruana.
+     *
+     * LA HEURISTICA, Y POR QUE SIGUE AQUI
+     * -----------------------------------
+     * Los cuatro formatos migrados y las 14 000 entregas guardan cadenas
+     * sueltas: EPP usa Conforme / No conforme / No aplica, IHM No cumple /
+     * Cumple / No aplica, y en el IHM el orden ni siquiera empieza por la buena,
+     * asi que la posicion en la lista no dice nada. Para todo eso se lee el
+     * texto, como se ha leido siempre.
+     *
+     * PERO LA HEURISTICA NO ES ESCALABLE Y HAY QUE DECIRLO. «Empieza por no» da
+     * por conforme a «Rechazado», «Malo», «Deficiente» y «Fail», y por no
+     * conformidad a «Normal». No es un respaldo aceptable para un formato nuevo:
+     * es la compatibilidad con lo que ya estaba escrito. Un catalogo nuevo
+     * declara sus tonos, y el editor los pide.
      *
      * **Es la misma regla que `tono()` de resources/js/Components/FormFields/
      * respuestas.js**, que pinta la casilla. Si una de las dos cambia y la otra
      * no, la pantalla pinta rojo y el contador dice cero. La prueba
      * `test_el_servidor_y_la_pantalla_coinciden_en_que_es_una_mala_respuesta`
      * las compara.
+     *
+     * @param  array<string, mixed>  $config  el del campo; sin el, solo heuristica
      */
-    public function tono(mixed $respuesta): string
+    public function tono(mixed $respuesta, array $config = []): string
+    {
+        $declarado = Catalogo::tonoDeclarado($config['answers'] ?? null, $respuesta);
+
+        if ($declarado !== null) {
+            return $declarado;
+        }
+
+        return $this->tonoDeducido($respuesta);
+    }
+
+    /** La deduccion del texto, a solas. Es lo que se compara con la de la pantalla. */
+    public function tonoDeducido(mixed $respuesta): string
     {
         $texto = $this->normalizar($respuesta);
 

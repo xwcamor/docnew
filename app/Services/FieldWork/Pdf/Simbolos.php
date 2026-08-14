@@ -3,6 +3,7 @@
 namespace App\Services\FieldWork\Pdf;
 
 use App\Services\FieldWork\FormFindingsService;
+use App\Support\Catalogo;
 
 /**
  * Los simbolos de las cuadriculas del PDF, y la leyenda que los explica.
@@ -83,24 +84,35 @@ final class Simbolos
      * Si la plantilla no declara respuestas —puede pasar en lo migrado— caen
      * las tres genericas, que es mejor que una leyenda vacia.
      *
-     * @param  list<string>  $respuestas  `config.answers` de la plantilla
+     * EL TONO SALE DEL CATALOGO, NO DEL CASTELLANO. Cada respuesta puede
+     * declararlo (`{"value": "Rechazado", "tone": "bad"}`) y entonces manda el
+     * suyo; solo si calla se deduce del texto. Sin esto, la leyenda de un
+     * formato con «Aprobado / Rechazado» ponia el ✔ al lado de «Rechazado» —en
+     * el papel, que es donde ya no lo puede corregir nadie. Ver `Support\Catalogo`.
+     *
+     * Y lo que se imprime es el ROTULO, no el valor: un documento en ingles
+     * lleva su leyenda en ingles, aunque lo guardado siga siendo la misma clave.
+     *
+     * @param  mixed  $respuestas  `config.answers`, en cualquiera de sus dos formas
      * @return list<array{simbolo: string, texto: string, tono: string}>
      */
-    public static function leyenda(array $respuestas): array
+    public static function leyenda(mixed $respuestas): array
     {
         $reglas = app(FormFindingsService::class);
         $porTono = [];
 
-        foreach ($respuestas as $respuesta) {
-            $texto = trim((string) $respuesta);
+        foreach (Catalogo::entradas($respuestas) as $entrada) {
+            $texto = trim($entrada['label']);
 
             if ($texto === '') {
                 continue;
             }
 
+            $tono = $entrada['tone'] ?? $reglas->tonoDeducido($entrada['value']);
+
             // La primera de cada tono manda: si una plantilla trae «No aplica»
             // y «N/A», la leyenda no repite el mismo guion dos veces.
-            $porTono[$reglas->tono($texto)] ??= $texto;
+            $porTono[$tono] ??= $texto;
         }
 
         $entradas = [];

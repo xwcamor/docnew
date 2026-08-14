@@ -4,6 +4,7 @@ namespace App\Services\FieldWork\Pdf;
 
 use App\Models\FormAnswer;
 use App\Models\FormField;
+use App\Support\BandasDeRiesgo;
 use Illuminate\Support\Collection;
 
 /**
@@ -216,7 +217,10 @@ final class RiskMatrixPdf
             'severidad_clave'    => $celdas['severidad'],
             'valor'              => $valor,
             'nivel'              => $banda['clave'] ?? null,
-            'tono'               => $banda['tono'] ?? null,
+            // El rotulo viaja con el dato: es de la plantilla y puede venir
+            // traducido, asi que el papel no puede reconstruirlo de la clave.
+            'nivel_label'        => $banda['label'] ?? null,
+            'tono'               => $banda['tone'] ?? null,
             'faltan'             => self::faltan($celdas),
         ];
     }
@@ -269,20 +273,14 @@ final class RiskMatrixPdf
             // de firmar— se imprime igual con su palabra y sin color: el
             // documento congelado dijo «alto» y el papel tiene que decir
             // «alto», aunque hoy esa banda no exista.
-            return ['clave' => $clave, 'tono' => 'off'];
+            return ['clave' => $clave, 'label' => $clave, 'tone' => 'off'];
         }
 
-        if ($valor === null) {
-            return null;
-        }
-
-        foreach ($bandas as $banda) {
-            if ($valor <= $banda['hasta']) {
-                return $banda;
-            }
-        }
-
-        return $bandas === [] ? null : $bandas[array_key_last($bandas)];
+        // Por RANGO y no por «hasta» acumulado: asi da igual que lo peor sea el
+        // 1 (matriz de la v1) o el 25 (la clasica de severidad × probabilidad).
+        // Y lo que cae fuera de todas las bandas sale sin evaluar en vez de en
+        // la ultima, que seria declararlo tolerable sin que nadie lo dijera.
+        return BandasDeRiesgo::deValor($valor, $bandas);
     }
 
     /** Las columnas que le faltan a una fila ya empezada a puntuar. */
@@ -331,6 +329,7 @@ final class RiskMatrixPdf
             'evaluados'  => count(array_filter($peligros, fn ($p) => $p['nivel'] !== null)),
             'incompletos' => count(array_filter($peligros, fn ($p) => $p['faltan'] !== [])),
             'nivel_peor' => $peor['nivel'] ?? null,
+            'nivel_peor_label' => $peor['nivel_label'] ?? null,
             'tono_peor'  => $peor['tono'] ?? null,
         ];
     }
@@ -361,6 +360,7 @@ final class RiskMatrixPdf
         foreach ($cuentas as $clave => $cuenta) {
             $salida[] = [
                 'clave'  => $clave,
+                'label'  => self::rotuloDe($clave, $bandas),
                 'tono'   => self::tonoDe($clave, $bandas),
                 'cuenta' => $cuenta,
             ];
@@ -385,11 +385,34 @@ final class RiskMatrixPdf
     {
         foreach ($bandas as $banda) {
             if ($banda['clave'] === $clave) {
-                return $banda['tono'];
+                return $banda['tone'];
             }
         }
 
         return 'off';
+    }
+
+    /**
+     * El nombre con el que se lee una banda en el papel.
+     *
+     * Sale de la PLANTILLA —donde puede venir traducido— y no de una clave de
+     * traduccion nuestra construida con el nombre interno. Eso ultimo es lo que
+     * habia, y hacia que las bandas fueran configurables **siempre que se
+     * llamaran alto, medio y bajo**: una empresa con `critico / moderado /
+     * aceptable` leia «Critico» a secas, sin traducir.
+     *
+     * Una banda que la plantilla ya no define se lee por su clave: el documento
+     * congelado dijo esa palabra y el papel tiene que decirla.
+     */
+    protected static function rotuloDe(?string $clave, array $bandas): ?string
+    {
+        foreach ($bandas as $banda) {
+            if ($banda['clave'] === $clave) {
+                return $banda['label'];
+            }
+        }
+
+        return $clave;
     }
 
     // ── Configuracion del campo ─────────────────────────────────────────────
@@ -410,43 +433,24 @@ final class RiskMatrixPdf
      */
     protected static function bandas(array $config, int $maximo): array
     {
-        $crudas = $config['levels'] ?? null;
+        // Quien sabe leer las bandas es `BandasDeRiesgo`, y es el mismo que usan
+        // el contador de observaciones y la pantalla. Aqui solo se le pasa el
+        // `config`: de ahi salen el rango, el rotulo —traducido si el cliente lo
+        // tradujo— y el tono con el que se pinta la celda.
+        $bandas = BandasDeRiesgo::de($config);
 
-        if (! is_array($crudas) || $crudas === []) {
-            // Sin bandas definidas se reparte en tercios, igual que la pantalla.
-            // Es un formato nuevo sin matriz configurada: no hay nombres que
-            // usar, y «alto/medio/bajo» son los del dominio.
-            $crudas = $maximo > 0
-                ? [
-                    ['hasta' => (int) ceil($maximo / 3),     'clave' => 'alto'],
-                    ['hasta' => (int) ceil($maximo * 2 / 3), 'clave' => 'medio'],
-                    ['hasta' => $maximo,                     'clave' => 'bajo'],
-                ]
-                : [];
+        if ($bandas !== [] || $maximo <= 0) {
+            return $bandas;
         }
 
-        $bandas = [];
-        $total  = count($crudas);
-
-        foreach (array_values($crudas) as $indice => $banda) {
-            $clave = self::texto($banda['clave'] ?? null);
-
-            if ($clave === null) {
-                continue;
-            }
-
-            $bandas[] = [
-                'clave' => $clave,
-                'hasta' => (int) ($banda['hasta'] ?? PHP_INT_MAX),
-                'tono'  => match (true) {
-                    $total < 2, $indice === 0 => 'bad',
-                    $indice === $total - 1    => 'ok',
-                    default                   => 'warn',
-                },
-            ];
-        }
-
-        return $bandas;
+        // Sin bandas definidas se reparte en tercios, igual que la pantalla. Es
+        // un formato nuevo sin matriz configurada: no hay nombres que usar, y
+        // «alto/medio/bajo» son los del dominio.
+        return BandasDeRiesgo::normalizar([
+            ['hasta' => (int) ceil($maximo / 3),     'clave' => 'alto'],
+            ['hasta' => (int) ceil($maximo * 2 / 3), 'clave' => 'medio'],
+            ['hasta' => $maximo,                     'clave' => 'bajo'],
+        ]);
     }
 
     /**

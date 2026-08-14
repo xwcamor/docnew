@@ -188,12 +188,24 @@ class RiskMatrixAgrupadaTest extends TestCase
             $this->assertStringContainsString($clase, $this->plantilla);
         }
 
-        // Cada pastilla de nivel lleva su texto traducido al lado de la clase.
+        // Cada pastilla de nivel lleva su palabra al lado de la clase.
+        //
+        // La palabra sale de `rotuloNivel()`, o sea de la PLANTILLA, y ya no de
+        // una clave de traduccion armada con el nombre interno de la banda
+        // (`risk_matrix.level_${clave}`). Aquello hacia que las bandas fueran
+        // configurables *siempre que se llamaran alto, medio y bajo*: una
+        // empresa con `critico / moderado / aceptable` leia la clave pelada.
         $this->assertSame(
             mb_substr_count($this->plantilla, 'class="ff-risk"'),
-            mb_substr_count($this->plantilla, 'field_work.risk_matrix.level_${'),
+            mb_substr_count($this->plantilla, 'rotuloNivel('),
             'hay una pastilla de nivel sin su palabra'
         );
+
+        // Y el COLOR va por tono, nunca por el nombre de la banda: `.is-alto`
+        // no existe en la hoja de estilos de otra empresa.
+        $this->assertStringNotContainsString('is-${nivelDe(', $this->plantilla,
+            'la clase de color no puede salir del nombre de la banda');
+        $this->assertStringContainsString('is-${tonoNivel(', $this->plantilla);
     }
 
     /**

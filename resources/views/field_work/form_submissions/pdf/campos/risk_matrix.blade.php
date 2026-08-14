@@ -91,19 +91,19 @@
     $prefijo = 'form_submissions.pdf.risk_matrix.';
 
     /**
-     * La palabra de la banda. Las bandas son configurables desde el editor de
-     * formatos, así que una que no tenga traducción se imprime con su propia
-     * clave en vez de dejar la celda muda: el color nunca puede ir solo.
+     * La palabra de la banda.
+     *
+     * VIENE RESUELTA EN EL DATO (`nivel_label`), no se reconstruye aquí. Antes
+     * esto hacía `__('…level_' . $clave)`, o sea que las bandas eran
+     * configurables **siempre que se llamaran alto, medio y bajo**: una empresa
+     * con `critico / moderado / aceptable` leía «Critico» a secas. Ahora el
+     * rótulo lo pone la plantilla —traducido si el cliente lo tradujo— y
+     * `BandasDeRiesgo` sólo cae a la traducción del producto para las cuatro
+     * plantillas migradas, que no lo traen.
+     *
+     * Sin banda es «sin evaluar», que no es lo mismo que una banda sin nombre.
      */
-    $nombreNivel = function (?string $clave) use ($prefijo) {
-        if ($clave === null) {
-            return __($prefijo . 'not_assessed');
-        }
-
-        $texto = __($prefijo . 'level_' . $clave);
-
-        return $texto === $prefijo . 'level_' . $clave ? ucfirst($clave) : $texto;
-    };
+    $nombreNivel = fn (?string $rotulo) => $rotulo ?? __($prefijo . 'not_assessed');
 @endphp
 
 <h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
@@ -117,7 +117,7 @@
     <p class="rm-resumen">
         {{ __($prefijo . 'total_hazards', ['count' => $datos['total']]) }}
         @foreach ($datos['niveles'] as $nivel)
-            · <span class="rm-pill rm-pill--{{ $nivel['tono'] }}">{{ $nombreNivel($nivel['clave']) }}: {{ $nivel['cuenta'] }}</span>
+            · <span class="rm-pill rm-pill--{{ $nivel['tono'] }}">{{ $nombreNivel($nivel['label'] ?? $nivel['clave']) }}: {{ $nivel['cuenta'] }}</span>
         @endforeach
         {{-- Un peligro declarado y sin puntuar es un agujero en el documento,
              no un cero: se cuenta aparte porque en el desglose por nivel no
@@ -150,7 +150,7 @@
                         ]) }}
                         @if ($actividad['nivel_peor'])
                             · <span class="rm-pill rm-pill--{{ $actividad['tono_peor'] }}">
-                                {{ __($prefijo . 'worst', ['level' => $nombreNivel($actividad['nivel_peor'])]) }}
+                                {{ __($prefijo . 'worst', ['level' => $nombreNivel($actividad['nivel_peor_label'] ?? $actividad['nivel_peor'])]) }}
                             </span>
                         @endif
                     @endif
@@ -207,7 +207,7 @@
                             @endforeach
 
                             <td class="rm-nivel rm-nivel--{{ $peligro['tono'] ?? 'off' }}">
-                                {{ $nombreNivel($peligro['nivel']) }}
+                                {{ $nombreNivel($peligro['nivel_label'] ?? $peligro['nivel']) }}
                                 @if ($peligro['valor'] !== null)
                                     <span class="rm-valor">{{ $peligro['valor'] }}</span>
                                 @endif

@@ -57,10 +57,19 @@
 import { computed } from 'vue';
 import { CheckOutlined, CloseOutlined, MinusOutlined, UndoOutlined } from '@ant-design/icons-vue';
 import { cicloRespuestas, siguienteEnCiclo, tono } from './respuestas';
+import { useCatalogos } from '@/Composables/useCatalogos';
 import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
     value:    { type: [String, null], default: null },
+    /**
+     * `config.answers` TAL CUAL, no la lista de valores ya aplanada.
+     *
+     * Es lo que permite que la pastilla sepa el tono declarado de cada respuesta
+     * y su rotulo traducido. Aplanarla antes de bajarla —que es lo que se hacia—
+     * deja fuera las dos cosas: un «Rechazado» con `tone: 'bad'` llegaria aqui
+     * como una cadena suelta y se pintaria verde.
+     */
     answers:  { type: Array, default: () => [] },
     readonly: { type: Boolean, default: false },
     /** El punto de inspeccion: es el texto que se lee DENTRO de la pastilla. */
@@ -84,22 +93,32 @@ const props = defineProps({
 const emit = defineEmits(['update:value', 'deshacer']);
 
 const { t } = useI18n();
+const { etiqueta: rotuloDe } = useCatalogos();
 
 /**
- * El tono de la pastilla. `null` es 'off' y no 'na': `tono()` clasifica el
- * vacio como «no aplica» —que es lo que acabara siendo al cerrar— pero
- * MIENTRAS SE LLENA un hueco es un hueco, y tiene que verse distinto de un «No
- * aplica» que alguien escribio de verdad en una entrega reabierta.
+ * El tono de la pastilla: el que declara el catalogo, y si no lo declara, el que
+ * se deduzca del texto.
+ *
+ * `null` es 'off' y no 'na': `tono()` clasifica el vacio como «no aplica» —que
+ * es lo que acabara siendo al cerrar— pero MIENTRAS SE LLENA un hueco es un
+ * hueco, y tiene que verse distinto de un «No aplica» que alguien escribio de
+ * verdad en una entrega reabierta.
  */
-const clave = computed(() => (props.value ? tono(props.value) : 'off'));
+const clave = computed(() => (props.value ? tono(props.value, { answers: props.answers }) : 'off'));
 
 const ciclo = computed(() => cicloRespuestas(props.answers, { rellenaAlCerrar: props.rellenaAlCerrar }));
 
 /** Sin ciclo que recorrer la pastilla no se toca: no hay a donde llevarla. */
 const tocable = computed(() => ! props.readonly && ciclo.value.length > 1);
 
-/** El estado en palabra. Es la del catalogo, nunca una nuestra. */
-const palabra = computed(() => props.value || t('field_work.checklist_unmarked'));
+/**
+ * El estado en palabra. Es la del catalogo, nunca una nuestra, y traducida si el
+ * catalogo trae traducciones: lo que se GUARDA es el valor, lo que se LEE es su
+ * rotulo.
+ */
+const palabra = computed(() => (
+    props.value ? rotuloDe(props.answers, props.value) : t('field_work.checklist_unmarked')
+));
 
 /**
  * La palabra sale escrita cuando dice algo que el simbolo no dice solo. Ver la
@@ -121,7 +140,7 @@ const etiqueta = computed(() => {
     const destino = siguienteEnCiclo(ciclo.value, props.value);
 
     return `${estado} ${t('field_work.checklist_tap_next', {
-        next: destino ?? t('field_work.checklist_unmarked'),
+        next: destino === null ? t('field_work.checklist_unmarked') : rotuloDe(props.answers, destino),
     })}`;
 });
 

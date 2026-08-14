@@ -40,6 +40,7 @@ import {
     agrupar, catalogo, claveExigida, estadoChecklist, filaConforme, palabrasDelCiclo, respondidos,
     textoEstado,
 } from './respuestas';
+import { useCatalogos } from '@/Composables/useCatalogos';
 import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
@@ -55,11 +56,24 @@ const props = defineProps({
 const emit = defineEmits(['update:value']);
 
 const { t } = useI18n();
+const { locale, etiqueta } = useCatalogos();
 
 const config = computed(() => props.field?.config ?? {});
 const items = computed(() => catalogo(config.value, 'items'));
-const respuestas = computed(() => catalogo(config.value, 'answers'));
 const extras = computed(() => catalogo(config.value, 'extra'));
+
+/**
+ * El catálogo de respuestas EN CRUDO, no aplanado a la lista de valores.
+ *
+ * Es lo que baja a `AnswerCycle`, y tiene que ir entero: aplanarlo aquí deja
+ * fuera el tono declarado de cada respuesta y sus traducciones, con lo que un
+ * «Rechazado» con `tone: 'bad'` llegaría a la pastilla como una cadena suelta y
+ * se pintaría de verde. Ver `Support/catalogo.js`.
+ */
+const respuestas = computed(() => config.value?.answers ?? []);
+
+/** El rótulo de un equipo, que puede venir traducido; el valor es lo que se guarda. */
+const rotuloDelItem = (item) => etiqueta(config.value?.items, item);
 
 /**
  * Los items repartidos por parte del cuerpo: cabeza, cara, manos, oídos…
@@ -74,7 +88,7 @@ const extras = computed(() => catalogo(config.value, 'extra'));
  * devuelve un solo grupo sin rótulo con todo dentro, que es exactamente como se
  * pintaba antes. Así los otros checklists no cambian.
  */
-const grupos = computed(() => agrupar(items.value, config.value?.groups));
+const grupos = computed(() => agrupar(items.value, config.value?.groups, locale.value));
 
 /** ¿Hay rótulos que pintar, o es la lista de siempre? */
 const conGrupos = computed(() => grupos.value.some((g) => g.name));
@@ -91,7 +105,7 @@ const conGrupos = computed(() => grupos.value.some((g) => g.name));
  * Viene a null cuando el formato no tiene un ciclo que explicar (le falta la
  * respuesta positiva o la negativa), y entonces no hay leyenda.
  */
-const pista = computed(() => palabrasDelCiclo(respuestas.value));
+const pista = computed(() => palabrasDelCiclo(respuestas.value, locale.value));
 
 const { todas, idFila, estaAbierta, abierta, abrir, alternar, alternarTodo } =
     usePlegado(`epp-${props.field?.id ?? 'x'}`);
@@ -142,7 +156,7 @@ const filas = computed(() => {
 });
 
 function publicar(nuevas) {
-    emit('update:value', nuevas.map((fila) => ({ ...fila, conforme: filaConforme(fila.items) })));
+    emit('update:value', nuevas.map((fila) => ({ ...fila, conforme: filaConforme(fila.items, config.value) })));
 }
 
 function escribir(indice, item, respuesta) {
@@ -189,7 +203,7 @@ const respuestaPorItem = computed(() => filas.value.map(
     (fila) => new Map((fila.items ?? []).map((x) => [x.item, x.answer])),
 ));
 
-const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [])));
+const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [], config.value)));
 
 /**
  * Con `faltante` encendido, el trabajador a medias pasa de aviso a bloqueo
@@ -350,7 +364,7 @@ function siguientePendiente(indice) {
                         <li v-for="item in grupo.items" :key="item">
                             <AnswerCycle
                                 :value="respuestaPorItem[i].get(item) ?? null"
-                                :answers="respuestas" :readonly="readonly" :label="item"
+                                :answers="respuestas" :readonly="readonly" :label="rotuloDelItem(item)"
                                 :deshacible="esUltimo(i, item)"
                                 @update:value="responder(i, item, $event)"
                                 @deshacer="deshacer" />

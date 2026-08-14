@@ -5,6 +5,7 @@ namespace App\Services\FieldWork\Pdf;
 use App\Models\FormAnswer;
 use App\Models\FormField;
 use App\Services\FieldWork\FormFindingsService;
+use App\Support\Catalogo;
 use Illuminate\Support\Collection;
 
 /**
@@ -114,6 +115,7 @@ final class QuestionBankPdf
                 $indice === null ? null : $pares[$indice]['respuesta'],
                 $posibles,
                 false,
+                $config,
             );
         }
 
@@ -133,7 +135,7 @@ final class QuestionBankPdf
                 continue;
             }
 
-            $preguntas[] = self::pregunta($par['texto'], $par['respuesta'], $posibles, true);
+            $preguntas[] = self::pregunta($par['texto'], $par['respuesta'], $posibles, true, $config);
         }
 
         $observadas = [];
@@ -172,15 +174,27 @@ final class QuestionBankPdf
      * mismo. Donde podrian separarse es en un valor que ninguno de los dos
      * produce, y ahi manda lo que el lector tiene delante: la palabra impresa.
      */
-    protected static function pregunta(?string $texto, mixed $bruta, array $posibles, bool $fueraDeCatalogo): array
-    {
-        $respuesta = self::etiqueta($bruta, $posibles);
-        $tono      = $respuesta === null ? null : app(FormFindingsService::class)->tono($respuesta);
+    protected static function pregunta(
+        ?string $texto,
+        mixed $bruta,
+        array $posibles,
+        bool $fueraDeCatalogo,
+        array $config = [],
+    ): array {
+        $valor = self::etiqueta($bruta, $posibles);
+
+        // El TONO se pregunta por el valor guardado, que es la clave del
+        // catalogo; el ROTULO es lo que se imprime, y puede venir traducido.
+        // Antes las dos cosas eran la misma cadena porque el tono se adivinaba
+        // del castellano, y esa adivinanza pintaba con el ✔ el «Rechazado» de
+        // cualquier formato que no hablara como los cuatro migrados.
+        $tono      = $valor === null ? null : app(FormFindingsService::class)->tono($valor, $config);
+        $respuesta = $valor === null ? null : Catalogo::etiqueta($config['answers'] ?? null, $valor);
 
         return [
             // Lo pone `datos()` al final, cuando ya sabe el orden definitivo.
             'numero'      => 0,
-            'texto'       => $texto,
+            'texto'       => $texto === null ? null : Catalogo::etiqueta($config['questions'] ?? null, $texto),
             'respuesta'   => $respuesta,
             'tono'        => $tono,
             'observacion' => $tono === FormFindingsService::MALA,
@@ -301,23 +315,11 @@ final class QuestionBankPdf
     /** Un catalogo de la config como lista de textos, sin huecos. */
     protected static function catalogo(array $config, string $clave): array
     {
-        $valor = $config[$clave] ?? null;
-
-        if (! is_array($valor)) {
-            return [];
-        }
-
-        $textos = [];
-
-        foreach ($valor as $item) {
-            $texto = self::texto($item);
-
-            if ($texto !== null) {
-                $textos[] = $texto;
-            }
-        }
-
-        return $textos;
+        // VALORES, no rotulos: es lo que casa con lo guardado en la respuesta y
+        // con las 14 000 entregas migradas. El rotulo —que puede venir traducido—
+        // se resuelve al imprimir, en `pregunta()`. Confundirlos haria que el
+        // papel en ingles no encontrara ninguna respuesta.
+        return Catalogo::valores($config[$clave] ?? null);
     }
 
     /** Texto util o null: el papel no distingue «no puesto» de «puesto en blanco». */

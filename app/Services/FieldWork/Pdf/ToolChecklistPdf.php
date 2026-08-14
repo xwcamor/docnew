@@ -209,7 +209,7 @@ final class ToolChecklistPdf
             // usa esa, no una copia: si el PDF dijera «conforme» donde el
             // contador de no conformidades cuenta una, el papel y la ficha del
             // plan contarian cosas distintas del mismo dia de trabajo.
-            $tono = app(FormFindingsService::class)->tono($etiqueta);
+            $tono = app(FormFindingsService::class)->tono($etiqueta, $config);
 
             if ($tono === FormFindingsService::MALA) {
                 $malas++;

@@ -2120,14 +2120,26 @@ button.ff-group__toggle { cursor: pointer; }
     font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
     border: 1px solid transparent;
 }
-/* Los tres niveles son los tres estados de siempre —malo, medio, bueno— y
-   salen de los tokens `--state-*`, no de un hex tecleado (docs/UI.md §5-bis):
-   asi el AST se lee igual en el tema oscuro y en los cuatro esquemas de color
-   que el usuario elige en su perfil. */
-.ff-risk.is-alto  { color: var(--state-bad-text);  background: var(--state-bad-bg);  border-color: var(--state-bad-border); }
-.ff-risk.is-medio { color: var(--state-warn-text); background: var(--state-warn-bg); border-color: var(--state-warn-border); }
-.ff-risk.is-bajo  { color: var(--state-ok-text);   background: var(--state-ok-bg);   border-color: var(--state-ok-border); }
-.ff-risk.is-none  { color: var(--state-off-text);  background: var(--state-off-bg);  border-color: var(--state-off-border); }
+/* LA CLASE ES EL TONO DE LA BANDA, NO SU NOMBRE.
+   Aqui ponia `.is-alto`, `.is-medio` y `.is-bajo`, que son los nombres que les
+   puso la v1. O sea que las bandas eran configurables desde el editor **siempre
+   que se llamaran asi**: una empresa con `critico / moderado / aceptable` —o la
+   misma matriz en ingles— pintaba las tres pastillas sin ningun color, y el
+   nivel de riesgo de un AST se quedaba en gris.
+
+   Ahora la banda declara su `tone` (o se lo reparte `BandasDeRiesgo` por
+   posicion: la primera roja, la ultima verde, las de en medio ambar) y aqui solo
+   hay tonos. Los colores siguen saliendo de los tokens `--state-*` y no de un
+   hex tecleado (docs/UI.md §5-bis): asi el AST se lee igual en el tema oscuro y
+   en los cuatro esquemas de color que el usuario elige en su perfil. */
+.ff-risk.is-bad  { color: var(--state-bad-text);  background: var(--state-bad-bg);  border-color: var(--state-bad-border); }
+.ff-risk.is-warn { color: var(--state-warn-text); background: var(--state-warn-bg); border-color: var(--state-warn-border); }
+.ff-risk.is-ok   { color: var(--state-ok-text);   background: var(--state-ok-bg);   border-color: var(--state-ok-border); }
+.ff-risk.is-info { color: var(--state-info-text, var(--color-primary, #0A6ED1)); background: var(--state-info-bg, #eaf3fb); border-color: var(--state-info-border, #b9d6ee); }
+/* El hueco: ni banda ni evaluacion. `is-none` es el que escribe la plantilla
+   cuando no hay nivel; `is-off`, el tono de una banda que se declara neutra. */
+.ff-risk.is-none,
+.ff-risk.is-off  { color: var(--state-off-text);  background: var(--state-off-bg);  border-color: var(--state-off-border); }
 
 /* ── Contadores de avance ────────────────────────────────────────────────── */
 .ff-count {

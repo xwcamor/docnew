@@ -98,6 +98,7 @@ import CatalogSelect from './CatalogSelect.vue';
 import RowNavigator from './RowNavigator.vue';
 import { usePlegado } from './plegado';
 import { catalogo } from './respuestas';
+import { bandaDeValor, bandasDeRiesgo, bandaTolerable, valorDeLaMatriz } from '@/Support/catalogo';
 import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
@@ -269,41 +270,59 @@ onBeforeUnmount(() => {
  * El producto queda solo de red, para un formato nuevo que se defina sin matriz.
  */
 function valorRiesgo(fila) {
-    const s = severidades.value.indexOf(fila?.severidad) + 1;
-    const p = probabilidades.value.indexOf(fila?.probabilidad) + 1;
-
-    if (!s || !p) return null;
-
-    const tabla = config.value.matrix;
-
-    if (Array.isArray(tabla) && Array.isArray(tabla[s - 1])) {
-        return tabla[s - 1][p - 1] ?? null;
-    }
-
-    return s * p;
+    return valorDeLaMatriz(
+        config.value,
+        severidades.value.indexOf(fila?.severidad),
+        probabilidades.value.indexOf(fila?.probabilidad),
+    );
 }
 
 /**
- * Bandas del sistema anterior (`Risk#level_name`): 1-8 alto, 9-15 medio, 16-25
- * bajo. Vienen en `config.levels` junto con la matriz, para no tener que
- * deducirlas. Si un formato nuevo no las define, se reparten en tercios.
+ * Las bandas de la plantilla, con su rango, su rótulo y su color.
+ *
+ * DOS COSAS QUE ESTABAN MAL Y AQUÍ YA NO. La clave de la banda se usaba de clave
+ * de traducción (`risk_matrix.level_alto`) y de clase CSS (`.is-alto`), así que
+ * las bandas eran configurables **siempre que se llamaran alto, medio y bajo**;
+ * y el reparto era un `hasta` acumulado, que da por supuesto que el número
+ * pequeño es el peor —cierto en la matriz de la v1, falso en la clásica de
+ * severidad × probabilidad, donde 25 es lo peor y las bandas salían del revés.
+ * Ver `Support/catalogo.js`, que es la gemela de `App\Support\BandasDeRiesgo`.
  */
-function nivelRiesgo(valor) {
-    if (!valor) return null;
+const bandas = computed(() => bandasDeRiesgo(config.value, pagina.props.locale, t));
 
-    const bandas = config.value.levels;
-
-    if (Array.isArray(bandas) && bandas.length) {
-        return bandas.find((b) => valor <= b.hasta)?.clave ?? bandas.at(-1)?.clave ?? null;
-    }
+/**
+ * Sin bandas declaradas se reparte en tercios, como se hacía antes: es un
+ * formato nuevo al que nadie le configuró la matriz todavía.
+ */
+const bandasEfectivas = computed(() => {
+    if (bandas.value.length) return bandas.value;
 
     const maximo = severidades.value.length * probabilidades.value.length;
 
-    if (!maximo) return null;
-    if (valor <= maximo / 3) return 'alto';
-    if (valor <= (maximo * 2) / 3) return 'medio';
+    if (! maximo) return [];
 
-    return 'bajo';
+    const tercio = Math.ceil(maximo / 3);
+
+    return bandasDeRiesgo({ levels: [
+        { clave: 'alto',  hasta: tercio },
+        { clave: 'medio', hasta: Math.ceil((maximo * 2) / 3) },
+        { clave: 'bajo',  hasta: maximo },
+    ] }, pagina.props.locale, t);
+});
+
+/** En qué banda cae un valor. Devuelve la CLAVE, que es lo que se guarda. */
+function nivelRiesgo(valor) {
+    return bandaDeValor(valor, bandasEfectivas.value)?.clave ?? null;
+}
+
+/** El rótulo con el que se lee una banda: de la plantilla, no de una clave nuestra. */
+function rotuloNivel(clave) {
+    return bandasEfectivas.value.find((b) => b.clave === clave)?.label ?? clave;
+}
+
+/** Y su color, de la lista corta de tonos del sistema. */
+function tonoNivel(clave) {
+    return bandasEfectivas.value.find((b) => b.clave === clave)?.tone ?? 'off';
 }
 
 /** El riesgo se recalcula en la fila cada vez que cambia, no se pide aparte. */
@@ -491,13 +510,7 @@ const pendientes = computed(() => filas.value.filter(
  * El orden lo dan las bandas de la plantilla, que vienen de peor a mejor
  * (`config.levels`); no se escribe aqui una segunda lista de niveles.
  */
-const ordenNiveles = computed(() => {
-    const bandas = config.value.levels;
-
-    return Array.isArray(bandas) && bandas.length
-        ? bandas.map((b) => b.clave)
-        : ['alto', 'medio', 'bajo'];
-});
+const ordenNiveles = computed(() => bandasEfectivas.value.map((b) => b.clave));
 
 function nivelPeor(grupo) {
     let peor = null;
@@ -667,8 +680,8 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                     </span>
 
                     <!-- Color y PALABRA, nunca solo color (docs/UI.md §5). -->
-                    <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${nivelPeor(grupo)}`">
-                        {{ $t(`field_work.risk_matrix.level_${nivelPeor(grupo)}`) }}
+                    <span v-if="nivelPeor(grupo)" class="ff-risk" :class="`is-${tonoNivel(nivelPeor(grupo))}`">
+                        {{ rotuloNivel(nivelPeor(grupo)) }}
                     </span>
                     <span v-else class="ff-risk is-none">
                         {{ $t('field_work.risk_matrix.no_risk') }}
@@ -860,8 +873,8 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                 <span v-if="faltasDe(filas[i]).length" class="ff-incomplete">
                                     {{ $t('field_work.risk_matrix.incomplete') }}
                                 </span>
-                                <span v-else-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
-                                    {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
+                                <span v-else-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${tonoNivel(nivelDe(filas[i]))}`">
+                                    {{ rotuloNivel(nivelDe(filas[i])) }} · {{ filas[i].valor_riesgo }}
                                 </span>
                                 <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
                             </td>
@@ -916,8 +929,8 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                         <span v-if="faltasDe(filas[i]).length" class="ff-incomplete">
                             {{ $t('field_work.risk_matrix.incomplete') }}
                         </span>
-                        <span v-else-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
-                            {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
+                        <span v-else-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${tonoNivel(nivelDe(filas[i]))}`">
+                            {{ rotuloNivel(nivelDe(filas[i])) }} · {{ filas[i].valor_riesgo }}
                         </span>
                         <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
                     </div>
@@ -1010,8 +1023,8 @@ const porNivel = (nivel) => filas.value.filter((f) => nivelDe(f) === nivel).leng
                                 <label class="ff-label">
                                     {{ $t('field_work.risk_matrix.level') }}<span class="ff-block__req"> *</span>
                                 </label>
-                                <span v-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${nivelDe(filas[i])}`">
-                                    {{ $t(`field_work.risk_matrix.level_${nivelDe(filas[i])}`) }} · {{ filas[i].valor_riesgo }}
+                                <span v-if="nivelDe(filas[i])" class="ff-risk" :class="`is-${tonoNivel(nivelDe(filas[i]))}`">
+                                    {{ rotuloNivel(nivelDe(filas[i])) }} · {{ filas[i].valor_riesgo }}
                                 </span>
                                 <span v-else class="ff-risk is-none">{{ $t('field_work.risk_matrix.no_risk') }}</span>
                             </div>

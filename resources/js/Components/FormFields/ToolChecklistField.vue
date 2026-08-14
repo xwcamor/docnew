@@ -38,6 +38,7 @@ import { useUltimoToque } from './ultimoToque';
 import {
     catalogo, claveExigida, estadoChecklist, filaConforme, palabrasDelCiclo, respondidos, textoEstado,
 } from './respuestas';
+import { useCatalogos } from '@/Composables/useCatalogos';
 import { useI18n } from '@/Plugins/i18n';
 
 const props = defineProps({
@@ -51,12 +52,20 @@ const props = defineProps({
 const emit = defineEmits(['update:value']);
 
 const { t } = useI18n();
+const { locale, etiqueta } = useCatalogos();
 
 const config = computed(() => props.field?.config ?? {});
 const herramientas = computed(() => catalogo(config.value, 'tools'));
 const puntos = computed(() => catalogo(config.value, 'items'));
-const respuestas = computed(() => catalogo(config.value, 'answers'));
+/**
+ * El catálogo de respuestas EN CRUDO: es lo que baja a `AnswerCycle` y tiene que
+ * llevar dentro el tono declarado y las traducciones. Ver `PersonChecklistField`.
+ */
+const respuestas = computed(() => config.value?.answers ?? []);
 const extras = computed(() => catalogo(config.value, 'extra'));
+
+/** El rótulo de un punto de inspección: se guarda el valor, se lee el rótulo. */
+const rotuloDelPunto = (item) => etiqueta(config.value?.items, item);
 
 /**
  * Las palabras con las que se explica el ciclo de toques. Aquí el catálogo dice
@@ -64,7 +73,7 @@ const extras = computed(() => catalogo(config.value, 'extra'));
  * `config.answers` del formato y no escritas a pelo. Ver la nota larga en
  * PersonChecklistField.
  */
-const pista = computed(() => palabrasDelCiclo(respuestas.value));
+const pista = computed(() => palabrasDelCiclo(respuestas.value, locale.value));
 
 const filas = computed(() => (Array.isArray(props.value) ? props.value : []));
 
@@ -84,7 +93,7 @@ function filaVacia() {
 function publicar(nuevas) {
     emit('update:value', nuevas.map((fila) => ({
         ...fila,
-        conforme: filaConforme(fila.items),
+        conforme: filaConforme(fila.items, config.value),
     })));
 }
 
@@ -142,7 +151,7 @@ function quitar(indice) {
 
 const avance = (fila) => `${respondidos(fila.items)}/${(fila.items ?? []).length}`;
 
-const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [])));
+const estados = computed(() => filas.value.map((fila) => estadoChecklist(fila.items ?? [], config.value)));
 
 /** Como en el EPP: con `faltante`, la herramienta a medias pasa a rojo en el
  *  indice y en su tarjeta a la vez, pero SOLO el color — la palabra sigue
@@ -261,7 +270,7 @@ function siguientePendiente(indice) {
                 <ul class="ff-checks">
                     <li v-for="x in (fila.items ?? [])" :key="x.item">
                         <AnswerCycle
-                            :value="x.answer" :answers="respuestas" :readonly="readonly" :label="x.item"
+                            :value="x.answer" :answers="respuestas" :readonly="readonly" :label="rotuloDelPunto(x.item)"
                             :deshacible="esUltimo(i, x.item)"
                             @update:value="responder(i, x.item, $event)"
                             @deshacer="deshacer" />
