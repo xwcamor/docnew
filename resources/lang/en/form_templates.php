@@ -289,4 +289,7 @@ return [
 
     'labels_need_keys'  => 'Configure this axis keys first.',
     'labels_key_help'   => 'Internal name: it is what gets stored in each hazard and never changes.',
+    'group_image_add'    => 'Add an icon to the group',
+    'group_image_change' => 'Change the icon',
+    'group_image_remove' => 'Remove the icon',
 ];

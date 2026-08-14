@@ -91,10 +91,15 @@ function lista(clave) {
             <!-- Los grupos no son textos sueltos: cada uno lleva rótulo y su
                  propia lista, que se elige del catálogo del campo. Con el
                  editor de listas se guardarían como «[object Object]». -->
+            <!-- El catalogo que reparten los grupos depende del tipo: los
+                 equipos del EPP viven en `items` y las preguntas del PTF en
+                 `questions`. Se elige el que tenga contenido, no el tipo: es lo
+                 unico que este componente puede saber sin copiarse la lista de
+                 tipos del servidor. -->
             <GroupListEditor
                 v-else-if="item.control === 'groups'"
                 :model-value="Array.isArray(modelValue?.[item.key]) ? modelValue[item.key] : []"
-                :items="lista('items')"
+                :items="lista('items').length ? lista('items') : lista('questions')"
                 :disabled="disabled"
                 @update:model-value="fijar(item.key, $event)"
             />

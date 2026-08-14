@@ -2141,6 +2141,22 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-risk.is-none,
 .ff-risk.is-off  { color: var(--state-off-text);  background: var(--state-off-bg);  border-color: var(--state-off-border); }
 
+/* ── Grupos del banco de preguntas: rotulo e icono, como el papel ─────────
+   El Pare y Tome 5 de la v1 va por bloques numerados con su dibujo al lado (el
+   semaforo, la cabeza, la lupa). El icono es un data URI que viaja en la config
+   del formato —sin almacen de archivos, se copia con cada version— y es
+   decorativo: el alt va vacio y el TITULO es quien dice que es el bloque. */
+.ff-qgroup + .ff-qgroup { margin-top: 14px; }
+.ff-qgroup__head {
+    display: flex; align-items: center; gap: 10px;
+    margin: 0; padding: 8px 12px 0;
+    font-size: 0.9375rem; font-weight: 700;
+    color: var(--color-text, #32363A);
+}
+.ff-qgroup__icon {
+    width: 34px; height: 34px; object-fit: contain; flex-shrink: 0;
+}
+
 /* ── Campo «tabla»: filas con las columnas que defina el formato ──────────
    NO es una `<table>`, y es a proposito: esto se llena en una tablet de 10" y
    seis columnas ahi solo caben con scroll horizontal, que esta vetado

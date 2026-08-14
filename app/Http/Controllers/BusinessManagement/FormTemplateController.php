@@ -442,7 +442,11 @@ class FormTemplateController extends Controller
             'activities', 'dangers', 'risks', 'controls',
             'matrix', 'levels', 'severity_labels', 'probability_labels',
         ],
-        'question_bank'    => ['answers'],
+        // `groups` tambien aqui: el Pare y Tome 5 del papel va por bloques
+        // numerados con su icono («1. ¡DETENTE y piensa antes de actuar!»).
+        // Misma vista-sobre-el-catalogo que los grupos del EPP, con la imagen
+        // opcional dentro del grupo.
+        'question_bank'    => ['answers', 'groups'],
     ];
 
     /**

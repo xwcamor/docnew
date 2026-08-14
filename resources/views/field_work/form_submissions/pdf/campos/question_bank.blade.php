@@ -25,9 +25,13 @@
     // peor que uno que dice «sin respuesta», y este documento se genera
     // tambien en lote, cuando se descarga el expediente entero de un plan.
     $qb = ($campo['datos'] ?? []) + [
-        'preguntas' => [], 'total' => 0, 'respondidas' => 0, 'sin_responder' => 0,
+        'preguntas' => [], 'grupos' => [], 'total' => 0, 'respondidas' => 0, 'sin_responder' => 0,
         'observaciones' => 0, 'observadas' => [], 'hay_fuera_de_catalogo' => false,
     ];
+
+    // Sin grupos declarados llega un unico grupo anonimo con todo dentro, y la
+    // tabla sale exactamente como salia la lista plana.
+    $grupos = $qb['grupos'] ?: [['titulo' => null, 'image' => null, 'indices' => array_keys($qb['preguntas'])]];
 
     // El tono lo decide el servicio con la misma regla que cuenta las
     // observaciones de la ficha del plan; aqui solo se traduce a clase.
@@ -57,6 +61,12 @@
     .qb-head td.r { text-align: right; }
     .qb-notice { color: #C8281D; font-weight: bold; font-size: 8pt; margin: 0 0 6px 0; }
     .qb-note { font-size: 7.5pt; margin: 2px 0 0 0; }
+
+    /* El bloque, como el papel de la v1: el icono a la izquierda y el titulo en
+       negrita, en una fila que cruza la tabla. El icono es un data URI de la
+       config del formato — viaja congelado con cada version. */
+    .qb-group td { background: #EEF2F6; font-weight: bold; padding: 4px 6px; }
+    .qb-group img { width: 18px; height: 18px; vertical-align: middle; margin-right: 6px; }
 </style>
 
 <h3 class="block__sub">{{ $campo['etiqueta'] }}</h3>
@@ -111,7 +121,17 @@
             </tr>
         </thead>
         <tbody>
-            @foreach ($qb['preguntas'] as $pregunta)
+            @foreach ($grupos as $grupo)
+                @if (filled($grupo['titulo']) || filled($grupo['image']))
+                    <tr class="qb-group">
+                        <td colspan="3">
+                            @if ($grupo['image'])<img src="{{ $grupo['image'] }}" alt="">@endif{{ $grupo['titulo'] }}
+                        </td>
+                    </tr>
+                @endif
+            @foreach ($grupo['indices'] as $indiceDePregunta)
+                @php $pregunta = $qb['preguntas'][$indiceDePregunta] ?? null; @endphp
+                @continue($pregunta === null)
                 <tr class="{{ $pregunta['observacion'] ? 'qb-obs' : '' }}">
                     <td class="qb-n">{{ $pregunta['numero'] }}</td>
                     <td>
@@ -137,6 +157,7 @@
                         @endif
                     </td>
                 </tr>
+            @endforeach
             @endforeach
         </tbody>
     </table>

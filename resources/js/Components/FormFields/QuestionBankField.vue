@@ -53,7 +53,7 @@
 import { computed } from 'vue';
 import AnswerCycle from './AnswerCycle.vue';
 import { useUltimoToque } from './ultimoToque';
-import { catalogo, palabrasDelCiclo, respondidos } from './respuestas';
+import { agrupar, catalogo, palabrasDelCiclo, respondidos } from './respuestas';
 import { useCatalogos } from '@/Composables/useCatalogos';
 
 const props = defineProps({
@@ -127,6 +127,24 @@ const sinContestar = (f) => f.answer === null || f.answer === undefined || f.ans
 
 /** Las preguntas que el aviso de `faltante` nombra: las que siguen en blanco. */
 const pendientes = computed(() => filas.value.length - contestadas.value);
+
+/**
+ * Las preguntas repartidas en sus grupos, como el papel de la v1: «1. ¡DETENTE
+ * y piensa antes de actuar!» con su icono, y sus preguntas debajo.
+ *
+ * Es la MISMA `agrupar()` del EPP —una vista sobre el catalogo, nunca otra
+ * lista— asi que lo que ningun grupo reclame sale igual, al final y sin
+ * rotulo, y sin `config.groups` hay un solo grupo sin nombre con todo dentro:
+ * exactamente lo que se pintaba antes.
+ */
+const grupos = computed(() => agrupar(preguntas.value, config.value?.groups, locale.value));
+
+const conGrupos = computed(() => grupos.value.some((g) => g.name || g.image));
+
+/** Las filas de un grupo, en el orden del grupo. */
+const filasDe = (grupo) => grupo.items
+    .map((q) => filas.value.find((f) => f.question === q))
+    .filter(Boolean);
 </script>
 
 <template>
@@ -152,26 +170,35 @@ const pendientes = computed(() => filas.value.length - contestadas.value);
             {{ $t(pista.na ? 'field_work.checklist_hint_na_tocable' : 'field_work.checklist_hint_no_na', pista) }}
         </p>
 
-        <!-- Una por linea: son frases enteras y en dos columnas cada pastilla se
-             convierte en un parrafo. -->
-        <ul class="ff-checks ff-checks--wide">
-            <li
-                v-for="f in filas"
-                :key="f.question"
-                class="ff-check"
-                :class="{ 'is-missing': faltante && !readonly && sinContestar(f) }"
-            >
-                <AnswerCycle
-                    :value="f.answer"
-                    :answers="respuestas"
-                    :readonly="readonly"
-                    :label="rotulo(f.question)"
-                    :rellena-al-cerrar="false"
-                    :deshacible="esUltimo(0, f.question)"
-                    @update:value="responder(f.question, $event)"
-                    @deshacer="deshacer"
-                />
-            </li>
-        </ul>
+        <!-- Por grupos cuando el formato los trae —el papel de la v1 iba asi,
+             con su icono por bloque— y de corrido cuando no. Una pastilla por
+             linea en los dos casos: son frases enteras y en dos columnas cada
+             una se convierte en un parrafo. -->
+        <section v-for="(grupo, g) in grupos" :key="g" class="ff-qgroup">
+            <h4 v-if="conGrupos && (grupo.name || grupo.image)" class="ff-qgroup__head">
+                <img v-if="grupo.image" :src="grupo.image" alt="" class="ff-qgroup__icon">
+                <span v-if="grupo.name">{{ grupo.name }}</span>
+            </h4>
+
+            <ul class="ff-checks ff-checks--wide">
+                <li
+                    v-for="f in filasDe(grupo)"
+                    :key="f.question"
+                    class="ff-check"
+                    :class="{ 'is-missing': faltante && !readonly && sinContestar(f) }"
+                >
+                    <AnswerCycle
+                        :value="f.answer"
+                        :answers="respuestas"
+                        :readonly="readonly"
+                        :label="rotulo(f.question)"
+                        :rellena-al-cerrar="false"
+                        :deshacible="esUltimo(0, f.question)"
+                        @update:value="responder(f.question, $event)"
+                        @deshacer="deshacer"
+                    />
+                </li>
+            </ul>
+        </section>
     </div>
 </template>

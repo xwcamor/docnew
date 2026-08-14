@@ -152,6 +152,7 @@ final class QuestionBankPdf
 
         return [
             'preguntas'     => $preguntas,
+            'grupos'        => self::grupos($config, $preguntas),
             'total'         => count($preguntas),
             'respondidas'   => $respondidas,
             'sin_responder' => count($preguntas) - $respondidas,
@@ -162,6 +163,82 @@ final class QuestionBankPdf
             'observadas'    => $observadas,
             'hay_fuera_de_catalogo' => array_filter($preguntas, fn (array $p) => $p['fuera_de_catalogo']) !== [],
         ];
+    }
+
+    /**
+     * Las preguntas repartidas en sus bloques, como el papel de la v1: «1.
+     * ¡DETENTE y piensa antes de actuar!» con su icono al lado, y sus preguntas
+     * debajo.
+     *
+     * ES UNA VISTA SOBRE `$preguntas`, no otra lista: cada grupo lleva los
+     * INDICES de sus filas y el parcial pinta las mismas filas numeradas de
+     * siempre — con lo que el resumen («2 observaciones — preguntas 7, 12»)
+     * sigue apuntando bien. La regla del reparto es la misma que en el EPP y en
+     * la pantalla (`agrupar()` de respuestas.js): el primer grupo que reclama
+     * una pregunta se la queda, y lo que ningun grupo reclama sale al final,
+     * sin rotulo. Sin `config.groups` hay un solo grupo anonimo con todo, que
+     * el parcial pinta exactamente como pintaba la lista plana.
+     *
+     * La imagen es un data URI que viaja en la config —DomPDF lo imprime sin
+     * salir a la red— y solo se acepta esa forma: una URL externa en un PDF de
+     * seguridad no es una opcion.
+     *
+     * @param  array<int, array>  $preguntas  ya numeradas, en su orden final
+     * @return array<int, array{titulo: ?string, image: ?string, indices: array<int, int>}>
+     */
+    protected static function grupos(array $config, array $preguntas): array
+    {
+        $declarados = is_array($config['groups'] ?? null) ? $config['groups'] : [];
+
+        $todos = array_keys($preguntas);
+
+        if ($declarados === []) {
+            return [['titulo' => null, 'image' => null, 'indices' => $todos]];
+        }
+
+        $porTexto = [];
+
+        foreach ($preguntas as $indice => $pregunta) {
+            if ($pregunta['texto'] !== null) {
+                $porTexto[$pregunta['texto']] ??= $indice;
+            }
+        }
+
+        $libres = array_flip($todos);
+        $grupos = [];
+
+        foreach ($declarados as $grupo) {
+            $indices = [];
+
+            foreach (Catalogo::valores($grupo['items'] ?? []) as $texto) {
+                $indice = $porTexto[$texto] ?? null;
+
+                if ($indice !== null && isset($libres[$indice])) {
+                    $indices[] = $indice;
+                    unset($libres[$indice]);
+                }
+            }
+
+            if ($indices === []) {
+                continue;
+            }
+
+            $imagen = $grupo['image'] ?? null;
+
+            $grupos[] = [
+                'titulo' => \App\Support\TextoTraducible::de($grupo['name'] ?? null) ?: null,
+                'image'  => is_string($imagen) && str_starts_with($imagen, 'data:image/') ? $imagen : null,
+                'indices' => $indices,
+            ];
+        }
+
+        // Lo que no reclamo ningun grupo —incluido lo contestado fuera de
+        // catalogo— al final y sin rotulo: nunca fuera del papel.
+        if ($libres !== []) {
+            $grupos[] = ['titulo' => null, 'image' => null, 'indices' => array_keys($libres)];
+        }
+
+        return $grupos;
     }
 
     /**

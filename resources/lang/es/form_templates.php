@@ -320,4 +320,7 @@ return [
 
     'labels_need_keys'  => 'Primero configura las claves de este eje.',
     'labels_key_help'   => 'Nombre interno: es lo que se guarda en cada peligro y no cambia nunca.',
+    'group_image_add'    => 'Añadir un icono al grupo',
+    'group_image_change' => 'Cambiar el icono',
+    'group_image_remove' => 'Quitar el icono',
 ];

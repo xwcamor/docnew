@@ -360,15 +360,22 @@ export function catalogoConRotulos(config, locale, ...claves) {
  * mapa por idioma. Lo que NO se traduce es la lista de dentro: son valores, y
  * un valor traducido dejaria de casar con el catalogo.
  *
+ * Y UN GRUPO PUEDE TRAER SU IMAGEN: el papel de la v1 llevaba un icono al lado
+ * de cada bloque del Pare y Tome 5 (el semaforo, la cabeza, la lupa...). Viaja
+ * como data URI dentro de la config —pequeña, el editor la reduce al subirla—
+ * y por eso no necesita almacen de archivos, se copia sola con cada version
+ * del formato y DomPDF la imprime tal cual. Es opcional: sin imagen, el grupo
+ * es solo su rotulo, como hasta ahora.
+ *
  * @param {string[]} items   valores del catalogo del campo, en su orden
- * @param {Array}    groups  [{ name, items: [...] }]
- * @returns {Array<{name: string|null, items: string[]}>}
+ * @param {Array}    groups  [{ name, items: [...], image? }]
+ * @returns {Array<{name: string|null, items: string[], image: string|null}>}
  */
 export function agrupar(items, groups, locale = null) {
     const todos = Array.isArray(items) ? items.map(String) : [];
     const declarados = Array.isArray(groups) ? groups : [];
 
-    if (! declarados.length) return todos.length ? [{ name: null, items: todos }] : [];
+    if (! declarados.length) return todos.length ? [{ name: null, items: todos, image: null }] : [];
 
     const disponibles = new Set(todos);
     const grupos = [];
@@ -380,13 +387,22 @@ export function agrupar(items, groups, locale = null) {
         // pediria dos respuestas para la misma casilla.
         suyos.forEach((x) => disponibles.delete(x));
 
-        if (suyos.length) grupos.push({ name: textoTraducible(grupo?.name, locale) || null, items: suyos });
+        if (suyos.length) {
+            grupos.push({
+                name:  textoTraducible(grupo?.name, locale) || null,
+                items: suyos,
+                // Solo un data URI de imagen: una URL externa no la puede
+                // imprimir DomPDF sin salir a la red, y salir a la red desde un
+                // PDF de seguridad no es una opcion.
+                image: typeof grupo?.image === 'string' && grupo.image.startsWith('data:image/') ? grupo.image : null,
+            });
+        }
     }
 
     // Lo que no reclamo ningun grupo, al final y sin rotulo.
     const sueltos = todos.filter((x) => disponibles.has(x));
 
-    if (sueltos.length) grupos.push({ name: null, items: sueltos });
+    if (sueltos.length) grupos.push({ name: null, items: sueltos, image: null });
 
     return grupos;
 }

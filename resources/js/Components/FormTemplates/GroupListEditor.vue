@@ -20,14 +20,14 @@
  * comportamiento por defecto— y el reparto entero se guardaría como
  * «[object Object]» al primer guardado desde la pantalla.
  */
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Button, Input, Select, Tooltip } from 'ant-design-vue';
 import {
-    ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PlusOutlined,
+    ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PictureOutlined, PlusOutlined,
 } from '@ant-design/icons-vue';
 
 const props = defineProps({
-    /** [{ name, items: [...] }] */
+    /** [{ name, items: [...], image? }] */
     modelValue: { type: Array, default: () => [] },
     /** El catálogo del campo: de aquí salen los puntos que se pueden repartir. */
     items:      { type: Array, default: () => [] },
@@ -71,12 +71,77 @@ function mover(i, salto) {
 function anadir() {
     emitir([...grupos.value, { name: '', items: [] }]);
 }
+
+// ── La imagen del grupo ─────────────────────────────────────────────────────
+//
+// El papel de la v1 lleva un dibujo al lado de cada bloque del Pare y Tome 5
+// (el semaforo, la cabeza, la lupa). Se guarda como DATA URI dentro de la
+// propia config, y es una decision, no una comodidad: asi no hace falta
+// almacen de archivos, la imagen se copia sola con cada version del formato
+// —lo firmado con la v1 se imprime con el icono de la v1— y DomPDF la pinta
+// sin salir a la red. El precio es el tamaño, y por eso se REDUCE al subirla:
+// un icono de 96px pesa unos pocos KB; la foto de 4MB de una camara, no.
+
+const selectorDeImagen = ref(null);
+const grupoEligiendo = ref(null);
+
+function pedirImagen(i) {
+    grupoEligiendo.value = i;
+    selectorDeImagen.value?.click();
+}
+
+async function imagenElegida(evento) {
+    const archivo = evento.target.files?.[0];
+    const i = grupoEligiendo.value;
+
+    evento.target.value = '';
+
+    if (! archivo || i === null) return;
+
+    fijar(i, 'image', await comoIcono(archivo));
+}
+
+/** El archivo reducido a un icono cuadrado de 96px, como data URI. */
+function comoIcono(archivo) {
+    return new Promise((resolver, rechazar) => {
+        const imagen = new Image();
+        const url = URL.createObjectURL(archivo);
+
+        imagen.onload = () => {
+            const LADO = 96;
+            const escala = Math.min(LADO / imagen.width, LADO / imagen.height, 1);
+            const lienzo = document.createElement('canvas');
+
+            lienzo.width = Math.round(imagen.width * escala);
+            lienzo.height = Math.round(imagen.height * escala);
+            lienzo.getContext('2d').drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+
+            URL.revokeObjectURL(url);
+            resolver(lienzo.toDataURL('image/png'));
+        };
+        imagen.onerror = () => { URL.revokeObjectURL(url); rechazar(new Error('no es una imagen')); };
+        imagen.src = url;
+    });
+}
 </script>
 
 <template>
     <div class="gle">
         <div v-for="(grupo, i) in grupos" :key="i" class="gle__row">
             <div class="gle__head">
+                <!-- El icono actual, si lo hay: tocarlo lo cambia, la equis lo
+                     quita. Un grupo sin imagen es un grupo normal. -->
+                <button
+                    v-if="grupo.image"
+                    type="button"
+                    class="gle__thumb"
+                    :disabled="disabled"
+                    :title="$t('form_templates.group_image_change')"
+                    @click="pedirImagen(i)"
+                >
+                    <img :src="grupo.image" alt="">
+                </button>
+
                 <Input
                     :value="grupo.name ?? ''"
                     :disabled="disabled"
@@ -85,6 +150,16 @@ function anadir() {
                     :placeholder="$t('form_templates.group_name_placeholder')"
                     @update:value="fijar(i, 'name', $event)"
                 />
+
+                <Tooltip :title="grupo.image ? $t('form_templates.group_image_remove') : $t('form_templates.group_image_add')">
+                    <Button
+                        :disabled="disabled"
+                        size="large"
+                        @click="grupo.image ? fijar(i, 'image', null) : pedirImagen(i)"
+                    >
+                        <template #icon><PictureOutlined /></template>
+                    </Button>
+                </Tooltip>
 
                 <Tooltip :title="$t('form_templates.move_up')">
                     <Button :disabled="disabled || i === 0" size="large" @click="mover(i, -1)">
@@ -116,6 +191,9 @@ function anadir() {
             />
         </div>
 
+        <!-- Uno solo para todos los grupos: el que dispara `pedirImagen`. -->
+        <input ref="selectorDeImagen" hidden type="file" accept="image/*" @change="imagenElegida">
+
         <Button type="dashed" :disabled="disabled" size="large" class="gle__add" @click="anadir">
             <PlusOutlined /> {{ $t('form_templates.group_add') }}
         </Button>
@@ -142,7 +220,16 @@ function anadir() {
 }
 
 .gle__head { display: flex; gap: 8px; align-items: center; }
-.gle__head > :first-child { flex: 1 1 auto; min-width: 0; }
+.gle__head :deep(.ant-input) { flex: 1 1 auto; min-width: 0; }
+
+.gle__thumb {
+    flex: 0 0 auto;
+    width: 44px; height: 44px; padding: 3px;
+    border: 1px solid var(--color-border-soft, #f0f0f0); border-radius: 8px;
+    background: var(--color-surface, #fff);
+    cursor: pointer;
+}
+.gle__thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
 
 .gle__items { width: 100%; }
 
