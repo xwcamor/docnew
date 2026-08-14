@@ -72,6 +72,7 @@ return [
     'continue'             => 'Continue',
     'history'              => 'History',
     'details'              => 'Details',
+    'versions'             => 'Versions',
     'generated_at'         => 'Generated',
     'export_failed'        => 'Could not export the file.',
     'view_detail'          => 'View detail',

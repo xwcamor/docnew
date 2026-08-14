@@ -22,6 +22,7 @@ const props = defineProps({
     formTemplate: { type: Object, required: true },
     activity:   { type: Array,  default: () => [] },
     recordAudit: { type: Object, default: null },
+    versions:   { type: Array,  default: () => [] },
 });
 
 const { can, isSuper, canSeeAudit } = useAuth();
@@ -61,6 +62,17 @@ const alternarPublicacion = () => {
 
 const isDeleted = computed(() => !!props.formTemplate.deleted_at);
 const iconBg = computed(() => isDeleted.value ? 'var(--color-danger)' : 'var(--color-primary)');
+
+// La pestaña «Versiones» sólo cuando hay más de una: con una sola no hay nada
+// que comparar y sería una pestaña que repite la ficha.
+const hayVersiones = computed(() => props.versions.length > 1);
+
+// El estado de cada versión, con los mismos colores que la cabecera.
+const colorDeEstado = (estado) => ({
+    published: 'success',
+    draft:     'orange',
+    archived:  'default',
+}[estado] ?? 'orange');
 
 // Wrapper local para mantener call-sites compactos (fmt(...) en templates).
 const fmt = (d) => formatDateTimeFull(d);
@@ -178,7 +190,12 @@ const fmt = (d) => formatDateTimeFull(d);
             :message="$t('form_templates.publish_hint')"
         />
 
-        <EntityShowTabs :show-history="canSeeAudit" :history-count="activity.length">
+        <EntityShowTabs
+            :show-history="canSeeAudit"
+            :history-count="activity.length"
+            :show-versions="hayVersiones"
+            :versions-count="versions.length"
+        >
             <template #general>
                 <Card :bodyStyle="{ padding: 18 }" class="info-card">
                     <template #title><FileOutlined /> {{ $t('global.general_info') }}</template>
@@ -239,6 +256,43 @@ const fmt = (d) => formatDateTimeFull(d);
                 </Card>
             </template>
 
+            <!-- Todas las versiones del mismo documento, cada una con su
+                 camino. Publicar archiva la anterior pero no la esconde: es
+                 la evidencia de lo que se firmó con ella, y desde aquí se
+                 abre para ver qué se cambió. -->
+            <template #versions>
+                <Card :bodyStyle="{ padding: 18 }" class="info-card">
+                    <template #title><FileOutlined /> {{ $t('form_templates.versions_title') }}</template>
+
+                    <p class="versions-hint">{{ $t('form_templates.versions_hint') }}</p>
+
+                    <ul class="versions-list">
+                        <li v-for="v in versions" :key="v.slug" class="versions-row" :class="{ 'is-current': v.current }">
+                            <span class="versions-row__num">v{{ v.version }}</span>
+
+                            <Tag :color="colorDeEstado(v.status)" :bordered="false">
+                                {{ $t(`form_templates.status_${v.status ?? 'draft'}`) }}
+                            </Tag>
+
+                            <span class="versions-row__meta">
+                                {{ $tc('form_templates.versions_fields', v.fields_count ?? 0) }}
+                            </span>
+
+                            <!-- La fecha que identifica la versión: publicada si
+                                 lo está, y si no la última vez que se tocó. -->
+                            <span class="versions-row__meta">
+                                {{ v.published_at ? fmt(v.published_at) : fmt(v.updated_at) }}
+                            </span>
+
+                            <span v-if="v.current" class="versions-row__current">{{ $t('form_templates.version_current') }}</span>
+                            <Link v-else :href="route('business_management.form_templates.show', v.slug)">
+                                {{ $t('form_templates.version_open') }}
+                            </Link>
+                        </li>
+                    </ul>
+                </Card>
+            </template>
+
             <template #history>
                 <RecordHistory :record-audit="recordAudit" :activity="activity" :can-see-activity="canSeeAudit" />
             </template>
@@ -251,6 +305,22 @@ const fmt = (d) => formatDateTimeFull(d);
 .muted { color: var(--color-text-muted); font-size: 0.8125rem; }
 .deleted-alert { margin-bottom: 16px; }
 .info-card { margin-bottom: 16px; border-radius: 8px; }
+
+/* La lista de versiones: una fila por versión, la actual marcada. */
+.versions-hint { margin: 0 0 12px; color: var(--color-text-muted); }
+.versions-list { list-style: none; margin: 0; padding: 0; }
+.versions-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 4px;
+    border-top: 1px solid var(--color-border);
+}
+.versions-row.is-current { background: var(--color-surface-alt, rgba(0, 0, 0, 0.02)); }
+.versions-row__num { font-weight: 600; min-width: 2.5rem; }
+.versions-row__meta { color: var(--color-text-muted); font-size: 0.8125rem; }
+.versions-row__current { color: var(--color-text-muted); font-size: 0.8125rem; font-style: italic; }
 
 @media (max-width: 767px) {
     :deep(.ant-descriptions-item-label) {

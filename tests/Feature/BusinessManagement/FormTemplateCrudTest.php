@@ -423,4 +423,48 @@ class FormTemplateCrudTest extends TestCase
                 // en vez de dejar que falle al pulsarlo.
                 ->where('formTemplate.fields_count', 0));
     }
+
+    /**
+     * La ficha trae TODAS las versiones del documento, con el camino a cada una.
+     *
+     * Lo pidio el dueño del producto: «me gustaria poder ver versiones
+     * antiguas de documentos… quiero ver que se cambio». Publicar archiva la
+     * version anterior pero la fila sigue viva; lo que faltaba era el camino
+     * desde la ficha de la vigente hasta la archivada.
+     */
+    public function test_la_ficha_trae_las_versiones_del_documento(): void
+    {
+        $v1 = $this->documento(['version' => 1, 'status' => 'archived']);
+        $v2 = $this->documento(['version' => 2, 'status' => 'published', 'published_at' => now()]);
+
+        // Y un documento DISTINTO con otro codigo, que no pinta nada aqui.
+        $this->documento(['code' => 'EPP', 'name' => 'Inspeccion de EPP']);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.form_templates.show', $v2->slug))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->count('versions', 2)
+                // La mas nueva primero, y la que se mira marcada.
+                ->where('versions.0.version', 2)
+                ->where('versions.0.current', true)
+                ->where('versions.1.version', 1)
+                ->where('versions.1.slug', $v1->slug)
+                ->where('versions.1.status', 'archived')
+                ->where('versions.1.current', false));
+    }
+
+    /** Desde la archivada se ve el mismo abanico: el camino va en los dos sentidos. */
+    public function test_desde_la_version_archivada_tambien_se_llega(): void
+    {
+        $v1 = $this->documento(['version' => 1, 'status' => 'archived']);
+        $this->documento(['version' => 2, 'status' => 'published', 'published_at' => now()]);
+
+        $this->actingAs($this->admin())
+            ->get(route('business_management.form_templates.show', $v1->slug))
+            ->assertOk()
+            ->assertInertia(fn ($p) => $p
+                ->count('versions', 2)
+                ->where('versions.1.current', true));
+    }
 }

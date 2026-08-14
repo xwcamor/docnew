@@ -159,7 +159,59 @@ class FormTemplateController extends Controller
             ),
             'recordAudit'  => $this->recordAuditMeta($formTemplate),
             'activity'     => $activity,
+            'versions'     => $this->versionesDelDocumento($formTemplate),
         ]);
+    }
+
+    /**
+     * Todas las versiones del mismo documento, para la pestaña «Versiones».
+     *
+     * Lo pidio el dueño del producto: «me gustaria poder ver versiones
+     * antiguas de documentos… quiero ver que se cambio». Publicar una version
+     * archiva la anterior pero la fila sigue en la tabla; lo que faltaba era
+     * el camino: desde la ficha de la v2 no habia forma de llegar a la v1 sin
+     * irse al indice y encender «todas las versiones».
+     *
+     * La identidad del documento a lo largo de sus versiones es la misma que
+     * usa el relevo al publicar (`FormTemplateBuilder::versionesAnteriores`):
+     * (workspace, pais, codigo), con la rama partida porque `tenant_id` nulo
+     * —el catalogo global— no se empareja con `where`.
+     *
+     * Cada fila trae cuantos campos tiene: es el numero que primero delata un
+     * cambio entre versiones antes de abrir ninguna.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    protected function versionesDelDocumento(FormTemplate $formTemplate): array
+    {
+        if (blank($formTemplate->code)) {
+            return [];
+        }
+
+        return FormTemplate::query()
+            ->where('country_id', $formTemplate->country_id)
+            ->whereRaw('UPPER(code) = ?', [mb_strtoupper((string) $formTemplate->code)])
+            ->when(
+                $formTemplate->tenant_id === null,
+                fn ($q) => $q->whereNull('tenant_id'),
+                fn ($q) => $q->where('tenant_id', $formTemplate->tenant_id),
+            )
+            ->withCount('fields')
+            ->orderByDesc('version')
+            ->get()
+            ->map(fn ($v) => [
+                'slug'         => $v->slug,
+                'version'      => $v->version,
+                'status'       => $v->status,
+                'published_at' => $v->published_at,
+                'updated_at'   => $v->updated_at,
+                'fields_count' => $v->fields_count,
+                // La que se esta mirando, para que la lista no se enlace a si
+                // misma.
+                'current'      => $v->id === $formTemplate->id,
+            ])
+            ->values()
+            ->all();
     }
 
     public function create(Request $request)

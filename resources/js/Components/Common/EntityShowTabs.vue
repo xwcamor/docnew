@@ -23,11 +23,16 @@
  */
 import { ref } from 'vue';
 import { Tabs, TabPane, Badge } from 'ant-design-vue';
-import { FileTextOutlined, HistoryOutlined } from '@ant-design/icons-vue';
+import { FileTextOutlined, HistoryOutlined, BranchesOutlined } from '@ant-design/icons-vue';
 
 defineProps({
     showHistory:  { type: Boolean, default: false },
     historyCount: { type: Number,  default: 0 },
+    // Pestaña «Versiones», opcional: la usan los módulos cuyos registros
+    // viven en versiones (los documentos). Apagada no ocupa nada, así que
+    // el resto de módulos no se entera de que existe.
+    showVersions:  { type: Boolean, default: false },
+    versionsCount: { type: Number,  default: 0 },
     defaultKey:   { type: String,  default: 'general' },
 });
 
@@ -47,6 +52,22 @@ const activeKey = ref('general');
                 </span>
             </template>
             <slot name="general" />
+        </TabPane>
+
+        <TabPane v-if="showVersions" key="versions">
+            <template #tab>
+                <span class="tab-label">
+                    <BranchesOutlined /> {{ $t('global.versions') }}
+                    <Badge
+                        v-if="versionsCount > 0"
+                        :count="versionsCount"
+                        :overflow-count="99"
+                        :number-style="{ backgroundColor: 'var(--color-surface-alt, #f0f5ff)', color: 'var(--color-primary, #0A6ED1)', boxShadow: '0 0 0 1px var(--color-border, #d9d9d9) inset' }"
+                        class="history-badge"
+                    />
+                </span>
+            </template>
+            <slot name="versions" />
         </TabPane>
 
         <!-- El tab Historial SIEMPRE se muestra: "Auditoría del registro" la ve

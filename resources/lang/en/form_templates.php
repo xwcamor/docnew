@@ -157,6 +157,13 @@ return [
     'new_version_created' => 'Version :version created as a draft: you can now change its sections and fields.',
     'new_version_failed'  => 'The new version could not be created.',
 
+    // The "Versions" tab — see the note in the Spanish file.
+    'versions_title'   => 'Versions of this document',
+    'versions_hint'    => 'Each version keeps the sections and fields it was signed with. Open an earlier one to see what changed; anything already filled in keeps its own.',
+    'versions_fields'  => '{0} No fields|{1} 1 field|[2,*] :count fields',
+    'version_current'  => 'This one',
+    'version_open'     => 'View this version',
+
     'structure_code_duplicate'    => 'The code ":code" is repeated inside the same section.',
     'structure_code_format'       => 'The code only accepts lowercase letters, digits and underscore, and starts with a letter.',
     'structure_config_required'   => 'Field ":code" needs these settings: :keys.',

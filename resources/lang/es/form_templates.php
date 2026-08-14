@@ -172,6 +172,16 @@ return [
     'new_version_created' => 'Versión :version creada en borrador: ya puedes cambiarle las secciones y los campos.',
     'new_version_failed'  => 'No se pudo crear la versión nueva.',
 
+    // La pestaña «Versiones»: todas las del mismo documento, con el camino a
+    // cada una. Publicar archiva la anterior pero no la esconde: cada versión
+    // es la evidencia de lo que se firmó con ella, y desde aquí se abre para
+    // ver qué se cambió.
+    'versions_title'   => 'Versiones de este documento',
+    'versions_hint'    => 'Cada versión guarda las secciones y los campos con los que se firmó. Abre una anterior para ver qué se cambió; lo ya llenado conserva la suya.',
+    'versions_fields'  => '{0} Sin campos|{1} 1 campo|[2,*] :count campos',
+    'version_current'  => 'Ésta',
+    'version_open'     => 'Ver esta versión',
+
     // Validación de la estructura
     'structure_code_duplicate'    => 'El código «:code» está repetido dentro de la misma sección.',
     'structure_code_format'       => 'El código sólo admite minúsculas, números y guion bajo, y empieza por letra.',
