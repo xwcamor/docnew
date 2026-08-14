@@ -96,6 +96,15 @@ class DatabaseSeeder extends Seeder
             //    catalogos viajan ahora en seeders/data/formatos-v1.json.
             FormTemplatesSeeder::class,
 
+            // ── Los formatos adicionales del cliente ────────────────────
+            //    Cinco permisos de trabajo (altura, espacios confinados,
+            //    electrical safety, pruebas electricas, izaje) y tres
+            //    inspecciones (arnes, kit de revelado, elementos de izaje),
+            //    transcritos VERBATIM de sus Excel/PDF. Va despues del de
+            //    arriba porque su matriz de tipos de trabajo referencia
+            //    tambien a los cuatro formatos base.
+            FormatosAdicionalesSeeder::class,
+
             // Aqui iban los clientes, transformadores y muestras de TRAFODEX.
             // Se quitaron: son datos de otro sistema —344 empresas con su
             // jerarquia de sedes, areas y subestaciones— y no pintan nada en una

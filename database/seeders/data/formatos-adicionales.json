@@ -1,0 +1,313 @@
+{
+  "_nota": "Catalogos VERBATIM de los formatos adicionales del cliente (Hitachi Energy), transcritos de sus Excel/PDF originales. Las erratas del papel se conservan a proposito: el formato migrado tiene que decir lo que decia el papel. Las imagenes son las fotos de cada grupo del Kit de Revelado, reducidas a ~160px como data URI (mismo mecanismo que los iconos del PTF).",
+  "ptw_alt": {
+    "preguntas": [
+      "¿El personal está entrenado para realizar trabajos en altura?",
+      "¿El personal cuenta con el EPP adecuado para trabajo en altura?",
+      "¿Ha realizado el check list pre-uso de su EPP(arnés, linea de anclaje, eslinga de anclaje, linea retractil, linea de posicionamiento, etc) y verificado que se encuentra en buen estado?",
+      "¿El punto de anclaje es resistente y soporta la posible caída del trabajador anclado?",
+      "¿Se cuenta con una línea de vida para el desplazamiento de los trabajadores?",
+      "¿Se cuenta con la señalización para realizar este trabajo (mallas de seguridad, postes, letreros, etc)?",
+      "En caso aplique, ¿se ha colocado una lona o red para proteger al personal (que labora en la parte inferior) de la caída de materiales o herramientas?",
+      "¿Cuenta con línea de vida horizontal o vertical?"
+    ],
+    "epp": [
+      "EPP Básico",
+      "Lentes de seguridad",
+      "Careta",
+      "Traje (Impermeable / Tyvek)",
+      "Casaca de cuero y escarpines",
+      "Calzado de Seguridad",
+      "Barbiquejo",
+      "Guantes de cuero / badana",
+      "Guantes de neoprene / nitrilo",
+      "Guantes Hiflex / anticorte",
+      "Guantes dieléctrico (Clase ____ )",
+      "Arnés de seguridad",
+      "Línea de anclaje con absorbedor de impacto",
+      "Bloque autoretráctil",
+      "Orejeras/Tapón auditivo",
+      "Full face",
+      "Respirador",
+      "Cartucho: ………….",
+      "Filtro para polvo P100",
+      "Otros (indique) :"
+    ]
+  },
+  "ptw_con": {
+    "preguntas": [
+      "¿Se ha identificado, purgado, aislado y bloqueado  (LOTO) todas las fuentes de energía de alimentación y salida del espacio confinado?",
+      "¿El espacio confinado requiere de ventilación? Especifique el método de ventilación en OBSERVACIONES",
+      "¿Se ha colocado un bloqueo fisico en los ingresos de cualquier fluido y liquido de otros procesos del equipo a intervenir?",
+      "Si el espacio a contenido algun químico, ¿se ha limpiado y purgado exhaustivamente?",
+      "¿Se ha eliminado restos de materiales peligrosos, inflamables o explosivos?",
+      "¿Se ha realizado el monitoreo de aire para verificar que el oxígeno presente se encuentre dentro del rango aceptable y esté libre de gases o vapores. Nivel Oxígeno entre 19.5 % - 22.5 %?",
+      "¿Se ha realizado el monitoreo de aire del espacio para verificar que la concentraciones de vapores sea menor que el 10% LEL, donde el espacio haya contenido vapores inflamables?",
+      "¿Los puntos de entradas y salidas son suficientes y del tamaño adecuado para permitir el ingreso?",
+      "¿Se cuenta con un vigía ubicado en el exterior, existe comunicación continua y efectiva entre todos los trabajadores? (contacto visual, voz, señales, equipos de comunicación, etc.)",
+      "¿Los medios de comunicación del vigía ubicado en la zona de trabajo se encuentran operativos?",
+      "¿Los equipos de monitoreo están calibrados y con la batería cargada?",
+      "¿El personal que realiza los trabajos en espacio confinado, han sido entrenados acerca del procedimiento y los riesgos asociados, así como del procedimiento en caso de emergencias?",
+      "¿Se han difundido todas las recomendaciones de la FDS ficha de datos de seguridad contenido en el espacio confinado?",
+      "¿Se tiene establecido un plan de rescate en caso de emergencias?",
+      "¿Los equipos de respuesta a emergencia han sido revisados y se encuentran operativos ?",
+      "¿Se cuenta con iluminación adecuada?  Especifique el tipo de iluminación en OBSERVACIONES",
+      "Menciona las herramientas que estan ingresando check list de equipo de rescate"
+    ],
+    "epp": [
+      "EPP Básico",
+      "Lentes Goggles",
+      "Careta",
+      "Traje (Impermeable / Tyvek)",
+      "Casaca de cuero y escarpines",
+      "Botas de jebe",
+      "Otros (indique) :",
+      "Guantes de neoprene / nitrilo",
+      "Guantes de cuero / badana",
+      "Guantes dieléctrico (Clase ____ )",
+      "Arnés de seguridad",
+      "Línea de anclaje con absorbedor de impacto",
+      "Línea de anclaje sin absorbedor de impacto",
+      "Orejeras",
+      "Tapón auditivo",
+      "Full face",
+      "Respirador",
+      "Cartucho: ………….",
+      "Filtro para polvo P100"
+    ],
+    "gases": [
+      {
+        "prueba": "O2 (Oxigeno)",
+        "vlp": "19.5 - 22.5 %"
+      },
+      {
+        "prueba": "CO (Monóxido de Carbono)",
+        "vlp": "<25 ppm"
+      },
+      {
+        "prueba": "H2S (Sulfuro de hidrogeno)",
+        "vlp": "<10 ppm"
+      },
+      {
+        "prueba": "LEL (Explosividad)",
+        "vlp": "<10 %"
+      }
+    ]
+  },
+  "ptw_iza": {
+    "preguntas": [
+      "Verificación de asentamiento y terreno",
+      "Las gatas se extendieron 100 %",
+      "Nivelación comprobada",
+      "Operador certificado y apto para el trabajo",
+      "Rigger certificado y apto para el trabajo",
+      "Area de trabajo definida y señalizada.",
+      "Personal del área informado de la maniobra.",
+      "Comunicacion con supervisor responsable",
+      "¿Existen líneas eléctricas cerca?",
+      "¿Accesorios de izaje inspeccionados?"
+    ],
+    "criterios_critico": "Se considerara izaje crítico, cuando: a) Si la carga es izada por encima de equipos o sistemas presurizados, líneas energizadas. b) Cuando la grúa es usada para levantar personal. c) Cuando se utilice elementos de izaje no convencionales (vigas separadoras, balancines, accesorios modificados que no estén certificados). d) Cuando el levantamiento de la carga se utilice más de una grúa. e) Cuando el izaje supere las 20 TN."
+  },
+  "ptw_ele": {
+    "declaracion": [
+      "¿Los lugares de trabajo están identificados con claridad y cuentan con avisos de seguridad publicados?",
+      "¿El circuito está desconectado y asegurado contra re conexión?",
+      "¿La instalación está verificada como desenergizada?",
+      "¿El circuito está correctamente conectado a tierra? (Ver *5.)",
+      "¿Las fuentes auxiliares / secundarias han sido consideradas y/o verificadas? (Ver *6.)",
+      "¿Se ha protegido el acceso a partes energizadas cercanas?",
+      "¿Ha sido identificada la persona responsable del cliente?",
+      "¿Los controles anteriores se han verificado con la persona responsable del cliente?",
+      "¿Se han implementado procedimientos de emergencia específicos?",
+      "¿Se ha llevado una reunión previa al trabajo y se ha difundido este permiso con las partes involucradas?"
+    ],
+    "entrega": [
+      "Retiró todas las herramientas, equipo, personal y materiales",
+      "Retiró todas las señales / barricadas / señales intermitentes utilizadas para marcar el área de trabajo"
+    ],
+    "reenergizacion": [
+      "¿La protección fue descubierta o removida de las partes energizadas que se encuentran adyacentes?",
+      "¿Fueron retirados los sistemas de puesta a tierra y corto - circuito?",
+      "¿Se retiraron todos los sistemas de Lock Out / Tag Out (LOTO) para evitar la re energización accidental?",
+      "¿Fue inspeccionada por la persona autorizada para confirmar que la instalación está lista para la energización?",
+      "¿Persona autorizada entrega la instalación a la persona responsable de planta / sitio?"
+    ]
+  },
+  "ptw_pru": {
+    "equipos": [
+      "HIPOT",
+      "VLF",
+      "CMC356",
+      "CPC100",
+      "ELCON",
+      "VIDAR",
+      "CT Analyser",
+      "Otros"
+    ]
+  },
+  "arnes": {
+    "arnes": [
+      "¿Etiqueta en buenas condiciones y visible?",
+      "¿Tirantes y bandas sin hebras descocidas?",
+      "¿Elementos de enganche no doblados y sin fisuras?",
+      "¿Hebillas no doblados y sin fisuras?"
+    ],
+    "linea_anclaje": [
+      "¿Etiqueta en buenas condiciones y visible?",
+      "¿Líneas de seguridad sin hebras descocidas?",
+      "¿Ganchos no doblados y sin fisuras?",
+      "¿Absorbedor de impactio no roto?"
+    ],
+    "linea_retractil": [
+      "¿Código de identificación visible y legible?",
+      "¿Manija de anclaje y gancho de seguridad no doblados y sin fisuras?",
+      "¿Carcaza sin fisuras?",
+      "¿Linea de seguridad  sin hebras descocidas?"
+    ]
+  },
+  "kit": {
+    "grupos": [
+      {
+        "name": {
+          "es": "Traje Antiarco 40cal/cm2",
+          "en": "Arc flash suit 40cal/cm2"
+        },
+        "imagen": "traje",
+        "items": [
+          "Estado del traje",
+          "Estado del sistema de sujeción - cierres.",
+          "Estado de los puños",
+          "Estado de las costuras"
+        ]
+      },
+      {
+        "name": {
+          "es": "Capucha de Protección Contra Arco Eléctrico 40 cal/cm2",
+          "en": "Arc flash protective hood 40 cal/cm2"
+        },
+        "imagen": "capucha",
+        "items": [
+          "Estado de la corona protector superior",
+          "Estado del accesorio para adherir",
+          "Estado de las costuras",
+          "Estado de la capucha",
+          "Estado de acetato o visor (pantalla) /permire visibilidad."
+        ]
+      },
+      {
+        "name": {
+          "es": "Careta y balaclava (8, 25 cal/cm2)",
+          "en": "Face shield and balaclava (8, 25 cal/cm2)"
+        },
+        "imagen": "careta",
+        "items": [
+          "Estado de la pantalla / permite visibilidad",
+          "Estado del casco e interior del casco",
+          "Mentonera",
+          "Estado de las costuras e integridad de la balaclava",
+          "ATPV legible en la balaclava y careta"
+        ]
+      },
+      {
+        "name": {
+          "es": "Guante protección dieléctrico Clase 1,2,3,4",
+          "en": "Dielectric protective glove Class 1,2,3,4"
+        },
+        "imagen": "guante_alto",
+        "items": [
+          "Estado-puño y entrededos",
+          "Estado de la manga",
+          "Prueba de porosidad.",
+          "Simbología doble triangulo u otro - tipo/clase",
+          "Estado-guante de protección mecánica",
+          "Certificado de Pruebas Dieléctrica no mayor a 6 meses"
+        ]
+      },
+      {
+        "name": {
+          "es": "ZAPATOS DE DIELECTRICOS",
+          "en": "Dielectric footwear"
+        },
+        "imagen": "zapatos",
+        "items": [
+          "Estado de cuero parte externa",
+          "Estado de la lengüeta",
+          "Estado de la suela"
+        ]
+      },
+      {
+        "name": {
+          "es": "REVELADOR DE TENSIÓN",
+          "en": "Voltage detector"
+        },
+        "imagen": "revelador",
+        "items": [
+          "Estado general de la carcaza.",
+          "Estado de las pilas.",
+          "Estado de botones comando.",
+          "Estado de indicador luminoso",
+          "Estado de indicador audible.",
+          "Certificado de Calibración"
+        ]
+      },
+      {
+        "name": {
+          "es": "PERTIGA DIELCTRICA",
+          "en": "Dielectric hot stick"
+        },
+        "imagen": "pertiga",
+        "items": [
+          "Estado general de la pértiga.",
+          "Estado del botón de seguridad.",
+          "Estado de los cuerpos de la pértiga.",
+          "Estado del gancho ó acople universal.",
+          "Estado de la etiqueta de seguridad"
+        ]
+      },
+      {
+        "name": {
+          "es": "Guante protección dieléctrico Clase 00, 0",
+          "en": "Dielectric protective glove Class 00, 0"
+        },
+        "imagen": "guante_bajo",
+        "items": [
+          "Estado-puño y entrededos",
+          "Estado de la manga",
+          "Prueba de porosidad.",
+          "Simbología doble triangulo u otro - tipo/clase",
+          "Estado-guante de protección mecánica",
+          "Certificado de Pruebas Dieléctrica no mayor a 6 meses"
+        ]
+      }
+    ],
+    "imagenes": {
+      "traje": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAwICQsJCAwLCgsODQwOEh4UEhEREiUbHBYeLCcuLisnKyoxN0Y7MTRCNCorPVM+QkhKTk9OLztWXFVMW0ZNTkv/2wBDAQ0ODhIQEiQUFCRLMisyS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0v/wAARCACfAKADASIAAhEBAxEB/8QAGwABAAMBAQEBAAAAAAAAAAAAAAMEBQIBBgf/xAAyEAACAgECBAQEBQQDAAAAAAAAAQIDEQQhBRIxQRMiUWEjMnGBBhRCkbFSoeHxcsHR/8QAFwEBAQEBAAAAAAAAAAAAAAAAAAECA//EABoRAQEAAwEBAAAAAAAAAAAAAAABAhEhMUH/2gAMAwEAAhEDEQA/APyoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHUK5TjOSXlgsy/fByAAW57ZCVc5QmsSi8NAeAAAAAAAAAAAAAAAAAAAXdHwrVauKnCHLW/1zeF/ks8C0EL5u+9Zrg8Ri+kn/AOI352OSwvskamO+s2svScLr0viK2zxPEhySSWEs/wCjK1PDrKpvw2rYdmup9BLqRTri2/Kn9DVxNsrhui5bY3X4Si8qPds07+H6XWWynOM42SSbcZdzqEIrDSLml0dt7bi47R5nl9EZusZ1ZLldRj6n8PPkctJdztL5JrDf0Ziyi4ScZJqSeGn2PtJKVWOuJLKbWDK43o1qKXqq4/Ej8+P1L/BNfYdl1Xz4AIoAAAAAAAAAABJpqJ6m+FMF5pvH0IzZ/D1UYq7Uy6xXJH79SybpWn5NLXCqteStYXvvuyxCydT5q5csuzRR1dqST6p5RNVPnphLplHXnjE51PqdRbfBRsaeHnPKkys35V6YO85Zwt/shJJyLbbd15FYjuWatZdVUo1yUcd1FZ/crZfKeZM5SX0xtx8TWX2TfNZZKbX9TyQ6e7Lj6PsyLU28lcn6Ih0c8vOcJEL1ncV0n5TVNRXw5+aH09CmfRcTqjqdDLl3nV5k/wCT50zVgACKAAAAAAAAH0Ghh4fC6+VfPmTx6mJpaldqK630k9/obt9yjBKGOTGF7G8WclO6x8jju/cvaGzOlrcuy/0ZGqxGDlF4eexs0pckElskjU9RMnul7ZZznCwurOYvLk/UbuOc7Ggbwkk92Ryefp0HP5Mrucx3WGZqupaeWprujXy5jVOx5faKy/4M/STamvX0wT6puNMpZ+VEWll51s2mtmZ+pWrU4vySxvs8Hy1kHXZKD6xbR9LXnZYSXsYvGIcmvm0tpJS/sTJYpAAy0AAAAAAAAvcIpc9R4uUo19fuXL7MNpRX1IODJOF2VnGP+zrU+WTysI6Txi+qOqnlqK7G3VPGmTXVo+fslzzcvU3dMnOmvHTCyyY3q1Onywx36HNsvhJJpbHVmUuWK37FWeXiPXBtErfkj6YPFLzb9MHscuK7o4se2F1JVR63fT27/pIdA/EhBp4cFhnussxRP3SRV4bZKNzillSXQxvprjZT5V5VkzeNLMqp+qaZoYainlv2yZ/F5pxrj3y2XLwjNABhoAAAAAAABLRqLNPzeG8c3XY9u1VtyxNr7LBCBsDc4fZjSwilvgwy9oNbGn4d3yZ2kusTWN1UrYUZNemerK8orLW+UWISjdHNdisj7M58PZeT+51Y25jiNaIb2njqkT2RarbTxhFOcp4TslFL1ZmrFfWNKhpd2iHhyb1cMe/8HmrtjLEYPmS3bK6bTynhnP618fSSXLFY6GDq7XbfJvbDwke/ndRy8viywQFt2SAAMqAAAAAAAAAAAAAPYylB5jJxfqmW4cU1UVhzUv8AkimC70L74tbKHK64Z9dylZZK2TlN5ZyBbamgAEUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH//2Q==",
+      "capucha": "data:image/jpeg;base64,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",
+      "careta": "data:image/jpeg;base64,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",
+      "guante_alto": "data:image/jpeg;base64,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",
+      "zapatos": "data:image/jpeg;base64,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",
+      "revelador": "data:image/jpeg;base64,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",
+      "pertiga": "data:image/jpeg;base64,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",
+      "guante_bajo": "data:image/jpeg;base64,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"
+    }
+  },
+  "izaje_elementos": {
+    "eslingas": [
+      "Tiene rotulado su capacidad de carga de manera legible",
+      "Se encuentra limpio, libre de grasas, ácidos, etc.",
+      "No presenta cortes o quemaduras",
+      "Costuras en buen estado"
+    ],
+    "grilletes": [
+      "Tiene rotulado su capacidad de carga de manera legible",
+      "Tiene rotulado su diámetro de manera legible",
+      "Se encuentra limpio, libre de grasas, etc.",
+      "Sin fisuras ni deformaciones"
+    ],
+    "ganchos": [
+      "Cuenta con seguro de gancho",
+      "Sin fisuras ni deformaciones"
+    ]
+  }
+}
