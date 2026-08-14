@@ -141,6 +141,51 @@ class PtfPorBloquesTest extends TestCase
         $this->assertStringContainsString('const LADO = 96', $editor);
     }
 
+    /**
+     * EL PTF SEMBRADO trae los cinco bloques del papel, con sus iconos reales.
+     *
+     * Es lo que el dueño del producto pidio con la foto del papel en la mano:
+     * no solo el MECANISMO de los bloques, sino EL PTF armado como su papel.
+     * Los titulos (en tres idiomas) y el reparto vienen de
+     * `ptf_question_titles` / `ptf_questions` de la v1, y los iconos son los
+     * PNG reales de alla (el semaforo, la cabeza, las herramientas, la lupa,
+     * el pulgar), como data URI.
+     *
+     * Y llega tambien al PTF que YA estaba sembrado, por la reparacion
+     * aditiva del seeder — sin pisar unos grupos que un cliente hubiera
+     * armado a mano.
+     */
+    public function test_el_ptf_sembrado_trae_los_cinco_bloques_del_papel(): void
+    {
+        \Illuminate\Support\Facades\DB::table('locales')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'code' => 'es_PE', 'name' => 'Español', 'language_id' => 1, 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+        \Illuminate\Support\Facades\DB::table('languages')->insertOrIgnore([['id' => 1, 'slug' => Str::random(22), 'name' => 'Spanish', 'iso_code' => 'es', 'is_active' => true, 'created_at' => now(), 'updated_at' => now()]]);
+
+        $this->seed(\Database\Seeders\FormTemplatesSeeder::class);
+
+        $campo = FormField::whereHas('section.formTemplate', fn ($q) => $q->where('code', 'PTF'))
+            ->where('field_type', 'question_bank')
+            ->firstOrFail();
+
+        $grupos = $campo->config['groups'] ?? [];
+
+        $this->assertCount(5, $grupos, 'los cinco bloques del papel de la v1');
+
+        // El primero, tal cual el papel: titulo en tres idiomas y su semaforo.
+        $this->assertSame('1. ¡DETÉNTE y piensa antes de actuar!', $grupos[0]['name']['es']);
+        $this->assertSame('1. STOP and think before acting!', $grupos[0]['name']['en']);
+        $this->assertArrayHasKey('pt', $grupos[0]['name'],
+            'el portugues de la v1 viaja tambien: es la prueba viva de los idiomas futuros');
+        $this->assertStringStartsWith('data:image/png;base64,', $grupos[0]['image']);
+
+        // El reparto cubre las 17 preguntas del catalogo, sin perder ninguna.
+        $repartidas = array_merge(...array_column($grupos, 'items'));
+        $this->assertEqualsCanonicalizing($campo->config['questions'], $repartidas);
+
+        // Y volver a sembrar NO duplica ni pisa: la reparacion es aditiva.
+        $this->seed(\Database\Seeders\FormTemplatesSeeder::class);
+        $this->assertCount(5, $campo->fresh()->config['groups']);
+    }
+
     // ── Decorado ────────────────────────────────────────────────────────────
 
     private function campo(array $config): FormField

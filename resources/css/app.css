@@ -2504,6 +2504,15 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-cell.is-missing .ff-libre .ant-input { border-color: var(--state-bad-text); }
 .ff-cell.is-missing .ff-chips .ff-chip:not(.is-on) { border-color: var(--state-bad-border); }
 
+/* La nota bajo una celda marcada como faltante: la frase que dice QUE falta,
+   pegada a donde falta. El rojo nunca va solo (docs/UI.md §5). */
+.ff-missing-note {
+    margin: 4px 0 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--state-bad-text);
+}
+
 /* La pregunta sin responder del banco, cuando el guardado dejó el campo
    pendiente: fondo teñido y filete rojo al canto, pregunta a pregunta.
 

@@ -163,6 +163,15 @@ const claves = computed(() => estados.value.map(
 /** Sin nombre todavia, la herramienta se llama por su numero. */
 const titulo = (fila, i) => fila.tool || t('field_work.progress.row', { n: i + 1 });
 
+/**
+ * La fila dice algo pero no dice DE QUE herramienta: el espejo de la regla del
+ * servidor (`exigirHerramientaNombrada`), pintado donde esta el problema. Sin
+ * esto, quien marca veinte puntos y olvida el nombre lo descubre recien en el
+ * aviso del guardado, lejos de la fila.
+ */
+const faltaNombre = (fila) => ! fila.tool
+    && (fila.items ?? []).some((x) => x.answer !== null && x.answer !== undefined && x.answer !== '');
+
 /** Ver la nota de PersonChecklistField: `$t` no se puede pasar como argumento. */
 const textos = computed(() => estados.value.map((e) => textoEstado(t, e)));
 
@@ -254,12 +263,21 @@ function siguientePendiente(indice) {
 
             <div v-if="estaAbierta(i)" :id="`${idFila(i)}-cuerpo`">
                 <div class="ff-row__body">
-                    <div class="ff-cell ff-cell--wide">
-                        <label class="ff-label">{{ $t('field_work.tool_checklist.tool') }}</label>
+                    <!-- `is-missing` reusa el marcado rojo de la celda que
+                         falta: es la misma situacion. El asterisco dice que es
+                         obligatoria SIEMPRE; el rojo, que esta fila concreta ya
+                         dice cosas sin decir de que herramienta. -->
+                    <div class="ff-cell ff-cell--wide" :class="{ 'is-missing': !readonly && faltaNombre(fila) }">
+                        <label class="ff-label">
+                            {{ $t('field_work.tool_checklist.tool') }}<span class="ff-block__req"> *</span>
+                        </label>
                         <CatalogSelect
                             :value="fila.tool" :options="herramientas" :readonly="readonly"
                             :placeholder="$t('field_work.tool_checklist.tool')"
                             @update:value="cambiar(i, 'tool', $event)" />
+                        <p v-if="!readonly && faltaNombre(fila)" class="ff-missing-note">
+                            {{ $t('field_work.tool_checklist.tool_required') }}
+                        </p>
                     </div>
                 </div>
 

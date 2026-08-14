@@ -123,10 +123,11 @@ class ChecklistCicloTest extends TestCase
         );
 
         // El catalogo sembrado del PTF no tiene «no aplica», que es lo que hace
-        // verdadera la leyenda de arriba.
+        // verdadera la leyenda de arriba. (La clave y su lista van ahora en
+        // lineas alineadas dentro de la config multilinea del campo.)
         $seeder = file_get_contents(database_path('seeders/FormTemplatesSeeder.php'));
 
-        $this->assertStringContainsString("'answers' => ['Si', 'No']", $seeder);
+        $this->assertMatchesRegularExpression("/'answers'\s+=> \['Si', 'No'\]/", $seeder);
     }
 
     /**

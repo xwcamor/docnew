@@ -330,6 +330,9 @@ return [
         'add_tool'    => 'Añadir herramienta',
         'remove_tool' => 'Quitar esta herramienta',
         'empty'       => 'Todavía no hay herramientas. Añade la primera.',
+        // La regla del servidor y la nota de la fila dicen la MISMA frase: una
+        // inspección sin decir de qué herramienta no es una inspección.
+        'tool_required' => 'Falta el nombre de la herramienta: esta fila ya tiene puntos marcados.',
     ],
     // Coincidencia de la cara, en porcentaje. Por dentro se guarda una
     // distancia —0 es la misma cara— que se lee al reves de como se piensa.

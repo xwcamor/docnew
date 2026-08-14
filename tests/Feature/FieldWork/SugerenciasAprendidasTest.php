@@ -176,9 +176,16 @@ class SugerenciasAprendidasTest extends TestCase
 
         $campo = FormField::where('form_section_id', $seccion->id)->firstOrFail();
 
+        // UNA FILA SUELTA, no la lista entera: es la forma en que guarda la
+        // pantalla de llenado (una respuesta por herramienta, con su
+        // `row_index`). Aqui hubo un fallo real que el dueño del producto vio
+        // en obra: el aprendizaje solo entendia la forma en lista de las
+        // entregas migradas, y las filas sueltas se le desarmaban al aplanar —
+        // el IHM «no aprendia nada» y el catalogo se quedaba en sus cuatro
+        // herramientas por mas inspecciones que se confirmaran.
         FormAnswer::create([
             'form_submission_id' => $entrega->id, 'form_field_id' => $campo->id,
-            'row_index' => 0, 'value_json' => [['tool' => 'Esmeril angular 4.5"', 'items' => []]],
+            'row_index' => 0, 'value_json' => ['tool' => 'Esmeril angular 4.5"', 'items' => []],
         ]);
 
         $this->abrir($plan, $ihm)

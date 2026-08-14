@@ -21,6 +21,8 @@
  * «[object Object]» al primer guardado desde la pantalla.
  */
 import { computed, ref } from 'vue';
+import { textoTraducible } from '@/Support/catalogo';
+import { useCatalogos } from '@/Composables/useCatalogos';
 import { Button, Input, Select, Tooltip } from 'ant-design-vue';
 import {
     ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, PictureOutlined, PlusOutlined,
@@ -35,6 +37,30 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue']);
+
+const { locale } = useCatalogos();
+
+/**
+ * El nombre que se VE: el rotulo del grupo puede ser una cadena o un mapa por
+ * idioma ({es, en, pt}), como todo texto del cliente. Aqui se enseña el del
+ * idioma en curso.
+ */
+const nombreVisible = (grupo) => textoTraducible(grupo?.name, locale.value);
+
+/**
+ * Y al escribir NO se pisa el mapa: si el nombre trae traducciones, se cambia
+ * solo la del idioma en que se esta navegando. Sin esto, corregir una tilde en
+ * castellano borraba el ingles y el portugues del bloque de un plumazo.
+ */
+function fijarNombre(i, texto) {
+    const actual = grupos.value[i]?.name;
+
+    const nuevo = actual && typeof actual === 'object' && ! Array.isArray(actual)
+        ? { ...actual, [locale.value ?? 'es']: texto }
+        : texto;
+
+    fijar(i, 'name', nuevo);
+}
 
 const grupos = computed(() => (Array.isArray(props.modelValue) ? props.modelValue : []));
 
@@ -143,12 +169,12 @@ function comoIcono(archivo) {
                 </button>
 
                 <Input
-                    :value="grupo.name ?? ''"
+                    :value="nombreVisible(grupo)"
                     :disabled="disabled"
-                    :maxlength="60"
+                    :maxlength="120"
                     size="large"
                     :placeholder="$t('form_templates.group_name_placeholder')"
-                    @update:value="fijar(i, 'name', $event)"
+                    @update:value="fijarNombre(i, $event)"
                 />
 
                 <Tooltip :title="grupo.image ? $t('form_templates.group_image_remove') : $t('form_templates.group_image_add')">

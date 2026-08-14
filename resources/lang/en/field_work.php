@@ -249,6 +249,8 @@ return [
         'add_tool'    => 'Add tool',
         'remove_tool' => 'Remove this tool',
         'empty'       => 'No tools yet. Add the first one.',
+        // Ver la nota en `es`.
+        'tool_required' => 'The tool name is missing: this row already has items marked.',
     ],
     // Face match as a percentage. Internally it is a distance —0 is the same
     // face— which reads backwards from how people think about it.

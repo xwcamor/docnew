@@ -342,7 +342,15 @@ class FormTemplatesSeeder extends Seeder
                             // etiquetas son las que escribe `LegacyFormMapper`
                             // (1 → «Si», 0 → «No»); cambiarlas dejaria las
                             // entregas migradas sin marcar.
-                            'config' => ['questions' => $this->cat['preguntas_ptf'], 'answers' => ['Si', 'No']],
+                            'config' => [
+                                'questions' => $this->cat['preguntas_ptf'],
+                                'answers'   => ['Si', 'No'],
+                                // Los cinco bloques del papel («1. ¡DETENTE y
+                                // piensa antes de actuar!»…) con sus iconos
+                                // REALES de la v1 —`ptf_question_titles` y sus
+                                // PNG— como data URI. Ver `gruposDelPtf()`.
+                                'groups'    => $this->gruposDelPtf(),
+                            ],
                         ],
                     ],
                 ],
@@ -464,6 +472,17 @@ class FormTemplatesSeeder extends Seeder
                 }
             }
 
+            // El PTF que ya estaba sembrado gana sus bloques, si nadie le
+            // configuro unos propios. Es la misma politica del `extra` del IHM:
+            // aditiva y sin pisar — un cliente que ya armo sus grupos desde el
+            // editor no ve cambiar nada.
+            if ($campo->field_type === 'question_bank'
+                && blank($config['groups'] ?? null)
+                && $this->gruposDelPtf() !== []) {
+                $config['groups'] = $this->gruposDelPtf();
+                $tocado = true;
+            }
+
             $respuestas = $config['answers'] ?? null;
 
             if (is_array($respuestas)) {
@@ -506,6 +525,28 @@ class FormTemplatesSeeder extends Seeder
      *
      * @return array<int, array{name: string, items: array<int, string>}>
      */
+    /**
+     * Los cinco bloques del Pare y Tome 5, con sus iconos reales.
+     *
+     * Vienen de `ptf_question_titles` de la v1 —titulo en tres idiomas y su
+     * PNG (el semaforo, la cabeza, las herramientas, la lupa, el pulgar)— y el
+     * reparto de preguntas es el de `ptf_questions.ptf_question_title_id`, tal
+     * cual estaba alla. El icono viaja como data URI dentro del catalogo del
+     * repositorio: sin almacen de archivos, se congela con cada version del
+     * formato y DomPDF lo imprime sin salir a la red.
+     */
+    protected function gruposDelPtf(): array
+    {
+        return array_map(
+            fn (array $bloque) => [
+                'name'  => $bloque['name'],
+                'items' => $bloque['items'],
+                'image' => $bloque['image'] ?? null,
+            ],
+            $this->cat['ptf_bloques'] ?? [],
+        );
+    }
+
     protected function gruposDeEpp(): array
     {
         return array_map(

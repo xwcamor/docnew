@@ -585,7 +585,22 @@ class FormSubmissionService
             ->flatMap(function ($json) {
                 $registros = is_string($json) ? json_decode($json, true) : $json;
 
-                return is_array($registros) ? $registros : [];
+                if (! is_array($registros)) {
+                    return [];
+                }
+
+                // UNA fila o la lista entera: las dos formas existen en la base.
+                //
+                // Aqui hubo un fallo que se veia de verdad: la pantalla guarda
+                // una respuesta POR fila —`{tool: …, items: […]}`, un peligro,
+                // una herramienta— y devolverla tal cual al flatMap la
+                // desarmaba (collapse funde los arrays un nivel: quedaban los
+                // VALORES sueltos, sin sus claves). El aprendizaje solo veia
+                // las entregas migradas antiguas, que traian la lista entera, y
+                // en el IHM eso era «no aprende nada»: el catalogo de cuatro
+                // herramientas se quedaba en cuatro por mas inspecciones que se
+                // confirmaran.
+                return array_is_list($registros) ? $registros : [$registros];
             });
 
         foreach ($filas as $fila) {
@@ -715,7 +730,8 @@ class FormSubmissionService
 
         match ($tipo) {
             'risk_matrix' => $this->exigirPeligroEntero($valor, $tipo),
-            'person_checklist', 'tool_checklist' => $this->exigirLista($valor, $tipo),
+            'person_checklist' => $this->exigirLista($valor, $tipo),
+            'tool_checklist' => $this->exigirHerramientaNombrada($valor, $tipo),
             'question_bank' => $this->exigirLista($valor, $tipo),
             'select', 'radio' => $this->exigirOpcion($valor, $config['options'] ?? [], $tipo),
             'number' => is_numeric($valor) ?: throw new \InvalidArgumentException("El campo '{$tipo}' espera un numero."),
@@ -772,6 +788,44 @@ class FormSubmissionService
                     $faltan,
                 )),
             ]));
+        }
+    }
+
+    /**
+     * Una inspeccion sin decir DE QUE herramienta no es una inspeccion.
+     *
+     * Lo pidio el dueño del producto con estas palabras: «lo que esta en el
+     * campo de herramienta debe ser obligatorio». Y es la misma logica del
+     * peligro entero de la matriz: se podia marcar «No cumple» en veinte puntos
+     * y confirmar el documento sin nombrar la herramienta — un papel que dice
+     * que ALGO esta mal sin decir que.
+     *
+     * La regla es condicional, como alla: una fila recien añadida y vacia no
+     * molesta (es un hueco y `faltantes()` ya se ocupa); en cuanto la fila dice
+     * algo —un punto marcado, una medida de correccion escrita— tiene que decir
+     * de que herramienta habla.
+     */
+    protected function exigirHerramientaNombrada(mixed $valor, string $tipo): void
+    {
+        $this->exigirLista($valor, $tipo);
+
+        // Puede llegar UNA fila (la forma de la pantalla) o la lista entera
+        // (entregas migradas antiguas): las dos formas existen en la base.
+        $filas = is_array($valor) && array_is_list($valor) ? $valor : [$valor];
+
+        foreach ($filas as $fila) {
+            if (! is_array($fila) || filled($fila['tool'] ?? null)) {
+                continue;
+            }
+
+            $items = is_array($fila['items'] ?? null) ? $fila['items'] : [];
+
+            $diceAlgo = collect($items)->contains(fn ($i) => is_array($i) && filled($i['answer'] ?? null))
+                || collect($fila)->except(['tool', 'items'])->contains(fn ($v) => filled($v) && ! is_bool($v));
+
+            if ($diceAlgo) {
+                throw new \DomainException(__('field_work.tool_checklist.tool_required'));
+            }
         }
     }
 
