@@ -196,22 +196,28 @@ async function firmar() {
             // que es justo lo que pasa la primera vez que alguien va a firmar.
             if (e?.response?.status !== 404) throw e;
 
-            // Antes de la cámara, el permiso. Se cierra la cámara mientras se
-            // lee: nadie tiene que decidir sobre su cara con su propia cara
-            // enfocada en pantalla.
-            cara.cerrarCamara(stream);
-            stream = null;
+            // Antes de la cámara, el permiso — SALVO que ya lo diera en el
+            // sistema anterior. La señal la manda el servidor
+            // (`prior_consent`: tiene foto migrada de la v1) y la regla es del
+            // dueño del producto: a quien ya registró su foto allá no se le
+            // vuelve a preguntar; el aviso es sólo para los nuevos.
+            if (! f.prior_consent) {
+                // Se cierra la cámara mientras se lee: nadie tiene que decidir
+                // sobre su cara con su propia cara enfocada en pantalla.
+                cara.cerrarCamara(stream);
+                stream = null;
 
-            const acepta = await pedirConsentimiento();
+                const acepta = await pedirConsentimiento();
 
-            if (! acepta) {
-                error.value = true;
-                mensaje.value = t('field_work.consent.declined');
+                if (! acepta) {
+                    error.value = true;
+                    mensaje.value = t('field_work.consent.declined');
 
-                return;
+                    return;
+                }
+
+                stream = await cara.abrirCamara(video.value);
             }
-
-            stream = await cara.abrirCamara(video.value);
 
             mensaje.value = t('field_work.sign.no_face_registered');
             const enrol = await cara.enrolar(video.value, 3, (e2) => {
@@ -232,9 +238,16 @@ async function firmar() {
                 descriptors: enrol.descriptores,
                 // Los tres juntos: el sí, sobre qué versión y con qué texto
                 // delante. El servidor los guarda en `person_biometrics`.
+                //
+                // Con consentimiento del sistema anterior no se preguntó nada,
+                // y la constancia lo dice tal cual: versión `v1-migrada` y un
+                // texto que cuenta de dónde viene el permiso — mentir aquí con
+                // la versión vigente diría que leyó un aviso que nunca vio.
                 consent: true,
-                consent_version: CONSENT_VERSION,
-                consent_text: textoConsentimiento.value,
+                consent_version: f.prior_consent ? 'v1-migrada' : CONSENT_VERSION,
+                consent_text: f.prior_consent
+                    ? t('field_work.consent.legacy_text', { name: fila.value?.titulo ?? '' })
+                    : textoConsentimiento.value,
                 // Un fotograma del enrolamiento, para que a esta persona le
                 // quede cara si no tenía ninguna. El servidor sólo lo usa en
                 // ese caso: nunca pisa la foto que subió el administrador.

@@ -56,6 +56,12 @@ return [
         'accept'   => 'Acepto',
         'decline'  => 'No acepto',
         'declined' => 'No se registró ninguna cara. Avisa al supervisor para firmar de otra forma.',
+        // La constancia que se guarda cuando el permiso viene del SISTEMA
+        // ANTERIOR: a quien registró su foto en la v1 no se le vuelve a
+        // preguntar (regla del dueño del producto), y lo que queda escrito en
+        // `consent_text` es esta frase — la verdad de dónde salió el sí, no el
+        // texto de un aviso que nunca vio.
+        'legacy_text' => ':name registró su fotografía y su firma en el sistema anterior y dio allí su consentimiento; se conserva al migrar. No se volvió a preguntar.',
     ],
 
     /*

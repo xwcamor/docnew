@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { router, useForm } from '@inertiajs/vue3';
 import {
     Alert, Card, Tag, Button, Input, InputGroup, Popconfirm, Tooltip,
@@ -203,6 +203,38 @@ const cambioPais = () => {
     alta.doc_type = tiposDelPais.value.length === 1 ? tiposDelPais.value[0].value : null;
 };
 
+// La FORMA del tipo elegido — largo mínimo, máximo y caracteres — igual que el
+// formulario de personas: sin esto el modal dejaba teclear tres cifras en un
+// DNI y no se sabía hasta darle a Guardar.
+const tipoElegido = computed(() => tiposDelPais.value.find((o) => o.value === alta.doc_type) ?? null);
+
+const largoMaximo = computed(() => tipoElegido.value?.max ?? 20);
+
+const filtroDelNumero = computed(() => ({
+    digits:       /[^0-9]/g,
+    alphanumeric: /[^A-Za-z0-9]/g,
+}[tipoElegido.value?.allowed_chars] ?? /\s/g));
+
+// Se limpia lo que se escribe en vez de rechazar la tecla, para que el pegado
+// también se limpie sin perder los dígitos buenos (ver la nota larga en
+// People/Form.vue: el maxlength del navegador cortaba ANTES de limpiar).
+watch(() => alta.num_doc, (valor) => {
+    if (typeof valor !== 'string') return;
+
+    let limpio = valor.replace(filtroDelNumero.value, '');
+    if (limpio.length > largoMaximo.value) limpio = limpio.slice(0, largoMaximo.value);
+
+    if (limpio !== valor) alta.num_doc = limpio;
+});
+
+// Cuántos faltan para llegar al mínimo del tipo, avisado mientras se teclea.
+const faltanDigitos = computed(() => {
+    const min = tipoElegido.value?.min ?? 0;
+    const largo = (alta.num_doc ?? '').trim().length;
+
+    return min && largo > 0 && largo < min ? min - largo : 0;
+});
+
 const abrirAlta = () => {
     alta.reset();
     alta.clearErrors();
@@ -385,9 +417,12 @@ const guardarAlta = () => {
 
             <Form layout="vertical" @submit.prevent="guardarAlta">
                 <!-- El país primero: de él dependen los tipos de documento de
-                     abajo. Preseleccionado el del plan, que es el caso común. -->
+                     abajo. Preseleccionado el del plan, que es el caso común.
+                     Obligatorio a la vista — el servidor ya lo exigía y el
+                     asterisco lo dice antes del error. -->
                 <FormItem
                     :label="$t('people.country')"
+                    required
                     :validate-status="alta.errors.country_id ? 'error' : ''"
                     :help="alta.errors.country_id"
                 >
@@ -401,10 +436,16 @@ const guardarAlta = () => {
                     />
                 </FormItem>
 
+                <!-- Tipo y número juntos, obligatorios, y el número con la
+                     forma de su tipo: mientras se teclea avisa cuántos dígitos
+                     faltan, y el error del tipo elegido sale en su sitio. -->
                 <FormItem
                     :label="$t('people.num_doc')"
-                    :validate-status="alta.errors.num_doc ? 'error' : ''"
-                    :help="alta.errors.num_doc"
+                    required
+                    :validate-status="(alta.errors.doc_type || alta.errors.num_doc) ? 'error' : ''"
+                    :help="alta.errors.doc_type || alta.errors.num_doc
+                        || (faltanDigitos === 1 ? $t('people.num_doc_falta_uno') : '')
+                        || (faltanDigitos > 1 ? $t('people.num_doc_faltan', { n: faltanDigitos }) : '')"
                 >
                     <InputGroup compact class="wp-alta__doc">
                         <Select
@@ -413,12 +454,13 @@ const guardarAlta = () => {
                             :placeholder="$t('people.doc_type')"
                             class="wp-alta__doc-type"
                         />
-                        <Input v-model:value="alta.num_doc" inputmode="numeric" :maxlength="20" class="wp-alta__doc-num" />
+                        <Input v-model:value="alta.num_doc" inputmode="numeric" class="wp-alta__doc-num" />
                     </InputGroup>
                 </FormItem>
 
                 <FormItem
                     :label="$t('people.name')"
+                    required
                     :validate-status="alta.errors.name ? 'error' : ''"
                     :help="alta.errors.name"
                 >
@@ -427,6 +469,7 @@ const guardarAlta = () => {
 
                 <FormItem
                     :label="$t('people.lastname')"
+                    required
                     :validate-status="alta.errors.lastname ? 'error' : ''"
                     :help="alta.errors.lastname"
                 >
@@ -435,6 +478,7 @@ const guardarAlta = () => {
 
                 <FormItem
                     :label="$t('people.position')"
+                    required
                     :validate-status="alta.errors.position_id ? 'error' : ''"
                     :help="alta.errors.position_id"
                 >

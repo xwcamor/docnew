@@ -30,6 +30,7 @@ return [
         'accept'   => 'I accept',
         'decline'  => 'I do not accept',
         'declined' => 'No face was registered. Tell your supervisor so you can sign another way.',
+        'legacy_text' => ':name registered their photograph and signature in the previous system and gave their consent there; it carries over on migration. They were not asked again.',
     ],
 
     // The signatures album — SUPER ONLY. See the note in the Spanish file.

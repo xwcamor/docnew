@@ -99,6 +99,22 @@ class SignatureController extends Controller
             ->pluck('person_id')
             ->flip();
 
+        // Quien ya dio su permiso EN EL SISTEMA ANTERIOR no lo vuelve a dar.
+        //
+        // Regla del dueño del producto: «para los trabajadores que tienen foto
+        // [migrada], activarles que ya aceptaron — eso ya lo hicieron en el
+        // sistema anterior; esto solo saldria para los que recien se van a
+        // crear». La señal es la foto migrada de la v1: alli la foto se
+        // registraba con su consentimiento, y volver a preguntarselo a 380
+        // personas en la puerta de la obra es un tramite que ya pasaron. La
+        // pantalla, al verlo, salta el aviso y manda la constancia de que el
+        // permiso viene del sistema anterior (version `v1-migrada`).
+        $conConsentimientoPrevio = \App\Models\PersonPhoto::query()
+            ->where('source', \App\Models\PersonPhoto::MIGRADA)
+            ->whereIn('person_id', $personas->pluck('person_id')->merge($aprobaciones->pluck('person_id'))->filter()->unique())
+            ->pluck('person_id')
+            ->flip();
+
         return inertia('FieldWork/Sign', [
             'plan' => $work_plan->only(['slug', 'code', 'description']),
             // Sobre quién se abre. Sin esto la pantalla es un listado y hay que
@@ -113,6 +129,7 @@ class SignatureController extends Controller
                 'person' => $this->personaVisible($p->person),
                 'signed' => $p->is_approved,
                 'has_signature' => $conFirma->has($p->person_id),
+                'prior_consent' => $conConsentimientoPrevio->has($p->person_id),
             ]),
             'approvals' => $aprobaciones
                 ->map(fn ($a) => [
@@ -123,6 +140,7 @@ class SignatureController extends Controller
                     'required' => $a->is_required,
                     'signed' => $a->is_approved,
                     'has_signature' => $a->person_id && $conFirma->has($a->person_id),
+                    'prior_consent' => $a->person_id && $conConsentimientoPrevio->has($a->person_id),
                 ])
                 ->values(),
             'settings' => [

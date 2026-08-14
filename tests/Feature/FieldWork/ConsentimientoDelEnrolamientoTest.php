@@ -174,7 +174,9 @@ class ConsentimientoDelEnrolamientoTest extends TestCase
         $vista = file_get_contents(resource_path('js/Pages/FieldWork/Sign.vue'));
 
         $this->assertStringContainsString('await pedirConsentimiento()', $vista);
-        $this->assertStringContainsString('consent_text: textoConsentimiento.value', $vista);
+        // El texto leido viaja entero al servidor (para el migrado viaja en su
+        // lugar la constancia de la v1: ver la prueba del salto del aviso).
+        $this->assertStringContainsString(': textoConsentimiento.value', $vista);
 
         // Y el aviso no se cierra de un roce: `mask-closable` y `keyboard` en
         // falso. Una ventana que se va tocando fuera no es una decision.
@@ -189,7 +191,7 @@ class ConsentimientoDelEnrolamientoTest extends TestCase
 
             $this->assertArrayHasKey('consent', $textos);
 
-            foreach (['title', 'text', 'checkbox', 'accept', 'decline', 'declined'] as $clave) {
+            foreach (['title', 'text', 'checkbox', 'accept', 'decline', 'declined', 'legacy_text'] as $clave) {
                 $this->assertArrayHasKey($clave, $textos['consent'], "falta consent.{$clave} en {$idioma}");
             }
 
@@ -235,6 +237,51 @@ class ConsentimientoDelEnrolamientoTest extends TestCase
             $vista,
             'la constante de Sign.vue tiene que subir junto a PersonBiometric::CONSENT_VERSION',
         );
+    }
+
+    /**
+     * Quien trae su foto de la v1 no vuelve a aceptar: ya lo hizo alla.
+     *
+     * Regla del dueño del producto: «para los trabajadores que tienen foto,
+     * activarles que ya aceptaron — eso ya lo hicieron en el sistema anterior;
+     * esto solo saldria para los que recien se van a crear». La señal es la
+     * foto MIGRADA: la pantalla de firma la recibe como `prior_consent` y con
+     * ella salta el aviso.
+     */
+    public function test_quien_trae_foto_de_la_v1_llega_con_consentimiento_previo(): void
+    {
+        [$usuario, $persona, $asignado] = $this->escenario();
+
+        $ver = fn () => $this->actingAs($usuario)
+            ->get(route('field_work.signatures.show', $asignado->workPlan->slug));
+
+        // Sin foto migrada es un alta nueva: el aviso se pregunta.
+        $ver()->assertInertia(fn ($p) => $p->where('people.0.prior_consent', false));
+
+        \App\Models\PersonPhoto::create([
+            'person_id' => $persona->id, 'file_path' => 'fotos/ana.webp',
+            'sha256' => str_repeat('a', 64),
+            'source' => \App\Models\PersonPhoto::MIGRADA, 'valid_from' => now(),
+        ]);
+
+        $ver()->assertInertia(fn ($p) => $p->where('people.0.prior_consent', true));
+    }
+
+    /**
+     * Y la pantalla lo usa: salta el aviso y deja constancia HONESTA.
+     *
+     * Lo que se guarda con el enrolamiento de un migrado no es el texto del
+     * aviso vigente —que nunca vio— sino la version `v1-migrada` y la frase
+     * que cuenta de donde salio el si.
+     */
+    public function test_la_pantalla_salta_el_aviso_cuando_el_permiso_viene_de_la_v1(): void
+    {
+        $vista = file_get_contents(resource_path('js/Pages/FieldWork/Sign.vue'));
+
+        $this->assertStringContainsString('if (! f.prior_consent)', $vista,
+            'el aviso solo se pregunta a quien no lo dio ya en la v1');
+        $this->assertStringContainsString("'v1-migrada'", $vista);
+        $this->assertStringContainsString('field_work.consent.legacy_text', $vista);
     }
 
     /**

@@ -65,21 +65,24 @@ class WorkPlanSetupController extends Controller
      * Cuando la busqueda empieza a contestar. Por debajo, nada.
      *
      * Es un umbral de la BUSQUEDA, no una regla del documento: existe para que
-     * teclear dos cifras no despliegue el padron entero. Lo pregunto el dueño
-     * del producto («¿lo detectas por el pais del usuario, por el de la
-     * empresa, o lo pusiste por default?») y la respuesta honesta era «por
-     * default»: el ajuste `docufiz.num_doc_minimum` venia sembrado en 7 a
-     * secas, herencia de la v1.
+     * teclear dos cifras no despliegue el padron entero. Lo fijo el dueño del
+     * producto en dos tiempos: primero pregunto de donde salia el «7» (era un
+     * default heredado de la v1) y despues dio la regla — «deberia ser el
+     * minimo de digitos de acuerdo al pais de la empresa: si la empresa es de
+     * Peru saldria 8».
      *
-     * Ahora la caida sigue al CATALOGO: sin ajuste puesto, el minimo es el
-     * `min_length` mas corto de los tipos de documento de persona activos —
-     * en un workspace peruano sale 6 (el pasaporte), y si mañana el catalogo
-     * gana la cedula venezolana de 5, baja solo, sin tocar nada. El ajuste,
-     * si alguien lo pone, sigue mandando: es la perilla del workspace.
+     * O sea: el DOCUMENTO NACIONAL del pais de la contratista del plan. En
+     * Peru es el DNI y son 8; en Chile el RUN, en Venezuela la cedula. No el
+     * `min_length` mas corto del catalogo entero, que era la version anterior
+     * y daba 6 por el pasaporte — un minimo que ningun documento del pais usa.
+     *
+     * El ajuste `docufiz.num_doc_minimum`, si alguien lo pone, sigue mandando:
+     * es la perilla del workspace. Y sin catalogo para ese pais, el 7 de
+     * siempre.
      */
     public const MINIMO_DOCUMENTO_POR_DEFECTO = 7;
 
-    protected function minimoDocumento(): int
+    protected function minimoDocumento(WorkPlan $workPlan): int
     {
         $valor = \App\Models\Setting::getInt('docufiz.num_doc_minimum');
 
@@ -90,9 +93,15 @@ class WorkPlanSetupController extends Controller
             return $valor;
         }
 
+        // El pais de la contratista que ejecuta; si la empresa no lo dice, el
+        // del plan, que es donde se trabaja.
+        $paisId = $workPlan->company?->country_id ?? $workPlan->country_id;
+
         $delCatalogo = (int) \App\Models\DocumentType::query()
             ->active()
             ->where('scope', \App\Models\DocumentType::PERSONA)
+            ->where('country_id', $paisId)
+            ->where('for_foreigners', false)
             ->min('min_length');
 
         // El tope inferior de 4 es el mismo que Setting impone al ajuste: por
@@ -103,7 +112,7 @@ class WorkPlanSetupController extends Controller
     public function personCandidates(Request $request, WorkPlan $workPlan): JsonResponse
     {
         $q = trim((string) $request->get('q', ''));
-        $minimo = $this->minimoDocumento();
+        $minimo = $this->minimoDocumento($workPlan);
 
         // Sin documento suficiente no hay búsqueda. Se contesta con la lista
         // vacía y el mínimo, para que la pantalla pueda decir qué falta en vez
@@ -243,10 +252,13 @@ class WorkPlanSetupController extends Controller
         // puerta de atras.
         abort_unless($request->user()?->can('people.create'), 403);
 
+        // Sin espacios ni guiones ANTES de validar: la longitud se mide sobre
+        // el numero limpio, que es como se guarda y como se busca.
+        $request->merge(['num_doc' => preg_replace('/[\s-]/', '', (string) $request->input('num_doc'))]);
+
         $datos = $request->validate([
             'name'        => ['required', 'string', 'max:255'],
             'lastname'    => ['required', 'string', 'max:255'],
-            'num_doc'     => ['required', 'string', 'max:20'],
             // El pais viene del modal desde que el pais de la persona es su
             // nacionalidad; el tipo tiene que ser un documento de ESE pais,
             // que es la misma regla que el formulario de personas.
@@ -255,12 +267,33 @@ class WorkPlanSetupController extends Controller
                 \Illuminate\Validation\Rule::exists('document_types', 'code')
                     ->where('country_id', $request->integer('country_id'))
                     ->where('scope', \App\Models\DocumentType::PERSONA)],
+            // Y el numero con la FORMA de su tipo — largo minimo, maximo y
+            // caracteres — igual que el formulario de personas. Lo pidio el
+            // dueño del producto: el modal dejaba pasar un documento de tres
+            // cifras que ningun tipo admite.
+            'num_doc'     => ['required', 'string', 'max:20', function ($attribute, $value, $fail) use ($request) {
+                $tipo = \App\Models\DocumentType::where('country_id', $request->integer('country_id'))
+                    ->where('scope', \App\Models\DocumentType::PERSONA)
+                    ->where('code', $request->input('doc_type'))
+                    ->first();
+
+                if (! $tipo) {
+                    return; // la regla del tipo ya falla por su lado
+                }
+
+                $numero = trim((string) $value);
+                $largo = mb_strlen($numero);
+
+                if ($tipo->min_length && $largo < $tipo->min_length) {
+                    $fail(__('people.num_doc_too_short', ['type' => $tipo->code, 'min' => $tipo->min_length]));
+                } elseif ($tipo->max_length && $largo > $tipo->max_length) {
+                    $fail(__('people.num_doc_too_long', ['type' => $tipo->code, 'max' => $tipo->max_length]));
+                } elseif (! $tipo->admiteElNumero($numero)) {
+                    $fail($tipo->porQueNoAdmite());
+                }
+            }],
             'position_id' => ['required', 'integer', 'exists:positions,id'],
         ]);
-
-        // Sin espacios ni guiones, igual que StorePersonRequest: asi se compara
-        // y asi lo encuentra el buscador del documento la proxima vez.
-        $datos['num_doc'] = preg_replace('/[\s-]/', '', $datos['num_doc']);
 
         // Que no exista ya, dicho en el campo donde se escribio y no como un
         // 500. Puede pasar por dos supervisores en la misma puerta, o porque la

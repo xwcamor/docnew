@@ -268,6 +268,38 @@ class WorkPlanSetupTest extends TestCase
     }
 
     /**
+     * El numero del alta respeta la FORMA de su tipo: minimo, maximo y
+     * caracteres — igual que el formulario de personas. Lo pidio el dueño del
+     * producto: el modal dejaba pasar un documento de tres cifras.
+     */
+    public function test_el_alta_respeta_la_forma_del_documento(): void
+    {
+        $plan = $this->plan();
+        $cargo = \App\Models\Position::firstOrCreate(['code' => 'TECNICO'], $this->base());
+        $this->sembrarElDni();
+
+        $alta = $this->supervisor();
+        $alta->givePermissionTo('people.create');
+        $this->actingAs($alta);
+
+        $post = fn (string $doc) => $this->post(
+            route('business_management.work_plans.crew.person', $plan->slug),
+            ['name' => 'Ana', 'lastname' => 'Quispe', 'num_doc' => $doc,
+             'country_id' => 1, 'doc_type' => 'DNI', 'position_id' => $cargo->id],
+        );
+
+        // Tres cifras no son un DNI, y letras tampoco.
+        $post('123')->assertSessionHasErrors('num_doc');
+        $post('1234567A')->assertSessionHasErrors('num_doc');
+
+        $this->assertSame(0, $plan->people()->count());
+
+        // Con sus ocho cifras entra.
+        $post('40999111')->assertSessionDoesntHaveErrors('num_doc');
+        $this->assertSame(1, $plan->people()->count());
+    }
+
+    /**
      * Crear una persona es del modulo de personas, aunque se haga desde el plan.
      *
      * La ruta cuelga de `work_plans.edit` porque vive en la ficha, y eso sin mas
@@ -1130,6 +1162,32 @@ class WorkPlanSetupTest extends TestCase
 
         $buscar('4000009')->assertOk()->assertJsonCount(0, 'people')
             ->assertJsonPath('partial', true)->assertJsonPath('minimum', 8);
+    }
+
+    /**
+     * Sin ajuste puesto, el minimo es el del DOCUMENTO NACIONAL del pais.
+     *
+     * Regla del dueño del producto: «deberia ser el minimo de digitos de
+     * acuerdo al pais de la empresa: si la empresa es de Peru saldria 8». Con
+     * el DNI peruano en el catalogo (min 8), buscar con 7 no contesta y la
+     * respuesta dice que faltan. El ajuste del workspace sigue mandando por
+     * encima (prueba de arriba), y sin catalogo se cae al 7 de siempre.
+     */
+    public function test_sin_ajuste_el_minimo_es_el_del_documento_nacional(): void
+    {
+        $plan = $this->plan();
+        $this->sembrarElDni();   // DNI peruano: 8 exactos
+        $this->persona('Nora', 'Paz', '40000009');
+        $this->actingAs($this->supervisor());
+
+        $buscar = fn (string $q) => $this->getJson(
+            route('business_management.work_plans.crew.candidates', $plan->slug) . '?q=' . $q);
+
+        $buscar('4000000')->assertOk()->assertJsonCount(0, 'people')
+            ->assertJsonPath('partial', true)->assertJsonPath('minimum', 8);
+
+        $buscar('40000009')->assertOk()->assertJsonCount(1, 'people')
+            ->assertJsonPath('minimum', 8);
     }
 
     /**
