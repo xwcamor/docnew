@@ -91,6 +91,16 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
             ->middleware('throttle:60,1');
     });
 
+    // El album de las firmas: plan, trabajador y la foto de ese momento.
+    //
+    // SOLO SUPER, por rol y no por permiso: es una pantalla que enseña fotos
+    // de personas y el dueño del producto la quiso cerrada al maximo. La foto
+    // se sirve por la ruta de evidencia de abajo, que al super se le abre por
+    // el `Gate::before`.
+    Route::middleware('role:super')
+        ->get('signature_photos', [SignatureController::class, 'photos'])
+        ->name('signatures.photos');
+
     // Bandeja de revision
     Route::middleware('permission:signature_events.review')->group(function () {
         Route::get('signatures/review', [SignatureController::class, 'review'])

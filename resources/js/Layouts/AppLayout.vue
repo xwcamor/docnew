@@ -25,6 +25,7 @@ const { t } = useI18n();
 import {
     DashboardOutlined,
     SafetyOutlined,
+    CameraOutlined,
     GlobalOutlined,
     UserOutlined,
     SettingOutlined,
@@ -656,6 +657,14 @@ const menuStructure = computed(() => [
                 key: 'signature_events', label: t('sidebar.signature_events'), icon: SafetyOutlined,
                 href: route('field_work.signatures.review'), inertia: true,
                 visible: () => can('signature_events.review'),
+            },
+            {
+                // El álbum de las firmas: plan, trabajador y la foto de ese
+                // momento. SOLO SUPER, por rol y no por permiso — a nadie más
+                // le aparece siquiera la entrada.
+                key: 'signature_photos', label: t('sidebar.signature_photos'), icon: CameraOutlined,
+                href: route('field_work.signatures.photos'), inertia: true,
+                visible: () => hasRole('super'),
             },
         ],
     },

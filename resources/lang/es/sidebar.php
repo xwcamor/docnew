@@ -16,6 +16,8 @@ return [
     'group_field'        => 'Trabajo en obra',
     'work_plans'         => 'Planes de trabajo',
     'signature_events'   => 'Firmas por revisar',
+    // Solo la ve el super: plan, trabajador y la foto tomada al firmar.
+    'signature_photos'   => 'Fotos de firmas',
 
     // ── Personas y empresas ───────────────────────────────────────────────
     // El cargo y el tipo de documento son atributos de una persona, y por eso

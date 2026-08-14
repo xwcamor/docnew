@@ -334,6 +334,74 @@ class SignatureController extends Controller
         return inertia('FieldWork/SignatureReview', ['events' => $pendientes]);
     }
 
+    /**
+     * El album de las firmas: el plan, el trabajador y la foto de ese momento.
+     *
+     * SOLO SUPER — la ruta ya lo exige con `role:super` y aqui se repite
+     * porque una defensa que vive solo en el fichero de rutas se pierde el dia
+     * que alguien reordena middlewares.
+     *
+     * Tres decisiones del dueño del producto gobiernan esta pantalla:
+     *
+     *   · Enseña EXACTAMENTE tres cosas: plan, persona y foto (con su hora).
+     *     Nada de coincidencias, coordenadas, IPs ni aparatos — esos
+     *     parametros no se exhiben aqui ni en ningun log.
+     *   · Mirarla NO se audita. Es lectura pura: no escribe en `audit_logs`
+     *     ni en ninguna otra parte, y no hay que añadirle rastro nunca.
+     *   · La foto va como URL a la ruta de evidencia —que al super se le abre
+     *     por el `Gate::before`— y no incrustada: el JSON de Inertia viaja
+     *     entero al navegador.
+     *
+     * Solo eventos con una foto DE VERDAD: las filas `legacy/…` son
+     * marcadores de la importacion, no archivos (ver `signerFace`).
+     */
+    public function photos(Request $request)
+    {
+        abort_unless($request->user()?->hasRole('super'), 403);
+
+        $conFoto = fn ($q) => $q
+            ->where('kind', \App\Models\EvidenceFile::FACE)
+            ->where('file_path', 'not like', 'legacy/%');
+
+        $eventos = SignatureEvent::query()
+            ->delWorkspace()
+            ->whereHas('files', $conFoto)
+            ->with([
+                'person:id,slug,name,lastname',
+                'files' => $conFoto,
+                // La morph con su plan dentro, sin N+1: cada firmable llega
+                // con `workPlan` ya cargado.
+                'signable' => fn ($morph) => $morph->morphWith([
+                    WorkPlanPerson::class      => ['workPlan:id,slug,code'],
+                    WorkPlanApproval::class    => ['workPlan:id,slug,code'],
+                    \App\Models\FormSubmission::class => ['workPlan:id,slug,code'],
+                ]),
+            ])
+            ->latest('signed_at')
+            ->paginate(24)
+            ->through(function ($e) {
+                // La ultima foto del evento: si la camara disparo dos veces,
+                // la que quedo es la que se enseña.
+                $foto = $e->files->sortByDesc('id')->first();
+                $plan = $e->signable?->workPlan;
+
+                return [
+                    'id'       => $e->id,
+                    'person'   => $e->person?->list_name ?? '—',
+                    'plan'     => $plan ? [
+                        'code' => $plan->code,
+                        'url'  => route('business_management.work_plans.show', $plan->slug),
+                    ] : null,
+                    'taken_at' => $foto?->taken_at ?? $e->signed_at,
+                    'photo_url' => $foto && Storage::disk('local')->exists($foto->file_path)
+                        ? route('field_work.signatures.evidence', $foto->id)
+                        : null,
+                ];
+            });
+
+        return inertia('FieldWork/SignaturePhotos', ['events' => $eventos]);
+    }
+
     /** Resolucion de una firma pendiente. */
     public function resolve(Request $request, SignatureEvent $signature_event)
     {

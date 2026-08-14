@@ -28,6 +28,26 @@ class SignatureEvent extends Model
         'latitude' => 'float', 'longitude' => 'float',
     ];
 
+    /**
+     * Los parametros de la captura NO van al historial de cambios.
+     *
+     * Regla del dueño del producto: «no deben exhibirse esos parametros ni en
+     * logs». La fila de `signature_events` los conserva —son el dato con el
+     * que se revisa una firma dudosa y se ajusta el umbral, y se enseñan solo
+     * al super en la ficha del plan— pero `Auditable` escribia la fila ENTERA
+     * en `audit_logs.new_values` al crearla: coordenadas, IP, aparato y
+     * navegador de una persona quedaban en una tabla que ve todo super/admin
+     * desde su pantalla de historial, y que nadie purga.
+     *
+     * Lo que si queda en el historial es el hecho: quien firmo que, cuando y
+     * por que metodo. Eso es lo que hay que poder enseñar.
+     *
+     * `updated_at` va en la lista porque declarar esta propiedad pisa la
+     * exclusion por defecto del trait.
+     */
+    protected $auditExclude = ['updated_at', 'match_distance', 'threshold_used',
+                               'latitude', 'longitude', 'device_id', 'ip_address', 'user_agent'];
+
     /** Como se produjo la firma. Nunca se guarda un texto magico en otra columna. */
     public const FACE_RECOGNITION = 'face_recognition';
     public const TIMEOUT_CAPTURE  = 'timeout_capture';

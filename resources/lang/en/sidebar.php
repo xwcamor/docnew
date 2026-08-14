@@ -7,6 +7,7 @@ return [
     'group_field'        => 'Field work',
     'work_plans'         => 'Work plans',
     'signature_events'   => 'Signatures to review',
+    'signature_photos'   => 'Signature photos',
 
     'group_people'       => 'People and companies',
     'people'             => 'Workers',
