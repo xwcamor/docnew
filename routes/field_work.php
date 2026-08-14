@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Route;
  * Trabajo en obra: llenar los formatos del plan del dia y firmarlos.
  *
  * Todo pasa por permiso. La firma exige `form_submissions.sign`; autorizar una
- * firma sin reconocimiento o resolver la bandeja exige `signature_events.review`.
+ * firma sin reconocimiento o ver las evidencias exige `signature_events.review`.
+ * Ya no hay bandeja de revision: la firma sin reconocimiento vale desde que se
+ * toma —el PDF imprime su metodo, que es la verdad completa— y anularla es una
+ * decision excepcional que quedo SOLO SUPER, desde el album de las firmas.
  */
 Route::name('field_work.')->prefix('field_work')->group(function () {
     // Formatos del plan
@@ -97,16 +100,22 @@ Route::name('field_work.')->prefix('field_work')->group(function () {
     // de personas y el dueño del producto la quiso cerrada al maximo. La foto
     // se sirve por la ruta de evidencia de abajo, que al super se le abre por
     // el `Gate::before`.
-    Route::middleware('role:super')
-        ->get('signature_photos', [SignatureController::class, 'photos'])
-        ->name('signatures.photos');
+    Route::middleware('role:super')->group(function () {
+        Route::get('signature_photos', [SignatureController::class, 'photos'])
+            ->name('signatures.photos');
 
-    // Bandeja de revision
-    Route::middleware('permission:signature_events.review')->group(function () {
-        Route::get('signatures/review', [SignatureController::class, 'review'])
-            ->name('signatures.review');
+        // Anular una firma. Es lo que quedo de la antigua bandeja de revision:
+        // la firma sin reconocimiento ya vale sola —el metodo impreso en el PDF
+        // cuenta la verdad— y lo unico que hace falta poder hacer es tumbar una
+        // que se sabe falsa. Eso es una decision excepcional y va con el mismo
+        // candado que el album desde el que se toma.
         Route::post('signatures/{signature_event}/resolve', [SignatureController::class, 'resolve'])
             ->name('signatures.resolve');
+    });
+
+    // Evidencias y enrolamiento: el permiso mas sensible del sistema, porque
+    // es quien puede mirar las fotos de las caras.
+    Route::middleware('permission:signature_events.review')->group(function () {
         Route::post('people/{person}/unenroll', [SignatureController::class, 'unenroll'])
             ->name('signatures.unenroll');
         Route::get('evidence/{evidence_file}', [SignatureController::class, 'evidence'])

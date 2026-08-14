@@ -34,6 +34,12 @@ use Tests\TestCase;
  *     captura (coincidencia, umbral, coordenadas, aparato, IP, navegador) no
  *     van en el payload del album NI en `audit_logs`, y la fila de la foto no
  *     escribe apunte ninguno.
+ *
+ * Y desde que murio la bandeja de revision, el album es ademas el unico sitio
+ * donde se ve quien fallo el reconocimiento —marca «sin reconocimiento», que
+ * no es una tarea— y donde el super puede ANULAR una firma que sabe falsa.
+ * Eso tambien se comprueba aqui: la marca sale, el super anula, y el admin no
+ * puede ni con el permiso de firmas en la mano.
  */
 class FotoDelMomentoTest extends TestCase
 {
@@ -72,6 +78,9 @@ class FotoDelMomentoTest extends TestCase
                 ->where('events.data.0.plan.code', $plan->code)
                 ->where('events.data.0.photo_url', fn ($u) => filled($u))
                 ->where('events.data.0.taken_at', fn ($t) => filled($t))
+                // La firma reconocida no lleva la marca: el aviso es solo para
+                // la que no paso el reconocimiento.
+                ->where('events.data.0.sin_reconocimiento', false)
                 // Los parametros de la captura no viajan: ni coincidencia, ni
                 // coordenadas, ni aparato. Es la regla de la pantalla.
                 ->missing('events.data.0.match_percent')
@@ -126,6 +135,76 @@ class FotoDelMomentoTest extends TestCase
 
         $this->assertSame($antes, AuditLog::count(),
             'abrir el album no puede escribir en el historial');
+    }
+
+    // ── Sin reconocimiento y anular ─────────────────────────────────────────
+
+    /**
+     * La firma que se capturo sin reconocer sale marcada: es lo que el album
+     * vino a enseñar. `sin_reconocimiento` es el `pending_review` de siempre
+     * —el dato se conserva en la base— pero ya sin prometer ninguna revision.
+     */
+    public function test_el_album_marca_la_firma_sin_reconocimiento(): void
+    {
+        $this->firmaConFoto([
+            'method' => SignatureEvent::TIMEOUT_CAPTURE, 'used_ai' => false,
+            'pending_review' => true,
+        ]);
+
+        $this->actingAs($this->super())
+            ->get(route('field_work.signatures.photos'))
+            ->assertInertia(fn ($page) => $page
+                ->where('events.data.0.method', SignatureEvent::TIMEOUT_CAPTURE)
+                ->where('events.data.0.sin_reconocimiento', true)
+                ->where('events.data.0.can_void', true));
+    }
+
+    /** El super anula desde el album, y el firmable pierde su aprobacion. */
+    public function test_el_super_anula_y_el_firmable_pierde_la_aprobacion(): void
+    {
+        [, , $evento] = $this->firmaConFoto([
+            'method' => SignatureEvent::TIMEOUT_CAPTURE, 'used_ai' => false,
+            'pending_review' => true,
+        ]);
+
+        $super = $this->super();
+
+        $this->actingAs($super)
+            ->post(route('field_work.signatures.resolve', $evento->id), [
+                'accepted' => false, 'reason' => 'No es su cara',
+            ])
+            ->assertSessionHas('success');
+
+        $fresca = $evento->fresh();
+        $this->assertFalse((bool) $fresca->pending_review);
+        $this->assertFalse((bool) $fresca->signable->fresh()->is_approved,
+            'anular tumba la aprobacion del firmable');
+
+        // Y en el album esa tarjeta ya no ofrece anular: esta anulada.
+        $this->actingAs($super)
+            ->get(route('field_work.signatures.photos'))
+            ->assertInertia(fn ($page) => $page
+                ->where('events.data.0.can_void', false));
+    }
+
+    /** Anular es SOLO SUPER: al admin no le vale ni el permiso de firmas. */
+    public function test_el_admin_no_puede_anular(): void
+    {
+        [, , $evento] = $this->firmaConFoto([
+            'method' => SignatureEvent::TIMEOUT_CAPTURE, 'used_ai' => false,
+            'pending_review' => true,
+        ]);
+
+        $admin = $this->admin();
+        Permission::firstOrCreate(['name' => 'signature_events.review', 'guard_name' => 'web']);
+        $admin->givePermissionTo('signature_events.review');
+
+        $this->actingAs($admin)
+            ->post(route('field_work.signatures.resolve', $evento->id), ['accepted' => false])
+            ->assertRedirect(route('dashboard_management.dashboards.index'))
+            ->assertSessionHas('error');
+
+        $this->assertTrue((bool) $evento->fresh()->pending_review, 'la firma sigue tal cual');
     }
 
     // ── Lo que NO va a los logs ─────────────────────────────────────────────
@@ -199,9 +278,12 @@ class FotoDelMomentoTest extends TestCase
     /**
      * Una firma de aprobacion con su foto y TODOS los parametros de captura.
      *
+     * `$evento` pisa los atributos del SignatureEvent: las pruebas de la marca
+     * «sin reconocimiento» piden un metodo distinto sin duplicar el decorado.
+     *
      * @return array{0: WorkPlan, 1: Person, 2: SignatureEvent}
      */
-    private function firmaConFoto(): array
+    private function firmaConFoto(array $evento = []): array
     {
         $plan = WorkPlan::create($this->base() + [
             'company_id' => Company::firstOrCreate(['num_doc' => '20100000001'],
@@ -227,7 +309,7 @@ class FotoDelMomentoTest extends TestCase
             'person_id' => $persona->id, 'is_required' => true, 'is_approved' => true,
         ]);
 
-        $evento = SignatureEvent::create([
+        $evento = SignatureEvent::create($evento + [
             'signable_type' => (new WorkPlanApproval)->getMorphClass(),
             'signable_id' => $aprobacion->id, 'person_id' => $persona->id,
             'role_signed' => 'supervisor', 'signed_at' => now(),

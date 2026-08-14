@@ -27,13 +27,11 @@ return [
     'widget_signatures_pending' => 'Signatures pending',
     'widget_forms_pending'      => 'Forms not confirmed',
     'widget_plans_open'         => 'Unfinished plans',
-    'widget_signatures_review'  => 'Signatures to review',
 
     'hint_plans_today' => '{0} All finished|{1} :count unfinished|[2,*] :count unfinished',
     'hint_signatures_pending' => ':workers from workers · :approvals from approvers',
     'hint_forms_pending'      => 'Handed in and still a draft',
     'hint_plans_open'         => 'Any date',
-    'hint_signatures_review'  => 'Captured without recognising the face',
 
     // Plan state (colour plus word, never colour alone)
     'plan_state_done'    => 'Finished',

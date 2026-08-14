@@ -261,7 +261,8 @@ class FormSubmissionPdfService
             // que se ensena en la puerta, y ahi «RUC 20…» rotulando el numero de
             // una contratista chilena es una etiqueta falsa: el suyo es el RUT.
             'empresa_doc_tipo' => $plan->company?->doc_type,
-            'tipo'        => $plan->workType?->code,
+            // El nombre con caída al código: el PDF se lee en la puerta.
+            'tipo'        => $plan->workType?->label,
             'ubicacion'   => $plan->workLocation?->name,
             'puesto'      => $plan->workstation_id
                 ? \App\Models\Workstation::find($plan->workstation_id)?->name : null,
@@ -671,8 +672,12 @@ class FormSubmissionPdfService
      * grupos vacios se quedan vacios y la plantilla no los pinta: un plan sin
      * flujo de aprobacion no tiene que enseñar una tabla en blanco.
      *
-     * Lo que no cambia: las firmas pendientes de revision salen marcadas en vez
-     * de disimuladas. Es lo que da valor al bloque.
+     * Cada firma sale con su METODO —«reconocimiento facial», «capturada por
+     * tiempo de espera», «manual»— y esa es la verdad completa del documento.
+     * Aqui se imprimia ademas una marca «pendiente de revision»; se quito
+     * porque prometia un tramite que ya no existe — no hay bandeja ni nadie
+     * obligado a revisar. El dato `pending_review` se conserva en la base y lo
+     * enseña el album de las firmas, pero el papel no anuncia revisiones.
      *
      * @return array{trabajadores: list<array>, aprobadores: list<array>, entrega: list<array>}
      */
@@ -776,7 +781,6 @@ class FormSubmissionPdfService
             'documento'  => PrivateInfo::documento($e->person?->num_doc, $usuario),
             'hora'       => Tz::format($e->signed_at, $usuario),
             'metodo'     => $this->traducir('form_submissions.pdf.methods.' . $e->method, $e->method),
-            'pendiente'  => (bool) $e->pending_review,
             // El porcentaje, no la distancia ni el umbral. Un informe que
             // acaba delante de un inspector no puede pedirle que sepa que
             // «0.15» es bueno y «0.55» no, ni que el umbral es la linea. La

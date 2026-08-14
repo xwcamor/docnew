@@ -15,7 +15,7 @@
 | [x] | **`php artisan migrate:fresh` contra PostgreSQL 16** | **69 tablas creadas, 0 errores** |
 | [x] | **`php artisan db:seed`** | tenants, suscripciones y 175 clientes sembrados |
 | [x] | Menú lateral y traducciones sin módulos borrados | 0 rutas muertas en `AppLayout.vue` |
-| [x] | **La aplicación responde y se navega** | probado en un Chromium real: login, dashboard, planes, personas, empresas, formatos y bandeja de firmas cargan **sin un solo error de JavaScript** |
+| [x] | **La aplicación responde y se navega** | probado en un Chromium real: login, dashboard, planes, personas, empresas, formatos y firmas cargan **sin un solo error de JavaScript** |
 | [x] | **La base rechaza dos personas con el mismo documento** | probado: lanza la violación de índice único |
 | [x] | Flujo completo en base: empresa → cuadrilla → plan → formatos → firmas con evidencia | `DocufizDemoSeeder`: 1 plan, 2 formatos, 2 firmas, 1 pendiente de revisión |
 
@@ -37,10 +37,10 @@
 | [x] | **Alta de persona que reutiliza la identidad** (`PersonService::vincularOCrear`) | probado: la misma persona en dos empresas, **sin identidad nueva**, conservando biometría e historial de firmas |
 | [x] | **Servicio de firma con verificación en el servidor** | probado: descriptor idéntico → `face_recognition`; distinto → `timeout_capture` con foto y pendiente de revisión; sin foto y sin coincidencia → rechazado; manual sin motivo → rechazado |
 | [x] | Deduplicación de evidencias por hash | probado: 4 referencias, 3 archivos en disco |
-| [x] | Revisión de firmas pendientes | probado: rechazar revierte la aprobación |
+| [x] | Anular una firma (solo super, desde el álbum) | probado: anular revierte la aprobación |
 | [x] | **Servicio de llenado de formatos** | probado: HOJA X no cierra sin la foto del papel; AST no cierra sin sus campos obligatorios; la matriz de riesgo se guarda como JSON |
 | [x] | Controladores y rutas de trabajo en obra | **11 rutas registradas**, cada una tras su permiso |
-| [x] | Pantallas Vue: lista de formatos, llenado, firma con cámara y bandeja de revisión | el front compila con face-api incluido |
+| [x] | Pantallas Vue: lista de formatos, llenado, firma con cámara y álbum de fotos de firmas | el front compila con face-api incluido |
 | [x] | **Editor de formatos** (`FormTemplateBuilder`) | probado: crear un formato con campos, publicar, versionar |
 | [x] | Tipos de campo compuestos declarados con su configuración obligatoria | probado: un `select` sin opciones no se acepta |
 | [x] | Validación del valor según el tipo | probado: una matriz de riesgo mal formada se rechaza |

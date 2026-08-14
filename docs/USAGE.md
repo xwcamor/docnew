@@ -202,13 +202,13 @@ El plan vigente se ve en el menú del avatar, arriba a la derecha, en la línea 
 ### El supervisor de obra
 
 Arma el plan del día, registra a su cuadrilla, llena y firma los formatos, y
-resuelve la bandeja de firmas pendientes. No elimina registros ni toca las
+puede autorizar una firma manual. No elimina registros ni toca las
 plantillas de formato.
 
 ### El usuario de campo
 
 Llena y firma los formatos del plan al que está asignado. No crea planes ni da de
-alta personas. No ve la bandeja de revisión.
+alta personas. No ve las evidencias de las firmas.
 
 ### Lo que ve cualquiera de los dos
 
@@ -218,7 +218,7 @@ alta personas. No ve la bandeja de revisión.
   - `work_plans.create` → armar el plan del día
   - `form_submissions.edit` → llenar los formatos
   - `form_submissions.sign` → firmar con la cámara
-  - `signature_events.review` → resolver la bandeja y ver las fotos de evidencia
+  - `signature_events.review` → autorizar una firma manual y ver las fotos de evidencia
 
 ### Lo que NO puede
 
@@ -280,9 +280,9 @@ trabajo colgadas de un plan.
 |---|---|---|
 | **Formatos del plan** | La lista de formatos con su estado: pendiente, borrador o confirmado | `/field_work/work_plans/{plan}/forms` |
 | **Firma** | Cada trabajador y cada aprobador firma con la cámara | `/field_work/work_plans/{plan}/sign` |
-| **Bandeja de revisión** | Las firmas que quedaron sin reconocer, con su foto, la distancia medida y el umbral aplicado. El supervisor acepta o rechaza | `/field_work/signatures/review` |
+| **Fotos de firmas** (solo super) | El álbum: plan, trabajador y la foto tomada al firmar, con la marca «Sin reconocimiento» cuando la cara no se verificó. Desde ahí el super puede anular una firma falsa | `/field_work/signature_photos` |
 
-La bandeja y las evidencias exigen `signature_events.review`. Las fotos **no son
+Las evidencias exigen `signature_events.review`. Las fotos **no son
 públicas**: se sirven autenticadas y solo a quien tiene ese permiso.
 
 ### Communication
@@ -419,7 +419,7 @@ El **único** módulo expuesto hoy es `customers`, como patrón de referencia. N
 | "Mi suscripción venció" | Su tenant cayó automáticamente al plan `free`. Puede seguir usando lo que ese plan permite. Para volver al plan pago, renovar suscripción |
 | "Los emails no llegan" | Revisar el correo no deseado. Si sigue sin llegar, el super comprueba el ajuste `notifications.email_enabled` y los logs |
 | "La cámara no abre en la tablet" | Casi siempre es que entró por `http://` con la IP de la red local. `getUserMedia` solo existe en HTTPS o en `localhost`. Ver [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) |
-| "El sistema no me reconoce la cara" | No bloquea nada: pasados los segundos de espera toma la foto igual, deja firmar y manda esa firma a la bandeja de revisión del supervisor. Ver [`BIOMETRIA.md`](BIOMETRIA.md) |
+| "El sistema no me reconoce la cara" | No bloquea nada: pasados los segundos de espera toma la foto igual y deja firmar. La firma vale con su foto como constancia y queda marcada «Sin reconocer» en el plan. Ver [`BIOMETRIA.md`](BIOMETRIA.md) |
 | "¿Puedo firmar por otro?" | No. La firma manual existe, pero exige motivo, deja constancia de quién la autorizó y solo la autoriza alguien con `signature_events.review` |
 | "Cambié el formato AST, ¿se me estropean los antiguos?" | No. Cada entrega guarda la **versión de la plantilla** con la que se llenó. Publicar una versión nueva no altera lo ya firmado |
 

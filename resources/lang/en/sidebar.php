@@ -6,7 +6,6 @@ return [
 
     'group_field'        => 'Field work',
     'work_plans'         => 'Work plans',
-    'signature_events'   => 'Signatures to review',
     'signature_photos'   => 'Signature photos',
 
     'group_people'       => 'People and companies',
@@ -51,6 +50,9 @@ return [
 
     // Modules with no sidebar entry, read by the audit log's module labels.
     'form_submissions'   => 'Filled documents',
+    // The former «Signatures to review» menu entry; the review tray is gone and
+    // the key stays to label the module in the change history.
+    'signature_events'   => 'Signatures',
     'customers'          => 'Customers',
     'brands'             => 'Brands',
     'permissions'        => 'Permissions',

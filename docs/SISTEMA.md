@@ -179,7 +179,7 @@ Además hay **permisos transversales** que no siguen ese patrón porque no son u
 | Permiso | Qué habilita |
 |---|---|
 | `form_submissions.sign` | firmar |
-| `signature_events.review` | resolver la bandeja de firmas dudosas y autorizar una firma manual |
+| `signature_events.review` | autorizar una firma manual y ver las evidencias de las firmas |
 | `people.view_private_info` | ver el documento sin enmascarar, y descargar el PDF de los formatos |
 | `people.view_media` | ver la foto y la firma de referencia de una persona |
 | `comments.*` | comentarios |
@@ -837,12 +837,16 @@ que subió un administrador.
 ### 13.4 La firma manual
 
 Existe, pero **exige un motivo escrito**, deja constancia de quién la autorizó, y solo la puede
-autorizar alguien con permiso de revisión.
+autorizar alguien con permiso de revisión (`signature_events.review`).
 
-### 13.5 La bandeja de revisión
+### 13.5 La firma sin reconocimiento y el álbum
 
-Lista las firmas que quedaron pendientes, con la foto capturada, la distancia y el umbral. El
-supervisor acepta o rechaza; **si rechaza, la aprobación se revierte**.
+Aquí hubo una bandeja de revisión y **ya no la hay**: la firma capturada sin reconocer la cara
+vale desde que se toma, con su foto como constancia. La ficha del plan la marca «Sin reconocer»,
+el PDF imprime su método —que es la verdad completa— y el **álbum de fotos de firmas** (solo
+super) la enseña con la etiqueta «Sin reconocimiento». No hay cola ni obligación de mirar nada:
+es un observatorio. Si el super sabe que una firma es falsa, la **anula** desde el álbum, y esa
+anulación **revierte la aprobación** del firmable.
 
 Las evidencias no son públicas: se sirven autenticadas, solo con permiso de revisión, y una evidencia
 de otro workspace devuelve **404, no 403** — decir «no puedes» ya confirmaría que existe.

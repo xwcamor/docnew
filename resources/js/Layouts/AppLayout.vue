@@ -24,7 +24,6 @@ import { useI18n } from '@/Plugins/i18n';
 const { t } = useI18n();
 import {
     DashboardOutlined,
-    SafetyOutlined,
     CameraOutlined,
     GlobalOutlined,
     UserOutlined,
@@ -642,8 +641,10 @@ const menuStructure = computed(() => [
     },
 
     // ── Trabajo en obra ───────────────────────────────────────────────────
-    // Lo del dia a dia: el plan y la bandeja de firmas que hay que mirar. Va
-    // primero porque es donde entra el 90 % de la gente cada mañana.
+    // Lo del dia a dia: el plan del que cuelga todo. Va primero porque es
+    // donde entra el 90 % de la gente cada mañana. Aqui vivio «Firmas por
+    // revisar»: se fue con la bandeja — la firma sin reconocimiento vale desde
+    // que se toma, y lo que queda de aquello es el album de abajo.
     {
         kind: 'group',
         key: 'group-field', title: t('sidebar.group_field'),
@@ -652,11 +653,6 @@ const menuStructure = computed(() => [
                 key: 'work_plans', label: t('sidebar.work_plans'), icon: FileDoneOutlined,
                 href: route('business_management.work_plans.index'), inertia: true,
                 visible: () => can('work_plans.view'),
-            },
-            {
-                key: 'signature_events', label: t('sidebar.signature_events'), icon: SafetyOutlined,
-                href: route('field_work.signatures.review'), inertia: true,
-                visible: () => can('signature_events.review'),
             },
             {
                 // El álbum de las firmas: plan, trabajador y la foto de ese

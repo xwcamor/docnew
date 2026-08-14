@@ -198,20 +198,19 @@ return [
 
     // Cómo se produjo la firma. La hora dice CUÁNDO; esto dice si el servidor
     // reconoció la cara. Una firma verificada y una que se capturó porque NO
-    // reconoció salían iguales en la ficha, y la segunda es la que hay que ir
-    // a revisar.
+    // reconoció salían iguales en la ficha. Es un hecho, no una tarea: la
+    // firma vale igual y no se promete ninguna revisión — no la hay.
     'sign_how'                 => 'Cómo firmó',
     'sign_face_recognition'    => 'Reconocimiento facial',
     'sign_face_recognition_hint' => 'El servidor comparó la cara con la biometría de :name y coincidió.',
     'sign_timeout_capture'     => 'Sin reconocer',
-    'sign_timeout_capture_hint' => 'No coincidió con la biometría de :name. Se guardó la foto y la firma queda por revisar.',
+    'sign_timeout_capture_hint' => 'No coincidió con la biometría de :name. Se guardó la foto como constancia.',
     'sign_manual'              => 'Firma manual',
     'sign_manual_hint'         => 'Autorizada a mano, con motivo. No hubo comparación de la cara.',
     'sign_migrated'            => 'Del sistema anterior',
     'sign_migrated_hint'       => 'Firma traída del sistema anterior. Allí no se guardaba con qué se comprobó.',
     'sign_reused'              => 'Firma reutilizada',
     'sign_reused_hint'         => 'Se reutilizó la comprobación que :name ya pasó en este mismo plan.',
-    'sign_pending_review'      => 'Por revisar',
 
     // El rastro de la firma, que se abre al pulsar la cara. Estaba guardado
     // desde el principio y no se enseñaba en ninguna pantalla.

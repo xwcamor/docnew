@@ -5,7 +5,6 @@ namespace App\Http\Controllers\DashboardManagement;
 use App\Http\Controllers\Controller;
 use App\Models\AutomationRun;
 use App\Models\FormSubmission;
-use App\Models\SignatureEvent;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Models\User;
@@ -97,8 +96,8 @@ class DashboardController extends Controller
 
         // «Falta por firmar» son dos cosas distintas y las dos cuentan: el
         // trabajador que aun no ha firmado su asistencia y la aprobacion
-        // obligatoria que nadie ha dado. No es lo mismo que la bandeja de
-        // revision, que son firmas YA hechas y dudosas.
+        // obligatoria que nadie ha dado. Las firmas YA hechas no entran aqui:
+        // valen desde que se toman, reconocidas o no.
         $firmasTrabajadores = WorkPlanPerson::query()
             ->whereIn('work_plan_id', (clone $abiertos))
             ->where('is_approved', false)
@@ -155,30 +154,10 @@ class DashboardController extends Controller
             ],
         ];
 
-        // Bandeja de firmas dudosas: solo a quien la puede resolver, y con el
-        // enlace a la propia bandeja. Sin el permiso no aparece el numero.
-        if ($user->can('signature_events.review')) {
-            // `signable` es polimorfico (trabajador, aprobacion o formato), asi
-            // que el filtro por workspace tiene que entrar por cada tabla: un
-            // `whereIn('signable_id', ...)` compararia ids de tablas distintas.
-            $porRevisar = SignatureEvent::query()
-                ->pendingReview()
-                ->whereHasMorph(
-                    'signable',
-                    [WorkPlanPerson::class, WorkPlanApproval::class, FormSubmission::class],
-                    fn ($q) => $q->whereIn('work_plan_id', WorkPlan::query()->select('id')),
-                )
-                ->count();
-
-            $indicadores[] = [
-                'key'   => 'signatures_review',
-                'value' => $porRevisar,
-                'hint'  => __('dashboard.hint_signatures_review'),
-                'color' => $porRevisar > 0 ? 'red' : 'default',
-                'icon'  => 'SafetyCertificateOutlined',
-                'href'  => route('field_work.signatures.review'),
-            ];
-        }
+        // Aqui vivio el contador de «firmas por revisar». Se fue con la bandeja:
+        // la firma sin reconocimiento vale desde que se toma —el PDF imprime su
+        // metodo— y no hay ninguna cola que atender. El dato `pending_review`
+        // se conserva y lo enseña el album de las firmas (solo super).
 
         return [
             'date'       => $hoy,

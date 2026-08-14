@@ -34,12 +34,13 @@ use Tests\TestCase;
 /**
  * El PDF firmado: el unico eslabon del flujo que sale del sistema.
  *
- * Todo lo demas —llenar, firmar, revisar— vive dentro de la aplicacion y se
- * puede corregir. El PDF es lo que la empresa archiva y lo que le ensena a un
+ * Todo lo demas —llenar, firmar— vive dentro de la aplicacion y se puede
+ * corregir. El PDF es lo que la empresa archiva y lo que le ensena a un
  * inspector dos anios despues, asi que lo que se comprueba aqui es que salga
  * completo: el membrete del workspace, el plan, el formato en la version con la
- * que se lleno, la foto del papel, cada firma con su cara y su metodo, y las
- * que quedaron pendientes marcadas como tales.
+ * que se lleno, la foto del papel y cada firma con su cara y su metodo. El
+ * metodo es la verdad completa de la firma: la marca «pendiente de revision»
+ * se quito porque prometia un tramite que ya no existe.
  */
 class FormSubmissionPdfTest extends TestCase
 {
@@ -127,11 +128,14 @@ class FormSubmissionPdfTest extends TestCase
         $this->assertStringContainsString('Arnes anclado', $texto);         // otra columna de la matriz
         $this->assertStringContainsString('Ana Quispe', $texto);            // fila del checklist por persona
 
-        // 5 · Firmas: nombre, documento, rol, metodo y la marca de pendiente.
+        // 5 · Firmas: nombre, documento, rol y metodo. El metodo es la verdad
+        // completa —«captura por tiempo de espera» dice que no hubo
+        // reconocimiento— y el papel ya no promete una revision que no va a
+        // pasar: la marca «PENDIENTE DE REVISION» se quito con la bandeja.
         $this->assertStringContainsString('40000001', $texto);
         $this->assertStringContainsString('Reconocimiento facial', $texto);
         $this->assertStringContainsString('Captura por tiempo de espera', $texto);
-        $this->assertStringContainsString('PENDIENTE DE REVISI', $texto);
+        $this->assertStringNotContainsString('PENDIENTE DE REVISI', $texto);
 
         // 6 · Firmas formales del workspace, con su relacion traducida (la hoja
         // de estilos las pone en mayusculas).
@@ -347,8 +351,11 @@ class FormSubmissionPdfTest extends TestCase
         $this->assertStringNotContainsString('evidencias/', $serializado);
         $this->assertStringNotContainsString('/field_work/evidence', $serializado);
 
-        // Y una firma pendiente sale marcada como tal.
-        $this->assertSame(1, $this->todasLasFirmas($datos)->where('pendiente', true)->count());
+        // Y el payload ya no lleva la marca de pendiente: el dato se conserva
+        // en la base, pero el papel imprime el metodo y nada mas.
+        $this->todasLasFirmas($datos)->each(
+            fn ($f) => $this->assertArrayNotHasKey('pendiente', $f),
+        );
     }
 
     /**
@@ -688,7 +695,8 @@ class FormSubmissionPdfTest extends TestCase
         ]);
 
         // Firma del supervisor que no reconocio a tiempo: se capturo igual y
-        // queda pendiente de revision. Es la que tiene que salir marcada.
+        // conserva su `pending_review` en la base — que el PDF ya no imprime:
+        // su metodo («captura por tiempo de espera») cuenta la verdad entera.
         $this->firma($aprobacion, $supervisor, PersonRole::SUPERVISOR, [
             'method' => SignatureEvent::TIMEOUT_CAPTURE, 'used_ai' => false,
             'threshold_used' => 0.5, 'pending_review' => true,

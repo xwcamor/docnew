@@ -71,13 +71,13 @@
                 @endif
                 <td>{{ $firma['documento'] ?: '—' }}</td>
                 <td>{{ $firma['hora'] ?: '—' }}</td>
+                {{-- El metodo es la verdad completa de la firma: «reconocimiento
+                     facial», «capturada por tiempo de espera», «manual». Aqui se
+                     imprimia ademas «PENDIENTE DE REVISION» / «Verificada»; se
+                     quito porque prometia una revision que ya no existe — el
+                     documento cuenta como se firmo, no tramites futuros. --}}
                 <td>
                     {{ $firma['metodo'] }}
-                    @if ($firma['pendiente'])
-                        <br><span class="flag">{{ __('form_submissions.pdf.pending_review') }}</span>
-                    @else
-                        <br><span class="ok">{{ __('form_submissions.pdf.reviewed') }}</span>
-                    @endif
                     @if ($firma['coincidencia'] !== null)
                         <br><span class="muted">{{ __('form_submissions.pdf.match', [
                             'value' => $firma['coincidencia'],

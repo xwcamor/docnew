@@ -382,7 +382,7 @@ y es la razón por la que el checklist de §7 no es burocracia.
 3. **Rutas que deben ser solo-super y quedan abiertas a admin.** El caso sensible
    aquí es la **evidencia de firma**: `signature_events.review` habilita ver las
    fotos de las caras y autorizar una firma sin reconocimiento. Si una ruta nueva
-   de la bandeja o del servidor de evidencias pierde ese middleware, cualquiera con
+   del servidor de evidencias pierde ese middleware, cualquiera con
    acceso al módulo ve la biometría de la plantilla. Toda ruta que toque
    `evidence_files` o `signature_events` pasa por ese permiso, sin excepciones.
 4. **Mass assignment**: mandar campos extra en el POST (`role_id`, `is_active`,
@@ -564,7 +564,7 @@ parámetros ligados; dompdf sin remoto; evidencias de firma servidas solo tras
 - [ ] Probado como atacante: `/.env`, `/.git/config`, `/storage/logs/laravel.log`
       → 404 (§6.5), y una página de error sin stack trace.
 - [ ] **Ninguna evidencia de firma es alcanzable sin sesión.** Copiar la URL de una
-      foto de la bandeja de revisión, abrirla en una ventana privada y comprobar
+      foto del álbum de fotos de firmas, abrirla en una ventana privada y comprobar
       que responde 403 o redirige al login. Si se ve la imagen, hay una foto de la
       cara de un trabajador colgando de internet.
 - [ ] El consentimiento biométrico está registrado para todas las personas

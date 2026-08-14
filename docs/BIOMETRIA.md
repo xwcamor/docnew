@@ -122,8 +122,10 @@ La firma resultante queda con:
 | Manual autorizada | `manual` | no | sí | sí, con motivo y quién autorizó |
 
 Regla que se hereda tal cual: **sin cara en cámara nunca hay firma ni foto**. Y regla nueva: la
-firma por tiempo de espera **no bloquea el trabajo en campo**, pero cae en una bandeja de revisión
-del supervisor.
+firma por tiempo de espera **no bloquea el trabajo en campo** y vale desde que se toma, con su foto
+como constancia. Queda marcada «sin reconocimiento» (`pending_review`) en la ficha del plan y en el
+álbum de fotos de firmas (solo super); el PDF imprime su método, que es la verdad completa. No hay
+bandeja ni revisión obligatoria: si el super sabe que una firma es falsa, la anula desde el álbum.
 
 ## Reto de vida (liveness)
 
@@ -139,13 +141,13 @@ usuario vea lo contrario en pantalla.
 
 **Qué para y qué no.** Para una foto impresa y una pantalla quieta —el atajo fácil: la foto del DNI,
 el compañero enseñando el móvil—. Un vídeo de la persona haciendo el gesto correcto lo pasaría. No
-se vende como más de lo que es: la barrera de verdad contra eso es que la evidencia queda guardada y
-un supervisor la mira.
+se vende como más de lo que es: la barrera de verdad contra eso es que la evidencia queda guardada
+y se puede mirar — el álbum enseña la foto junto a la marca «sin reconocimiento».
 
 **Si no lo supera, no se bloquea el trabajo.** La cara ya coincidió; lo que falta es el gesto. La
-firma se registra por la vía de evidencia —foto guardada, `pending_review`— y cae en la bandeja del
-supervisor. Es la misma regla de todo el sistema: en obra nunca se deja a nadie parado, se deja
-rastro.
+firma se registra por la vía de evidencia —foto guardada, `pending_review`— y queda marcada «sin
+reconocimiento». Es la misma regla de todo el sistema: en obra nunca se deja a nadie parado, se
+deja rastro.
 
 Se activa por workspace con `docufiz.face_liveness`.
 

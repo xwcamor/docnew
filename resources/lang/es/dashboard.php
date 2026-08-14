@@ -27,13 +27,11 @@ return [
     'widget_signatures_pending' => 'Firmas pendientes',
     'widget_forms_pending'      => 'Formatos sin confirmar',
     'widget_plans_open'         => 'Planes sin terminar',
-    'widget_signatures_review'  => 'Firmas por revisar',
 
     'hint_plans_today' => '{0} Todos terminados|{1} :count sin terminar|[2,*] :count sin terminar',
     'hint_signatures_pending' => ':workers de trabajadores · :approvals de aprobación',
     'hint_forms_pending'      => 'Entregados y todavía en borrador',
     'hint_plans_open'         => 'De cualquier fecha',
-    'hint_signatures_review'  => 'Se capturaron sin reconocer la cara',
 
     // Estado de un plan (color + palabra, nunca solo el color)
     'plan_state_done'    => 'Terminado',

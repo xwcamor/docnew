@@ -12,8 +12,8 @@ import {
  * La hora dice CUÁNDO se firmó. Esto dice si el servidor llegó a reconocer la
  * cara, y son cosas distintas: en la ficha del plan una firma verificada y una
  * que se capturó porque **no** reconoció salían exactamente iguales —la misma
- * hora, el mismo check verde— y la segunda es justo la que hay que ir a
- * revisar. Nada en la pantalla lo decía.
+ * hora, el mismo check verde— y nada en la pantalla lo decía. Es un hecho que
+ * se enseña, no una tarea: la firma vale igual y no hay revisión pendiente.
  *
  * Vive en un componente y no en cada tarjeta porque lo usan la cuadrilla y las
  * aprobaciones, y dos copias acabarían diciendo cosas distintas de lo mismo.

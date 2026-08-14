@@ -186,8 +186,8 @@ Eso no es evidencia y no se migra como si lo fuera:
   decidía el navegador y no dejó prueba, así que no puede llamarse igual que una firma verificada
   por el servidor. El `used_ai` del origen sí se conserva: es lo que la v1 creía.
 - Las que no tienen archivo llevan `evidence_missing = true` y **no** generan `evidence_files`.
-- Lo migrado no entra en la cola de revisión (`pending_review = false`): se marca, no se revisa.
-  Meter 14 336 firmas históricas en la bandeja de un supervisor no sirve de nada.
+- Lo migrado no lleva la marca «sin reconocimiento» (`pending_review = false`): se marca como
+  `migrated`, que ya dice todo. Teñir 14 336 firmas históricas de sospecha no sirve de nada.
 - El comando imprime siempre cuántas referencias eran reales y cuántas marcadores.
 
 | Referencias de la v1 | Cuántas |

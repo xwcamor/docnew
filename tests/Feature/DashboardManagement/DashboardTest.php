@@ -186,21 +186,22 @@ class DashboardTest extends TestCase
             ->assertInertia(fn ($page) => $page->where('today', null));
     }
 
-    /** La bandeja de firmas dudosas solo aparece a quien la puede resolver. */
-    public function test_la_bandeja_de_revision_solo_sale_con_su_permiso(): void
+    /**
+     * El contador de «firmas por revisar» se fue con la bandeja: la firma sin
+     * reconocimiento vale desde que se toma —el PDF imprime su metodo— y no
+     * hay cola que atender. Ni con el permiso de firmas vuelve a aparecer.
+     */
+    public function test_ya_no_hay_contador_de_firmas_por_revisar(): void
     {
-        $sinPermiso = $this->supervisor();
-        $this->actingAs($sinPermiso);
-        $this->get(route('dashboard_management.dashboards.index'))
-            ->assertInertia(fn ($page) => $page->has('today.widgets', 4));
-
         $conPermiso = $this->supervisor();
         $conPermiso->givePermissionTo('signature_events.review');
         $this->actingAs($conPermiso);
+
         $this->get(route('dashboard_management.dashboards.index'))
             ->assertInertia(fn ($page) => $page
-                ->has('today.widgets', 5)
-                ->where('today.widgets.4.key', 'signatures_review'));
+                ->has('today.widgets', 4)
+                ->where('today.widgets', fn ($widgets) => collect($widgets)
+                    ->pluck('key')->doesntContain('signatures_review')));
     }
 
     /** El enlace a Usuarios no se manda a quien no puede abrir Usuarios. */

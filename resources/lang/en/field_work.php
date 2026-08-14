@@ -39,12 +39,19 @@ return [
         'empty'     => 'No signature has left a photo yet.',
         'no_photo'  => 'The photo is no longer available',
         'open_plan' => 'View plan',
+        // Word plus colour, never colour alone (docs/UI.md §5). Not a task —
+        // the album is an observatory, not a queue.
+        'unrecognized' => 'Not recognised',
+        'void'                   => 'Void',
+        'void_confirm'           => 'Void this signature? The person will show as unsigned on the plan.',
+        'void_reason_placeholder' => 'Reason (optional)',
+        'voided'                 => 'Signature voided.',
     ],
 
     'sign' => [
         'searching'          => 'Looking for a face…',
         'comparing'          => 'Comparing…',
-        'evidence'           => 'No match: taking the photo for review',
+        'evidence'           => 'No match: taking the photo as a record',
         'frame_face'         => 'Frame your face',
         'enrolling'          => 'Registering face…',
         'enroll_progress'    => 'Registering face: :done of :total',
@@ -52,10 +59,13 @@ return [
         'enroll_failed'      => 'Could not register the face. Try again with better light.',
         'enroll_done'        => 'Face registered. Now sign.',
         'nobody_found'       => 'Nobody was detected in front of the camera. Nothing was recorded.',
-        'challenge_failed'   => 'The face matches but the gesture was not completed. The signature is recorded and left pending supervisor review.',
-        // Same, without knowing why: the signature was stored with its photo and
-        // does not count until a supervisor looks at it. See the note in `es`.
-        'pending_review'     => 'The signature is recorded, but the face could not be verified. A supervisor will review it.',
+        // None of these promises a review: there is none. The signature counts
+        // from the moment it is taken, with its photo kept as a record. See the
+        // note in `es`.
+        'challenge_failed'   => 'The face matches but the gesture was not completed. The signature is recorded with its photo.',
+        // Same, without knowing why. Says what happens to the signature, not
+        // what the camera failed at.
+        'pending_review'     => 'The face could not be verified. The signature is recorded with its photo.',
         'failed'             => 'Could not complete the signature.',
         // Drawn signature. Captured once and reused, as in v1.
         'has_signature_on_file' => 'Signature already on file',
@@ -67,14 +77,14 @@ return [
         'replace'            => 'Update my signature',
         'clear'              => 'Clear',
         'take_photo_and_sign'=> 'Take photo and sign',
-        // Only shown when the signature is left pending review: a clean one goes
-        // back to the plan on its own. `back_to_plan_in` («Back to the plan… :n»)
+        // Only shown when the face went unverified: a clean signature goes back
+        // to the plan on its own. `back_to_plan_in` («Back to the plan… :n»)
         // lived here too — the button countdown. It went with it. See `es`.
         'back_to_plan'       => 'Back to the plan',
         'no_target'          => 'No idea who is signing',
         'no_target_hint'     => 'Go back to the plan and press Sign on that person’s row.',
         'signature_required' => ':name has no signature on file: it has to be drawn before signing the plan.',
-        'left_pending'       => 'Signature recorded. It is left pending supervisor review.',
+        'left_pending'       => 'Signature recorded with its photo. The face was not verified.',
         'verified'           => 'Signature verified.',
         'turn_head'          => 'Turn your head to one side',
         'nod_head'           => 'Nod your head',
@@ -206,6 +216,7 @@ return [
         'correction_verification' => 'Correction verified',
         'responsible'             => 'Responsible',
         'observation'             => 'Remark',
+        'identified_condition'    => 'Identified condition',
     ],
 
     // AST y PTF: el documento es una lista de ACTIVIDADES y, dentro de cada

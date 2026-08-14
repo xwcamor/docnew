@@ -79,7 +79,7 @@ docufiz/
 │   │   ├── app.js                  # Arranque de Inertia + Vue 3 + Ant Design Vue
 │   │   ├── Pages/                  # Una página Inertia por pantalla
 │   │   │   ├── Companies|People|WorkPlans|FormTemplates/  # Maestros, patrón Index/Show/Form/Delete/Trash/EditAll
-│   │   │   └── FieldWork/          # Forms, FormFill, Sign, SignatureReview — las pantallas de obra
+│   │   │   └── FieldWork/          # Forms, FormFill, Sign, SignaturePhotos — las pantallas de obra
 │   │   ├── Components/
 │   │   │   ├── Common/             # ResponsiveTable, FilterBar, ExportDialog, SavedViews, RecordHistory…
 │   │   │   └── FormFields/         # Los tipos compuestos: RiskMatrixField, PersonChecklistField, CatalogSelect…
@@ -101,7 +101,7 @@ docufiz/
 │   ├── user_management.php         # Usuarios + Perfiles
 │   ├── system_management.php       # Core del super: Regiones, Idiomas, Países, Locales, Workspaces, Planes, Ajustes, Auditoría
 │   ├── business_management.php     # Los maestros: Clientes, Marcas, Empresas, Personas, Planes de trabajo, Plantillas de formato
-│   ├── field_work.php              # Trabajo en obra: llenar formatos, firmar, bandeja de revisión
+│   ├── field_work.php              # Trabajo en obra: llenar formatos, firmar, álbum de fotos de firmas
 │   ├── communication.php           # Inbox + Mensajes
 │   ├── automation_management.php   # Automatizaciones
 │   ├── dashboard_management.php    # Dashboards
@@ -148,7 +148,7 @@ Controllers/
 │   └── FormTemplateController.php
 └── FieldWork/
     ├── FormSubmissionController.php   # llenar y confirmar un formato
-    └── SignatureController.php        # firmar, enrolar, bandeja de revisión, servir evidencias
+    └── SignatureController.php        # firmar, enrolar, álbum de fotos, anular, servir evidencias
 ```
 
 ### `resources/js/Pages/`
@@ -162,7 +162,7 @@ Pages/
     ├── Forms.vue             # la lista de formatos del plan
     ├── FormFill.vue          # llenar uno
     ├── Sign.vue              # la cámara
-    └── SignatureReview.vue   # la bandeja del supervisor
+    └── SignaturePhotos.vue   # el álbum de fotos de firmas (solo super)
 ```
 
 Convención: `People/Index.vue` se invoca desde el controller con `inertia('People/Index', [...])`.

@@ -1,4 +1,5 @@
 <script setup>
+import { reactive } from 'vue';
 import { router, Link } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import SectionHeader from '@/Components/Common/SectionHeader.vue';
@@ -8,12 +9,18 @@ import { useDateFormat } from '@/Composables/useDateFormat';
 /**
  * El álbum de las firmas — SOLO SUPER.
  *
- * Tres cosas por tarjeta y ni una más: el plan, el trabajador y la foto que se
- * tomó en el momento de firmar, con su hora. Los parámetros de la captura
- * —coincidencia, coordenadas, IP, aparato— no se enseñan aquí a propósito:
- * regla del dueño del producto, «no deben exhibirse esos parámetros ni en
- * logs». Y mirar esta pantalla no deja rastro en ningún historial: es lectura
- * pura.
+ * Por tarjeta: el plan, el trabajador y la foto que se tomó en el momento de
+ * firmar, con su hora — más la marca «Sin reconocimiento» cuando la cara no se
+ * llegó a verificar, que es justo lo que el álbum vino a enseñar. Los
+ * parámetros de la captura —coincidencia, coordenadas, IP, aparato— no se
+ * enseñan aquí a propósito: regla del dueño del producto, «no deben exhibirse
+ * esos parámetros ni en logs». Y mirar esta pantalla no deja rastro en ningún
+ * historial: es lectura pura.
+ *
+ * Esto es un observatorio, no una cola: nadie está obligado a resolver nada.
+ * Lo único que se puede HACER es anular una firma que se sabe falsa — botón
+ * discreto a propósito, porque es la decisión excepcional y no el uso normal
+ * de la pantalla.
  *
  * La ruta la cierra `role:super` y el controlador lo repite; a nadie más le
  * aparece siquiera la entrada del menú.
@@ -23,8 +30,20 @@ defineOptions({ layout: AppLayout });
 
 const { formatDateTime } = useDateFormat();
 
+// El motivo de cada anulación, por tarjeta: el Popconfirm de una no puede
+// compartir texto con el de otra.
+const motivos = reactive({});
+
 function irA(pagina) {
     router.get(route('field_work.signatures.photos'), { page: pagina }, { preserveScroll: false });
+}
+
+function anular(evento) {
+    router.post(
+        route('field_work.signatures.resolve', evento.id),
+        { accepted: false, reason: motivos[evento.id] || null },
+        { preserveScroll: true, onSuccess: () => { delete motivos[evento.id]; } },
+    );
 }
 </script>
 
@@ -49,7 +68,42 @@ function irA(pagina) {
                     <strong class="album__nombre">{{ e.person }}</strong>
                     <Link v-if="e.plan" :href="e.plan.url" class="album__plan">{{ e.plan.code }}</Link>
                     <span class="album__hora">{{ formatDateTime(e.taken_at) }}</span>
+
+                    <!-- La cara no se llegó a verificar: palabra y color, nunca
+                         el color solo (docs/UI.md §5). Es un hecho, no una
+                         tarea: aquí no hay nada que resolver. -->
+                    <a-tag
+                        v-if="e.method !== 'face_recognition'"
+                        color="warning"
+                        :bordered="false"
+                        class="album__marca">
+                        {{ $t('field_work.photos.unrecognized') }}
+                    </a-tag>
                 </div>
+
+                <!-- Anular: la única acción del álbum, y la excepcional. El
+                     Popconfirm dice la consecuencia entera antes del toque
+                     (docs/UI.md §6: un botón que no cuenta lo que hace falla
+                     peor que ninguno) y deja escribir el motivo, opcional. -->
+                <a-popconfirm
+                    v-if="e.can_void"
+                    :title="$t('field_work.photos.void_confirm')"
+                    :ok-text="$t('field_work.photos.void')"
+                    ok-type="danger"
+                    @confirm="anular(e)">
+                    <template #description>
+                        <a-textarea
+                            v-model:value="motivos[e.id]"
+                            :placeholder="$t('field_work.photos.void_reason_placeholder')"
+                            :rows="2"
+                            :maxlength="255"
+                            class="album__motivo"
+                        />
+                    </template>
+                    <a-button type="text" size="small" danger class="album__anular">
+                        {{ $t('field_work.photos.void') }}
+                    </a-button>
+                </a-popconfirm>
             </a-card>
         </div>
 
@@ -103,6 +157,14 @@ function irA(pagina) {
 .album__nombre { line-height: 1.3; }
 .album__plan   { font-size: 12px; }
 .album__hora   { font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+
+/* La marca no estira la columna de datos: es una etiqueta, no un botón. */
+.album__marca  { margin-top: 4px; align-self: flex-start; }
+
+/* Discreto a propósito: la anulación es la excepción, no el uso normal. */
+.album__anular { margin-top: 4px; padding: 0 4px; font-size: 12px; }
+
+.album__motivo { margin-top: 8px; min-width: 220px; }
 
 .album__paginas { margin-top: 16px; text-align: center; }
 </style>

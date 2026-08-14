@@ -61,10 +61,12 @@ return [
     /*
      * El album de las firmas — SOLO SUPER.
      *
-     * Enseña exactamente tres cosas: el plan, el trabajador y la foto tomada
-     * al firmar (con su hora). Los parametros de la captura —coincidencia,
-     * coordenadas, IP, aparato— no salen aqui ni en ningun log, por regla del
-     * dueño del producto.
+     * Enseña el plan, el trabajador y la foto tomada al firmar (con su hora),
+     * mas la marca «Sin reconocimiento» cuando la cara no se llego a
+     * verificar. Los parametros de la captura —coincidencia, coordenadas, IP,
+     * aparato— no salen aqui ni en ningun log, por regla del dueño del
+     * producto. Es un observatorio, no una cola: la unica accion es anular una
+     * firma que se sabe falsa.
      */
     'photos' => [
         'title'     => 'Fotos de firmas',
@@ -74,12 +76,22 @@ return [
         // se deja un recuadro roto.
         'no_photo'  => 'La foto ya no está disponible',
         'open_plan' => 'Ver plan',
+        // La marca de la firma cuyo evento no paso el reconocimiento: palabra
+        // y color, nunca el color solo (docs/UI.md §5). No es una tarea — el
+        // album es un observatorio, no una cola.
+        'unrecognized' => 'Sin reconocimiento',
+        // Anular una firma que se sabe falsa. Discreto a proposito: es la
+        // decision excepcional, no el uso normal de la pantalla.
+        'void'                   => 'Anular',
+        'void_confirm'           => '¿Anular esta firma? La persona quedará como no firmada en el plan.',
+        'void_reason_placeholder' => 'Motivo (opcional)',
+        'voided'                 => 'Firma anulada.',
     ],
 
     'sign' => [
         'searching'          => 'Buscando un rostro…',
         'comparing'          => 'Comparando…',
-        'evidence'           => 'Sin coincidencia: tomando la foto para revisión',
+        'evidence'           => 'Sin coincidencia: tomando la foto como constancia',
         'frame_face'         => 'Encuadra el rostro',
         'enrolling'          => 'Registrando cara…',
         'enroll_progress'    => 'Registrando cara: :done de :total',
@@ -87,11 +99,14 @@ return [
         'enroll_failed'      => 'No se pudo registrar la cara. Inténtalo de nuevo con mejor luz.',
         'enroll_done'        => 'Cara registrada. Ahora firma.',
         'nobody_found'       => 'No se detectó a nadie frente a la cámara. No se registró nada.',
-        'challenge_failed'   => 'La cara coincide pero no se completó el gesto. La firma queda registrada y pendiente de revisión del supervisor.',
-        // Lo mismo pero sin saber por qué: la firma se guardó con su foto y no
-        // vale hasta que la mire un supervisor. Dice qué pasa con la firma, no
-        // qué falló la cámara: eso ya no lo puede arreglar quien lo lee.
-        'pending_review'     => 'La firma queda registrada, pero no se pudo verificar la cara. La revisará el supervisor.',
+        // Ninguno de estos promete una revisión: no la hay. La firma vale desde
+        // ya, con su foto guardada como constancia; lo único que se dice es si
+        // la cara se llegó a verificar. Prometer «la revisará el supervisor»
+        // era anunciar un trámite que no iba a pasar.
+        'challenge_failed'   => 'La cara coincide pero no se completó el gesto. La firma queda registrada con su foto.',
+        // Lo mismo pero sin saber por qué. Dice qué pasa con la firma, no qué
+        // falló la cámara: eso ya no lo puede arreglar quien lo lee.
+        'pending_review'     => 'No se pudo verificar la cara. La firma queda registrada con su foto.',
         'failed'             => 'No se pudo completar la firma.',
         // Firma trazada. Se pide una vez y se reutiliza, como en la v1.
         'has_signature_on_file' => 'Ya tiene su firma registrada',
@@ -103,7 +118,7 @@ return [
         'replace'            => 'Actualizar mi firma',
         'clear'              => 'Borrar',
         'take_photo_and_sign'=> 'Tomar foto y firmar',
-        // Sólo sale cuando la firma quedó pendiente de revisión: la limpia se va
+        // Sólo sale cuando la firma quedó sin reconocimiento: la limpia se va
         // al plan sola. Aquí vivía también `back_to_plan_in` («Volviendo al
         // plan… :n»), la cuenta atrás del botón. Se quitó con ella: contaba un
         // detalle del funcionamiento que a nadie le sirve y cambiaba el texto
@@ -112,7 +127,7 @@ return [
         'no_target'          => 'No se sabe a quién firmar',
         'no_target_hint'     => 'Vuelve al plan y pulsa Firmar en la fila de la persona.',
         'signature_required' => ':name no tiene firma registrada: hay que trazarla antes de firmar el plan.',
-        'left_pending'       => 'Firma registrada. Queda pendiente de revisión del supervisor.',
+        'left_pending'       => 'Firma registrada con su foto. La cara no se llegó a verificar.',
         'verified'           => 'Firma verificada.',
         'turn_head'          => 'Gira la cabeza hacia un lado',
         'nod_head'           => 'Asiente con la cabeza',
@@ -291,6 +306,9 @@ return [
         'correction_verification' => 'Verificación de la corrección',
         'responsible'             => 'Responsable',
         'observation'             => 'Observación',
+        // La columna del final de las inspecciones de izaje y de arnés: qué se
+        // encontró mal, dicho con las palabras de su papel.
+        'identified_condition'    => 'Condición identificada',
     ],
 
     // AST y PTF: el documento es una lista de ACTIVIDADES y, dentro de cada

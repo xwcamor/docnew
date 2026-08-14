@@ -106,10 +106,11 @@ class SignatureService
         // cambiaria nada.
         //
         // Salvo la sospechosa, y ese `&& ! $sospechosa` es el punto entero: esa
-        // firma se va a la bandeja del supervisor, y descartarle la foto lo
-        // mandaba a revisar una cara que no existe. Habia que verlo en ese
-        // orden para notarlo — el controlador marcaba «pendiente» DESPUES de
-        // que esta linea ya hubiera tirado la unica prueba que se iba a mirar.
+        // firma queda marcada «sin reconocimiento» y su foto es la unica
+        // constancia de quien la puso — descartarla dejaba la marca sin cara
+        // que enseñar en el album. Habia que verlo en ese orden para notarlo —
+        // el controlador marcaba «pendiente» DESPUES de que esta linea ya
+        // hubiera tirado la unica prueba que se iba a mirar.
         //
         // Y tampoco se descarta la de quien todavia no tiene foto de
         // referencia. Es la unica manera de que esa persona llegue a tener una
@@ -492,7 +493,13 @@ class SignatureService
         });
     }
 
-    /** Resolucion de una firma que quedo pendiente de revision. */
+    /**
+     * Anular (o dar por buena) una firma — lo que quedo de la antigua bandeja.
+     *
+     * Limpia `pending_review` y anota quien decidio; si se rechaza, ademas el
+     * firmable pierde `is_approved`: la persona vuelve a constar como no
+     * firmada en el plan. Lo llama solo `resolve`, que es SOLO SUPER.
+     */
     public function revisar(SignatureEvent $evento, bool $aceptada, int $revisorId, ?string $motivo = null): SignatureEvent
     {
         $evento->update([

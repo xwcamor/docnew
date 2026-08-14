@@ -20,16 +20,19 @@ use Spatie\Permission\Models\Role;
 use Tests\TestCase;
 
 /**
- * La bandeja de firmas por revisar no cruza empresas.
+ * Quien puede tocar una firma ajena — y quien no.
  *
- * `signature_events` no lleva scope de workspace propio —solo `Auditable`—, y
- * los tres caminos de la bandeja consultaban la tabla a pelo. Un admin de la
- * empresa A con `signature_events.review` veia la lista de firmas dudosas de la
- * empresa B: nombre, documento y **la foto de la cara** de gente que no es suya.
- * Con el id en la mano ademas podia darlas por buenas.
+ * Aqui vivia la bandeja de firmas por revisar, que ya no existe: la firma sin
+ * reconocimiento vale desde que se toma y lo unico que quedo de aquello es
+ * `resolve`, que anula una firma y es SOLO SUPER. Lo que estas pruebas
+ * vigilan ahora son las dos vallas que siguen en pie:
  *
- * El permiso dice QUE puede revisar firmas, no DE QUIEN. Esto ultimo lo pone el
- * plan del que cuelga la firma, que si esta acotado por workspace.
+ *   · el permiso `signature_events.review` ya NO resuelve firmas — solo
+ *     autoriza la manual, retira biometria y sirve las evidencias;
+ *   · las evidencias no cruzan empresas: un admin de la empresa A con el
+ *     permiso no se descarga la foto de la cara de un trabajador de la B.
+ *     El permiso dice QUE puede ver evidencias, no DE QUIEN — eso lo pone el
+ *     plan del que cuelga la firma, que si esta acotado por workspace.
  */
 class SignatureReviewScopeTest extends TestCase
 {
@@ -57,39 +60,20 @@ class SignatureReviewScopeTest extends TestCase
         Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web'], ['description' => 'a']);
     }
 
-    public function test_la_bandeja_solo_lista_las_firmas_del_propio_workspace(): void
+    /**
+     * El permiso de revision ya no resuelve firmas, ni siquiera las del propio
+     * workspace: anular quedo SOLO SUPER, desde el album de las firmas.
+     */
+    public function test_el_permiso_de_revision_ya_no_resuelve_firmas(): void
     {
-        $mia   = $this->firmaPendiente(1);
-        $ajena = $this->firmaPendiente(2);
+        $mia = $this->firmaPendiente(1);
 
         $this->actingAs($this->revisor(1));
 
-        $this->get(route('field_work.signatures.review'))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page
-                ->component('FieldWork/SignatureReview')
-                ->where('events.total', 1)
-                ->where('events.data.0.id', $mia->id));
-
-        // Y la de la otra empresa no aparece por ningun lado del JSON.
-        $this->assertSame(2, SignatureEvent::withoutGlobalScopes()->count(),
-            'las dos firmas siguen en la tabla: lo que cambia es quien las ve');
-        $this->assertNotNull($ajena->fresh());
-    }
-
-    public function test_no_se_resuelve_la_firma_de_otra_empresa(): void
-    {
-        $ajena = $this->firmaPendiente(2);
-
-        $this->actingAs($this->revisor(1));
-
-        // 404 y no 403: fuera del workspace esa fila no existe, y decir «no
-        // puedes» ya confirma que existe. En el navegador el 404 lo convierte
-        // `bootstrap/app.php` en una vuelta al panel con su aviso.
-        $this->post(route('field_work.signatures.resolve', $ajena->id), ['accepted' => true])
+        $this->post(route('field_work.signatures.resolve', $mia->id), ['accepted' => false])
             ->assertRedirect(route('dashboard_management.dashboards.index'));
 
-        $this->assertTrue((bool) $ajena->fresh()->pending_review, 'la firma ajena sigue pendiente');
+        $this->assertTrue((bool) $mia->fresh()->pending_review, 'la firma sigue tal cual: nadie la toco');
     }
 
     public function test_no_se_descarga_la_foto_de_la_firma_de_otra_empresa(): void
@@ -111,20 +95,24 @@ class SignatureReviewScopeTest extends TestCase
             ->assertRedirect(route('dashboard_management.dashboards.index'));
     }
 
-    /** El super sí las ve todas: es el caso legítimo de soporte. */
-    public function test_el_super_ve_las_de_todas_las_empresas(): void
+    /** El super sí anula la de cualquier empresa: es el caso legítimo de soporte. */
+    public function test_el_super_anula_la_firma_de_cualquier_empresa(): void
     {
-        $this->firmaPendiente(1);
-        $this->firmaPendiente(2);
+        $ajena = $this->firmaPendiente(2);
 
         Role::firstOrCreate(['name' => 'super', 'guard_name' => 'web'], ['description' => 's']);
         $super = User::factory()->create(['tenant_id' => 1, 'country_id' => 1, 'locale_id' => 1]);
         $super->assignRole('super');
 
         $this->actingAs($super)
-            ->get(route('field_work.signatures.review'))
-            ->assertOk()
-            ->assertInertia(fn ($page) => $page->where('events.total', 2));
+            ->post(route('field_work.signatures.resolve', $ajena->id), ['accepted' => false])
+            ->assertSessionHas('success');
+
+        $fresca = $ajena->fresh();
+        $this->assertFalse((bool) $fresca->pending_review, 'la firma quedo resuelta');
+        $this->assertNotNull($fresca->reviewed_at);
+        $this->assertFalse((bool) $fresca->signable->fresh()->is_approved,
+            'anular tumba la aprobacion del firmable');
     }
 
     // ── apoyo ────────────────────────────────────────────────────────────────
@@ -138,7 +126,7 @@ class SignatureReviewScopeTest extends TestCase
         return $usuario;
     }
 
-    /** Una firma dudosa colgando de un trabajador de un plan de ese workspace. */
+    /** Una firma sin reconocimiento colgando de un trabajador de un plan de ese workspace. */
     protected function firmaPendiente(int $tenant): SignatureEvent
     {
         $base = ['slug' => Str::random(22), 'country_id' => 1, 'tenant_id' => $tenant, 'created_by' => 1];
@@ -165,6 +153,7 @@ class SignatureReviewScopeTest extends TestCase
 
         $asignado = WorkPlanPerson::create([
             'slug' => Str::random(22), 'work_plan_id' => $plan->id, 'person_id' => $persona->id,
+            'is_approved' => true,
         ]);
 
         return SignatureEvent::create([

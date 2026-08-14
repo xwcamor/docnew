@@ -190,7 +190,9 @@ class SignatureController extends Controller
 
         $persona = Person::where('slug', $datos['person_slug'])->firstOrFail();
 
-        // Una firma manual solo la autoriza quien puede revisar firmas.
+        // Una firma manual solo la autoriza quien tiene `signature_events.review`,
+        // el permiso sensible de firmas: autorizar sin reconocimiento y ver las
+        // fotos de evidencia. (Ya no abre ninguna bandeja: no la hay.)
         if (($datos['manual_override'] ?? false) && ! $request->user()->can('signature_events.review')) {
             abort(403, __('No tienes permiso para firmar sin reconocimiento.'));
         }
@@ -261,26 +263,28 @@ class SignatureController extends Controller
         //
         // El resto de este controlador los lleva en castellano dentro de la
         // llamada —`__('Firma revisada.')`— y esos son deuda vieja, pero estos
-        // dos no se suman a ella: el de arriba es lo que lee alguien que cree
-        // que ya firmo y todavia no vale su firma, y esa frase tiene que
-        // poderse decir en los dos idiomas y llevar sus tildes.
+        // dos no se suman a ella: los lee quien acaba de firmar, y esa frase
+        // tiene que poderse decir en los dos idiomas y llevar sus tildes.
+        //
+        // Ninguno promete una revision: la firma sin reconocimiento vale desde
+        // ya, con su foto guardada. Lo que cambia entre los dos es solo si la
+        // cara se llego a verificar.
         $mensaje = $evento->pending_review
             ? __('field_work.sign.left_pending')
             : __('field_work.sign.verified');
 
         // Las dos se anuncian en el plan, y las dos se van alli.
         //
-        // La pendiente **detenia** la pantalla de firma, con su cartel y su
-        // boton para volver, con el argumento de que la persona tiene que saber
-        // que su firma todavia no vale. El argumento sigue en pie; el sitio era
-        // el equivocado: en obra la tablet pasa a la siguiente persona en
-        // cuanto suelta el dedo, y lo que hacia el cartel era obligar a un toque
-        // mas para seguir. Ademas era el unico sitio donde se decia — un cartel
-        // que se cierra y no deja nada detras.
+        // La sin reconocimiento **detenia** la pantalla de firma, con su cartel
+        // y su boton para volver. El sitio era el equivocado: en obra la tablet
+        // pasa a la siguiente persona en cuanto suelta el dedo, y lo que hacia
+        // el cartel era obligar a un toque mas para seguir. Ademas era el unico
+        // sitio donde se decia — un cartel que se cierra y no deja nada detras.
         //
-        // Ahora se dice en el plan, que es donde queda: en el aviso al llegar y,
-        // sobre todo, en la fila de esa persona, marcada «sin reconocer / por
-        // revisar» mientras un supervisor no la mire.
+        // Ahora se dice en el plan, que es donde queda: en el aviso al llegar
+        // y, sobre todo, en la fila de esa persona, marcada «Sin reconocer».
+        // No es una promesa de revision —ya no hay bandeja— sino el hecho, que
+        // tambien imprime el PDF como metodo de la firma.
         $request->session()->flash(
             $evento->pending_review ? 'warning' : 'success', $mensaje,
         );
@@ -302,38 +306,6 @@ class SignatureController extends Controller
         return $fila !== null && ((bool) $fila->is_approved || $fila->signatureEvents()->exists());
     }
 
-    /** Bandeja de firmas que quedaron pendientes de revision. */
-    public function review(Request $request)
-    {
-        abort_unless($request->user()->can('signature_events.review'), 403);
-
-        $pendientes = SignatureEvent::pendingReview()
-            ->delWorkspace()
-            ->with(['person:id,slug,name,lastname,num_doc', 'files'])
-            ->latest('signed_at')
-            ->paginate(20)
-            ->through(fn ($e) => [
-                'id' => $e->id,
-                'person' => $this->personaVisible($e->person),
-                'method' => $e->method,
-                'signed_at' => $e->signed_at,
-                // En porcentaje de coincidencia y no en distancia: «0,32» se lee
-                // al reves de como se piensa —el numero bueno es el bajo— y no
-                // le dice nada a quien esta decidiendo si acepta una firma.
-                'match_percent'  => $e->match_percent,
-                'manual_override' => $e->manual_override,
-                'override_reason' => $e->override_reason,
-                'evidence' => $e->files->map(fn ($f) => [
-                    'kind' => $f->kind,
-                    'url'  => Storage::disk('local')->exists($f->file_path)
-                        ? route('field_work.signatures.evidence', $f->id)
-                        : null,
-                ]),
-            ]);
-
-        return inertia('FieldWork/SignatureReview', ['events' => $pendientes]);
-    }
-
     /**
      * El album de las firmas: el plan, el trabajador y la foto de ese momento.
      *
@@ -343,7 +315,9 @@ class SignatureController extends Controller
      *
      * Tres decisiones del dueño del producto gobiernan esta pantalla:
      *
-     *   · Enseña EXACTAMENTE tres cosas: plan, persona y foto (con su hora).
+     *   · Enseña el plan, la persona y la foto (con su hora), mas el METODO de
+     *     la firma y la marca «sin reconocimiento» — que son hechos, no
+     *     parametros: el album existe para ver quien fallo el reconocimiento.
      *     Nada de coincidencias, coordenadas, IPs ni aparatos — esos
      *     parametros no se exhiben aqui ni en ningun log.
      *   · Mirarla NO se audita. Es lectura pura: no escribe en `audit_logs`
@@ -396,16 +370,39 @@ class SignatureController extends Controller
                     'photo_url' => $foto && Storage::disk('local')->exists($foto->file_path)
                         ? route('field_work.signatures.evidence', $foto->id)
                         : null,
+                    // Como se firmo. No es un parametro de la captura —esos
+                    // siguen sin salir— sino el hecho que el album vino a
+                    // enseñar: quien paso el reconocimiento y quien no.
+                    'method'   => $e->method,
+                    // «Sin reconocimiento»: el dato `pending_review` de siempre
+                    // —se conserva en la base—, que aqui ya no promete ninguna
+                    // revision. Es solo la marca de que la cara no se verifico.
+                    'sin_reconocimiento' => (bool) $e->pending_review,
+                    // Si todavia se puede anular: una firma ya resuelta —anulada
+                    // o dada por buena a mano— no se vuelve a tocar.
+                    'can_void' => $e->reviewed_at === null,
                 ];
             });
 
         return inertia('FieldWork/SignaturePhotos', ['events' => $eventos]);
     }
 
-    /** Resolucion de una firma pendiente. */
+    /**
+     * Anular (o, en el limite, dar por buena) una firma — SOLO SUPER.
+     *
+     * Es lo que quedo de la antigua bandeja de revision. La firma sin
+     * reconocimiento vale desde que se toma: el PDF imprime su metodo y el
+     * album la enseña marcada, sin cola ni obligacion de mirar nada. Lo unico
+     * que hace falta poder hacer es tumbar una que se sabe falsa, y esa
+     * decision excepcional es del super, desde el album.
+     *
+     * La ruta ya exige `role:super`; se repite aqui porque una defensa que
+     * vive solo en el fichero de rutas se pierde el dia que alguien reordena
+     * middlewares.
+     */
     public function resolve(Request $request, SignatureEvent $signature_event)
     {
-        abort_unless($request->user()->can('signature_events.review'), 403);
+        abort_unless($request->user()?->hasRole('super'), 403);
         $this->soloDelWorkspace($signature_event);
 
         $datos = $request->validate([
@@ -415,7 +412,9 @@ class SignatureController extends Controller
 
         $this->firmas->revisar($signature_event, $datos['accepted'], $request->user()->id, $datos['reason'] ?? null);
 
-        return back()->with('success', __('Firma revisada.'));
+        return back()->with('success', $datos['accepted']
+            ? __('Firma revisada.')
+            : __('field_work.photos.voided'));
     }
 
     /** La evidencia no es publica: se sirve autenticada, con permiso y del propio workspace. */

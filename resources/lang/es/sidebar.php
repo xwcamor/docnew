@@ -15,7 +15,6 @@ return [
     // ── Trabajo en obra ───────────────────────────────────────────────────
     'group_field'        => 'Trabajo en obra',
     'work_plans'         => 'Planes de trabajo',
-    'signature_events'   => 'Firmas por revisar',
     // Solo la ve el super: plan, trabajador y la foto tomada al firmar.
     'signature_photos'   => 'Fotos de firmas',
 
@@ -79,6 +78,9 @@ return [
     // al identificador crudo si falta. Sin ellas, la auditoria enseñaba
     // «form_submissions» en la cara del usuario.
     'form_submissions'   => 'Documentos llenados',
+    // Era la entrada «Firmas por revisar» del menu; la bandeja se fue y la
+    // clave se queda para rotular el modulo en el historial de cambios.
+    'signature_events'   => 'Firmas',
     'customers'          => 'Clientes',
     'brands'             => 'Marcas',
     'permissions'        => 'Permisos',

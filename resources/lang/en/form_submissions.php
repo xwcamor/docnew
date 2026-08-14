@@ -44,8 +44,6 @@ return [
         'document_number' => 'ID number',
         'signed_at'       => 'Time',
         'col_method'      => 'Method',
-        'pending_review'  => 'PENDING REVIEW',
-        'reviewed'        => 'Verified',
         // The percentage, not the distance: whoever reads the report has no
         // reason to know that «0.15» is good and «0.55» is not.
         'match'           => 'Face match :value %',

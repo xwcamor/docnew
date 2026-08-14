@@ -73,7 +73,7 @@ Los siembra `RolesAndPermissionsSeeder` aparte de los canónicos.
 | Permiso | Qué controla |
 |---|---|
 | **form_submissions.sign** | **Firmar** un formato, con reconocimiento facial o con captura por tiempo de espera. Está separado del CRUD a propósito: se puede llenar un formato sin poder firmarlo. |
-| **signature_events.review** | Resolver la **bandeja de firmas pendientes**, autorizar una firma manual, quitar el enrolamiento de una persona y **ver los archivos de evidencia**. Es el permiso más sensible del sistema: es quien puede mirar las fotos de las caras. |
+| **signature_events.review** | Autorizar una **firma manual**, quitar el enrolamiento de una persona y **ver los archivos de evidencia**. Es el permiso más sensible del sistema: es quien puede mirar las fotos de las caras. (La antigua bandeja de revisión ya no existe: la firma sin reconocimiento vale desde que se toma, y **anularla** es solo del super, desde el álbum de fotos de firmas.) |
 | **comments.view / create / delete** | Ver, escribir y borrar comentarios de usuario. |
 | **diagnosis_notes.create** | **Permiso muerto.** Venía del hilo "Nota del diagnosticador" de TRAFODEX. Se sigue sembrando y sigue apareciendo en el formulario de perfiles, pero no habilita nada. |
 
@@ -237,9 +237,9 @@ edita. Salen de `RolesAndPermissionsSeeder`.
 
 | Perfil | Permisos | Para quién |
 |---|---|---|
-| **Supervisor de obra** | `work_plans` y `form_submissions` todo salvo `delete`; `people` view/show/create/edit/export; `companies` y `form_templates` solo lectura; `form_submissions.sign`; `signature_events.review`; `comments.view/create` | Quien arma el plan del día, registra a su cuadrilla, llena y firma los formatos, y resuelve la bandeja de firmas pendientes. No elimina nada ni toca las plantillas de formato. |
+| **Supervisor de obra** | `work_plans` y `form_submissions` todo salvo `delete`; `people` view/show/create/edit/export; `companies` y `form_templates` solo lectura; `form_submissions.sign`; `signature_events.review`; `comments.view/create` | Quien arma el plan del día, registra a su cuadrilla, llena y firma los formatos, y puede autorizar una firma manual. No elimina nada ni toca las plantillas de formato. |
 | **Usuario de campo** | `work_plans` view/show; `form_submissions` view/show/create/edit; `people` view/show; `form_submissions.sign`; `comments.view/create` | El trabajador que llena y firma los formatos del plan al que está asignado. No crea planes ni da de alta personas. |
-| **Auditor HSE (solo lectura)** | view/show/export sobre `companies`, `people`, `work_plans`, `form_templates`, `form_submissions`; `signature_events.review`; `comments.view` | Consulta y exporta todo. Puede abrir la bandeja de revisión y ver las evidencias, que es la razón de ser del perfil. No modifica nada. |
+| **Auditor HSE (solo lectura)** | view/show/export sobre `companies`, `people`, `work_plans`, `form_templates`, `form_submissions`; `signature_events.review`; `comments.view` | Consulta y exporta todo. Puede ver las evidencias de las firmas, que es la razón de ser del perfil. No modifica nada. |
 | **Soporte (editor)** | Todos los módulos de negocio salvo `delete`; `comments.view/create` | Crea y edita cualquier dato de negocio, no elimina. No firma. |
 
 Nótese que `signature_events.review` lo llevan **dos** perfiles: el supervisor,

@@ -87,4 +87,5 @@ que son las plantillas que usa `make:module`.
 
 **Lo que ya se puede hacer de punta a punta**: crear el plan del día, añadir la cuadrilla, llenar un
 formato con campos o subir la foto de una HOJA X, firmar con la cámara (con captura por tiempo de
-espera cuando no reconoce) y resolver la bandeja de firmas pendientes.
+espera cuando no reconoce, que vale desde que se toma) y, como super, mirar el álbum de fotos de
+firmas y anular una firma falsa.
