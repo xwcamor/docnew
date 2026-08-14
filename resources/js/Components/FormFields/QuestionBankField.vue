@@ -23,10 +23,21 @@
  * PTF una pregunta en blanco es una pregunta **sin responder**: el campo es
  * obligatorio y hay que contestarlas todas.
  *
- * Eso no lo decide esta pantalla: lo decide el catalogo. El PTF se siembra con
- * dos respuestas —«Si» y «No»— y sin ninguna que signifique «no aplica», asi
- * que `palabrasDelCiclo()` devuelve `na: null` y la leyenda que sale es la que
- * NO promete ningun relleno. Prometer lo que no va a pasar es peor que callarse.
+ * Y de ahi salen las dos diferencias con el EPP:
+ *
+ *  1. **«No aplica» SI entra en el ciclo** (`:rellena-al-cerrar="false"`). En el
+ *     EPP se queda fuera porque el servidor la escribe solo; aqui no la escribe
+ *     nadie, asi que dejarla fuera la volveria una respuesta del catalogo
+ *     imposible de dar con el dedo. El PTF sembrado no tiene ninguna —se siembra
+ *     con «Si» y «No»— pero las entregas migradas si, y un cliente puede traer
+ *     la suya.
+ *  2. **La leyenda no promete ningun relleno.** Prometer lo que no va a pasar es
+ *     peor que callarse.
+ *
+ * LA PREGUNTA SIN RESPONDER SE MARCA UNA A UNA (`.ff-check.is-missing`). El
+ * aviso de arriba dice cuantas faltan y el contador dice cuantas van, pero
+ * ninguno de los dos dice CUALES: en una lista de diez frases largas, eso es
+ * volver a leerlas todas.
  *
  * UNA POR LINEA, al reves que los otros dos: las preguntas son frases enteras
  * («¿Estan disponibles y comprendidos: la evaluacion de riesgos (ABRA), AST, el
@@ -119,11 +130,13 @@ const pendientes = computed(() => filas.value.length - contestadas.value);
             {{ $t('field_work.progress.questions_done', { done: contestadas, total: filas.length }) }}
         </p>
 
-        <!-- Como se contesta, dicho antes de contestar nada. La variante sin
-             «no aplica» a proposito: aqui el gris es «sin responder» y el
-             servidor no lo rellena al cerrar. Ver la nota de arriba. -->
+        <!-- Como se contesta, dicho antes de contestar nada. Ninguna de las dos
+             variantes promete relleno al cerrar, porque aqui no lo hay: el gris
+             es «sin responder». La que se elige depende de si el catalogo trae
+             «no aplica», que aqui es un toque mas del ciclo y no una palabra que
+             escriba el servidor. Ver la nota de arriba. -->
         <p v-if="pista && !readonly" class="ff-hint">
-            {{ $t('field_work.checklist_hint_no_na', pista) }}
+            {{ $t(pista.na ? 'field_work.checklist_hint_na_tocable' : 'field_work.checklist_hint_no_na', pista) }}
         </p>
 
         <!-- Una por linea: son frases enteras y en dos columnas cada pastilla se
@@ -140,6 +153,7 @@ const pendientes = computed(() => filas.value.length - contestadas.value);
                     :answers="respuestas"
                     :readonly="readonly"
                     :label="f.question"
+                    :rellena-al-cerrar="false"
                     :deshacible="esUltimo(0, f.question)"
                     @update:value="responder(f.question, $event)"
                     @deshacer="deshacer"

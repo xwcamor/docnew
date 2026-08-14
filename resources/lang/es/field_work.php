@@ -175,9 +175,13 @@ return [
     // Ninguna de las tres se escribe aquí: son las que se van a ver en la
     // pantalla y a quedar en el documento.
     'checklist_hint'  => 'Toca un punto y queda «:ok». Tócalo otra vez si algo falla y queda «:bad»; una tercera vez lo deja sin marcar. Lo que quede sin marcar se guarda como «:na» al cerrar el documento, y si te pasas de toque, el botón de deshacer que sale al lado devuelve el punto a como estaba.',
-    // La misma leyenda para el formato cuyo catálogo NO tiene un «no aplica»:
-    // ahí el servidor no rellena nada al cerrar, y prometerlo sería mentir.
+    // Las dos leyendas del campo en el que el servidor NO rellena nada al
+    // cerrar —el banco de preguntas del PTF—, donde el gris es «sin responder»
+    // y prometer un relleno sería mentir. La primera, para el catálogo de dos
+    // respuestas; la segunda, para el que además trae un «no aplica», que ahí
+    // no lo escribe nadie y por eso es un toque más del ciclo.
     'checklist_hint_no_na' => 'Toca un punto y queda «:ok». Tócalo otra vez si algo falla y queda «:bad»; una tercera vez lo deja sin marcar. Si te pasas de toque, el botón de deshacer que sale al lado devuelve el punto a como estaba.',
+    'checklist_hint_na_tocable' => 'Toca un punto y queda «:ok». Tócalo otra vez si algo falla y queda «:bad», y una tercera si no viene al caso y queda «:na»; el siguiente toque lo deja sin marcar. Si te pasas de toque, el botón de deshacer que sale al lado devuelve el punto a como estaba.',
     // El estado de una casilla en gris, para decirlo en palabra: en el
     // `aria-label` de la pastilla y en el documento ya cerrado. El color nunca
     // va solo (docs/UI.md §5), y el gris tampoco.

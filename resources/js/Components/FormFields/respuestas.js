@@ -60,16 +60,25 @@ export function respuestaNegativa(respuestas = []) {
 
 /**
  * El ciclo de toques de una casilla de checklist: [sin marcar, conforme, no
- * conforme].
+ * conforme] y, cuando hace falta, «no aplica» al final.
  *
- * POR QUE SOLO DOS RESPUESTAS Y NO LAS TRES DEL CATALOGO
- * -----------------------------------------------------
- * «No aplica» NO entra en el ciclo porque ya no hace falta tocarla: al
- * confirmar, el servidor escribe esa misma palabra en todo lo que quedo en
- * blanco (`FormSubmissionService::cerrarLoSinMarcarComoNoAplica`). Dejar la
- * casilla en gris ES decir «no aplica», asi que meterla en el ciclo pondria un
- * tercer toque para llegar a un sitio en el que ya se estaba —y un toque de
- * mas en una lista de veinticinco casillas por trabajador se paga caro.
+ * LA REGLA: UNA RESPUESTA QUE EL SERVIDOR NO VA A ESCRIBIR TIENE QUE PODERSE
+ * TOCAR
+ * -------------------------------------------------------------------------
+ * En el EPP y en la inspeccion de herramientas, «No aplica» NO entra en el
+ * ciclo porque ya no hace falta tocarla: al confirmar, el servidor escribe esa
+ * misma palabra en todo lo que quedo en blanco
+ * (`FormSubmissionService::cerrarLoSinMarcarComoNoAplica`). Dejar la casilla en
+ * gris ES decir «no aplica», asi que meterla en el ciclo pondria un tercer
+ * toque para llegar a un sitio en el que ya se estaba —y un toque de mas en una
+ * lista de veinticinco casillas por trabajador se paga caro.
+ *
+ * En el banco de preguntas del PTF eso NO pasa: ese relleno recorre solo
+ * `person_checklist` y `tool_checklist`, asi que una pregunta en blanco es una
+ * pregunta sin responder y nada mas. Ahi, dejar «No aplica» fuera del ciclo la
+ * volveria IMPOSIBLE de elegir — una respuesta del catalogo que no se puede dar
+ * con el dedo—, y por eso `rellenaAlCerrar: false` la mete al final: despues de
+ * las dos comunes, que siguen costando un toque y dos.
  *
  * Se ordena a proposito: primero lo que se marca casi siempre (conforme) y
  * despues la excepcion (no conforme). El caso comun cuesta un toque.
@@ -80,13 +89,15 @@ export function respuestaNegativa(respuestas = []) {
  * o sin negativa devuelve un ciclo mas corto y la casilla sigue funcionando.
  *
  * @param {string[]} respuestas  `config.answers` del campo
+ * @param {{rellenaAlCerrar?: boolean}} opciones  si el servidor cierra los huecos
  * @returns {Array<string|null>} el ciclo, empezando siempre por `null`
  */
-export function cicloRespuestas(respuestas = []) {
+export function cicloRespuestas(respuestas = [], { rellenaAlCerrar = true } = {}) {
     const ok = respuestas.find((r) => tono(r) === 'ok') ?? null;
     const bad = respuestaNegativa(respuestas);
+    const na = rellenaAlCerrar ? null : respuestaNoAplica(respuestas);
 
-    return [null, ok, bad].filter((r, i) => i === 0 || r !== null);
+    return [null, ok, bad, na].filter((r, i) => i === 0 || r !== null);
 }
 
 /**
@@ -112,10 +123,11 @@ export function siguienteEnCiclo(ciclo, valor) {
  * el IHM «Cumple/No cumple»— y nunca escritas a pelo: la leyenda tiene que
  * decir la palabra que se va a ver en la casilla y a quedar en el documento.
  *
- * `na` puede venir a null: es el formato cuyo catalogo no tiene «no aplica», y
- * entonces el servidor tampoco rellena los huecos al cerrar. La leyenda que se
- * elige con eso es otra, porque prometer lo que no va a pasar es peor que
- * callarse.
+ * `na` puede venir a null: es el formato cuyo catalogo no tiene «no aplica». La
+ * leyenda que se elige con eso es otra, porque prometer lo que no va a pasar es
+ * peor que callarse. Y cuando NO viene a null significa una cosa u otra segun el
+ * campo —la palabra que el servidor escribira al cerrar, o el tercer toque del
+ * ciclo—, asi que quien pinta la leyenda es quien sabe cual de las dos es.
  *
  * @returns {{ok: string, bad: string, na: string|null}|null}
  */

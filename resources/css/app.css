@@ -2420,10 +2420,33 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-cell.is-missing .ff-chips .ff-chip:not(.is-on) { border-color: var(--state-bad-border); }
 
 /* La pregunta sin responder del banco, cuando el guardado dejó el campo
-   pendiente: filete rojo al canto y fondo teñido, fila a fila. */
-.ff-item.is-missing {
+   pendiente: fondo teñido y filete rojo al canto, pregunta a pregunta.
+
+   ESTO SE PERDIÓ Y HAY QUE DEJARLO ATADO. La regla vivía en `.ff-item.is-missing`
+   —la fila con su texto a la izquierda y los tres botones a la derecha—, y al
+   pasar el PTF a la pastilla que cicla, la lista dejó de pintar `.ff-item` y
+   empezó a pintar `.ff-check`. La plantilla seguía poniendo `is-missing` en su
+   sitio y nadie lo pintaba: el aviso de arriba decía «faltan 4» y no había
+   manera de ver CUÁLES, que en una lista de diez frases largas es volver a
+   leerlas todas.
+
+   Va sobre la pastilla y no sobre la celda porque la celda es sólo la caja que
+   la coloca. Y no puede pelearse con ningún color de estado: una pregunta que
+   está marcada como `is-missing` es, por definición, una que quedó sin
+   responder — o sea siempre `.ff-cycle.is-off`. */
+.ff-check.is-missing .ff-cycle {
     background: var(--state-bad-bg);
+    border-color: var(--state-bad-text);
     box-shadow: inset 3px 0 0 var(--state-bad-text);
+}
+/* Y el recuadro vacío de la marca, que sin esto se queda gris sobre el fondo
+   teñido y parece que la casilla está apagada en vez de reclamada. */
+.ff-check.is-missing .ff-cycle__mark { border-color: var(--state-bad-text); }
+/* El realce del ratón tampoco puede tapar el aviso: se oscurece, como en las
+   pastillas ya marcadas, en vez de devolverle el fondo blanco. */
+.ff-check.is-missing .ff-cycle.is-off:not(.is-ro):hover {
+    background: var(--state-bad-bg);
+    filter: brightness(0.97);
 }
 
 /* El vacío obligatorio: mismo cajón punteado, pero dice que no puede quedarse así. */

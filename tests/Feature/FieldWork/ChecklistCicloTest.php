@@ -130,19 +130,95 @@ class ChecklistCicloTest extends TestCase
     }
 
     /**
-     * «No aplica» no entra en el ciclo, y el ciclo empieza por el hueco.
+     * El ciclo empieza por el hueco, y «no aplica» solo entra donde hace falta.
      *
      * El orden tambien importa: primero lo que se marca casi siempre y despues
-     * la excepcion, para que el caso comun cueste un toque.
+     * la excepcion, para que el caso comun cueste un toque. «No aplica», cuando
+     * entra, entra la ultima.
      */
     public function test_el_ciclo_es_sin_marcar_conforme_no_conforme(): void
     {
-        $js = file_get_contents(resource_path('js/Components/FormFields/respuestas.js'));
+        $js = $this->respuestasJs();
 
-        $this->assertStringContainsString('return [null, ok, bad].filter', $js,
-            'el ciclo es [sin marcar, positiva, negativa] y no incluye «no aplica»');
+        $this->assertStringContainsString('return [null, ok, bad, na].filter', $js,
+            'el ciclo es [sin marcar, positiva, negativa] y «no aplica» va la ultima');
+        $this->assertStringContainsString('rellenaAlCerrar ? null : respuestaNoAplica(respuestas)', $js,
+            'quien decide si «no aplica» entra es si el servidor la escribe sola, nada mas');
         $this->assertStringContainsString('export function siguienteEnCiclo', $js);
         $this->assertStringContainsString('export function palabrasDelCiclo', $js);
+    }
+
+    /**
+     * UNA RESPUESTA QUE EL SERVIDOR NO VA A ESCRIBIR TIENE QUE PODERSE TOCAR.
+     *
+     * EL FALLO QUE CIERRA
+     * -------------------
+     * Al llevar la pastilla al PTF se llevo tambien su ciclo de dos toques, y
+     * ese ciclo deja «No aplica» fuera **porque el servidor la escribe sola** al
+     * cerrar. En el PTF no la escribe nadie —el relleno recorre
+     * `person_checklist` y `tool_checklist`, y el banco de preguntas no esta
+     * ahi—, asi que en cualquier PTF cuyo catalogo la traiga, «No aplica» paso a
+     * ser una respuesta **imposible de dar con el dedo**. El PTF sembrado tiene
+     * solo «Si» y «No» y no lo notaba; las entregas migradas si la traen
+     * (`CompositeFieldAnswersTest::entregaPtf`).
+     *
+     * La regla, dicha entera: el ciclo NO es una lista de dos estados, es «todo
+     * lo que nadie va a rellenar por ti». Las dos mitades tienen que seguir de
+     * acuerdo — si algun dia el servidor rellenara tambien las preguntas del
+     * PTF, esta prueba y la de arriba son las que lo dicen.
+     */
+    public function test_lo_que_el_servidor_no_rellena_se_puede_tocar(): void
+    {
+        $pastilla = $this->vista('AnswerCycle');
+
+        $this->assertStringContainsString('rellenaAlCerrar: { type: Boolean, default: true }', $pastilla,
+            'la pastilla no adivina si el servidor rellena: se lo dice el campo');
+        $this->assertStringContainsString('cicloRespuestas(props.answers, { rellenaAlCerrar: props.rellenaAlCerrar })', $pastilla);
+
+        // El PTF lo pide, porque es el campo que el servidor no cierra.
+        $this->assertStringContainsString(':rellena-al-cerrar="false"', $this->vista('QuestionBankField'),
+            'en el PTF una pregunta en blanco no la rellena nadie: «no aplica» hay que poder tocarla');
+
+        // Y los dos que si se cierran solos no lo piden: se quedan en el ciclo
+        // corto, que es el que ahorra el toque en veinticinco casillas.
+        foreach (self::CHECKLISTS as $componente) {
+            $this->assertStringNotContainsString('rellena-al-cerrar', $this->vista($componente),
+                "{$componente} lo cierra el servidor: «no aplica» no tiene que costar un toque");
+        }
+    }
+
+    /**
+     * La pregunta del PTF que quedo sin responder se marca UNA A UNA.
+     *
+     * EL OTRO FALLO QUE CIERRA
+     * ------------------------
+     * El aviso de cabecera dice «faltan 4» y el contador dice «6/10», pero
+     * ninguno de los dos dice CUALES, y en una lista de diez frases largas eso
+     * es volver a leerlas todas. El marcado por pregunta existia
+     * (`.ff-item.is-missing`) y dejo de pintarse al pasar el PTF a la pastilla:
+     * la lista ya no pinta `.ff-item` sino `.ff-check`, la plantilla seguia
+     * poniendo `is-missing` en su sitio y no habia ninguna regla que lo
+     * recogiera.
+     */
+    public function test_la_pregunta_que_falta_se_ve_cual_es(): void
+    {
+        $ptf = $this->vista('QuestionBankField');
+
+        $this->assertStringContainsString("'is-missing': faltante && !readonly && sinContestar(f)", $ptf,
+            'la pregunta sin responder se marca en su propia casilla');
+
+        $css = $this->css();
+
+        $this->assertMatchesRegularExpression(
+            '/\.ff-check\.is-missing\s+\.ff-cycle\s*\{[^}]*background/',
+            $css,
+            'la clase que pone la plantilla tiene que pintar algo: `.ff-item` ya no lo pinta nadie',
+        );
+
+        // Y el raton no puede devolverle el fondo blanco y borrar el aviso: es
+        // el mismo fallo de especificidad que ya arreglamos en los estados.
+        $this->assertStringContainsString('.ff-check.is-missing .ff-cycle.is-off:not(.is-ro):hover', $css,
+            'el realce del raton no puede tapar la marca de lo que falta');
     }
 
     /**
@@ -350,6 +426,13 @@ class ChecklistCicloTest extends TestCase
             $this->assertStringNotContainsString(':na', $textos['checklist_hint_no_na'],
                 'sin «no aplica» en el catalogo el servidor no rellena nada, y prometerlo seria mentir');
 
+            // La tercera: el campo que el servidor no cierra Y cuyo catalogo si
+            // trae «no aplica». Ahi la palabra sale, pero como un toque mas del
+            // ciclo, no como algo que vaya a escribirse solo al cerrar.
+            foreach ([':ok', ':bad', ':na'] as $hueco) {
+                $this->assertStringContainsString($hueco, $textos['checklist_hint_na_tocable']);
+            }
+
             $this->assertNotEmpty($textos['checklist_unmarked']);
             $this->assertStringContainsString(':next', $textos['checklist_tap_next']);
             $this->assertStringContainsString(':item', $textos['checklist_undo']);
@@ -399,6 +482,11 @@ class ChecklistCicloTest extends TestCase
     private function css(): string
     {
         return file_get_contents(resource_path('css/app.css'));
+    }
+
+    private function respuestasJs(): string
+    {
+        return file_get_contents(resource_path('js/Components/FormFields/respuestas.js'));
     }
 
     /** El cuerpo de una regla CSS, para poder mirar lo que declara. */

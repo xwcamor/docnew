@@ -130,8 +130,10 @@ return [
     // How a checklist is filled in: the legend above the boxes, and the three
     // things a tap cycle has to say out loud. Ver la nota larga en `es`.
     'checklist_hint'  => 'Tap an item and it turns ":ok". Tap it again if something is wrong and it turns ":bad"; a third tap leaves it unmarked. Anything left unmarked is saved as ":na" when the document is closed, and if you tap once too many, the undo button next to it puts the item back.',
-    // The same legend for a form whose catalogue has no "not applicable".
+    // The two legends for the field the server does NOT fill in on close. Ver la
+    // nota en `es`.
     'checklist_hint_no_na' => 'Tap an item and it turns ":ok". Tap it again if something is wrong and it turns ":bad"; a third tap leaves it unmarked. If you tap once too many, the undo button next to it puts the item back.',
+    'checklist_hint_na_tocable' => 'Tap an item and it turns ":ok". Tap it again if something is wrong and it turns ":bad", and a third time if it does not apply and it turns ":na"; the next tap leaves it unmarked. If you tap once too many, the undo button next to it puts the item back.',
     // A grey box, said in words: colour never travels alone (docs/UI.md §5).
     'checklist_unmarked' => 'Unmarked',
     'checklist_tap_next' => 'Tap to mark it ":next".',

@@ -15,12 +15,18 @@
  * punto ya no necesita su fila entera, las pastillas caben varias por linea y
  * la lista deja de medir lo que medía.
  *
- * POR QUE EL CICLO SOLO TIENE DOS TOQUES UTILES
- * ---------------------------------------------
- * «No aplica» no entra. Al confirmar, el servidor escribe esa palabra en todo
- * lo que quedo en blanco (`FormSubmissionService::cerrarLoSinMarcarComoNoAplica`),
- * asi que la pastilla gris YA significa «no aplica» y tocarla tres veces para
- * llegar a donde estaba seria trabajo por nada. Ver `cicloRespuestas()`.
+ * CUANTOS TOQUES TIENE EL CICLO LO DECIDE QUIEN CIERRA LOS HUECOS
+ * ---------------------------------------------------------------
+ * En el EPP y en la inspeccion de herramientas «No aplica» no entra: al
+ * confirmar, el servidor escribe esa palabra en todo lo que quedo en blanco
+ * (`FormSubmissionService::cerrarLoSinMarcarComoNoAplica`), asi que la pastilla
+ * gris YA significa «no aplica» y tocarla tres veces para llegar a donde estaba
+ * seria trabajo por nada.
+ *
+ * Donde el servidor NO rellena —el banco de preguntas del PTF, que no esta en
+ * esa lista de tipos— la misma decision se vuelve del reves: dejar «No aplica»
+ * fuera del ciclo la haria imposible de elegir. Por eso se pide con
+ * `rellenaAlCerrar`, y no se adivina. Ver `cicloRespuestas()`.
  *
  * POR QUE EL VERDE NO LLEVA LA PALABRA Y EL ROJO SI
  * -------------------------------------------------
@@ -44,16 +50,6 @@
  * recorre buscando la excepcion, se lee un documento cerrado y cada casilla
  * tiene que valer por si sola.
  *
- * POR QUE ES UN COMPONENTE NUEVO Y NO `AnswerToggle` REESCRITO
- * -----------------------------------------------------------
- * Porque `AnswerToggle` sigue haciendo falta tal cual en el banco de preguntas
- * del PTF, y alli el ciclo MENTIRIA: el servidor solo cierra los huecos como
- * «no aplica» en `person_checklist` y `tool_checklist`, asi que en el PTF una
- * pregunta en blanco es una pregunta sin responder y nada mas. Un tercer estado
- * que ahi no significa lo que dice seria peor que la fila de botones. Ademas
- * son diez preguntas largas y no veinticinco etiquetas cortas: la cuadricula no
- * les aporta nada.
- *
  * NO CAMBIA LA FORMA DEL VALOR: emite la etiqueta del catalogo o `null`, que es
  * lo que emitia `AnswerToggle` y lo que esperan el servidor, el PDF y las
  * 14 000 entregas migradas (`CompositeFieldAnswersTest`).
@@ -75,6 +71,14 @@ const props = defineProps({
      * pantalla— y no la propia pastilla: ver el comentario de `ultimoToque.js`.
      */
     deshacible: { type: Boolean, default: false },
+    /**
+     * Si el servidor cierra los huecos de este campo como «no aplica» al
+     * confirmar. Es lo unico que decide si «No aplica» entra en el ciclo, y va
+     * pedido a proposito: la pastilla no puede deducirlo del catalogo —el mismo
+     * catalogo con «No aplica» se rellena solo en el EPP y no en el PTF— y
+     * adivinarlo mal deja una respuesta imposible de dar con el dedo.
+     */
+    rellenaAlCerrar: { type: Boolean, default: true },
 });
 
 const emit = defineEmits(['update:value', 'deshacer']);
@@ -89,7 +93,7 @@ const { t } = useI18n();
  */
 const clave = computed(() => (props.value ? tono(props.value) : 'off'));
 
-const ciclo = computed(() => cicloRespuestas(props.answers));
+const ciclo = computed(() => cicloRespuestas(props.answers, { rellenaAlCerrar: props.rellenaAlCerrar }));
 
 /** Sin ciclo que recorrer la pastilla no se toca: no hay a donde llevarla. */
 const tocable = computed(() => ! props.readonly && ciclo.value.length > 1);
