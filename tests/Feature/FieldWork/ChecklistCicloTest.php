@@ -82,32 +82,51 @@ class ChecklistCicloTest extends TestCase
     }
 
     /**
-     * Y el banco de preguntas del PTF NO cicla: se queda con los tres botones.
+     * El PTF tambien cicla, PERO su gris no significa «no aplica».
      *
-     * Es la razon de que la pastilla sea un componente nuevo y no `AnswerToggle`
-     * reescrito. El ciclo se apoya en que dejar en blanco significa «no aplica»,
-     * y eso SOLO es verdad donde el servidor lo escribe al cerrar: en
-     * `person_checklist` y `tool_checklist`. En el PTF una pregunta en blanco es
-     * una pregunta sin responder, y un tercer estado que ahi no significa lo que
-     * dice seria peor que la fila de botones.
+     * El gesto se aplica a los tres formatos a peticion del dueño del producto:
+     * quien llena los cuatro documentos del dia no tiene por que aprender dos
+     * maneras de contestar. Lo que NO se puede copiar es el significado.
+     *
+     * En el EPP y en las herramientas, lo que se deja en blanco lo cierra el
+     * servidor como «no aplica» al confirmar. En el PTF no: una pregunta en
+     * blanco es una pregunta **sin responder**, el campo es obligatorio y hay
+     * que contestarlas todas.
+     *
+     * Y eso no lo decide la pantalla, lo decide el catalogo: el PTF se siembra
+     * con «Si» y «No» y sin ninguna respuesta que signifique «no aplica», asi
+     * que `palabrasDelCiclo()` devuelve `na: null` y sale la leyenda que **no
+     * promete ningun relleno**. Esta prueba ata las dos mitades — si algun dia
+     * el servidor rellenara tambien las preguntas del PTF, o alguien le pusiera
+     * un «No aplica» al catalogo, aqui es donde salta.
      */
-    public function test_el_banco_de_preguntas_no_cicla_porque_alli_el_blanco_no_es_no_aplica(): void
+    public function test_el_ptf_cicla_pero_su_gris_no_es_no_aplica(): void
     {
         $ptf = $this->vista('QuestionBankField');
 
-        $this->assertStringContainsString('AnswerToggle', $ptf,
-            'el PTF sigue respondiendose con los botones: alli el blanco no vale por «no aplica»');
-        $this->assertStringNotContainsString('AnswerCycle', $ptf);
+        $this->assertStringContainsString('<AnswerCycle', $ptf,
+            'el PTF se contesta con el mismo gesto que los otros dos');
+        $this->assertStringNotContainsString('AnswerToggle', $ptf);
 
-        // Y la mitad del servidor que lo sostiene: si algun dia rellenara
-        // tambien las preguntas del PTF, esta prueba es la que hay que releer.
+        // La leyenda que sale es la que NO habla de rellenar nada al cerrar.
+        $this->assertStringContainsString('field_work.checklist_hint_no_na', $ptf);
+        $this->assertStringNotContainsString("\$t('field_work.checklist_hint',", $ptf);
+
+        // Y la mitad del servidor que lo sostiene: el relleno recorre
+        // EXACTAMENTE los otros dos tipos de campo, no este.
         $servicio = file_get_contents(app_path('Services/FieldWork/FormSubmissionService.php'));
 
         $this->assertStringContainsString(
             "whereIn('field_type', ['person_checklist', 'tool_checklist'])",
             $servicio,
-            'el ciclo da por hecho que el servidor cierra como «no aplica» exactamente estos dos campos',
+            'una pregunta del PTF en blanco es una pregunta sin responder, no un «no aplica»',
         );
+
+        // El catalogo sembrado del PTF no tiene «no aplica», que es lo que hace
+        // verdadera la leyenda de arriba.
+        $seeder = file_get_contents(database_path('seeders/FormTemplatesSeeder.php'));
+
+        $this->assertStringContainsString("'answers' => ['Si', 'No']", $seeder);
     }
 
     /**
@@ -272,7 +291,7 @@ class ChecklistCicloTest extends TestCase
     public function test_la_cuadricula_se_reparte_sola(): void
     {
         $this->assertMatchesRegularExpression(
-            '/grid-template-columns:\s*repeat\(auto-fit,\s*minmax\([\d.]+rem,\s*1fr\)\)/',
+            '/grid-template-columns:\s*repeat\(auto-fit,\s*minmax\((?:var\(--ff-check-min,\s*)?[\d.]+rem/',
             $this->regla('.ff-checks'),
             'la cuadricula se reparte con auto-fit, no con una lista de media queries',
         );
@@ -383,6 +402,57 @@ class ChecklistCicloTest extends TestCase
     }
 
     /** El cuerpo de una regla CSS, para poder mirar lo que declara. */
+    /**
+     * El raton no puede pisar el color del estado.
+     *
+     * Esto se rompio y se veia de verdad: al pasar por encima, una pastilla
+     * verde se quedaba BLANCA Y VACIA. No perdia solo el fondo — el texto de una
+     * pastilla marcada es blanco, asi que al blanquear el fondo el rotulo
+     * desaparecia con el, y un formato confirmado parecia tener casillas sin
+     * contestar.
+     *
+     * La causa era de especificidad: `.ff-cycle.is-ro:hover` son tres selectores
+     * y `.ff-cycle.is-ok` dos, asi que el fondo del hover ganaba al del estado.
+     * Un `:hover` que declare `background` sin excluir los estados vuelve a
+     * meter el mismo fallo, y por eso lo que se vigila es la FORMA de la regla.
+     */
+    public function test_el_raton_no_blanquea_una_pastilla_marcada(): void
+    {
+        $css = $this->css();
+
+        // Ningun hover generico: el que habia pisaba los tres estados.
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.ff-cycle:hover\s*\{/',
+            $css,
+            'un hover sobre `.ff-cycle` a secas pisa el fondo de las marcadas',
+        );
+
+        // Ni el de solo lectura, que era el que de verdad lo rompia: ahi ademas
+        // no tiene sentido — un realce que reacciona al raton dice «esto se
+        // toca», y en un documento confirmado no se toca nada.
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.ff-cycle\.is-ro:hover\s*\{/',
+            $css,
+            'en solo lectura no hay hover: no hay nada que tocar',
+        );
+
+        // El fondo del hover solo donde no hay color que estropear.
+        $this->assertMatchesRegularExpression(
+            '/\.ff-cycle\.is-off:not\(\.is-ro\):hover\s*\{[^}]*background/',
+            $css,
+            'la pastilla sin marcar si puede cambiar de fondo al pasar por encima',
+        );
+
+        // Y las marcadas se realzan sin tocar el fondo.
+        foreach (['is-ok', 'is-bad', 'is-na'] as $estado) {
+            $this->assertStringContainsString(
+                ".ff-cycle.{$estado}:not(.is-ro):hover",
+                $css,
+                "el realce de una pastilla «{$estado}» no puede pasar por el fondo",
+            );
+        }
+    }
+
     private function regla(string $selector): string
     {
         preg_match('/' . preg_quote($selector, '/') . '\s*\{(.*?)\}/s', $this->css(), $m);

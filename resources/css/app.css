@@ -1989,8 +1989,14 @@ button.ff-group__toggle { cursor: pointer; }
 .ff-checks {
     list-style: none; margin: 0; padding: 10px 12px;
     display: grid; gap: 8px;
-    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(var(--ff-check-min, 15rem), 1fr));
 }
+/* El banco de preguntas del PTF pide columnas anchas: sus rotulos son frases
+   enteras («¿Estan disponibles y comprendidos: la evaluacion de riesgos
+   (ABRA), AST, el alcance del trabajo…?») y en dos columnas cada pastilla se
+   convierte en un parrafo de cinco lineas. Con 34rem de minimo, en una tablet
+   sale una por linea y solo en un monitor ancho caben dos. */
+.ff-checks--wide { --ff-check-min: 34rem; }
 /* La celda: la pastilla y, cuando toca, el boton de deshacer a su lado. Que el
    boton viva DENTRO de la celda es lo que impide que al salir se lleve por
    delante la cuadricula: ninguna pastilla cambia de columna ni de ancho, y lo
@@ -2013,12 +2019,29 @@ button.ff-group__toggle { cursor: pointer; }
     cursor: pointer; user-select: none;
     transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
-.ff-cycle:hover { background: var(--color-surface-hover, #f5f9fe); }
+/* EL RATON NO PUEDE PISAR EL COLOR DEL ESTADO.
+   Esto estaba mal y se veia feo de verdad: al pasar por encima, una pastilla
+   verde se quedaba BLANCA Y VACIA. No es que perdiera el fondo — es que el
+   texto de una pastilla marcada es blanco, asi que al blanquear el fondo el
+   rotulo desaparecia con el. Un formato confirmado, que es donde mas se mira,
+   parecia tener casillas en blanco.
+
+   La causa era de especificidad: `.ff-cycle.is-ro:hover` son tres selectores y
+   `.ff-cycle.is-ok` dos, asi que el fondo del hover ganaba al del estado. Se
+   arregla no tocando el fondo cuando hay estado: lo marcado se oscurece un
+   punto —que es realce suficiente— y solo lo que esta sin marcar cambia de
+   fondo, porque ahi no hay ningun color que estropear.
+
+   Y el hover NO existe en solo lectura: un realce que reacciona al raton dice
+   «esto se toca», y en un documento confirmado no se toca nada. */
+.ff-cycle.is-off:not(.is-ro):hover { background: var(--color-surface-hover, #f5f9fe); }
+.ff-cycle.is-ok:not(.is-ro):hover,
+.ff-cycle.is-bad:not(.is-ro):hover,
+.ff-cycle.is-na:not(.is-ro):hover { filter: brightness(0.93); }
 /* El teclado tiene que ver donde esta, y el anillo va por fuera para no comerse
    el borde de color que ES el estado. */
 .ff-cycle:focus-visible { outline: 3px solid var(--color-primary, #0A6ED1); outline-offset: 2px; }
 .ff-cycle.is-ro { cursor: default; }
-.ff-cycle.is-ro:hover { background: var(--color-surface, #fff); }
 
 /* Los tres estados. Relleno y no tintado: al sol un fondo palido no se
    distingue del blanco, y lo que hay que ver de lejos es cuales estan marcadas.
