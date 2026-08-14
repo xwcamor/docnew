@@ -57,7 +57,7 @@ class WorkPlansWord
             'num_os'        => ['heading' => __('work_plans.num_os'),        'value' => fn($c) => (string) ($c->num_os ?? '')],
             'description'   => ['heading' => __('work_plans.description'),   'value' => fn($c) => (string) $c->description],
             'company'       => ['heading' => __('work_plans.company'),       'value' => fn($c) => (string) ($c->company?->name ?? '—')],
-            'work_type'     => ['heading' => __('work_plans.work_type'),     'value' => fn($c) => (string) ($c->workType?->code ?? '—')],
+            'work_type'     => ['heading' => __('work_plans.work_type'),     'value' => fn($c) => (string) ($c->workType?->label ?? '—')],
             'work_location' => ['heading' => __('work_plans.work_location'), 'value' => fn($c) => (string) ($c->workLocation?->name ?? '—')],
             'workstation'   => ['heading' => __('work_plans.workstation'),   'value' => fn($c) => (string) ($c->workstation?->name ?? '—')],
             'work_area'     => ['heading' => __('work_plans.work_area'),     'value' => fn($c) => (string) ($c->workArea?->name ?? '—')],

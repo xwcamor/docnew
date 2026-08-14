@@ -11,7 +11,7 @@ return [
     'index_title'      => 'Work types',
     'index_subtitle'   => 'What kind of job each task is, and which safety documents it demands.',
     'create_title'     => 'Create work type',
-    'create_subtitle'  => 'A work type is a code and a list of documents: the paperwork that kind of job forces you to fill in.',
+    'create_subtitle'  => 'A work type is a name, a code and a list of documents: the paperwork that kind of job forces you to fill in.',
     'edit_title'       => 'Edit work type',
     'delete_title'     => 'Delete work type',
     'show_title'       => 'Work type — Details',
@@ -20,13 +20,15 @@ return [
     'empty_hint'       => 'Create the first work type: "Standard", "Lifting", "Work at height".',
 
     // Fields
+    'name'          => 'Name',
+    'name_help'     => 'What is read on screen: "Lifting and structure assembly". It is what the supervisor sees when opening a plan.',
     'code'          => 'Code',
     'country'       => 'Country',
-    'code_help'     => 'What it is called on site: "Standard", "Lifting". It is what the supervisor picks when opening a plan.',
+    'code_help'     => 'The short tag it is cited by: "LIFT", "MAINT". The name is what is read; the code identifies the type and cannot repeat within the country.',
     'country_help'  => 'Work types belong to a country: each country has its own documents and procedure. Only documents from the same country can be demanded.',
     'is_active'     => 'Status',
     'is_active_help' => 'An inactive type stops being offered when creating plans. Existing plans keep theirs.',
-    'filter_name'   => 'Search by code',
+    'filter_name'   => 'Search by name or code',
 
     // The documents — the heart of the module
     'forms'            => 'Documents',

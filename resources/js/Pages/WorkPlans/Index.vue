@@ -621,7 +621,9 @@ const goDelete = (record) => router.visit(route('business_management.work_plans.
                          tipos salían del mismo azul. Era decoración pintando de
                          importante un dato que sólo se lee. -->
                     <template v-else-if="column.key === 'work_type'">
-                        <span v-if="record.work_type">{{ record.work_type.code }}</span>
+                        <!-- El nombre con caída al código: las filas migradas
+                             viejas pueden no tener nombre todavía. -->
+                        <span v-if="record.work_type">{{ record.work_type.name || record.work_type.code }}</span>
                         <span v-else class="muted">—</span>
                     </template>
 

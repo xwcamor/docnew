@@ -446,12 +446,18 @@ const goDelete = (record) => router.visit(route('business_management.work_types.
                     />
                 </template>
                 <template #bodyCell="{ column, record, text, isMobile, compact }">
-                    <template v-if="column.key === 'code'">
+                    <!-- El nombre es la entrada a la ficha. Cae al código: las
+                         filas migradas viejas pueden no tener nombre todavía. -->
+                    <template v-if="column.key === 'name'">
                         <div class="lead">
                             <div class="lead__txt">
-                                <Link :href="route('business_management.work_types.show', record.slug)" class="lead__name lead__link">{{ record.code }}</Link>
+                                <Link :href="route('business_management.work_types.show', record.slug)" class="lead__name lead__link">{{ record.name || record.code }}</Link>
                             </div>
                         </div>
+                    </template>
+
+                    <template v-else-if="column.key === 'code'">
+                        <span class="muted">{{ record.code }}</span>
                     </template>
 
                     <template v-else-if="column.key === 'country'">

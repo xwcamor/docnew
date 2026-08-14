@@ -54,7 +54,7 @@ class ApprovalRulesExport implements FromCollection, WithEvents, WithTitle
             // para que exportar y volver a importar siga funcionando.
             'name'           => ['heading' => __('approval_rules.name'),           'value' => fn($c, $i) => $c->name ?? ''],
             'country'        => ['heading' => __('approval_rules.country'),        'value' => fn($c, $i) => $c->country?->name ?? '—'],
-            'work_type'      => ['heading' => __('approval_rules.work_type'),      'value' => fn($c, $i) => $c->workType?->code ?? __('approval_rules.all_work_types')],
+            'work_type'      => ['heading' => __('approval_rules.work_type'),      'value' => fn($c, $i) => $c->workType?->label ?? __('approval_rules.all_work_types')],
             'approver_role'  => ['heading' => __('approval_rules.approver_role'),  'value' => fn($c, $i) => $c->approver_role],
             'priority_level' => ['heading' => __('approval_rules.priority_level'), 'value' => fn($c, $i) => $c->priority_level],
             'is_required'    => ['heading' => __('approval_rules.is_required'),    'value' => fn($c, $i) => $c->is_required ? __('approval_rules.required') : __('approval_rules.optional')],

@@ -71,7 +71,9 @@ class DocufizDemoSeeder extends Seeder
         ]);
 
         $tipoTrabajo = WorkType::create($base + [
-            'slug' => Str::random(22), 'country_id' => $country->id, 'code' => 'MANTENIMIENTO',
+            'slug' => Str::random(22), 'country_id' => $country->id,
+            // El codigo es la sigla; el nombre es lo que se lee en pantalla.
+            'code' => 'MANT', 'name' => 'Mantenimiento estandar',
         ]);
 
         // ── Empresa contratista ──────────────────────────────────────────

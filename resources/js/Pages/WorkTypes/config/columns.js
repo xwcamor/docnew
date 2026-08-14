@@ -9,8 +9,11 @@
  * son los tres obligatorios y en el otro ninguno.
  */
 export const workTypesTableColumns = (t, { isSuper = false, isMobile = false } = {}) => [
-    { title: t('work_types.code'), dataIndex: 'code', key: 'code', sorter: true, alwaysVisible: true, mobile: { role: 'title' } },
-    { title: t('work_types.country'), dataIndex: ['country', 'name'], key: 'country', width: 170, mobile: { role: 'subtitle' } },
+    // El nombre delante: es lo que se lee. El código queda al lado como la
+    // sigla con la que se le cita en el plan.
+    { title: t('work_types.name'), dataIndex: 'name', key: 'name', sorter: true, alwaysVisible: true, mobile: { role: 'title' } },
+    { title: t('work_types.code'), dataIndex: 'code', key: 'code', width: 150, sorter: true, mobile: { role: 'subtitle' } },
+    { title: t('work_types.country'), dataIndex: ['country', 'name'], key: 'country', width: 170, mobile: { role: 'meta' } },
     { title: t('work_types.table_headers.forms_summary'), key: 'forms', width: 210, mobile: { role: 'meta' } },
     { title: t('work_types.open_plans'), dataIndex: 'open_plans_count', key: 'open_plans', width: 130, align: 'center', mobile: { role: 'meta' } },
     { title: t('work_types.is_active'), dataIndex: 'is_active', key: 'status', width: 130, sorter: true, mobile: { role: 'status' } },

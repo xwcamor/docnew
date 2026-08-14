@@ -339,9 +339,15 @@ class WorkTypeController extends Controller
             ->with(['country:id,name'])
             ->when($termino !== '', function ($q) use ($termino, $esPgsql) {
                 $needle = \App\Support\LikeQuery::contains($termino);
-                $esPgsql
-                    ? $q->whereRaw('unaccent(lower(work_types.code)) LIKE unaccent(lower(?))', [$needle])
-                    : $q->whereRaw("work_types.code LIKE ? ESCAPE '\\'", [$needle]);
+                // Nombre Y código, como el buscador del listado: lo que el
+                // usuario recuerda de un tipo borrado puede ser cualquiera.
+                $q->where(function ($qq) use ($needle, $esPgsql) {
+                    foreach (['code', 'name'] as $columna) {
+                        $esPgsql
+                            ? $qq->orWhereRaw("unaccent(lower(work_types.{$columna})) LIKE unaccent(lower(?))", [$needle])
+                            : $qq->orWhereRaw("work_types.{$columna} LIKE ? ESCAPE '\\'", [$needle]);
+                    }
+                });
             })
             ->orderByDesc('deleted_at')
             ->paginate($perPage)
@@ -519,6 +525,10 @@ class WorkTypeController extends Controller
             'id'         => $m->id,
             'slug'       => $m->slug,
             'code'       => $m->code,
+            'name'       => $m->name,
+            // El nombre con caída al código: las filas migradas viejas pueden
+            // tener `name` vacío y la pantalla no debe quedarse muda.
+            'label'      => $m->label,
             'country_id' => $m->country_id,
             'country'    => $m->country?->name,
             'is_active'  => (bool) $m->is_active,

@@ -94,7 +94,9 @@ class WorkPlanController extends Controller
         $with = [
             'creator:id,name,email',
             'company:id,name,num_doc',
-            'workType:id,code',
+            // Con `name`: el tipo se enseña por su nombre (con caída al código
+            // en las filas migradas que aún no lo tienen).
+            'workType:id,code,name',
             'workLocation:id,name',
             'workstation:id,name',
             'workArea:id,name',
@@ -185,7 +187,15 @@ class WorkPlanController extends Controller
                 ->get(['id', 'name', 'num_doc'])
                 ->map(fn ($c) => ['value' => $c->id, 'label' => $c->name])
                 ->all(),
-            'workTypeOptions'     => $opts(\App\Models\WorkType::query()->where('is_active', true), 'code'),
+            // El selector enseña el nombre (con caída al código en las filas
+            // migradas sin nombre); el value sigue siendo el id, así que los
+            // filtros por work_type_id no cambian.
+            'workTypeOptions'     => \App\Models\WorkType::query()->where('is_active', true)
+                ->get(['id', 'code', 'name'])
+                ->map(fn ($t) => ['value' => $t->id, 'label' => $t->label])
+                ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values()
+                ->all(),
             'workLocationOptions' => $opts(\App\Models\WorkLocation::query()->where('is_active', true), 'name'),
             'workAreaOptions'     => $opts(\App\Models\WorkArea::query()->where('is_active', true), 'name'),
             // El puesto depende de la sede: el front filtra por work_location_id.
@@ -230,7 +240,7 @@ class WorkPlanController extends Controller
     {
         $workPlan->load([
             'creator:id,name,email', 'deleter:id,name,email', 'locker:id,name',
-            'company:id,name,num_doc', 'workType:id,code', 'workLocation:id,name',
+            'company:id,name,num_doc', 'workType:id,code,name', 'workLocation:id,name',
             'workstation:id,name', 'workArea:id,name', 'user:id,name,email',
         ])->loadCount(['people', 'submissions']);
 
@@ -367,7 +377,7 @@ class WorkPlanController extends Controller
      *     una URL adivinable) — solo super;
      *   · el RASTRO de la firma (`audit`: hora, coincidencia, IP, aparato,
      *     mapa) — sigue con `people.view_private_info`, como el DNI: el admin
-     *     del workspace lo necesita para revisar una firma dudosa, y su ficha
+     *     del workspace lo necesita para mirar una firma dudosa, y su ficha
      *     se abre con otro icono, sin foto dentro.
      */
     protected function puedeVerCaras(): bool
@@ -547,14 +557,15 @@ class WorkPlanController extends Controller
      * La hora dice CUANDO se firmo; esto dice si el servidor reconocio la cara
      * o no. Son cosas distintas y en la ficha solo se veia la primera: una
      * firma verificada y una que se capturo porque NO reconocio salian
-     * exactamente iguales, y la segunda es justo la que hay que ir a revisar.
+     * exactamente iguales. Es un hecho que se enseña, no una tarea: la firma
+     * vale igual y no hay ninguna revision pendiente detras.
      *
      * @return \Illuminate\Support\Collection<int, array{method:string, verified:bool, pending_review:bool}>
      */
     protected function comoSeFirmo(string $morph, iterable $ids): \Illuminate\Support\Collection
     {
         // El rastro completo con `people.view_private_info` —super y admin—
-        // como el DNI: es lo que se mira para revisar una firma dudosa. La
+        // como el DNI: es lo que se mira ante una firma dudosa. La
         // FOTO no viaja por aqui; esa tiene su propia puerta, solo super.
         $puedeVerRastro = \App\Support\PrivateInfo::visibleFor(request()->user());
 
@@ -868,7 +879,7 @@ class WorkPlanController extends Controller
 
         // La confirmación muestra empresa y trabajo: borrar un plan por su
         // código a secas es fácil de equivocar.
-        $workPlan->load(['company:id,name,num_doc', 'workType:id,code', 'workLocation:id,name']);
+        $workPlan->load(['company:id,name,num_doc', 'workType:id,code,name', 'workLocation:id,name']);
 
         return inertia('WorkPlans/Delete', [
             'workPlan' => $this->payload($workPlan),
@@ -1078,7 +1089,9 @@ class WorkPlanController extends Controller
             'user_id'    => $m->user_id,
             // Nombres resueltos: la ficha los muestra tal cual, sin más queries.
             'company'       => $m->relationLoaded('company') && $m->company ? ['id' => $m->company->id, 'name' => $m->company->name, 'num_doc' => $m->company->num_doc] : null,
-            'work_type'     => $m->relationLoaded('workType') && $m->workType ? ['id' => $m->workType->id, 'code' => $m->workType->code] : null,
+            // `label` es el nombre con caída al código: es lo que la ficha
+            // pinta. El `code` se queda porque es la sigla y la identidad.
+            'work_type'     => $m->relationLoaded('workType') && $m->workType ? ['id' => $m->workType->id, 'code' => $m->workType->code, 'label' => $m->workType->label] : null,
             'work_location' => $m->relationLoaded('workLocation') && $m->workLocation ? ['id' => $m->workLocation->id, 'name' => $m->workLocation->name] : null,
             'workstation'   => $m->relationLoaded('workstation') && $m->workstation ? ['id' => $m->workstation->id, 'name' => $m->workstation->name] : null,
             'work_area'     => $m->relationLoaded('workArea') && $m->workArea ? ['id' => $m->workArea->id, 'name' => $m->workArea->name] : null,

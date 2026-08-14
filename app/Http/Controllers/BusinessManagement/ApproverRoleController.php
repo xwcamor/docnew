@@ -128,7 +128,7 @@ class ApproverRoleController extends Controller
 
         // Las reglas que firman con este rol: es la respuesta a "¿por que no
         // me deja borrarlo?" puesta antes de que la pregunta se haga.
-        $reglas = ApprovalRule::with(['country:id,name', 'workType:id,code'])
+        $reglas = ApprovalRule::with(['country:id,name', 'workType:id,code,name'])
             ->where('approver_role', $approverRole->code)
             ->orderBy('priority_level')
             ->get()
@@ -137,7 +137,8 @@ class ApproverRoleController extends Controller
                 // Cómo se llama esa firma en obra. Sin nombre propio, el rol.
                 'name'           => $r->name ?: $approverRole->label,
                 'country'        => $r->country?->name,
-                'work_type'      => $r->workType?->code,
+                // El label del tipo —nombre con caída al código—: es lo que se lee.
+                'work_type'      => $r->workType?->label,
                 'priority_level' => $r->priority_level,
                 'is_required'    => (bool) $r->is_required,
                 'is_active'      => (bool) $r->is_active,

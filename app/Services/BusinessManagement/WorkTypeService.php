@@ -38,8 +38,9 @@ class WorkTypeService
         $isPgsql = config('database.default') === 'pgsql';
         $tbl = 'work_types';
 
-        // El buscador general va contra el código: es lo único textual que
-        // tiene un tipo de trabajo, y es como se le llama en obra.
+        // El buscador general va contra el nombre Y el código: en obra se le
+        // llama por cualquiera de los dos, y las filas migradas viejas pueden
+        // tener el nombre solo en `code`.
         $query->when($request->filled('name'), function ($q) use ($request, $isPgsql, $tbl) {
             $terminos = is_array($request->name) ? $request->name : [$request->name];
             $terminos = array_filter($terminos, fn ($n) => $n !== '');
@@ -49,10 +50,12 @@ class WorkTypeService
             $q->where(function ($qq) use ($terminos, $isPgsql, $tbl) {
                 foreach ($terminos as $termino) {
                     $needle = LikeQuery::contains((string) $termino);
-                    if ($isPgsql) {
-                        $qq->orWhereRaw("unaccent(lower({$tbl}.code)) LIKE unaccent(lower(?))", [$needle]);
-                    } else {
-                        $qq->orWhereRaw("{$tbl}.code LIKE ? ESCAPE '\\'", [$needle]);
+                    foreach (['code', 'name'] as $columna) {
+                        if ($isPgsql) {
+                            $qq->orWhereRaw("unaccent(lower({$tbl}.{$columna})) LIKE unaccent(lower(?))", [$needle]);
+                        } else {
+                            $qq->orWhereRaw("{$tbl}.{$columna} LIKE ? ESCAPE '\\'", [$needle]);
+                        }
                     }
                 }
             });
@@ -91,7 +94,7 @@ class WorkTypeService
         $direction = $request->get('direction', 'asc');
         if ($sort === 'tenant' && in_array($direction, ['asc', 'desc'], true)) {
             $query->leftJoin('tenants', "{$tbl}.tenant_id", '=', 'tenants.id')->orderBy('tenants.name', $direction);
-        } elseif (in_array($sort, ['id', 'code', 'country_id', 'is_active', 'created_at', 'updated_at'], true)
+        } elseif (in_array($sort, ['id', 'code', 'name', 'country_id', 'is_active', 'created_at', 'updated_at'], true)
             && in_array($direction, ['asc', 'desc'], true)) {
             $query->orderBy("{$tbl}.{$sort}", $direction);
         }
@@ -102,6 +105,7 @@ class WorkTypeService
     public static function filterSchema(): array
     {
         return [
+            ['key' => 'name',       'label' => __('work_types.name'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'code',       'label' => __('work_types.code'),      'type' => 'string',  'operators' => ['=', '!=', 'contains']],
             ['key' => 'is_active',  'label' => __('work_types.is_active'), 'type' => 'boolean', 'operators' => ['=']],
         ];
@@ -296,7 +300,7 @@ class WorkTypeService
     // ── Alta / baja / modificación ───────────────────────────────────────────
 
     /**
-     * @param  array{code:string, country_id:int, is_active?:bool, form_templates?:array}  $data
+     * @param  array{code:string, name?:string, country_id:int, is_active?:bool, form_templates?:array}  $data
      */
     public function create(array $data): WorkType
     {
@@ -330,7 +334,7 @@ class WorkTypeService
     }
 
     /**
-     * @param  array{code?:string, country_id?:int, is_active?:bool, form_templates?:array}  $data
+     * @param  array{code?:string, name?:string, country_id?:int, is_active?:bool, form_templates?:array}  $data
      * @return array{added:int, removed:int, changed:int, touched:bool}
      */
     public function update(WorkType $tipo, array $data): array

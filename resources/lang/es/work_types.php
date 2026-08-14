@@ -11,7 +11,7 @@ return [
     'index_title'      => 'Tipos de trabajo',
     'index_subtitle'   => 'Qué clase de maniobra es cada trabajo y qué documentos de seguridad exige.',
     'create_title'     => 'Crear tipo de trabajo',
-    'create_subtitle'  => 'Un tipo de trabajo es un código y una lista de documentos: los papeles que esa clase de maniobra obliga a llenar.',
+    'create_subtitle'  => 'Un tipo de trabajo es un nombre, un código y una lista de documentos: los papeles que esa clase de maniobra obliga a llenar.',
     'edit_title'       => 'Editar tipo de trabajo',
     'delete_title'     => 'Eliminar tipo de trabajo',
     'show_title'       => 'Tipo de trabajo — Información',
@@ -20,13 +20,15 @@ return [
     'empty_hint'       => 'Crea el primer tipo de trabajo: «Estandar», «Izaje», «Trabajo en altura».',
 
     // Campos
+    'name'          => 'Nombre',
+    'name_help'     => 'Lo que se lee en pantalla: «Izaje y Montaje de estructuras». Es lo que el supervisor ve al abrir un plan.',
     'code'          => 'Código',
-    'code_help'     => 'Como se le llama en obra: «Estandar», «Izaje». Es lo que el supervisor elige al abrir un plan.',
+    'code_help'     => 'La sigla corta con la que se le cita: «IZAJE», «MANT». El nombre es lo que se lee; el código identifica al tipo y no se repite dentro del país.',
     'country'       => 'País',
     'country_help'  => 'Los tipos son por país: cada país tiene sus documentos y su procedimiento. Solo se pueden exigir documentos del mismo país.',
     'is_active'     => 'Estado',
     'is_active_help' => 'Un tipo inactivo deja de ofrecerse al crear planes. Los planes ya creados conservan el suyo.',
-    'filter_name'   => 'Buscar por código',
+    'filter_name'   => 'Buscar por nombre o código',
 
     // Los documentos — el corazón del módulo
     'forms'            => 'Documentos',

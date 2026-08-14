@@ -455,7 +455,7 @@ const irAlRepresentante = () => {
                             </div>
                             <div class="wp-fact">
                                 <span class="wp-fact__label"><ToolOutlined /> {{ $t('work_plans.work_type') }}</span>
-                                <span class="wp-fact__value">{{ workPlan.work_type?.code || '—' }}</span>
+                                <span class="wp-fact__value">{{ workPlan.work_type?.label || workPlan.work_type?.code || '—' }}</span>
                             </div>
                             <div class="wp-fact">
                                 <span class="wp-fact__label"><EnvironmentOutlined /> {{ $t('work_plans.summary_where') }}</span>
@@ -531,7 +531,7 @@ const irAlRepresentante = () => {
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.work_type') }}</span>
-                            <span class="spec-cell__value">{{ workPlan.work_type?.code || '—' }}</span>
+                            <span class="spec-cell__value">{{ workPlan.work_type?.label || workPlan.work_type?.code || '—' }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_plans.work_location') }}</span>

@@ -26,6 +26,9 @@ const props = defineProps({
 const isEdit = computed(() => !!props.workType);
 
 const form = useForm({
+    // El nombre con caída al código: en las filas migradas el código ES el
+    // nombre, y un formulario que abre con el campo vacío invita a perderlo.
+    name:       props.workType?.name ?? props.workType?.code ?? '',
     code:       props.workType?.code ?? '',
     country_id: props.workType?.country_id ?? props.defaultCountryId ?? null,
     is_active:  props.workType?.is_active ?? true,
@@ -96,7 +99,7 @@ const submit = () => {
         <SectionHeader
             :back-href="route('business_management.work_types.index')"
             :title="isEdit ? $t('work_types.edit_title') : $t('work_types.new')"
-            :subtitle="isEdit ? workType.code : $t('work_types.create_subtitle')"
+            :subtitle="isEdit ? (workType.label ?? workType.code) : $t('work_types.create_subtitle')"
         >
             <template #icon><ToolOutlined /></template>
         </SectionHeader>
@@ -136,6 +139,25 @@ const submit = () => {
                         option-filter-prop="label"
                         :options="options.countries ?? []"
                         :placeholder="$t('global.select')"
+                    />
+                </FormItem>
+
+                <!-- El nombre antes que el código: es lo que se lee en pantalla
+                     y lo primero que el usuario tiene en la cabeza. El código
+                     es la sigla con la que se le cita. -->
+                <FormItem
+                    :label="$t('work_types.name')"
+                    :tooltip="$t('work_types.name_help')"
+                    required
+                    :validate-status="form.errors.name ? 'error' : ''"
+                    :help="form.errors.name"
+                >
+                    <Input
+                        v-model:value="form.name"
+                        size="large"
+                        :maxlength="255"
+                        show-count
+                        :placeholder="$t('work_types.name')"
                     />
                 </FormItem>
 

@@ -59,7 +59,9 @@ const bloqueada = (row) => isLocked(row) || (!props.isSuper && isGlobal(row));
                     <span class="muted">{{ row.approver_role_label }}</span>
                 </td>
                 <td class="col-type">
-                    <span v-if="row.work_type">{{ row.work_type.code }}</span>
+                    <!-- El nombre con caída al código: las filas migradas
+                         viejas pueden no tener nombre todavía. -->
+                    <span v-if="row.work_type">{{ row.work_type.name || row.work_type.code }}</span>
                     <span v-else class="muted">{{ $t('approval_rules.all_work_types') }}</span>
                 </td>
                 <td class="col-level">

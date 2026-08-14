@@ -55,7 +55,7 @@ class ApprovalRulesWord
             'id'             => ['heading' => __('approval_rules.id'),             'value' => fn($c) => (string) $c->id],
             'name'           => ['heading' => __('approval_rules.name'),           'value' => fn($c) => (string) ($c->name ?? '')],
             'country'        => ['heading' => __('approval_rules.country'),        'value' => fn($c) => (string) ($c->country?->name ?? '—')],
-            'work_type'      => ['heading' => __('approval_rules.work_type'),      'value' => fn($c) => (string) ($c->workType?->code ?? __('approval_rules.all_work_types'))],
+            'work_type'      => ['heading' => __('approval_rules.work_type'),      'value' => fn($c) => (string) ($c->workType?->label ?? __('approval_rules.all_work_types'))],
             'approver_role'  => ['heading' => __('approval_rules.approver_role'),  'value' => fn($c) => (string) $c->approver_role],
             'priority_level' => ['heading' => __('approval_rules.priority_level'), 'value' => fn($c) => (string) $c->priority_level],
             'is_required'    => ['heading' => __('approval_rules.is_required'),    'value' => fn($c) => $c->is_required ? __('approval_rules.required') : __('approval_rules.optional')],

@@ -538,7 +538,9 @@ const goDelete = (record) => router.visit(route('business_management.approval_ru
                     <!-- Sin tipo de trabajo la regla vale para todos: se dice,
                          no se deja la celda en blanco. -->
                     <template v-else-if="column.key === 'work_type'">
-                        <Tag v-if="record.work_type" color="geekblue" :bordered="false">{{ record.work_type.code }}</Tag>
+                        <!-- El nombre con caída al código: las filas migradas
+                             viejas pueden no tener nombre todavía. -->
+                        <Tag v-if="record.work_type" color="geekblue" :bordered="false">{{ record.work_type.name || record.work_type.code }}</Tag>
                         <Tag v-else :bordered="false">{{ $t('approval_rules.all_work_types') }}</Tag>
                     </template>
 

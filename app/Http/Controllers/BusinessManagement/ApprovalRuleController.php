@@ -74,7 +74,7 @@ class ApprovalRuleController extends Controller
         // necesita la columna para distinguirlos.
         $reglas = ApprovalRuleService::filter(
             ApprovalRule::query()->select('approval_rules.*')
-                ->with(['country:id,name,iso_code', 'workType:id,code'])
+                ->with(['country:id,name,iso_code', 'workType:id,code,name'])
                 ->when($isSuper, fn ($q) => $q->with('tenant:id,name')),
             $request,
         )->paginate($perPage)->withQueryString();
@@ -163,7 +163,7 @@ class ApprovalRuleController extends Controller
         // `locker` hace falta para que la ficha pueda decir QUIÉN puso el
         // candado: sin la relación cargada, `lockMeta()` devuelve locked_by en
         // nulo y el aviso queda a medias.
-        $approvalRule->load(['country:id,name,iso_code', 'workType:id,code', 'role', 'locker:id,name']);
+        $approvalRule->load(['country:id,name,iso_code', 'workType:id,code,name', 'role', 'locker:id,name']);
 
         $canSeeAudit = $request->user()?->hasAnyRole(['super', 'admin']) ?? false;
         $activity = $canSeeAudit
@@ -291,7 +291,7 @@ class ApprovalRuleController extends Controller
         $perPage = in_array($perPage, [10, 25, 50, 100], true) ? $perPage : 10;
 
         $reglas = ApprovalRule::onlyTrashed()
-            ->with(['country:id,name', 'workType:id,code'])
+            ->with(['country:id,name', 'workType:id,code,name'])
             // Se busca por el nombre de la firma y por el código del rol: en la
             // papelera se reconoce una regla por cómo se llamaba, no por su rol.
             ->when($termino !== '', fn ($q) => $q->where(fn ($w) => $w
@@ -341,7 +341,7 @@ class ApprovalRuleController extends Controller
         }
 
         $reglas = ApprovalRuleService::filter(
-            ApprovalRule::query()->select('approval_rules.*')->with(['country:id,name', 'workType:id,code']),
+            ApprovalRule::query()->select('approval_rules.*')->with(['country:id,name', 'workType:id,code,name']),
             $request,
         )->paginate($perPage)->withQueryString();
 
@@ -453,7 +453,8 @@ class ApprovalRuleController extends Controller
             'country_id'          => $m->country_id,
             'country'             => $m->country?->name,
             'work_type_id'        => $m->work_type_id,
-            'work_type'           => $m->workType?->code,
+            // El label del tipo —nombre con caída al código—: es lo que se lee.
+            'work_type'           => $m->workType?->label,
             'approver_role'       => $m->approver_role,
             'approver_role_label' => $etiquetas[$m->approver_role] ?? $m->approver_role,
             'priority_level'      => $m->priority_level,

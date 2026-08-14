@@ -31,7 +31,7 @@ const submit = () => {
     <DeletePage
         :back-href="route('business_management.work_types.index')"
         :title="$t('work_types.delete_title')"
-        :subtitle="workType.code"
+        :subtitle="workType.label ?? workType.code"
         v-model="form.deleted_description"
         :error="form.errors.deleted_description"
         :processing="form.processing"
@@ -53,6 +53,7 @@ const submit = () => {
         </template>
 
         <template #summary>
+            <DeleteSummaryRow :label="$t('work_types.name')">{{ workType.name ?? '—' }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('work_types.code')">{{ workType.code }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('work_types.country')">{{ workType.country ?? '—' }}</DeleteSummaryRow>
             <DeleteSummaryRow :label="$t('work_types.forms_count')">

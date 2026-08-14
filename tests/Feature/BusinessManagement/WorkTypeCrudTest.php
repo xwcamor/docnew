@@ -81,10 +81,13 @@ class WorkTypeCrudTest extends TestCase
         $r->assertSessionHas('error');
     }
 
-    private function tipo(string $codigo, int $countryId = 1): WorkType
+    private function tipo(string $codigo, int $countryId = 1, ?string $nombre = null): WorkType
     {
+        // Sin nombre por defecto, a proposito: asi quedaron las filas migradas
+        // antes de que existiera la columna, y hay pruebas que fijan que el
+        // label cae al codigo en ese caso.
         return WorkType::create(['slug' => Str::random(22), 'country_id' => $countryId,
-            'tenant_id' => 1, 'created_by' => 1, 'code' => $codigo, 'is_active' => true]);
+            'tenant_id' => 1, 'created_by' => 1, 'code' => $codigo, 'name' => $nombre, 'is_active' => true]);
     }
 
     private function formato(string $codigo, string $estado = 'published', int $countryId = 1): FormTemplate
@@ -154,10 +157,68 @@ class WorkTypeCrudTest extends TestCase
         $this->actingAs($this->admin());
 
         $this->post(route('business_management.work_types.store'), [
-            'country_id' => 1, 'code' => 'Izaje',
+            'country_id' => 1, 'code' => 'IZAJE', 'name' => 'Izaje y montaje',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('work_types', ['country_id' => 1, 'code' => 'Izaje']);
+        $this->assertDatabaseHas('work_types', ['country_id' => 1, 'code' => 'IZAJE', 'name' => 'Izaje y montaje']);
+    }
+
+    /** El nombre es lo que se lee en pantalla: sin el no hay alta. */
+    public function test_sin_nombre_no_se_crea(): void
+    {
+        $this->actingAs($this->admin());
+
+        $this->post(route('business_management.work_types.store'), [
+            'country_id' => 1, 'code' => 'IZAJE',
+        ])->assertSessionHasErrors('name');
+
+        $this->assertSame(0, WorkType::count());
+    }
+
+    /**
+     * La ficha manda `name` y `label`. El label cae al codigo: una fila migrada
+     * antes de que existiera la columna no debe abrir una ficha sin titulo.
+     */
+    public function test_la_ficha_trae_el_nombre_y_el_label_cae_al_codigo(): void
+    {
+        $this->actingAs($this->admin());
+        $conNombre = $this->tipo('IZAJE', 1, 'Izaje y Montaje de estructuras');
+        $sinNombre = $this->tipo('MANT');
+
+        $this->get(route('business_management.work_types.show', $conNombre->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('workType.name', 'Izaje y Montaje de estructuras')
+                ->where('workType.label', 'Izaje y Montaje de estructuras')
+                ->where('workType.code', 'IZAJE'));
+
+        $this->get(route('business_management.work_types.show', $sinNombre->slug))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('workType.name', null)
+                ->where('workType.label', 'MANT'));
+    }
+
+    /** El buscador encuentra por nombre Y por codigo: en obra se usa cualquiera. */
+    public function test_el_listado_busca_por_nombre_y_por_codigo(): void
+    {
+        $this->actingAs($this->admin());
+        $this->tipo('IZAJE', 1, 'Izaje y Montaje de estructuras');
+        $this->tipo('MANT', 1, 'Mantenimiento estandar');
+
+        $this->get(route('business_management.work_types.index', ['name' => ['montaje']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('work_types.data', 1)
+                ->where('work_types.data.0.code', 'IZAJE'));
+
+        // Y por codigo sigue funcionando, que es lo que buscan las filas
+        // migradas viejas con el nombre solo en `code`.
+        $this->get(route('business_management.work_types.index', ['name' => ['MANT']]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->has('work_types.data', 1)
+                ->where('work_types.data.0.code', 'MANT'));
     }
 
     /** El alta ya deja fijado que papeles exige: es media razon de ser del modulo. */
@@ -168,7 +229,7 @@ class WorkTypeCrudTest extends TestCase
         $epp = $this->formato('EPP');
 
         $this->post(route('business_management.work_types.store'), [
-            'country_id' => 1, 'code' => 'Izaje',
+            'country_id' => 1, 'code' => 'Izaje', 'name' => 'Izaje y montaje',
             'form_templates' => [
                 ['id' => $ast->id, 'is_required' => true],
                 ['id' => $epp->id, 'is_required' => false],
@@ -199,7 +260,7 @@ class WorkTypeCrudTest extends TestCase
         $this->tipo('Izaje');
 
         $this->post(route('business_management.work_types.store'), [
-            'country_id' => 1, 'code' => 'izaje',
+            'country_id' => 1, 'code' => 'izaje', 'name' => 'Izaje repetido',
         ])->assertSessionHasErrors('code');
 
         $this->assertSame(1, WorkType::count());
@@ -212,7 +273,7 @@ class WorkTypeCrudTest extends TestCase
         $this->tipo('Izaje');
 
         $this->post(route('business_management.work_types.store'), [
-            'country_id' => 2, 'code' => 'Izaje',
+            'country_id' => 2, 'code' => 'Izaje', 'name' => 'Izaje',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame(2, WorkType::count());
@@ -598,7 +659,7 @@ class WorkTypeCrudTest extends TestCase
         $ast  = $this->formato('AST');
 
         $this->put(route('business_management.work_types.update', $tipo->slug), [
-            'country_id' => 1, 'code' => 'Izaje critico', 'is_active' => true,
+            'country_id' => 1, 'code' => 'Izaje critico', 'name' => 'Izaje critico de estructuras', 'is_active' => true,
             'form_templates' => [['id' => $ast->id, 'is_required' => true]],
         ])->assertRedirect()->assertSessionHasNoErrors();
 
@@ -613,7 +674,7 @@ class WorkTypeCrudTest extends TestCase
         $tipo = $this->tipo('Izaje');
 
         $this->put(route('business_management.work_types.update', $tipo->slug), [
-            'country_id' => 1, 'code' => 'Izaje', 'is_active' => false,
+            'country_id' => 1, 'code' => 'Izaje', 'name' => 'Izaje', 'is_active' => false,
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('work_types', ['id' => $tipo->id, 'is_active' => false]);
@@ -643,7 +704,7 @@ class WorkTypeCrudTest extends TestCase
         ]);
 
         $this->post(route('business_management.work_types.store'), [
-            'country_id' => 1, 'code' => 'Izaje',
+            'country_id' => 1, 'code' => 'Izaje', 'name' => 'Izaje',
         ])->assertRedirect()->assertSessionHasNoErrors();
 
         $this->assertSame(1, WorkType::count());

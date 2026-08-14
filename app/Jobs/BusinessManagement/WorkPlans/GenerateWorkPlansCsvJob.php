@@ -61,7 +61,7 @@ class GenerateWorkPlansCsvJob extends BaseWorkPlanExportJob
                         'num_os'        => $workPlan->num_os ?? '',
                         'description'   => $workPlan->description ?? '',
                         'company'       => $workPlan->company?->name ?? '',
-                        'work_type'     => $workPlan->workType?->code ?? '',
+                        'work_type'     => $workPlan->workType?->label ?? '',
                         'work_location' => $workPlan->workLocation?->name ?? '',
                         'workstation'   => $workPlan->workstation?->name ?? '',
                         'work_area'     => $workPlan->workArea?->name ?? '',

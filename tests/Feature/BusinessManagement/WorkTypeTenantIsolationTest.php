@@ -105,7 +105,7 @@ class WorkTypeTenantIsolationTest extends CatalogTestCase
         $admin = $this->admin();
 
         $this->actingAs($admin)->post(route('business_management.work_types.store'), [
-            'code' => 'NUEVO', 'country_id' => 1, 'is_active' => true,
+            'name' => 'Tipo nuevo', 'code' => 'NUEVO', 'country_id' => 1, 'is_active' => true,
             'tenant_id' => 2,
         ]);
 

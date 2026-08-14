@@ -52,7 +52,7 @@ class GenerateApprovalRulesCsvJob extends BaseApprovalRuleExportJob
                         'country'        => $approvalRule->country?->name ?? '',
                         // Vacío en el CSV = todos los tipos, igual que en la
                         // plantilla de importación: el archivo se puede reimportar.
-                        'work_type'      => $approvalRule->workType?->code ?? '',
+                        'work_type'      => $approvalRule->workType?->label ?? '',
                         'approver_role'  => $approvalRule->approver_role,
                         'priority_level' => $approvalRule->priority_level,
                         'is_required'    => $approvalRule->is_required ? '1' : '0',

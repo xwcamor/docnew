@@ -54,7 +54,7 @@ class WorkPlansExport implements FromCollection, WithEvents, WithTitle
             'num_os'        => ['heading' => __('work_plans.num_os'),        'value' => fn($c, $i) => $c->num_os ?? ''],
             'description'   => ['heading' => __('work_plans.description'),   'value' => fn($c, $i) => $c->description],
             'company'       => ['heading' => __('work_plans.company'),       'value' => fn($c, $i) => $c->company?->name ?? '—'],
-            'work_type'     => ['heading' => __('work_plans.work_type'),     'value' => fn($c, $i) => $c->workType?->code ?? '—'],
+            'work_type'     => ['heading' => __('work_plans.work_type'),     'value' => fn($c, $i) => $c->workType?->label ?? '—'],
             'work_location' => ['heading' => __('work_plans.work_location'), 'value' => fn($c, $i) => $c->workLocation?->name ?? '—'],
             'workstation'   => ['heading' => __('work_plans.workstation'),   'value' => fn($c, $i) => $c->workstation?->name ?? '—'],
             'work_area'     => ['heading' => __('work_plans.work_area'),     'value' => fn($c, $i) => $c->workArea?->name ?? '—'],

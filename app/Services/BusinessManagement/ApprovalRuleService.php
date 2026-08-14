@@ -136,14 +136,15 @@ class ApprovalRuleService
             ->where('country_id', $countryId)
             ->where('is_active', true)
             ->orderBy('code')
-            ->get(['id', 'code']);
+            ->get(['id', 'code', 'name']);
 
         // La fila «todos los tipos» va primero: es el flujo que hereda
         // cualquier tipo que no tenga reglas propias.
         $filas = [$this->previewParaTipo($countryId, null, $tenantId, $etiquetas, __('approval_rules.all_work_types'))];
 
         foreach ($tipos as $tipo) {
-            $filas[] = $this->previewParaTipo($countryId, $tipo->id, $tenantId, $etiquetas, $tipo->code);
+            // El label —nombre con caída al código—: la vista previa se lee.
+            $filas[] = $this->previewParaTipo($countryId, $tipo->id, $tenantId, $etiquetas, $tipo->label);
         }
 
         return $filas;
@@ -411,9 +412,13 @@ class ApprovalRuleService
 
             // Los tipos van con su país: el selector de tipo se acota al país
             // elegido, porque un tipo de otro país no se puede exigir aquí.
-            'work_types' => WorkType::query()->where('is_active', true)->orderBy('code')
-                ->get(['id', 'code', 'country_id'])
-                ->map(fn ($t) => ['value' => $t->id, 'label' => $t->code, 'country_id' => $t->country_id])->all(),
+            // El label es el nombre con caída al código; el value sigue siendo
+            // el id, así que las reglas guardadas no cambian.
+            'work_types' => WorkType::query()->where('is_active', true)
+                ->get(['id', 'code', 'name', 'country_id'])
+                ->map(fn ($t) => ['value' => $t->id, 'label' => $t->label, 'country_id' => $t->country_id])
+                ->sortBy('label', SORT_NATURAL | SORT_FLAG_CASE)
+                ->values()->all(),
 
             'approver_roles' => collect(ApproverRole::opciones())
                 ->map(fn ($label, $code) => ['value' => $code, 'label' => $label])->values()->all(),

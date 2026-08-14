@@ -151,7 +151,13 @@ const subtitle = computed(() => {
                 @change="onTableChange"
             >
                 <template #bodyCell="{ column, record }">
-                    <template v-if="column.key === 'country'">
+                    <!-- Con caída al código: lo borrado antes de que existiera
+                         el nombre no tiene por qué salir con la celda vacía. -->
+                    <template v-if="column.key === 'name'">
+                        {{ record.name || record.code }}
+                    </template>
+
+                    <template v-else-if="column.key === 'country'">
                         {{ record.country?.name ?? '—' }}
                     </template>
 

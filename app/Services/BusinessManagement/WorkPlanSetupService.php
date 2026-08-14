@@ -123,7 +123,9 @@ class WorkPlanSetupService
         if ($this->esObligatorioDelTipo($plan, $plantilla)) {
             throw new \DomainException(__('work_plans.form_required_by_work_type', [
                 'code' => $plantilla->code,
-                'type' => $plan->workType?->code ?? '—',
+                // El label —nombre con caída al código—: el mensaje manda a
+                // buscar el tipo por como se lee en pantalla.
+                'type' => $plan->workType?->label ?? '—',
             ]));
         }
 

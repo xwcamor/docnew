@@ -184,7 +184,8 @@ abstract class BaseWorkPlanExportJob implements ShouldQueue
         // una query por fila, y son miles de planes.
         foreach ([
             'company'       => 'company:id,name',
-            'work_type'     => 'workType:id,code',
+            // Con `name`: la columna exporta el label (nombre con caída al código).
+            'work_type'     => 'workType:id,code,name',
             'work_location' => 'workLocation:id,name',
             'workstation'   => 'workstation:id,name',
             'work_area'     => 'workArea:id,name',

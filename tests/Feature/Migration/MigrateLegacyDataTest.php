@@ -279,6 +279,33 @@ class MigrateLegacyDataTest extends TestCase
         $this->assertSame(2, DB::table('work_plans')->where('code', 'PE26-1501-0002')->value('legacy_id'));
     }
 
+    /**
+     * El tipo de trabajo llega con NOMBRE, no solo con codigo.
+     *
+     * Las primeras corridas metieron `name_es` en `code` porque la tabla no
+     * tenia otra columna textual; ahora el nombre va donde siempre debio estar
+     * (el codigo se conserva igual: es la identidad y la clave del pivote).
+     * Y re-correr el paso cura las filas migradas antes de que existiera la
+     * columna: un name vacio vuelve a ser name_es.
+     */
+    public function test_el_tipo_de_trabajo_llega_con_nombre_y_re_correr_cura_el_vacio(): void
+    {
+        $this->migrarTodo();
+
+        $tipo = DB::table('work_types')->whereNotNull('legacy_id')->first();
+        $this->assertSame('Estandar', $tipo->code);
+        $this->assertSame('Estandar', $tipo->name);
+
+        // Una fila migrada cuando `name` no existia: quedo vacia.
+        DB::table('work_types')->where('id', $tipo->id)->update(['name' => null]);
+
+        $this->artisan('docufiz:migrate-data', ['paso' => 'planes'])->assertSuccessful();
+
+        $this->assertSame('Estandar', DB::table('work_types')->where('id', $tipo->id)->value('name'));
+        // Y sin duplicar la fila: se reconocio por su legacy_id.
+        $this->assertSame(1, DB::table('work_types')->whereNotNull('legacy_id')->count());
+    }
+
     public function test_solo_se_migran_los_catalogos_del_pais_que_usan_los_planes(): void
     {
         $this->migrarTodo();

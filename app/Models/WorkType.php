@@ -44,13 +44,26 @@ class WorkType extends Model
     use BelongsToTenantOrGlobal;
 
     protected $fillable = [
-        'slug', 'country_id', 'code', 'is_active', 'legacy_id',
+        'slug', 'country_id', 'code', 'name', 'is_active', 'legacy_id',
         'tenant_id', 'created_by', 'deleted_by', 'deleted_description',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
+
+    /**
+     * Lo que se enseña cuando el tipo aparece fuera de su modulo.
+     *
+     * `name` es nullable: la tabla vivio su primer año solo con `code` —que
+     * traia el nombre completo de la v1— y una instalacion que no haya corrido
+     * la migracion de datos puede tener filas con el nombre vacio. El label
+     * nunca sale vacio: cae al codigo, que es el nombre que siempre fue.
+     */
+    public function getLabelAttribute(): string
+    {
+        return $this->name ?: $this->code;
+    }
 
     /**
      * La URL lleva el slug y no el id, como el resto de los módulos: un id

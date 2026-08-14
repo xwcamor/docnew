@@ -176,7 +176,7 @@ abstract class BaseApprovalRuleExportJob implements ShouldQueue
                   ->orWhereNull('approval_rules.tenant_id');
             });
         }
-        $base->with(['country:id,name', 'workType:id,code']);
+        $base->with(['country:id,name', 'workType:id,code,name']);
 
         if ($scope === 'selected' && !empty($this->options['selected_ids'])) {
             return $base->whereIn('approval_rules.id', $this->options['selected_ids']);

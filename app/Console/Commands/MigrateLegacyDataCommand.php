@@ -1189,13 +1189,24 @@ class MigrateLegacyDataCommand extends Command
     protected function catalogoTipos($viejo): array
     {
         return $this->catalogo($viejo, 'work_types', function ($f) {
-            // En destino el nombre traducible vive en los archivos de idioma:
-            // la tabla solo guarda el codigo, que aqui es el nombre en espanol.
+            // La fila equivalente se busca por el CODIGO, que es la identidad
+            // (unica por pais y clave del pivote de documentos): las primeras
+            // corridas metieron el nombre de la v1 ahi, asi que es donde un
+            // «Izaje y Montaje de estructuras» ya migrado se reconoce.
             return WorkType::withTrashed()
                 ->where('country_id', $this->countryId)
                 ->whereRaw('lower(code) = ?', [mb_strtolower($f->name_es)])
                 ->first();
-        }, fn ($f) => ['country_id' => $this->countryId, 'code' => $f->name_es, 'is_active' => (bool) $f->is_active]);
+        }, fn ($f) => [
+            'country_id' => $this->countryId,
+            'code'       => $f->name_es,
+            // Y tambien al nombre, que es donde siempre debio estar. Al
+            // RE-correr, `catalogo()` actualiza la fila existente, asi que las
+            // migradas antes de que existiera la columna se curan solas:
+            // name vacio pasa a ser name_es. Idempotente — la v1 no cambia.
+            'name'       => $f->name_es,
+            'is_active'  => (bool) $f->is_active,
+        ]);
     }
 
     /** @return array<int, int> legacy_id => work_locations.id */

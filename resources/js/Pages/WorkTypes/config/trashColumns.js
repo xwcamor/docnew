@@ -2,7 +2,10 @@
  * Columnas de la papelera: quién borró, cuándo y por qué.
  */
 export const workTypesTrashColumns = (t) => [
-    { title: t('work_types.code'),           dataIndex: 'code',                key: 'code',       width: 200, mobile: { role: 'title' } },
+    // El nombre delante, como en el listado; el código sigue siendo lo que se
+    // teclea para confirmar el borrado definitivo.
+    { title: t('work_types.name'),           dataIndex: 'name',                key: 'name',       width: 200, mobile: { role: 'title' } },
+    { title: t('work_types.code'),           dataIndex: 'code',                key: 'code',       width: 150, mobile: { role: 'subtitle' } },
     { title: t('work_types.country'),        dataIndex: ['country', 'name'],   key: 'country',    width: 170, mobile: { role: 'subtitle' } },
     { title: t('global.deleted_by'),         dataIndex: 'deleter_name',        key: 'deleter',    width: 180, mobile: { role: 'meta' } },
     { title: t('global.deleted_at'),         dataIndex: 'deleted_at',          key: 'deleted_at', width: 180, mobile: { role: 'meta' } },

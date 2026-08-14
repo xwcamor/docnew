@@ -90,12 +90,14 @@ const guardar = () => {
 </script>
 
 <template>
-    <Head :title="workType.code" />
+    <!-- El nombre con caída al código: una fila migrada sin nombre no debe
+         abrir una ficha sin título. -->
+    <Head :title="workType.label ?? workType.code" />
 
     <div class="show-page sap-show">
         <SectionHeader
             :back-href="route('business_management.work_types.index')"
-            :title="workType.code"
+            :title="workType.label ?? workType.code"
             :icon-bg="iconBg"
         >
             <template #icon><ToolOutlined /></template>
@@ -227,6 +229,10 @@ const guardar = () => {
                         <div v-if="isSuper" class="spec-cell">
                             <span class="spec-cell__label">Slug</span>
                             <span class="spec-cell__value"><code class="muted">{{ workType.slug }}</code></span>
+                        </div>
+                        <div class="spec-cell">
+                            <span class="spec-cell__label">{{ $t('work_types.name') }}</span>
+                            <span class="spec-cell__value">{{ workType.name ?? '—' }}</span>
                         </div>
                         <div class="spec-cell">
                             <span class="spec-cell__label">{{ $t('work_types.code') }}</span>

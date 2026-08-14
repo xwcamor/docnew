@@ -34,10 +34,12 @@ trait ValidatesWorkType
 
     protected function prepareForValidation(): void
     {
-        // El código se guarda tal cual se escribe («Izaje», no «izaje»), pero
-        // sin los espacios de sobra que llegan de copiar y pegar.
-        if (is_string($this->input('code'))) {
-            $this->merge(['code' => trim($this->input('code'))]);
+        // El código y el nombre se guardan tal cual se escriben («Izaje», no
+        // «izaje»), pero sin los espacios de sobra que llegan de copiar y pegar.
+        foreach (['code', 'name'] as $campo) {
+            if (is_string($this->input($campo))) {
+                $this->merge([$campo => trim($this->input($campo))]);
+            }
         }
     }
 
@@ -45,6 +47,12 @@ trait ValidatesWorkType
     {
         return [
             'country_id' => ['required', 'integer', Rule::exists('countries', 'id')->whereNull('deleted_at')],
+
+            // El nombre es lo que se lee en pantalla; el código es la sigla y
+            // sigue siendo la identidad (único por país, ver abajo). El nombre
+            // no exige unicidad: dos nombres parecidos no rompen nada, dos
+            // códigos iguales sí.
+            'name' => ['required', 'string', 'max:255'],
 
             'code' => [
                 'required', 'string', 'max:255',
