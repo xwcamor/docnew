@@ -474,3 +474,107 @@ constructor no signifique saltarse sus reglas.
 
 Nacen **publicados**: son los formatos que la obra usa desde el primer día, no un
 borrador que alguien tenga que revisar.
+
+---
+
+## Las dos formas de todo lo que configura el cliente
+
+Cualquier lista de `config` —respuestas, equipos, herramientas, preguntas,
+columnas, actividades— admite dos formas, y **las dos son válidas para
+siempre**:
+
+```json
+"answers": [
+  "Conforme",                                          // forma corta
+  { "value": "No conforme", "tone": "bad",             // forma larga
+    "label": { "en": "Non-compliant" } }
+]
+```
+
+La corta es lo que hay en los cuatro formatos migrados y en las 14 000 entregas:
+una cadena es su propio valor y su propio rótulo. La larga añade las dos cosas
+que una cadena no puede llevar dentro.
+
+**`value` es lo que se guarda y no se traduce jamás.** Es la clave de la
+respuesta en `form_answers`, la que casa el PDF con su columna y la que
+escribieron las entregas migradas. Traducirla convertiría el mismo documento en
+dos documentos distintos según el idioma de la tablet. Lo que cambia con el
+idioma es el **rótulo**, que es lo único que se lee.
+
+Un texto suelto del cliente —el nombre de un grupo del EPP, el rótulo de una
+banda— admite lo mismo: `"Cabeza"` o `{"es": "Cabeza", "en": "Head"}`. Un idioma
+nuevo es una clave más: ni columna, ni migración.
+
+| Pieza | Qué resuelve |
+| --- | --- |
+| `App\Support\TextoTraducible` | Un texto del cliente en el idioma de quien mira |
+| `App\Support\Catalogo` | Una lista: valores, rótulos y tonos |
+| `App\Support\BandasDeRiesgo` | Las bandas de la matriz |
+| `resources/js/Support/catalogo.js` | **El gemelo exacto de los tres**, para la pantalla |
+| `tests/Feature/FieldWork/EscalabilidadDelMotorTest.php` | Compara las dos mitades |
+
+Hay dos implementaciones a propósito: la pantalla tiene que pintar la casilla en
+el momento en que se toca, sin ir al servidor, y el servidor tiene que contar las
+no conformidades y dibujar el PDF sin preguntarle a la pantalla. Lo que **no**
+puede pasar es que digan cosas distintas —la casilla en rojo y el contador en
+cero—, y de eso se ocupa la prueba.
+
+### El tono de una respuesta se declara
+
+`tone` es `ok`, `bad` o `na`, y decide **todo** lo que cuelga de una respuesta:
+si cuenta como observación en la ficha del plan, qué símbolo lleva en el PDF, de
+qué color sale la pastilla, si dispara los campos de medida de corrección y si el
+servidor la escribe al cerrar los huecos.
+
+Cuando no se declara, se deduce del texto («empieza por no» → no conformidad).
+**Esa deducción es compatibilidad con lo que ya estaba escrito, no un mecanismo
+para formatos nuevos.** Se equivoca, y hacia el lado peligroso:
+
+| Catálogo | Qué deducía | Qué pasaba |
+| --- | --- | --- |
+| `Rechazado`, `Malo`, `Deficiente`, `Fail` | conforme | El fallo salía en verde, y sin ninguna respuesta negativa la pastilla **no tenía a dónde ir** para registrarlo |
+| `Normal` | no conformidad | Un equipo en buen estado contaba como observación |
+
+No se arregla alargando la lista de palabras en castellano: la siguiente empresa
+traerá otras. Se arregla declarándolo, y el editor lo pide.
+
+### Las bandas de la matriz de riesgo
+
+```json
+"levels": [
+  { "clave": "critico", "min": 20, "max": 25,
+    "label": { "es": "Riesgo crítico", "en": "Critical risk" },
+    "tone": "bad" },
+  { "clave": "aceptable", "min": 1, "max": 9, "tolerable": true }
+]
+```
+
+- **`min`/`max` son un rango**, no un límite acumulado. Con eso da igual que lo
+  peor de la escala sea el 1 (la matriz de la v1) o el 25 (la clásica de
+  severidad × probabilidad). La forma vieja —sólo `hasta`— se sigue leyendo como
+  el tramo que empieza donde acabó la anterior.
+- **`clave` es lo que se guarda** en cada peligro evaluado. No se traduce.
+- **`label` es lo que se lee.** Sin él, las bandas que se llamen como las de la
+  v1 caen a la traducción del producto y el resto se leen por su clave.
+- **`tone`** es uno de `bad | warn | ok | info | off`: los `--state-*` del
+  sistema, no un color tecleado. Sin declararlo se reparte por posición —la
+  primera roja, la última verde, las de en medio ámbar—, que es exactamente
+  alto/medio/bajo. **Nunca sale del nombre de la banda**: `.ff-risk.is-alto` era
+  el motivo de que una empresa con `crítico/moderado/aceptable` viera sus AST en
+  gris.
+- **`tolerable`** marca la banda que no cuenta como observación. Sin marcar
+  ninguna se toma la última. Sin bandas declaradas no se inventa ninguna y ningún
+  peligro cuenta: antes se caía a la palabra `bajo` escrita en el código, y en un
+  formato con otros nombres eso convertía en observación cada peligro evaluado.
+
+### El puntaje sale de la tabla, no de una multiplicación
+
+`config.matrix` es la cuadrícula real: una fila por severidad, una columna por
+probabilidad. **No es severidad × probabilidad** — doce de las veinticinco celdas
+de la matriz de la v1 caen en otra banda si se multiplica (c2×p4 vale 12 en la
+tabla y 8 en el producto, que es la diferencia entre «medio» y «alto»). El
+producto queda sólo de red para un formato al que todavía no le hayan cargado su
+tabla, y por eso el editor la pide.
+
+Todo esto se configura en la pantalla de estructura del formato. Nada de ello
+necesita entrar a la base.
